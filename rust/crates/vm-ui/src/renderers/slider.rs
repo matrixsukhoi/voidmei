@@ -13,9 +13,9 @@
 //! 重建整页; D9 后视图刷新归 web 壳 (writeInt 的服务 CONFIG_CHANGED 广播面),
 //! Rust 侧 on_rebuild 无消费效果, 该分支不再保留。
 
-use vm_core::config::config_loader::{ConfigValue, GroupConfig};
-use crate::renderer_config_helper;
 use crate::render_context::RenderContext;
+use crate::renderer_config_helper;
+use vm_core::config::config_loader::{ConfigValue, GroupConfig};
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 
@@ -33,7 +33,10 @@ pub fn apply(panel: &mut GroupConfig, key: &str, value: i32, ctx: &dyn RenderCon
     let Some(path) = find_row_path(&panel.rows, key) else {
         return;
     };
-    let prop = row_by_path(&panel.rows, &path).expect("find_row_path 已定位").property.clone();
+    let prop = row_by_path(&panel.rows, &path)
+        .expect("find_row_path 已定位")
+        .property
+        .clone();
 
     // Update memory model so it saves to ui_layout.cfg
     row_by_path_mut(&mut panel.rows, &path)

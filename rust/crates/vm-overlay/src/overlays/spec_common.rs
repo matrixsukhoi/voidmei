@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 
-use crate::platform::host::{OverlaySpec, RenderFn, ReinitFn};
+use crate::platform::host::{OverlaySpec, ReinitFn, RenderFn};
 use crate::render::font::LoadedFont;
 
 /// reinit 字体热换失败的统一留痕 — 原五份 (EngineControl/GearFlaps/

@@ -10,24 +10,24 @@ use super::fm_unpacked::{
 use super::gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
 use super::gear_flaps::{gear_flaps_overlay_spec, GearFlapsState};
 use super::power_info::{power_info_overlay_spec, PowerInfoState};
+use crate::layout::ui_constants::ENGINE_DEFAULT_REFRESH_MS;
+use crate::platform::host::OverlayHost;
+use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::{aa, colors};
-use crate::render::renderers::{BosStyleRenderer, RenderContext};
 #[cfg(test)]
 use crate::render::primitives::butt_line;
-use vm_core::base::format::{java_format_f, java_string_format, FmtArg};
-use crate::platform::host::OverlayHost;
-use crate::platform::reinit::ReinitParams;
-use crate::layout::ui_constants::ENGINE_DEFAULT_REFRESH_MS;
+use crate::render::renderers::{BosStyleRenderer, RenderContext};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use vm_core::base::event::EventPayload;
+use vm_core::base::format::{java_format_f, java_string_format, FmtArg};
 use vm_core::config::config_api::ConfigProvider;
-use vm_core::fm::FMManager;
 use vm_core::fm::data::{FmData, FmParts};
+use vm_core::fm::FMManager;
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 
@@ -36,8 +36,13 @@ use vm_core::lang::Lang;
 const FONTS: &str = "../../../fonts";
 
 fn bold(size: i32) -> LoadedFont {
-    LoadedFont::new(std::path::Path::new(FONTS).join("sarasa-mono-sc-bold.ttf").as_path(), size)
-        .unwrap()
+    LoadedFont::new(
+        std::path::Path::new(FONTS)
+            .join("sarasa-mono-sc-bold.ttf")
+            .as_path(),
+        size,
+    )
+    .unwrap()
 }
 
 /// 读预乘 RGBA 像素
@@ -250,9 +255,14 @@ fn vis_expr_semantics() {
     assert!(vm_core::ui_support::row_def::Cond::Eq(1.0).eval(&t, 1.0001));
     assert!(!vm_core::ui_support::row_def::Cond::NotEq(1.0).eval(&t, 1.0001));
     assert!(!vm_core::ui_support::row_def::Cond::NotEq(1.0).eval(&t, 1.0));
-    let not_jet = vm_core::ui_support::row_def::Cond::Not(Box::new(vm_core::ui_support::row_def::Cond::IsJetEngine));
+    let not_jet = vm_core::ui_support::row_def::Cond::Not(Box::new(
+        vm_core::ui_support::row_def::Cond::IsJetEngine,
+    ));
     assert!(not_jet.eval(&t, 0.0));
-    let and = vm_core::ui_support::row_def::Cond::And(Box::new(vm_core::ui_support::row_def::Cond::IsPistonEngine), Box::new(vm_core::ui_support::row_def::Cond::NotEq(1.0)));
+    let and = vm_core::ui_support::row_def::Cond::And(
+        Box::new(vm_core::ui_support::row_def::Cond::IsPistonEngine),
+        Box::new(vm_core::ui_support::row_def::Cond::NotEq(1.0)),
+    );
     assert!(and.eval(&t, 0.98));
     assert!(!and.eval(&t, 1.0));
 }
@@ -319,12 +329,20 @@ fn marked_gauge_horizontal_geometry() {
     assert_eq!(alpha(&cv, 100, 25), 0, "填充外/边框内无背景");
     // 填充: (10,20,48,12) → 右缘列 57
     assert_eq!(alpha(&cv, 11, 21), colors().num[3], "填充左上内");
-    assert_eq!(alpha(&cv, 57, 30), colors().num[3], "填充右下内 (row31 与环底行重叠)");
+    assert_eq!(
+        alpha(&cv, 57, 30),
+        colors().num[3],
+        "填充右下内 (row31 与环底行重叠)"
+    );
     // (58,25) 为分隔线主线列 (x+pixVal); 其右 2px 才是填充外
     assert_eq!(alpha(&cv, 60, 25), 0, "填充/分隔线右外");
     // 边框环 (drawRect(10,20,95,11)): 右边框列 105 纯 shade
     assert_eq!(alpha(&cv, 105, 25), colors().shade_shape[3]);
-    assert_eq!(alpha(&cv, 10, 20), 242, "左上角 = shade over fill (SrcOver)");
+    assert_eq!(
+        alpha(&cv, 10, 20),
+        242,
+        "左上角 = shade over fill (SrcOver)"
+    );
     // 分隔线 (无标记 → 1px): 主线列 x+pixVal=58, 影线列 59,
     // 行 y..y+sepHeight = 20..20+(12+12+2)=46
     assert_eq!(alpha(&cv, 58, 45), colors().num[3], "主线延伸到条下方");
@@ -352,7 +370,7 @@ fn marked_gauge_marker_line_and_wide_separator() {
     });
     mg.set_max_value(100.0);
     mg.update_display(50, "50"); // pixVal = 48 → markerX = 10 + (int)(96*0.5) = 58
-    // ratio 0.25 → markerX = 10 + (int)(96*0.25) = 34 (避开分隔线列 57..59)
+                                 // ratio 0.25 → markerX = 10 + (int)(96*0.25) = 34 (避开分隔线列 57..59)
     mg.add_marker(GaugeMarker {
         id: "optimal".to_string(),
         marker_type: MarkerType::LineFull,
@@ -363,7 +381,10 @@ fn marked_gauge_marker_line_and_wide_separator() {
     let mut cv = PixCanvas::new(140, 60).unwrap();
     mg.draw(&mut cv, 10, 20, 96, 12, &font, false);
     // LINE_FULL 标记 (列 33..34, 行 20..30): warning(a=100) SrcOver 填充(a=240) → 加深
-    assert!(alpha(&cv, 33, 25) > colors().num[3], "标记左列 = warning over fill");
+    assert!(
+        alpha(&cv, 33, 25) > colors().num[3],
+        "标记左列 = warning over fill"
+    );
     assert!(alpha(&cv, 34, 25) > colors().num[3], "标记右列");
     assert_eq!(alpha(&cv, 32, 25), colors().num[3], "标记左外 = 纯填充");
     assert_eq!(alpha(&cv, 35, 25), colors().num[3], "标记右外 = 纯填充");
@@ -373,7 +394,11 @@ fn marked_gauge_marker_line_and_wide_separator() {
     assert_eq!(alpha(&cv, 34, 32), 0, "条外行无标记");
     // 分隔线承袭 tickStroke (2px): 主线列 57..58, 影线列 58..59 (先主线后影线,
     // col58 = 影线 over 主线 ≈243); 延伸行到 46
-    assert_eq!(alpha(&cv, 57, 45), colors().num[3], "主线 (2px) 左列 (纯主线)");
+    assert_eq!(
+        alpha(&cv, 57, 45),
+        colors().num[3],
+        "主线 (2px) 左列 (纯主线)"
+    );
     assert_eq!(alpha(&cv, 58, 45), 243, "主线右列 = 主线+影线叠加");
     assert_eq!(alpha(&cv, 59, 45), colors().shade_shape[3], "影线纯段");
     assert_eq!(alpha(&cv, 60, 45), 0, "影线右外");
@@ -393,11 +418,22 @@ fn marked_gauge_vertical_geometry() {
     // barX = x + labelW + valueW + 2
     let bar_x = 5 + font.measure("节") + font.measure("50") + 2;
     // 背景条 (shade): 顶端行 10
-    assert_eq!(alpha(&cv, bar_x + 3, 10), colors().shade_shape[3], "背景条顶端");
+    assert_eq!(
+        alpha(&cv, bar_x + 3, 10),
+        colors().shade_shape[3],
+        "背景条顶端"
+    );
     // 填充自底向上: pixVal = 20 → rows 30..49; 背景在 rows 10..29
-    assert_eq!(alpha(&cv, bar_x + 3, 15), colors().shade_shape[3], "上半背景");
+    assert_eq!(
+        alpha(&cv, bar_x + 3, 15),
+        colors().shade_shape[3],
+        "上半背景"
+    );
     // 下半填充 = colorNum SrcOver colorShadeShape 背景 → alpha ≈ 243 (双层)
-    assert!((242..=244).contains(&alpha(&cv, bar_x + 3, 35)), "下半填充 (叠背景)");
+    assert!(
+        (242..=244).contains(&alpha(&cv, bar_x + 3, 35)),
+        "下半填充 (叠背景)"
+    );
     // 分隔线: sepY = 10+40-1-20 = 29, 环 29..31 + fill 内芯行 30
     assert_eq!(alpha(&cv, 5, 29), colors().shade_shape[3], "分隔环上边");
     // 内芯行 30: 取文本与条之间的列 (bar_x-1), 避开文本 descender
@@ -411,7 +447,6 @@ fn defs19() -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
     std::sync::Arc::new(crate::overlays::flight_info::cfg_rows("动力信息"))
 }
 
-
 /// cfg 驱动快照 (W-D): "动力信息" 组 19 行, 关键行 (进气压动态通道 / 燃油时
 /// TIME_MM_SS) 与原静态表逐值一致 — cfg 是行定义唯一来源的守卫锚
 #[test]
@@ -423,10 +458,17 @@ fn power_field_defs_snapshot() {
     assert_eq!(defs[0].na_when, Some(Cond::Lte(0.0)));
     let manifold = &defs[6];
     assert_eq!(manifold.label, "进气压");
-    assert_eq!(manifold.display, DisplayMode::ImperialManifold, "进气压动态单位/精度通道");
+    assert_eq!(
+        manifold.display,
+        DisplayMode::ImperialManifold,
+        "进气压动态单位/精度通道"
+    );
     assert_eq!(
         manifold.visible_when,
-        Some(Cond::And(Box::new(Cond::IsPistonEngine), Box::new(Cond::NotEq(1.0))))
+        Some(Cond::And(
+            Box::new(Cond::IsPistonEngine),
+            Box::new(Cond::NotEq(1.0))
+        ))
     );
     let fuel_time = &defs[10];
     assert_eq!(fuel_time.source, "fuel_time_mili * 0.001");
@@ -462,7 +504,10 @@ fn power_info_update_paths() {
     assert!(st.update(100, &t));
     let f = st.fields();
     let find = |l: &str| f.iter().find(|x| x.label == l).unwrap();
-    assert_eq!((find("功  率").buffer.as_str(), find("功  率").length), ("1200", 4));
+    assert_eq!(
+        (find("功  率").buffer.as_str(), find("功  率").length),
+        ("1200", 4)
+    );
     assert_eq!(find("桨距角").buffer, "55.0");
     assert_eq!(find("进气压").buffer, "0.98");
     assert_eq!(find("进气压").unit, "Ata");
@@ -474,7 +519,14 @@ fn power_info_update_paths() {
     // 节流: 间隔内 (+30ms < 50) 拒绝且数据不更新 (转速改 9999 不生效)
     t.rpm = 9999.0;
     assert!(!st.update(130, &t));
-    assert_eq!(st.fields().iter().find(|x| x.label == "转  速").unwrap().buffer, "2400");
+    assert_eq!(
+        st.fields()
+            .iter()
+            .find(|x| x.label == "转  速")
+            .unwrap()
+            .buffer,
+        "2400"
+    );
     t.rpm = 2400.0;
     // na-when: 功率 0 → "-"
     t.horse_power = 0.0;
@@ -496,13 +548,28 @@ fn power_info_update_paths() {
     t.piston = false;
     assert!(st.update(400, &t));
     assert!(!st.fields()[0].visible, "喷气机隐藏功率");
-    assert!(st.fields().iter().find(|x| x.label == "推  力").unwrap().visible);
+    assert!(
+        st.fields()
+            .iter()
+            .find(|x| x.label == "推  力")
+            .unwrap()
+            .visible
+    );
     // 进气压 value=1 (容差内) → 活塞机也隐藏
     let mut st2 = PowerInfoState::new(defs19());
-    let mut t2 = MockTele { manifold: 1.0, ..MockTele::default() };
+    let mut t2 = MockTele {
+        manifold: 1.0,
+        ..MockTele::default()
+    };
     t2.piston = true;
     assert!(st2.update(100, &t2));
-    assert!(!st2.fields().iter().find(|x| x.label == "进气压").unwrap().visible);
+    assert!(
+        !st2.fields()
+            .iter()
+            .find(|x| x.label == "进气压")
+            .unwrap()
+            .visible
+    );
 }
 
 /// 预览 = 构造后不 update: previewValue 原样落 currentValue, 全部可见
@@ -511,7 +578,14 @@ fn power_info_preview_state() {
     let st = PowerInfoState::new(defs19());
     assert!(st.fields().iter().all(|f| f.visible));
     assert_eq!(st.fields()[0].current_value, "1200");
-    assert_eq!(st.fields().iter().find(|x| x.label == "进气压").unwrap().current_value, "1.2");
+    assert_eq!(
+        st.fields()
+            .iter()
+            .find(|x| x.label == "进气压")
+            .unwrap()
+            .current_value,
+        "1.2"
+    );
     assert_eq!(st.fields().iter().filter(|f| f.visible).count(), 19);
 }
 
@@ -530,14 +604,33 @@ fn power_info_reset_preview_restores_statics() {
     };
     assert!(st.update(100, &t));
     assert_eq!(st.fields()[0].buffer, "1200", "live 已写 buffer");
-    assert!(!st.fields().iter().find(|x| x.label == "助推燃料").unwrap().visible,
-        "助推 false → live 隐藏 (preview 构造态为全可见)");
+    assert!(
+        !st.fields()
+            .iter()
+            .find(|x| x.label == "助推燃料")
+            .unwrap()
+            .visible,
+        "助推 false → live 隐藏 (preview 构造态为全可见)"
+    );
     // 重置 → 构造态: buffer 清空 / 全可见 / currentValue 回 previewValue
     st.reset_preview();
-    assert!(st.fields().iter().all(|f| f.length == 0 && f.buffer.is_empty()));
-    assert!(st.fields().iter().all(|f| f.visible), "可见性回构造态 (live 残留清除)");
+    assert!(st
+        .fields()
+        .iter()
+        .all(|f| f.length == 0 && f.buffer.is_empty()));
+    assert!(
+        st.fields().iter().all(|f| f.visible),
+        "可见性回构造态 (live 残留清除)"
+    );
     assert_eq!(st.fields()[0].current_value, "1200");
-    assert_eq!(st.fields().iter().find(|x| x.label == "进气压").unwrap().current_value, "1.2");
+    assert_eq!(
+        st.fields()
+            .iter()
+            .find(|x| x.label == "进气压")
+            .unwrap()
+            .current_value,
+        "1.2"
+    );
     assert_eq!(st.last_refresh_time, 0, "节流基准复位 (重进游戏首帧不误吞)");
 }
 
@@ -568,16 +661,24 @@ fn engine_control_defs_and_layout() {
     assert_eq!(st.gauges.len(), 7);
     assert_eq!(st.font_size, 24);
     assert_eq!(st.width, 192); // 24*8
-    // (24*4+24*9)>>1 + (4+1)*(24+6) = 156 + 150 = 306
+                               // (24*4+24*9)>>1 + (4+1)*(24+6) = 156 + 150 = 306
     assert_eq!(st.height, 306);
     // Lang 标签接线 (Lang.eThrottle="节" 等)
     assert_eq!(st.gauges[0].gauge.gauge.label, "节");
     assert_eq!(st.gauges[5].gauge.gauge.label, "增");
     // COMPRESSOR 挂 MarkedGauge, 其余不挂
     assert!(st.gauges[5].marked_gauge.is_some());
-    assert_eq!(st.gauges().iter().filter(|g| g.marked_gauge.is_some()).count(), 1);
+    assert_eq!(
+        st.gauges()
+            .iter()
+            .filter(|g| g.marked_gauge.is_some())
+            .count(),
+        1
+    );
     // 禁用探测: disableEngineInfoThrottle=true → 6 仪表, 高度重算 (row_num 仍 4)
-    let st2 = EngineControlState::new(&l, 0, 1.0, &|k| k == "disableEngineInfoThrottle", &|_| String::new());
+    let st2 = EngineControlState::new(&l, 0, 1.0, &|k| k == "disableEngineInfoThrottle", &|_| {
+        String::new()
+    });
     assert_eq!(st2.gauges.len(), 6);
     assert!(st2.gauge_by_key("throttle").is_none());
     assert_eq!(st2.height, 306, "竖条不进行数公式");
@@ -599,11 +700,20 @@ fn engine_control_preview_values() {
     // Java initPreview (:171-172) 对 init 链结果原样二次调用 (幂等)
     st.update_preview();
     let thr = st.gauge_by_key("throttle").unwrap();
-    assert_eq!((thr.gauge.gauge.cur_value, thr.gauge.gauge.display_value.as_str()), (55, "55"));
+    assert_eq!(
+        (
+            thr.gauge.gauge.cur_value,
+            thr.gauge.gauge.display_value.as_str()
+        ),
+        (55, "55")
+    );
     let comp = st.gauge_by_key("compressor").unwrap();
     let mg = comp.marked_gauge.as_ref().unwrap();
     // max=1 → val=0 → 显示 1 基档号 "1" (display 通道)
-    assert_eq!((mg.current_value, mg.value_len, mg.display_value.as_str()), (0.0, 0, "1"));
+    assert_eq!(
+        (mg.current_value, mg.value_len, mg.display_value.as_str()),
+        (0.0, 0, "1")
+    );
     assert_eq!(mg.markers[0].ratio, 0.5);
     assert!(st.gauges().iter().all(|g| g.visible));
 }
@@ -624,20 +734,34 @@ fn engine_control_load_refresh_interval() {
         }
     }
     // dataPollIntervalMs=50 → 100
-    let st = EngineControlState::new(&l, 0, 1.0, &|_| false,
-        &cfg_of(&[("dataPollIntervalMs", "50")]));
+    let st = EngineControlState::new(
+        &l,
+        0,
+        1.0,
+        &|_| false,
+        &cfg_of(&[("dataPollIntervalMs", "50")]),
+    );
     assert_eq!(st.refresh_interval, 100);
     // legacy "Interval" 回退: 33 → 66
-    let st2 = EngineControlState::new(&l, 0, 1.0, &|_| false,
-        &cfg_of(&[("Interval", "33")]));
+    let st2 = EngineControlState::new(&l, 0, 1.0, &|_| false, &cfg_of(&[("Interval", "33")]));
     assert_eq!(st2.refresh_interval, 66);
     // dataPollIntervalMs 优先于 legacy
-    let st3 = EngineControlState::new(&l, 0, 1.0, &|_| false,
-        &cfg_of(&[("dataPollIntervalMs", "20"), ("Interval", "999")]));
+    let st3 = EngineControlState::new(
+        &l,
+        0,
+        1.0,
+        &|_| false,
+        &cfg_of(&[("dataPollIntervalMs", "20"), ("Interval", "999")]),
+    );
     assert_eq!(st3.refresh_interval, 40);
     // 解析失败 → parseLongSafe 默认 100 → ×2 = 200
-    let st4 = EngineControlState::new(&l, 0, 1.0, &|_| false,
-        &cfg_of(&[("dataPollIntervalMs", "abc")]));
+    let st4 = EngineControlState::new(
+        &l,
+        0,
+        1.0,
+        &|_| false,
+        &cfg_of(&[("dataPollIntervalMs", "abc")]),
+    );
     assert_eq!(st4.refresh_interval, 200);
     // 双键空 → 保持字段初始默认 100 (POC 空配置读取器同此)
     let st5 = EngineControlState::new(&l, 0, 1.0, &|_| false, &|_| String::new());
@@ -645,10 +769,18 @@ fn engine_control_load_refresh_interval() {
 
     // 节流随间隔生效: interval=100 (dataPollIntervalMs=50) — 首事件 0 跳过,
     // +50 拒绝, +100 放行
-    let mut st6 = EngineControlState::new(&l, 0, 1.0, &|_| false,
-        &cfg_of(&[("dataPollIntervalMs", "50")]));
+    let mut st6 = EngineControlState::new(
+        &l,
+        0,
+        1.0,
+        &|_| false,
+        &cfg_of(&[("dataPollIntervalMs", "50")]),
+    );
     let t = MockTele::default();
-    assert!(!st6.update(0, &t, &payload(false, false, -1), None), "0-0 < 100 跳过");
+    assert!(
+        !st6.update(0, &t, &payload(false, false, -1), None),
+        "0-0 < 100 跳过"
+    );
     assert!(st6.update(100, &t, &payload(false, false, -1), None));
     assert!(!st6.update(150, &t, &payload(false, false, -1), None));
     assert!(st6.update(200, &t, &payload(false, false, -1), None));
@@ -696,7 +828,10 @@ fn engine_control_update_zero_gc() {
     assert_eq!(g("throttle", &st).0, 55, "节流内跳过, 值不更新");
 
     // PITCH -1 (自动桨): 整条隐藏且值不更新
-    let mut t2 = MockTele { rpm_throttle: -1.0, ..t };
+    let mut t2 = MockTele {
+        rpm_throttle: -1.0,
+        ..t
+    };
     t2.throttle = 60.0;
     assert!(st.update(400, &t2, &payload(false, false, -1), None));
     let pitch = st.gauge_by_key("pitch").unwrap();
@@ -705,7 +840,11 @@ fn engine_control_update_zero_gc() {
     assert_eq!(g("throttle", &st).0, 60);
 
     // MIXTURE -1 → 隐藏; COMPRESSOR stage 0 → 隐藏
-    let t3 = MockTele { mixture: -1.0, compressor_stage: 0.0, ..t2 };
+    let t3 = MockTele {
+        mixture: -1.0,
+        compressor_stage: 0.0,
+        ..t2
+    };
     assert!(st.update(600, &t3, &payload(false, false, -1), None));
     assert!(!st.gauge_by_key("mixture").unwrap().visible);
     assert!(!st.gauge_by_key("compressor").unwrap().visible);
@@ -727,13 +866,26 @@ fn engine_control_jet_latch_and_compressor_range() {
     let comp = st.gauge_by_key("compressor").unwrap();
     assert_eq!(comp.gauge.gauge.max_value, 2, "量程 = stages-1");
     assert_eq!(comp.marked_gauge.as_ref().unwrap().max_value, 2.0);
-    assert_eq!(comp.marked_gauge.as_ref().unwrap().markers[0].ratio, 0.5, "optimal 1/2");
+    assert_eq!(
+        comp.marked_gauge.as_ref().unwrap().markers[0].ratio,
+        0.5,
+        "optimal 1/2"
+    );
     // 闩锁: 后续事件 is_jet=false 不翻转; 量程一次性 (stages 变 5 不改)
     assert!(st.update(400, &t, &payload(false, true, -1), Some(5)));
     assert!(st.is_jet(), "jetLabelUpdated 闩锁");
-    assert_eq!(st.gauge_by_key("compressor").unwrap().gauge.gauge.max_value, 2);
     assert_eq!(
-        st.gauge_by_key("compressor").unwrap().marked_gauge.as_ref().unwrap().markers[0].ratio,
+        st.gauge_by_key("compressor").unwrap().gauge.gauge.max_value,
+        2
+    );
+    assert_eq!(
+        st.gauge_by_key("compressor")
+            .unwrap()
+            .marked_gauge
+            .as_ref()
+            .unwrap()
+            .markers[0]
+            .ratio,
         -1.0,
         "optimal 无效 → 隐藏"
     );
@@ -741,7 +893,10 @@ fn engine_control_jet_latch_and_compressor_range() {
     let mixture_before = st.gauge_by_key("mixture").unwrap().gauge.gauge.cur_value;
     let t2 = MockTele { mixture: 50.0, ..t };
     assert!(st.update(600, &t2, &payload(false, true, -1), None));
-    assert_eq!(st.gauge_by_key("mixture").unwrap().gauge.gauge.cur_value, mixture_before);
+    assert_eq!(
+        st.gauge_by_key("mixture").unwrap().gauge.gauge.cur_value,
+        mixture_before
+    );
 }
 
 /// drawGauges 布局: 竖条 (x+dx, y-4fs) dx += (5fs)>>1; 横条 (x, y+dy) dy += fs+fs>>2;
@@ -767,20 +922,40 @@ fn engine_control_draw_layout() {
     // x = 12, y = 168; 竖条 top = y-4fs = 72
     let tw1 = font_label.measure("节") + font_label.measure("55");
     let bar1_x = 12 + tw1 + 2;
-    assert_eq!(alpha(&cv, bar1_x, 72), colors().shade_shape[3], "竖条1 环左上");
-    assert_eq!(alpha(&cv, bar1_x + 11, 100), colors().shade_shape[3], "竖条1 环右边");
-    assert_eq!(alpha(&cv, bar1_x + 3, 110), 0, "填充上方 (val=48 → rows 119+)");
+    assert_eq!(
+        alpha(&cv, bar1_x, 72),
+        colors().shade_shape[3],
+        "竖条1 环左上"
+    );
+    assert_eq!(
+        alpha(&cv, bar1_x + 11, 100),
+        colors().shade_shape[3],
+        "竖条1 环右边"
+    );
+    assert_eq!(
+        alpha(&cv, bar1_x + 3, 110),
+        0,
+        "填充上方 (val=48 → rows 119+)"
+    );
     assert_eq!(alpha(&cv, bar1_x + 3, 130), colors().num[3], "填充段内");
     // 竖条2 (pitch): dx = (5*24)>>1 = 60
     let tw2 = font_label.measure("桨") + font_label.measure("60");
     let bar2_x = 12 + 60 + tw2 + 2;
-    assert_eq!(alpha(&cv, bar2_x, 72), colors().shade_shape[3], "竖条2 环左上 (dx 推进)");
+    assert_eq!(
+        alpha(&cv, bar2_x, 72),
+        colors().shade_shape[3],
+        "竖条2 环左上 (dx 推进)"
+    );
     // 横条 (mixture, 第一个横向): (12, 168+12=180)
     assert_eq!(alpha(&cv, 12, 180), colors().shade_shape[3], "横条环左上");
     assert_eq!(alpha(&cv, 14, 182), colors().num[3], "横条填充内");
     assert_eq!(alpha(&cv, 70, 182), 0, "横条填充外 (val=48)");
     // 横条第 2 行 (radiator, y=210) 在非 jet 下存在
-    assert_eq!(alpha(&cv, 12, 210), colors().shade_shape[3], "radiator 第二横行");
+    assert_eq!(
+        alpha(&cv, 12, 210),
+        colors().shade_shape[3],
+        "radiator 第二横行"
+    );
     // 喷气机: 隐藏 mixture/radiator/compressor (FUEL 不在 isJetHiddenGauge 列表,
     // 仍画在第一横行 y=180); 第二横行无输出
     let mut st_jet = EngineControlState::new(&l, 0, 1.0, &|_| false, &|_| String::new());
@@ -788,9 +963,17 @@ fn engine_control_draw_layout() {
     assert!(st_jet.update(200, &t_jet, &payload(true, true, -1), None));
     let mut cv2 = PixCanvas::new(st_jet.width, st_jet.height).unwrap();
     st_jet.draw(&mut cv2, &font_label, false);
-    assert_eq!(alpha(&cv2, 12, 180), colors().shade_shape[3], "jet 下 fuel 横条仍在 (第一横行)");
+    assert_eq!(
+        alpha(&cv2, 12, 180),
+        colors().shade_shape[3],
+        "jet 下 fuel 横条仍在 (第一横行)"
+    );
     assert_eq!(alpha(&cv2, 12, 210), 0, "jet 隐藏 radiator → 第二横行空");
-    assert_eq!(alpha(&cv2, bar1_x, 72), colors().shade_shape[3], "jet 保留竖条");
+    assert_eq!(
+        alpha(&cv2, bar1_x, 72),
+        colors().shade_shape[3],
+        "jet 保留竖条"
+    );
 }
 
 // ---- GearFlaps ----
@@ -801,7 +984,13 @@ fn gear_flaps_geometry_and_tick() {
     let l = lang();
     let mut st = GearFlapsState::new(0, 1.0, false);
     assert_eq!(
-        (st.font_size, st.bar_width, st.bar_height, st.width, st.height),
+        (
+            st.font_size,
+            st.bar_width,
+            st.bar_height,
+            st.width,
+            st.height
+        ),
         (24, 12, 96, 48, 120)
     );
     assert_eq!((st.total_width, st.total_height), (144, 120));
@@ -811,9 +1000,18 @@ fn gear_flaps_geometry_and_tick() {
     assert_eq!((st_e.total_width, st_e.total_height), (164, 140));
 
     // gear=100: 起落架已放 (colorNum); flaps=25; 首事件 now=0: 0-0 < 100 → 跳过
-    let mut t = MockTele { gear: 100.0, flaps: 25.0, airbrake: 0.0, ..MockTele::default() };
+    let mut t = MockTele {
+        gear: 100.0,
+        flaps: 25.0,
+        airbrake: 0.0,
+        ..MockTele::default()
+    };
     assert!(!st.update_tick(0, &l, &t), "首事件 now=0 被节流 (Java 同)");
-    assert_eq!((st.flap_pix, st.flap_text.as_str()), (48, " 50"), "跳过时保持预览初值");
+    assert_eq!(
+        (st.flap_pix, st.flap_text.as_str()),
+        (48, " 50"),
+        "跳过时保持预览初值"
+    );
     assert!(st.update_tick(100, &l, &t));
     assert_eq!(st.warn_text, "起落架");
     assert_eq!(st.warn_color, colors().num);
@@ -856,9 +1054,16 @@ fn gear_flaps_draw_pixels() {
     let mut st = GearFlapsState::new(0, 1.0, false);
     let font_num = bold(24);
     let font_label = bold(12);
-    st.update_tick(100, &l, &MockTele {
-        gear: 100.0, flaps: 50.0, airbrake: 0.0, ..MockTele::default()
-    });
+    st.update_tick(
+        100,
+        &l,
+        &MockTele {
+            gear: 100.0,
+            flaps: 50.0,
+            airbrake: 0.0,
+            ..MockTele::default()
+        },
+    );
     let mut cv = PixCanvas::new(st.total_width, st.total_height).unwrap();
     st.draw(&mut cv, &font_num, &font_label, false);
     // dy = 12+96 = 108; 条盒 rows 12..107 × cols 0..11
@@ -871,7 +1076,11 @@ fn gear_flaps_draw_pixels() {
     assert_eq!(alpha(&cv, 5, 60), colors().label[3], "指针线内芯");
     // (0,59) = 指针环上边 over 条环左列 (42 over 42 → 77); 取条宽外的 (20,59)
     assert_eq!(alpha(&cv, 0, 59), 77, "指针环上边叠条环 (SrcOver)");
-    assert_eq!(alpha(&cv, 20, 59), colors().shade_shape[3], "指针环上边 (条外段)");
+    assert_eq!(
+        alpha(&cv, 20, 59),
+        colors().shade_shape[3],
+        "指针环上边 (条外段)"
+    );
     assert_eq!(alpha(&cv, 47, 60), colors().shade_shape[3], "指针环右边列");
     // "F 50" 文本: 基线 (12, 108-48-2=58), fontLabel
     let text_zone = (12..48).any(|x| (44..58).any(|y| alpha(&cv, x, y) > 0));
@@ -901,7 +1110,10 @@ fn live_spec_handles_share_state_with_render() {
     // PowerInfo: 功率 1200 → 首字段 buffer
     let (h_power, mut spec) =
         power_info_overlay_spec(fonts, &params_cell(|p| p.power.columns = 2)).unwrap();
-    let t = MockTele { horse_power: 1200.0, ..MockTele::default() };
+    let t = MockTele {
+        horse_power: 1200.0,
+        ..MockTele::default()
+    };
     assert!(h_power.borrow_mut().update(100, &t));
     assert_eq!(h_power.borrow().fields()[0].buffer, "1200");
     let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
@@ -916,7 +1128,11 @@ fn live_spec_handles_share_state_with_render() {
         &params_cell(|p| p.service_loop_interval_ms = 50),
     )
     .unwrap();
-    assert_eq!((spec2.width, spec2.height), (192, 306), "尺寸与 preview 工厂一致");
+    assert_eq!(
+        (spec2.width, spec2.height),
+        (192, 306),
+        "尺寸与 preview 工厂一致"
+    );
 
     // disable 键实效 (审查轮 1-B): 7 仪表全关 → 布局窗口显著变矮
     // (EngineControlState::new 的 calculateLayout 按存活仪表数算高)
@@ -936,16 +1152,34 @@ fn live_spec_handles_share_state_with_render() {
     );
     // dataPollIntervalMs=50 → refreshInterval=100 (loadRefreshInterval ×2)
     assert_eq!(h_engine.borrow().refresh_interval, 100);
-    let t2 = MockTele { throttle: 80.0, ..MockTele::default() };
-    assert!(h_engine.borrow_mut().update(200, &t2, &payload(false, false, -1), None));
-    assert_eq!(h_engine.borrow().gauge_by_key("throttle").unwrap().gauge.gauge.cur_value, 80);
+    let t2 = MockTele {
+        throttle: 80.0,
+        ..MockTele::default()
+    };
+    assert!(h_engine
+        .borrow_mut()
+        .update(200, &t2, &payload(false, false, -1), None));
+    assert_eq!(
+        h_engine
+            .borrow()
+            .gauge_by_key("throttle")
+            .unwrap()
+            .gauge
+            .gauge
+            .cur_value,
+        80
+    );
     let mut cv2 = PixCanvas::new(spec2.width, spec2.height).unwrap();
     (spec2.render)(&mut cv2);
     assert!(cv2.pixmap().data().iter().any(|&b| b != 0));
 
     // GearFlaps: gear=100/flaps=25 → 告警文本 + flap_pix
     let (h_gear, mut spec3) = gear_flaps_overlay_spec(fonts, &params_cell(|_| {})).unwrap();
-    let t3 = MockTele { gear: 100.0, flaps: 25.0, ..MockTele::default() };
+    let t3 = MockTele {
+        gear: 100.0,
+        flaps: 25.0,
+        ..MockTele::default()
+    };
     assert!(h_gear.borrow_mut().update_tick(100, &l, &t3));
     assert_eq!(h_gear.borrow().flap_pix, 24);
     let mut cv3 = PixCanvas::new(spec3.width, spec3.height).unwrap();
@@ -964,12 +1198,7 @@ fn power_info_reinit_grows_with_font_add() {
     let h0 = spec.height;
     cell.borrow_mut().power.font_add = 6;
     let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
-    assert!(
-        h1 > h0,
-        "字号增量 0→6 后高度应变大 ({} → {})",
-        h0,
-        h1
-    );
+    assert!(h1 > h0, "字号增量 0→6 后高度应变大 ({} → {})", h0, h1);
     assert!(w1 > 0);
 }
 
@@ -978,8 +1207,7 @@ fn power_info_reinit_grows_with_font_add() {
 fn engine_control_reinit_resizes_for_font_and_disables() {
     let fonts = std::path::Path::new(FONTS);
     let cell = params_cell(|_| {});
-    let (h, mut spec) =
-        engine_control_overlay_spec(fonts, Rc::new(lang()), &cell).unwrap();
+    let (h, mut spec) = engine_control_overlay_spec(fonts, Rc::new(lang()), &cell).unwrap();
     let h0 = spec.height;
     cell.borrow_mut().engine.font_add = 6;
     let (_, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
@@ -988,7 +1216,10 @@ fn engine_control_reinit_resizes_for_font_and_disables() {
     cell.borrow_mut().engine.disables = [true; 7];
     let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(h2 < h1, "全关仪表后应显著变矮 ({} → {})", h1, h2);
-    assert!(h.borrow().gauge_by_key("throttle").is_none(), "全关后 throttle 仪表移除");
+    assert!(
+        h.borrow().gauge_by_key("throttle").is_none(),
+        "全关后 throttle 仪表移除"
+    );
 }
 
 /// GearFlaps: fontadd 0→6 → 总尺寸变大; 边缘开关 → sw=10 外扩 (Java sw·2)
@@ -1006,7 +1237,11 @@ fn gear_flaps_reinit_grows_with_font_and_edge() {
     cell.borrow_mut().gear.show_edge = false;
     let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(h2 > h0, "字号增量后高度应变大 ({} → {})", h0, h2);
-    assert_eq!(h.borrow().flap_pix, h.borrow().bar_height * 50 / 100, "reinit 复位预览 50%");
+    assert_eq!(
+        h.borrow().flap_pix,
+        h.borrow().bar_height * 50 / 100,
+        "reinit 复位预览 50%"
+    );
 }
 
 /// 守卫: overlay 层全部 var_value 消费名经生产双通道 (公式槽 getter 别名 +
@@ -1017,34 +1252,80 @@ fn all_overlay_var_consumers_reachable() {
     let canon = crate::overlays::flight_info::canonical_var_name;
     // 1. 动力信息 19 行 :target 短名 (PowerSource::getter, W10 单名制)
     let power = [
-        "horse_power", "thrust", "rpm", "prop_pitch", "prop_efficiency",
-        "eff_hp", "manifold_pressure_display", "power_percent", "mass_fuel",
-        "total_weight", "fuel_time_mili", "wep_kg", "wep_time",
-        "booster_fuel_kg", "booster_fuel_percent", "water_temp", "oil_temp",
-        "heat_tolerance", "engine_response",
+        "horse_power",
+        "thrust",
+        "rpm",
+        "prop_pitch",
+        "prop_efficiency",
+        "eff_hp",
+        "manifold_pressure_display",
+        "power_percent",
+        "mass_fuel",
+        "total_weight",
+        "fuel_time_mili",
+        "wep_kg",
+        "wep_time",
+        "booster_fuel_kg",
+        "booster_fuel_percent",
+        "water_temp",
+        "oil_temp",
+        "heat_tolerance",
+        "engine_response",
     ];
     for g in power {
         assert!(canon(g).is_some(), "动力信息 target {g} 解析断链");
     }
     // 2. VisExpr 判定名 (overlays_field1 eval 消费)
-    for n in ["is_jet_engine", "is_piston_engine", "has_wep", "has_booster"] {
+    for n in [
+        "is_jet_engine",
+        "is_piston_engine",
+        "has_wep",
+        "has_booster",
+    ] {
         assert!(canon(n).is_some(), "VisExpr 名 {n} 未注册 (判定恒假)");
     }
     // 3. 仪表/操纵面/地平仪短名面 (app_shell feed_overlays_live + gauges)
     for n in [
-        "throttle", "rpm_throttle", "radiator", "power_percent", "mixture_state",
-        "fuel_percent", "gear", "flaps", "airbrake", "compressor_stage",
-        "aileron", "elevator", "rudder", "wing_sweep", "wing_sweep_valid",
-        "aoa", "aos", "aviahorizon_pitch", "aviahorizon_roll", "compass",
+        "throttle",
+        "rpm_throttle",
+        "radiator",
+        "power_percent",
+        "mixture_state",
+        "fuel_percent",
+        "gear",
+        "flaps",
+        "airbrake",
+        "compressor_stage",
+        "aileron",
+        "elevator",
+        "rudder",
+        "wing_sweep",
+        "wing_sweep_valid",
+        "aoa",
+        "aos",
+        "aviahorizon_pitch",
+        "aviahorizon_roll",
+        "compass",
     ] {
         assert!(canon(n).is_some(), "短名 {n} 未注册");
     }
     // 4. hud_calculator v() 取值名 (公式名/短名)
     for n in [
-        "aileron_lock_ratio", "altitude", "compass", "energy_jkg", "ias", "mach",
-        "radio_altitude", "radio_altitude_valid", "rudder_lock_ratio", "sep",
-        "speed_limit_ratio", "stall_speed", "unit_mach_limit_ratio",
-        "wing_sweep", "wing_sweep_valid",
+        "aileron_lock_ratio",
+        "altitude",
+        "compass",
+        "energy_jkg",
+        "ias",
+        "mach",
+        "radio_altitude",
+        "radio_altitude_valid",
+        "rudder_lock_ratio",
+        "sep",
+        "speed_limit_ratio",
+        "stall_speed",
+        "unit_mach_limit_ratio",
+        "wing_sweep",
+        "wing_sweep_valid",
     ] {
         assert!(canon(n).is_some(), "hud_calculator 名 {n} 未注册");
     }
@@ -1058,7 +1339,6 @@ const REGULAR: &str = "../../../fonts/sarasa-mono-sc-regular.ttf";
 fn font(path: &str, size: i32) -> LoadedFont {
     LoadedFont::new(std::path::Path::new(path), size).unwrap()
 }
-
 
 /// 直通色 → tiny-skia 预乘取整 ((c*a+127)/255), 断言基准用
 fn premul(c: [u8; 4]) -> [u8; 4] {
@@ -1082,7 +1362,7 @@ fn java_format_f_half_up_oracle() {
     // String.format("%.0f", 0.5) = "1" / (2.5) = "3" (Rust → 0 / 2)
     assert_eq!(java_format_f(0.5, 0), "1");
     assert_eq!(java_format_f(2.5, 0), "3");
-    // 最短表示 2.675 的 %.1f = "2.7" (vm-core java_format_f1 文档 oracle)
+    // 最短表示 2.675 的 %.1f = "2.7" (java_f 文档 oracle (base::format))
     assert_eq!(java_format_f(2.675, 1), "2.7");
 }
 
@@ -1147,7 +1427,10 @@ fn java_string_format_s_at_d_panics() {
 fn add_lines_java_trim_semantics() {
     let mut lines = Vec::new();
     add_lines(&mut lines, "a\u{3000}  \nb\u{3000}\n  \t\n");
-    assert_eq!(lines, vec!["a\u{3000}".to_string(), "b\u{3000}".to_string()]);
+    assert_eq!(
+        lines,
+        vec!["a\u{3000}".to_string(), "b\u{3000}".to_string()]
+    );
 }
 
 // ---- ControlSurfacesOverlay ----
@@ -1163,7 +1446,11 @@ fn control_surfaces_geometry() {
     assert_eq!(ov.label_font_size, 12, "Math.round(24/2.0f)");
     assert_eq!((ov.width, ov.height), (144, 144));
     assert_eq!(ov.rudder_val_pix, 108, "(50+100)*144/200 初值");
-    assert_eq!((ov.content_width, ov.content_height), (240, 180), "(int)(144+96)/(int)(144+36)");
+    assert_eq!(
+        (ov.content_width, ov.content_height),
+        (240, 180),
+        "(int)(144+96)/(int)(144+36)"
+    );
     assert_eq!(ov.shade_width, 0);
     assert_eq!((ov.total_width, ov.total_height), (240, 180));
     assert_eq!((ov.px, ov.py), (72, 72));
@@ -1204,11 +1491,21 @@ fn control_surfaces_throttle_and_mapping() {
 
     // 首事件: lastRefreshTime=0 → 0-0 < 50 恒真 → 被跳过? Java 同:
     // 初值 0, now=0 时 0-0=0 < 50 → skip。用 now=100 起测
-    assert!(!ov.on_flight_data(0, 0.0, 0.0, 0.0, 0.0, false), "0-0 < 50 跳过 (Java 同)");
+    assert!(
+        !ov.on_flight_data(0, 0.0, 0.0, 0.0, 0.0, false),
+        "0-0 < 50 跳过 (Java 同)"
+    );
     assert!(ov.on_flight_data(100, -100.0, 100.0, 0.0, 0.85, true));
-    assert_eq!((ov.px, ov.py), (0, 144), "副翼 -100 → 左缘; 升降舵 100 → 底缘");
+    assert_eq!(
+        (ov.px, ov.py),
+        (0, 144),
+        "副翼 -100 → 左缘; 升降舵 100 → 底缘"
+    );
     assert_eq!(ov.rudder_val_pix, 72, "方向舵 0 → 中位");
-    assert_eq!(ov.wing_sweep_num, "85", "可变翼 0.85 → 85 (isWingSweepValid)");
+    assert_eq!(
+        ov.wing_sweep_num, "85",
+        "可变翼 0.85 → 85 (isWingSweepValid)"
+    );
     assert_eq!(ov.elevator_num, "100");
     assert_eq!(ov.aileron_num, "-100");
 
@@ -1216,7 +1513,10 @@ fn control_surfaces_throttle_and_mapping() {
     assert!(!ov.on_flight_data(130, 0.0, 0.0, 0.0, 0.0, false));
     assert!(ov.on_flight_data(150, 50.7, -25.9, 100.0, -65535.0, false));
     // (int) 截断向零: 50.7→50, -25.9→-25
-    assert_eq!((ov.px, ov.py), ((100 + 50) * 144 / 200, (100 - 25) * 144 / 200));
+    assert_eq!(
+        (ov.px, ov.py),
+        ((100 + 50) * 144 / 200, (100 - 25) * 144 / 200)
+    );
     assert_eq!(ov.rudder_val_pix, 144, "满舵 → 全宽");
     assert_eq!(ov.aileron_num, "50");
     assert_eq!(ov.elevator_num, "-25");
@@ -1239,7 +1539,11 @@ fn control_surfaces_draw_pixels() {
     let f_num = font(BOLD, 24);
     let f_label = font(BOLD, 12);
     let f_unit = font(REGULAR, 12);
-    let fonts = CsFonts { num: &f_num, label: &f_label, unit: &f_unit };
+    let fonts = CsFonts {
+        num: &f_num,
+        label: &f_label,
+        unit: &f_unit,
+    };
     let mut cv = PixCanvas::new(240, 180).unwrap();
     ov.draw(&mut cv, &fonts, false);
 
@@ -1256,32 +1560,80 @@ fn control_surfaces_draw_pixels() {
     // 主十字 (colorNum, 中心 (72,72) 偏移 -1, 线宽 2): 六条独立 drawLine 的
     // 描边互相交叠 — 断言取**单笔画覆盖**点 (Java 同样叠出混合 alpha):
     // 主横线 y=71 (行 70/71 实心, 臂 x∈[68,73]); 主竖线 x=71 (列 70/71 实心)
-    assert_eq!(px(&cv, 69, 70), premul(colors().num), "主横线单覆盖点 (69,70)");
-    assert_eq!(px(&cv, 70, 69), premul(colors().num), "主竖线单覆盖点 (70,69)");
+    assert_eq!(
+        px(&cv, 69, 70),
+        premul(colors().num),
+        "主横线单覆盖点 (69,70)"
+    );
+    assert_eq!(
+        px(&cv, 70, 69),
+        premul(colors().num),
+        "主竖线单覆盖点 (70,69)"
+    );
     // 主线交叠中心 (行70/71 × 列70/71): 240+240·15/255 → 饱和 255
     assert_eq!(px(&cv, 70, 70)[3], 255, "主十字中心核心双叠饱和");
     // 影子十字 (colorShadeShape, 轴 y=72/x=72, 偏移 +1): 在主线臂端外侧露出 —
     // 影横臂延至 x=74 (主横臂 x≤73), 影竖臂延至 y=74 (主竖臂 y≤73) → 单覆盖点
-    assert_eq!(px(&cv, 74, 71), colors().shade_shape, "影横臂右尖端 (74,71)");
-    assert_eq!(px(&cv, 71, 74), colors().shade_shape, "影竖臂下尖端 (71,74)");
+    assert_eq!(
+        px(&cv, 74, 71),
+        colors().shade_shape,
+        "影横臂右尖端 (74,71)"
+    );
+    assert_eq!(
+        px(&cv, 71, 74),
+        colors().shade_shape,
+        "影竖臂下尖端 (71,74)"
+    );
     // 影子自身交点 (72,72) 双叠: 42+213·42/255 ≈ 77 (Java 同)
     assert_eq!(px(&cv, 72, 72), [0, 0, 0, 77], "影子交点双叠");
 
     // 底部方向舵横条 (y=height=144 起, 高 12): 外框阴影 + 内填 colorNum。
     // 条顶左角 (0,144) 与 locater 左边框线端点 (drawLine(0,0,0,r), r=144
     // 含端点) 重叠 → SrcOver 双叠 77 (Java 同序同叠); 条底右角单覆盖
-    assert_eq!(px(&cv, 0, 144), [0, 0, 0, 77], "条顶左角 (与边框线端点双叠)");
-    assert_eq!(px(&cv, 143, 155), colors().shade_shape, "条底边框右角 (144+12-1)");
-    assert_eq!(px(&cv, 2, 150), premul(colors().num), "条内填充 (初值 108 宽)");
-    assert_eq!(px(&cv, 105, 150), premul(colors().num), "条内填充右段 (x ≤ 106)");
+    assert_eq!(
+        px(&cv, 0, 144),
+        [0, 0, 0, 77],
+        "条顶左角 (与边框线端点双叠)"
+    );
+    assert_eq!(
+        px(&cv, 143, 155),
+        colors().shade_shape,
+        "条底边框右角 (144+12-1)"
+    );
+    assert_eq!(
+        px(&cv, 2, 150),
+        premul(colors().num),
+        "条内填充 (初值 108 宽)"
+    );
+    assert_eq!(
+        px(&cv, 105, 150),
+        premul(colors().num),
+        "条内填充右段 (x ≤ 106)"
+    );
     assert_eq!(px(&cv, 109, 150), [0, 0, 0, 0], "游标右缘外空 (x=109)");
 
     // 游标竖线 (x=106..108, y=144..167): 阴影框 + colorLabel 中心 1px。
     // 顶行与条顶边框重叠 → 双叠 77; 中心列 (x=107) 从 y=145 起, 底段无条遮挡
-    assert_eq!(px(&cv, 106, 144), [0, 0, 0, 77], "游标左上角 (与条顶边框双叠)");
-    assert_eq!(px(&cv, 106, 160), colors().shade_shape, "游标左框单覆盖 (条外段)");
-    assert_eq!(px(&cv, 107, 160), premul(colors().label), "游标中心 colorLabel (条外段)");
-    assert_eq!(px(&cv, 107, 166), premul(colors().label), "游标下端 (144+24-2)");
+    assert_eq!(
+        px(&cv, 106, 144),
+        [0, 0, 0, 77],
+        "游标左上角 (与条顶边框双叠)"
+    );
+    assert_eq!(
+        px(&cv, 106, 160),
+        colors().shade_shape,
+        "游标左框单覆盖 (条外段)"
+    );
+    assert_eq!(
+        px(&cv, 107, 160),
+        premul(colors().label),
+        "游标中心 colorLabel (条外段)"
+    );
+    assert_eq!(
+        px(&cv, 107, 166),
+        premul(colors().label),
+        "游标下端 (144+24-2)"
+    );
 }
 
 /// draw 文本带: 4 行 BOS 标签 (数字 x=width 基线 24; 标签/单位 x=width+54)
@@ -1293,7 +1645,11 @@ fn control_surfaces_draw_text_zones() {
     let f_num = font(BOLD, 24);
     let f_label = font(BOLD, 12);
     let f_unit = font(REGULAR, 12);
-    let fonts = CsFonts { num: &f_num, label: &f_label, unit: &f_unit };
+    let fonts = CsFonts {
+        num: &f_num,
+        label: &f_label,
+        unit: &f_unit,
+    };
     let mut cv = PixCanvas::new(240, 180).unwrap();
     ov.draw(&mut cv, &fonts, false);
 
@@ -1320,10 +1676,14 @@ struct MapConfig {
 
 impl MapConfig {
     fn new() -> Self {
-        MapConfig { values: RefCell::new(HashMap::new()) }
+        MapConfig {
+            values: RefCell::new(HashMap::new()),
+        }
     }
     fn set(&self, k: &str, v: &str) {
-        self.values.borrow_mut().insert(k.to_string(), v.to_string());
+        self.values
+            .borrow_mut()
+            .insert(k.to_string(), v.to_string());
     }
 }
 
@@ -1332,7 +1692,9 @@ impl ConfigProvider for MapConfig {
         self.values.borrow().get(key).cloned()
     }
     fn set_config(&self, key: &str, value: &str) {
-        self.values.borrow_mut().insert(key.to_string(), value.to_string());
+        self.values
+            .borrow_mut()
+            .insert(key.to_string(), value.to_string());
     }
     fn is_field_disabled(&self, _key: &str) -> bool {
         false
@@ -1450,7 +1812,11 @@ fn generate_lines_full_field_list() {
         "诱导阻力因数及加速度系数: 0.003 / 12",
         "散热/油冷器阻力系数: 0.021 / 0.017",
     ];
-    assert!(lines.len() >= expect_prefix.len() + 25, "全字段行数 ≥ 44, 实 {}", lines.len());
+    assert!(
+        lines.len() >= expect_prefix.len() + 25,
+        "全字段行数 ≥ 44, 实 {}",
+        lines.len()
+    );
     for (i, want) in expect_prefix.iter().enumerate() {
         assert_eq!(&lines[i], want, "第 {i} 行");
     }
@@ -1464,12 +1830,15 @@ fn generate_lines_full_field_list() {
         .iter()
         .position(|l| l == "------fm器件 平尾------")
         .expect("第五段 (Stab)");
-    assert_eq!(&lines[idx + 1..idx + 5], [
-        "零升阻力系数: 0.006",
-        "零攻角升力: -0.060",
-        "临界攻角: [-15.5, 15.5]",
-        "临界攻角升力系数: [-0.55, 0.55]",
-    ]);
+    assert_eq!(
+        &lines[idx + 1..idx + 5],
+        [
+            "零升阻力系数: 0.006",
+            "零攻角升力: -0.060",
+            "临界攻角: [-15.5, 15.5]",
+            "临界攻角升力系数: [-0.55, 0.55]",
+        ]
+    );
 }
 
 /// 无数据 / null 字段 ("null" 文本) / 空白模板行裁剪
@@ -1477,7 +1846,10 @@ fn generate_lines_full_field_list() {
 fn generate_lines_no_data_and_null_fields() {
     assert_eq!(
         generate_lines(None, None),
-        vec!["FM Data Preview".to_string(), "[No Data Loaded]".to_string()]
+        vec![
+            "FM Data Preview".to_string(),
+            "[No Data Loaded]".to_string()
+        ]
     );
     // readFileName/version 为 null → %s 打 "null" (Java Formatter 行为)
     let mut b = FmData::default();
@@ -1495,11 +1867,26 @@ fn generate_lines_field_switches() {
     cfg.set("showLift", ""); // 空串 → 默认启用
     cfg.set("showDrag", "yes"); // 非 "true" → false
     let lines = generate_lines(Some(&full_fmdata()), Some(&cfg));
-    assert!(!lines.iter().any(|l| l.starts_with("空重")), "showWeight=false 关");
-    assert!(!lines.iter().any(|l| l.starts_with("临界速度")), "FALSE (忽略大小写) 关");
-    assert!(lines.iter().any(|l| l.starts_with("主升力面积")), "空串默认开");
-    assert!(!lines.iter().any(|l| l.starts_with("主阻力面积")), "yes → false");
-    assert!(lines.iter().any(|l| l.starts_with("加力")), "其余段不受影响");
+    assert!(
+        !lines.iter().any(|l| l.starts_with("空重")),
+        "showWeight=false 关"
+    );
+    assert!(
+        !lines.iter().any(|l| l.starts_with("临界速度")),
+        "FALSE (忽略大小写) 关"
+    );
+    assert!(
+        lines.iter().any(|l| l.starts_with("主升力面积")),
+        "空串默认开"
+    );
+    assert!(
+        !lines.iter().any(|l| l.starts_with("主阻力面积")),
+        "yes → false"
+    );
+    assert!(
+        lines.iter().any(|l| l.starts_with("加力")),
+        "其余段不受影响"
+    );
     // fmVersion 恒显 → "[No Fields Enabled]" 占位不可达 (Java 同)
     assert!(lines.iter().any(|l| l.starts_with("FM文件")));
 }
@@ -1525,8 +1912,14 @@ fn fm_overlay_header_matcher() {
     ov.init(None, &f);
     assert!(ov.base.zebra.is_header("FM文件: x"));
     assert!(ov.base.zebra.is_header("------fm器件: 机翼"));
-    assert!(!ov.base.zebra.is_header("prefix FM文件"), "startsWith 不含中缀");
-    assert!(!ov.base.zebra.is_header("含 fm器件 中缀的行"), "默认 contains 已被覆盖");
+    assert!(
+        !ov.base.zebra.is_header("prefix FM文件"),
+        "startsWith 不含中缀"
+    );
+    assert!(
+        !ov.base.zebra.is_header("含 fm器件 中缀的行"),
+        "默认 contains 已被覆盖"
+    );
 }
 
 /// 游戏模式门控: 初始隐藏不取数; toggle 后取数并脏; 同数据不脏 (Java :67/:318)
@@ -1568,7 +1961,10 @@ fn fm_overlay_reload_and_reinit() {
     assert!(ov.tick(), "清单变化 ([No Data Loaded]) → 脏");
     assert_eq!(
         ov.generate_lines(),
-        vec!["FM Data Preview".to_string(), "[No Data Loaded]".to_string()]
+        vec![
+            "FM Data Preview".to_string(),
+            "[No Data Loaded]".to_string()
+        ]
     );
     assert!(!ov.tick(), "同清单 → 不脏");
 
@@ -1627,13 +2023,20 @@ fn five_overlays_mount_into_overlay_host() {
     let p_counter = Rc::clone(&presents);
     let mut host = OverlayHost::with_factory(Box::new(move |cfg: WindowConfig| {
         let size = (cfg.width, cfg.height);
-        Ok(Box::new(MiniWin { presents: Rc::clone(&p_counter), size }) as Box<dyn OverlayWindow>)
+        Ok(Box::new(MiniWin {
+            presents: Rc::clone(&p_counter),
+            size,
+        }) as Box<dyn OverlayWindow>)
     }));
 
     // ①~③ field1 三键 (engineInfoSwitch/enableEngineControl/enablegearAndFlaps):
     // POC 预览工厂已随重构波2 退役, 此处以最小手工 spec 顶位 (host 通道语义
     // 与内容函数无关, 真实内容渲染由 ④⑤ + field1 自有测试覆盖)
-    for key in ["engineInfoSwitch", "enableEngineControl", "enablegearAndFlaps"] {
+    for key in [
+        "engineInfoSwitch",
+        "enableEngineControl",
+        "enablegearAndFlaps",
+    ] {
         host.register(OverlaySpec {
             id: key.into(),
             config_key: key.into(),
@@ -1657,7 +2060,11 @@ fn five_overlays_mount_into_overlay_host() {
         width: cw,
         height: ch,
         render: Box::new(move |cv| {
-            let fonts = CsFonts { num: &f_num, label: &f_label, unit: &f_unit };
+            let fonts = CsFonts {
+                num: &f_num,
+                label: &f_label,
+                unit: &f_unit,
+            };
             cs.draw(cv, &fonts, aa());
         }),
         reinit: None,
@@ -1702,16 +2109,27 @@ fn control_surfaces_overlay_spec_shared_state() {
     let fonts_dir = std::path::Path::new("../../../fonts");
     let cell = Rc::new(RefCell::new(ReinitParams::default()));
     let (h, mut spec) = control_surfaces_overlay_spec(fonts_dir, &cell).unwrap();
-    assert_eq!((spec.width, spec.height), (240, 180), "内容区尺寸 (无 sw 边框)");
-    assert_eq!((spec.id.as_str(), spec.config_key.as_str()), ("enableAxis", "enableAxis"));
+    assert_eq!(
+        (spec.width, spec.height),
+        (240, 180),
+        "内容区尺寸 (无 sw 边框)"
+    );
+    assert_eq!(
+        (spec.id.as_str(), spec.config_key.as_str()),
+        ("enableAxis", "enableAxis")
+    );
     // 初值 px = width/2 = 72 (游标居中, Java init :108)
     assert_eq!(h.borrow().px, 72);
     // has_service=false: 数据不更新 (preview 形态)
-    assert!(h.borrow_mut().on_flight_data(100, 100.0, 0.0, 0.0, 0.0, false));
+    assert!(h
+        .borrow_mut()
+        .on_flight_data(100, 100.0, 0.0, 0.0, 0.0, false));
     assert_eq!(h.borrow().px, 72, "preview 门控: 数据保持");
     // 游戏形态 (喂入方切换 has_service, app_shell 承载): aileron=100 → px=144
     h.borrow_mut().has_service = true;
-    assert!(h.borrow_mut().on_flight_data(200, 100.0, 0.0, 0.0, 0.0, false));
+    assert!(h
+        .borrow_mut()
+        .on_flight_data(200, 100.0, 0.0, 0.0, 0.0, false));
     assert_eq!(h.borrow().px, 144);
     assert_eq!(h.borrow().aileron_num, "100");
     let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
@@ -1740,7 +2158,9 @@ fn control_surfaces_reset_preview_restores_initial_values() {
     let (h, _spec) = control_surfaces_overlay_spec(fonts_dir, &cell).unwrap();
     // live 残留: has_service=true 喂非 50 值 (副翼 100/升降 -80/舵 60/翼扫 40)
     h.borrow_mut().has_service = true;
-    assert!(h.borrow_mut().on_flight_data(200, 100.0, -80.0, 60.0, 40.0, true));
+    assert!(h
+        .borrow_mut()
+        .on_flight_data(200, 100.0, -80.0, 60.0, 40.0, true));
     assert_eq!(h.borrow().aileron_num, "100");
     // 重置 → 初值段: 四 num 串 "50" + 游标/舵条回几何中心 (init :91-94/:108-111)
     h.borrow_mut().reset_preview();
@@ -1795,13 +2215,16 @@ impl crate::platform::OverlayWindow for FeedMockWin {
 fn feed_host(log: &Rc<RefCell<Vec<String>>>) -> OverlayHost {
     let log = Rc::clone(log);
     OverlayHost::with_factory(Box::new(move |_cfg| {
-        Ok(Box::new(FeedMockWin { log: Rc::clone(&log) })
-            as Box<dyn crate::platform::OverlayWindow>)
+        Ok(Box::new(FeedMockWin {
+            log: Rc::clone(&log),
+        }) as Box<dyn crate::platform::OverlayWindow>)
     }))
 }
 
 fn feed_fm() -> Arc<FMManager> {
-    Arc::new(FMManager::new(Arc::new(vm_core::base::bus::EventBus::new())))
+    Arc::new(FMManager::new(
+        Arc::new(vm_core::base::bus::EventBus::new()),
+    ))
 }
 
 /// 工厂初态 = initPreview 形态 (恒可见 + 空数据 — 注册期 = Java 无实例形态;
@@ -1822,7 +2245,11 @@ fn fm_unpacked_spec_preview_shape_and_render() {
         (spec.id.as_str(), spec.config_key.as_str()),
         ("enableFMPrint", "enableFMPrint")
     );
-    assert_eq!((spec.width, spec.height), (324, 864), "init 几何 (round(12·36·0.75) × 12·72)");
+    assert_eq!(
+        (spec.width, spec.height),
+        (324, 864),
+        "init 几何 (round(12·36·0.75) × 12·72)"
+    );
     {
         let fm = h.borrow();
         assert!(fm.visible, "preview: always visible (:113)");
@@ -1856,7 +2283,8 @@ fn fm_unpacked_preview_session_pumps_data() {
     host.refresh_preview().unwrap();
     // 预览期的 FM 装载面 (Java previewInitializer 的 setBlkx(current) /
     // reinitConfig 直读 — 事件订阅仅游戏 init, reload 不走)
-    h.borrow_mut().reinit_config(Some(Arc::new(full_fmdata())), &font(REGULAR, 14));
+    h.borrow_mut()
+        .reinit_config(Some(Arc::new(full_fmdata())), &font(REGULAR, 14));
     let mut feed = FmUnpackedFeed::new();
     log.borrow_mut().clear();
     // 泵 (无会话门控): preview 取数 → 高度自适应 resize + 拉起 (幂等可见)
@@ -1869,7 +2297,10 @@ fn fm_unpacked_preview_session_pumps_data() {
         lines * row_h,
         "preview 首轮高度自适应 (非 864 初始空面板)"
     );
-    assert!(h.borrow().base.window_visible, "preview isPreview 绕过可见门控");
+    assert!(
+        h.borrow().base.window_visible,
+        "preview isPreview 绕过可见门控"
+    );
     // 数据稳定零冗余
     feed.pump(&mut host, "enableFMPrint", &h, 1_300);
     assert_eq!(log.borrow().len(), 1, "稳定期仅首帧 resize 一次");
@@ -1903,7 +2334,11 @@ fn fm_unpacked_feed_game_flow() {
     log.borrow_mut().clear();
     // ① 隐藏态 tick (else 分支): 不取数, 窗口保持隐藏, 高度不动
     feed.pump(&mut host, "enableFMPrint", &h, 1_000);
-    assert_eq!(h.borrow().base.height, 864, "隐藏分支不取数, 高度保持 init 值");
+    assert_eq!(
+        h.borrow().base.height,
+        864,
+        "隐藏分支不取数, 高度保持 init 值"
+    );
     assert!(log.borrow().is_empty(), "无窗口动作 (幂等守卫)");
     // ② FM_CHANGED reload + 热键切换可见
     h.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
@@ -1920,7 +2355,10 @@ fn fm_unpacked_feed_game_flow() {
     );
     assert_eq!(
         *log.borrow(),
-        vec!["set_visible:true".to_string(), format!("set_size:324,{}", lines * row_h)],
+        vec![
+            "set_visible:true".to_string(),
+            format!("set_size:324,{}", lines * row_h)
+        ],
         "拉起 + resize 各恰一次"
     );
     // ④ 数据稳定: 脏检查 + 幂等 → 零窗口动作
@@ -1971,9 +2409,15 @@ fn fm_unpacked_field_switches_change_height() {
         &fm,
     )
     .unwrap();
-    h_off.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
+    h_off
+        .borrow_mut()
+        .reload_fm_data(Some(Arc::new(full_fmdata())));
     h_off.borrow_mut().tick();
-    assert_eq!(h_off.borrow().base.height, row_h, "全关 = 仅 FM 版本一行的高度");
+    assert_eq!(
+        h_off.borrow().base.height,
+        row_h,
+        "全关 = 仅 FM 版本一行的高度"
+    );
     // 全开 (config None → isFieldEnabled 默认启用)
     let (h_on, _) = fm_unpacked_data_overlay_spec(
         std::path::Path::new("../../../fonts"),
@@ -1983,7 +2427,8 @@ fn fm_unpacked_field_switches_change_height() {
         &fm,
     )
     .unwrap();
-    h_on.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
+    h_on.borrow_mut()
+        .reload_fm_data(Some(Arc::new(full_fmdata())));
     h_on.borrow_mut().tick();
     assert!(
         h_on.borrow().base.height > 20 * row_h,
@@ -2056,7 +2501,10 @@ fn fm_unpacked_reinit_clears_fmdata_and_keeps_render() {
     );
     assert_eq!(
         h.borrow().generate_lines(),
-        vec!["FM Data Preview".to_string(), "[No Data Loaded]".to_string()],
+        vec![
+            "FM Data Preview".to_string(),
+            "[No Data Loaded]".to_string()
+        ],
         "setBlkx(current=None) 清空 → 占位清单"
     );
     let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();

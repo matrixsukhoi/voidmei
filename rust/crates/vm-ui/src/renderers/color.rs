@@ -22,8 +22,8 @@
 //! PORT(提交时机备案): Java hex 输入 Enter/失焦提交; web 壳 JS 输入框
 //! 同语义 (合法完整色串才提交), Message::ColorPicked 消息形状不变。
 
-use vm_core::config::config_loader::{ConfigValue, GroupConfig};
 use crate::render_context::RenderContext;
+use vm_core::config::config_loader::{ConfigValue, GroupConfig};
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 

@@ -159,7 +159,11 @@ impl Indicators {
             // 长度不足 2 时保持原值跳过去壳, 正常机型名 (>=2 字符) 行为不变
             // PORT: substring(1, len-1) 与 length() 按 UTF-16 码元计; 此处按字符
             // (chars) 计 — BMP 域等价 (引号 ASCII, 切点必在边界; 域内机型名 ASCII)
-            if self.r#type.as_deref().is_some_and(|t| t.chars().count() > 1) {
+            if self
+                .r#type
+                .as_deref()
+                .is_some_and(|t| t.chars().count() > 1)
+            {
                 let t = self.r#type.take().unwrap();
                 let n = t.chars().count();
                 let inner: String = t.chars().skip(1).take(n - 2).collect();

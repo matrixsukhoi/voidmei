@@ -5,8 +5,8 @@
 //! 产物 owned/Send, 经 ReinitParams 通道进渲染线程。
 
 use crate::config::config_loader::{GroupConfig, RowConfig};
-use crate::formula::registry::FormulaView;
 use crate::config::sexp_parser::{AtomType, SExp};
+use crate::formula::registry::FormulaView;
 
 /// 受限条件 (:visible-when / :na-when 的编译产物; owned)。
 /// `=`/`!=` 带 0.0001 容差 — 语义对齐 Java VisibilityExpressionEvaluator。
@@ -111,10 +111,7 @@ pub fn rows_from_group(gc: &GroupConfig, disabled: &dyn Fn(&RowConfig) -> bool) 
 fn row_from_config(r: &RowConfig) -> RowDef {
     let target = r.property.clone().unwrap_or_else(|| r.label.clone());
     RowDef {
-        label: r
-            .target_name
-            .clone()
-            .unwrap_or_else(|| r.label.clone()),
+        label: r.target_name.clone().unwrap_or_else(|| r.label.clone()),
         unit: r.unit.clone(),
         preview_value: r.preview_value.clone().unwrap_or_else(|| "0".to_string()),
         source: target,

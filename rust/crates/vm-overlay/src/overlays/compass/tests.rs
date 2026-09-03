@@ -26,7 +26,11 @@ fn north_triangle_geometry_cardinal() {
 #[test]
 fn north_triangle_size_truncation() {
     let pts = north_triangle(0, 0, 20, 0.0);
-    assert_eq!(pts[0], (0, -27), "r=20 tipDist = 20+7 = 27 (height 舍入为 7)");
+    assert_eq!(
+        pts[0],
+        (0, -27),
+        "r=20 tipDist = 20+7 = 27 (height 舍入为 7)"
+    );
     assert_eq!(pts[1], (6, -20), "halfBase 6");
     assert_eq!(pts[2], (-6, -20));
 
@@ -40,9 +44,15 @@ fn north_triangle_size_truncation() {
 #[test]
 fn int_cast_truncates_toward_zero() {
     let pts = north_triangle(100, 100, 20, -1e-9);
-    assert_eq!(pts[0].0, 100, "tip.x: (int)(27·sin(-1e-9)) = (int)(-2.7e-8) = 0");
+    assert_eq!(
+        pts[0].0, 100,
+        "tip.x: (int)(27·sin(-1e-9)) = (int)(-2.7e-8) = 0"
+    );
     assert_eq!(pts[0].1, 73, "tip.y: 100 - 27");
-    assert_eq!(pts[1].1, 80, "corner1.y: baseY + (int)(6·sin(-1e-9)) = 80 + 0");
+    assert_eq!(
+        pts[1].1, 80,
+        "corner1.y: baseY + (int)(6·sin(-1e-9)) = 80 + 0"
+    );
     assert_eq!(pts[2].0, 94, "corner2.x: base - 切向半宽 6");
 }
 
@@ -61,12 +71,28 @@ fn update_pointer_geometry_cardinals() {
     assert_eq!((60 + g.compass_dx, 60 - g.compass_dy), (60, 28), "指针朝北");
 
     g.update(90.0, "C4");
-    assert_eq!((g.compass_dx, g.compass_dy), (32, 0), "sin(1.5707964f32)≈1 → 32, cos≈4.4e-8 → 0");
-    assert_eq!(pointer_tip(60, 60, 25, g.compass_rads), (75, 60), "指针朝东");
+    assert_eq!(
+        (g.compass_dx, g.compass_dy),
+        (32, 0),
+        "sin(1.5707964f32)≈1 → 32, cos≈4.4e-8 → 0"
+    );
+    assert_eq!(
+        pointer_tip(60, 60, 25, g.compass_rads),
+        (75, 60),
+        "指针朝东"
+    );
 
     g.update(180.0, "C4");
-    assert_eq!((g.compass_dx, g.compass_dy), (0, -32), "sin(πf32)=-8.7e-8 → 0, cos→-32");
-    assert_eq!(pointer_tip(60, 60, 25, g.compass_rads), (60, 75), "指针朝南");
+    assert_eq!(
+        (g.compass_dx, g.compass_dy),
+        (0, -32),
+        "sin(πf32)=-8.7e-8 → 0, cos→-32"
+    );
+    assert_eq!(
+        pointer_tip(60, 60, 25, g.compass_rads),
+        (60, 75),
+        "指针朝南"
+    );
     assert_eq!((60 + g.compass_dx, 60 - g.compass_dy), (60, 92));
 }
 
@@ -116,7 +142,10 @@ fn fmt_heading3_infinite_and_huge() {
     assert_eq!(fmt_heading3(f64::NEG_INFINITY), "-Infinity");
     assert_eq!(fmt_heading3(1e19), "10000000000000000000");
     assert_eq!(fmt_heading3(-1e19), "-10000000000000000000");
-    assert_eq!(fmt_heading3(9_223_372_036_854_775_808.0), "9223372036854775808");
+    assert_eq!(
+        fmt_heading3(9_223_372_036_854_775_808.0),
+        "9223372036854775808"
+    );
 }
 
 /// 双模式语义 (Java:117-123 / 34-37): 离体北三角角恒 0, 随体 = -compassRads
@@ -124,7 +153,11 @@ fn fmt_heading3_infinite_and_huge() {
 fn mode_semantics_north_angle() {
     let mut g = CompassGauge::new(25);
     g.update(90.0, "");
-    assert_eq!(north_angle(false, g.compass_rads), 0.0, "离体: 北固定 12 点钟");
+    assert_eq!(
+        north_angle(false, g.compass_rads),
+        0.0,
+        "离体: 北固定 12 点钟"
+    );
     assert!(
         (north_angle(true, g.compass_rads) + g.compass_rads as f64).abs() < 1e-12,
         "随体: 北三角转 -compassRads"
@@ -134,7 +167,11 @@ fn mode_semantics_north_angle() {
     assert!(g.inertial_mode());
     assert!(g.is_dirty(), "模式切换置脏");
     assert_eq!(g.id(), "gauge.compass");
-    assert_eq!(g.preferred_size(), (50, 50), "preferred = 2r×2r (Java:58-60)");
+    assert_eq!(
+        g.preferred_size(),
+        (50, 50),
+        "preferred = 2r×2r (Java:58-60)"
+    );
 }
 
 /// NaN 航向 (地图方向无效时 0/0 → NaN): Java (int)NaN=0 → dx/dy 归 0,

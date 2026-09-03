@@ -60,7 +60,11 @@ fn linear_gauge_vertical_fill_and_separator() {
     let total_w = text_w + 2 + 8;
     assert_eq!(a(&cv, 20, sep_y), 42, "分隔线环上边 shade");
     // 环右下角叠在条右边框列上 (shade 叠 shade → SrcOver 加深, Java 同)
-    assert_a_close(a(&cv, 20 + total_w - 1, sep_y + 2), src_over_a(42, 42), "分隔线环右下");
+    assert_a_close(
+        a(&cv, 20 + total_w - 1, sep_y + 2),
+        src_over_a(42, 42),
+        "分隔线环右下",
+    );
     assert_eq!(a(&cv, 21, sep_y + 1), 240, "分隔线内芯值色");
     assert_eq!(a(&cv, 45, sep_y - 1), 0, "分隔线上方 (文本影与条间隙列)");
     assert_eq!(a(&cv, 45, sep_y + 3), 0, "分隔线下方");
@@ -158,8 +162,16 @@ fn labeled_linear_gauge_vertical_label_offsets_bar() {
     let plain_bar = 20 + f.measure("88") + 2;
     assert_eq!(a(&cv_plain, plain_bar + 1, 100), 240, "plain 填充存在");
     let label_w = f.measure("油");
-    assert_eq!(a(&cv_lab, plain_bar + label_w + 1, 100), 240, "labeled 填充右移 labelW");
-    assert_eq!(a(&cv_lab, plain_bar + 1, 100), 0, "原位置无条 (行 100 在文本区下方)");
+    assert_eq!(
+        a(&cv_lab, plain_bar + label_w + 1, 100),
+        240,
+        "labeled 填充右移 labelW"
+    );
+    assert_eq!(
+        a(&cv_lab, plain_bar + 1, 100),
+        0,
+        "原位置无条 (行 100 在文本区下方)"
+    );
 }
 
 /// SpeedRatioBar 分区/边界分支:
@@ -181,13 +193,29 @@ fn speed_ratio_bar_zones_and_boundary_branches() {
     // 背景 colorNum: 顶部未被覆盖
     assert_eq!(a(&cv, x, y), 240, "顶部背景 colorNum");
     // shade 速度区 = shade 叠在 colorNum 背景上 (greenH=50 → 行 60..109; 行 60 被刻度覆盖 → 查 61)
-    assert_a_close(a(&cv, x, y + 51), src_over_a(42, 240), "shade 区顶 (刻度行下)");
+    assert_a_close(
+        a(&cv, x, y + 51),
+        src_over_a(42, 240),
+        "shade 区顶 (刻度行下)",
+    );
     assert_a_close(a(&cv, x, y + 99), src_over_a(42, 240), "shade 区底");
     // 红区: stallH=25, stallW=5 → 列 x+5..x+9, 行 y+75..y+99 (warning 叠 shade 栈)
-    assert_a_close(a(&cv, x + 9, y + 99), src_over_a(100, src_over_a(42, 240)), "红区右下");
-    assert_a_close(a(&cv, x + 4, y + 99), src_over_a(42, 240), "红区左邻仍是 shade");
+    assert_a_close(
+        a(&cv, x + 9, y + 99),
+        src_over_a(100, src_over_a(42, 240)),
+        "红区右下",
+    );
+    assert_a_close(
+        a(&cv, x + 4, y + 99),
+        src_over_a(42, 240),
+        "红区左邻仍是 shade",
+    );
     // 红区上方 (行 84) 仍在 shade 速度区内 (shade 行 60..109, 红区行 85..109)
-    assert_a_close(a(&cv, x + 9, y + 74), src_over_a(42, 240), "红区上方仍是 shade 区");
+    assert_a_close(
+        a(&cv, x + 9, y + 74),
+        src_over_a(42, 240),
+        "红区上方仍是 shade 区",
+    );
     // 马赫线: machY = y+100-80 = y+20, 行 y+19..y+20, 列 x..x+10 (warning 叠背景)
     assert_a_close(a(&cv, x + 5, y + 20), src_over_a(100, 240), "马赫线行");
     assert_eq!(a(&cv, x + 5, y + 21), 240, "马赫线下方无");
@@ -230,7 +258,11 @@ fn speed_ratio_bar_zones_and_boundary_branches() {
     let mut cv3 = PixCanvas::new(100, 130).unwrap();
     b3.draw(&mut cv3, x, y, None, false);
     assert_a_close(a(&cv3, x, y + 5), src_over_a(42, 240), "speed>1 满条 shade");
-    assert_a_close(a(&cv3, x + 9, y + 5), src_over_a(100, src_over_a(42, 240)), "stall>1 满高红区");
+    assert_a_close(
+        a(&cv3, x + 9, y + 5),
+        src_over_a(100, src_over_a(42, 240)),
+        "stall>1 满高红区",
+    );
     assert_a_close(a(&cv3, x + 4, y + 5), src_over_a(42, 240), "红区左半 shade");
 }
 
@@ -282,7 +314,11 @@ fn flap_angle_bar_normal_split() {
     b.draw(&mut cv, x, y, Some(&f), false);
 
     let bar_y = y + f.size + 2;
-    assert_eq!(a(&cv, x + 30, bar_y), 42, "used 区 shade (列 50, 避开刻度 59..60)");
+    assert_eq!(
+        a(&cv, x + 30, bar_y),
+        42,
+        "used 区 shade (列 50, 避开刻度 59..60)"
+    );
     assert_eq!(a(&cv, x + 49, bar_y), 42, "used 末列 (=50-1)");
     assert_eq!(a(&cv, x + 50, bar_y), 240, "margin 首列 colorNum");
     assert_eq!(a(&cv, x + 129, bar_y), 240, "margin 末列");
@@ -306,7 +342,7 @@ fn flap_angle_bar_tick_geometry() {
     // tx = x + tick*400/125 (int 除): 20→84? 20*400/125=64 → 84; 33→125+20=125... 计算见断言
     let t33 = x + 33 * 400 / 125; // 20 + 105 = 125
     let t100 = x + 100 * 400 / 125; // 20 + 320 = 340
-    // 1/4 高刻度 (ext=8/4=2): 行 barY-2-3 .. barY = barY-5..barY (下端行不外伸)
+                                    // 1/4 高刻度 (ext=8/4=2): 行 barY-2-3 .. barY = barY-5..barY (下端行不外伸)
     assert_eq!(a(&cv, t33, bar_y - 5), 166, "1/4 刻度顶部");
     assert_eq!(a(&cv, t33 - 1, bar_y - 5), 166, "刻度左列 (tx-1)");
     assert_eq!(a(&cv, t33, bar_y - 6), 0, "1/4 刻度上方无");
@@ -350,7 +386,11 @@ fn flap_angle_bar_overspeed_and_guard() {
     let mut cv3 = PixCanvas::new(240, 80).unwrap();
     b3.draw(&mut cv3, x, y, Some(&f), false);
     assert_eq!(b3.display_text(), "NaN/NaN");
-    assert_eq!(a(&cv3, x, bar_y), 100, "NaN → 超限分支全红 (Java NaN 比较恒 false)");
+    assert_eq!(
+        a(&cv3, x, bar_y),
+        100,
+        "NaN → 超限分支全红 (Java NaN 比较恒 false)"
+    );
 }
 
 /// 线基元几何 (期望值 = Java 8 oracle 实测像素盒):
@@ -391,7 +431,11 @@ fn line_primitive_pixel_boxes() {
     let mut cv2 = PixCanvas::new(40, 40).unwrap();
     vline_square2(&mut cv2, 30, 10, 25, colors().label, false);
     assert_eq!(a(&cv2, 29, 9), 166, "square2 左列方帽上伸");
-    assert_eq!(a(&cv2, 30, 25), 166, "square2 下端行 y1 (oracle: y1+1 行不点亮)");
+    assert_eq!(
+        a(&cv2, 30, 25),
+        166,
+        "square2 下端行 y1 (oracle: y1+1 行不点亮)"
+    );
     assert_eq!(a(&cv2, 30, 26), 0, "square2 下端行外");
     assert_eq!(a(&cv2, 30, 8), 0, "square2 上外");
     assert_eq!(a(&cv2, 28, 15), 0, "square2 左外");
@@ -430,7 +474,10 @@ fn ring_negative_and_degenerate() {
     primitives::ring1px(&mut cv, 10, 10, -4, 20, colors().num);
     primitives::ring1px(&mut cv, 10, 10, 20, -4, colors().num);
     primitives::ring1px(&mut cv, 10, 10, -4, -9, colors().num);
-    assert!(cv.pixmap().data().iter().all(|&b| b == 0), "负宽/负高 0 像素");
+    assert!(
+        cv.pixmap().data().iter().all(|&b| b == 0),
+        "负宽/负高 0 像素"
+    );
 
     // 零宽: oracle drawRect(50,10,0,20) = 列 50 行 10..30 的 1px 竖线
     let mut cv2 = PixCanvas::new(40, 40).unwrap();

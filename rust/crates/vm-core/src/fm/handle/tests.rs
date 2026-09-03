@@ -11,11 +11,17 @@ fn test_unresolved_sentinel() {
     // -- UNRESOLVED 哨兵字段值测试 --
     let h = &FMHandle::UNRESOLVED;
     check(h.name.is_none(), "哨兵 name 应为 null");
-    check(h.status == FMStatus::Unresolved, "哨兵 status 应为 UNRESOLVED");
+    check(
+        h.status == FMStatus::Unresolved,
+        "哨兵 status 应为 UNRESOLVED",
+    );
     check(h.fmdata.is_none(), "哨兵 fmdata 应为 null");
     check(h.peak_wep_power == 0.0, "哨兵 peakWepPower 应为 0");
     check(h.peak_thrust == 0.0, "哨兵 peakThrust 应为 0");
-    check(h.compressor_stages.is_none(), "哨兵 compressorStages 应为 null");
+    check(
+        h.compressor_stages.is_none(),
+        "哨兵 compressorStages 应为 null",
+    );
     check(!h.has_fm(), "哨兵 hasFM 应为 false");
     check(!h.is_missing_like(), "哨兵 isMissingLike 应为 false");
 }
@@ -35,8 +41,14 @@ fn test_ready_handle() {
         Some(stages.to_vec()),
     );
 
-    check(h.status == FMStatus::Ready, "ready() 工厂 status 应为 READY");
-    check(h.name.as_deref() == Some("plane1"), "name 应保留规范化机型名");
+    check(
+        h.status == FMStatus::Ready,
+        "ready() 工厂 status 应为 READY",
+    );
+    check(
+        h.name.as_deref() == Some("plane1"),
+        "name 应保留规范化机型名",
+    );
     // PORT: Java `h.blkx == dummy` 引用同一性 → 所有权模型无引用同一性可判,
     // 退化为存在性检查 (值即传入值)
     check(h.fmdata.is_some(), "fmdata 应携带解析对象");
@@ -68,10 +80,16 @@ fn test_ready_handle() {
 fn test_missing_handle() {
     // -- MISSING 句柄语义测试 --
     let h = FMHandle::missing(Some("ghost".to_string()));
-    check(h.status == FMStatus::Missing, "missing() 工厂 status 应为 MISSING");
+    check(
+        h.status == FMStatus::Missing,
+        "missing() 工厂 status 应为 MISSING",
+    );
     check(h.name.as_deref() == Some("ghost"), "name 应为机型名");
     check(h.fmdata.is_none(), "MISSING 不携带 fmdata");
-    check(h.peak_wep_power == 0.0 && h.peak_thrust == 0.0, "MISSING 功率/推力应为 0");
+    check(
+        h.peak_wep_power == 0.0 && h.peak_thrust == 0.0,
+        "MISSING 功率/推力应为 0",
+    );
     check(!h.has_fm(), "MISSING hasFM 应为 false");
     check(h.is_missing_like(), "MISSING isMissingLike 应为 true");
 }
@@ -79,7 +97,10 @@ fn test_missing_handle() {
 fn test_corrupt_handle() {
     // -- CORRUPT 句柄语义测试 --
     let h = FMHandle::corrupt(Some("badplane".to_string()));
-    check(h.status == FMStatus::Corrupt, "corrupt() 工厂 status 应为 CORRUPT");
+    check(
+        h.status == FMStatus::Corrupt,
+        "corrupt() 工厂 status 应为 CORRUPT",
+    );
     check(h.name.as_deref() == Some("badplane"), "name 应为机型名");
     check(h.fmdata.is_none(), "CORRUPT 不携带 fmdata");
     check(!h.has_fm(), "CORRUPT hasFM 应为 false");
@@ -90,7 +111,10 @@ fn test_corrupt_handle() {
 fn test_not_aircraft_handle() {
     // -- NOT_AIRCRAFT 句柄语义测试 (陆战坦克) --
     let h = FMHandle::not_aircraft(Some("tankmodels/us_n4a3e8_76_sherman".to_string()));
-    check(h.status == FMStatus::NotAircraft, "notAircraft() 工厂 status 应为 NOT_AIRCRAFT");
+    check(
+        h.status == FMStatus::NotAircraft,
+        "notAircraft() 工厂 status 应为 NOT_AIRCRAFT",
+    );
     check(
         h.name.as_deref() == Some("tankmodels/us_n4a3e8_76_sherman"),
         "name 应保留原始载具名",
@@ -105,11 +129,26 @@ fn test_not_aircraft_handle() {
 
 fn test_missing_like_semantics() {
     // -- isMissingLike 全枚举覆盖测试 --
-    check(!FMHandle::UNRESOLVED.is_missing_like(), "UNRESOLVED 不是 missing-like");
-    check(FMHandle::missing(Some("x".into())).fmdata.is_none(), "MISSING 永不携带 fmdata");
-    check(FMHandle::corrupt(Some("x".into())).fmdata.is_none(), "CORRUPT 永不携带 fmdata");
-    check(FMHandle::corrupt(Some("x".into())).is_missing_like(), "CORRUPT 属于 missing-like");
-    check(FMHandle::missing(Some("x".into())).is_missing_like(), "MISSING 属于 missing-like");
+    check(
+        !FMHandle::UNRESOLVED.is_missing_like(),
+        "UNRESOLVED 不是 missing-like",
+    );
+    check(
+        FMHandle::missing(Some("x".into())).fmdata.is_none(),
+        "MISSING 永不携带 fmdata",
+    );
+    check(
+        FMHandle::corrupt(Some("x".into())).fmdata.is_none(),
+        "CORRUPT 永不携带 fmdata",
+    );
+    check(
+        FMHandle::corrupt(Some("x".into())).is_missing_like(),
+        "CORRUPT 属于 missing-like",
+    );
+    check(
+        FMHandle::missing(Some("x".into())).is_missing_like(),
+        "MISSING 属于 missing-like",
+    );
     check(
         !FMHandle::not_aircraft(Some("x/y".into())).is_missing_like(),
         "NOT_AIRCRAFT 不属于 missing-like",
@@ -159,7 +198,10 @@ fn ready_with_null_fmdata_has_no_fm() {
 /// (临时文件, 用完已删除)。
 #[test]
 fn java8_oracle_tostring() {
-    assert_eq!(FMHandle::UNRESOLVED.to_string(), "FMHandle[UNRESOLVED null]");
+    assert_eq!(
+        FMHandle::UNRESOLVED.to_string(),
+        "FMHandle[UNRESOLVED null]"
+    );
     assert_eq!(
         FMHandle::ready(
             Some("plane1".to_string()),

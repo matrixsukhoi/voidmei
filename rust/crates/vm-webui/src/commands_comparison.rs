@@ -26,10 +26,10 @@ use std::path::PathBuf;
 
 use vm_core::base::java_compat::java_trim;
 use vm_core::fm::data::FmData;
-use vm_core::ui_support::comparison::comparison_rules::ComparisonRules;
 use vm_core::fm::data_paths;
 use vm_core::fm::loader;
 use vm_core::lang::Lang;
+use vm_core::ui_support::comparison::comparison_rules::ComparisonRules;
 
 use crate::commands::to_json;
 use crate::dto::{ComparisonDataDto, ComparisonRowDto, Win};
@@ -62,7 +62,11 @@ pub(crate) fn comparison_title(fm0: &str, fm1: Option<&str>) -> String {
 /// （a_10c）——少数不同名机型 FMLoader 判 MISSING, 按物理文件直读。
 pub(crate) fn fallback_physical_file(name: &str) -> Option<PathBuf> {
     let f = data_paths::fm_dir().join(format!("fm/{name}.json"));
-    if f.exists() { Some(f) } else { None }
+    if f.exists() {
+        Some(f)
+    } else {
+        None
+    }
 }
 
 // =====================================================================
@@ -97,7 +101,8 @@ fn parse_prop_line(line: &str) -> Option<(String, String)> {
 /// Java `findInStructure` —
 /// 波14: Java 的 -1 哨兵退役, 未找到 = None (position() 一步到位)。
 fn find_in_structure(list: &[DisplayItem], key: &str) -> Option<usize> {
-    list.iter().position(|item| !item.is_header && item.text == key)
+    list.iter()
+        .position(|item| !item.is_header && item.text == key)
 }
 
 /// initUI 的解析段: lines0 建结构 +
@@ -105,7 +110,11 @@ fn find_in_structure(list: &[DisplayItem], key: &str) -> Option<usize> {
 fn build_structure(
     lines0: &[String],
     lines1_safe: &[String],
-) -> (Vec<DisplayItem>, HashMap<String, String>, HashMap<String, String>) {
+) -> (
+    Vec<DisplayItem>,
+    HashMap<String, String>,
+    HashMap<String, String>,
+) {
     let mut structure: Vec<DisplayItem> = Vec::new();
     let mut map0: HashMap<String, String> = HashMap::new();
     let mut map1: HashMap<String, String> = HashMap::new();
@@ -118,22 +127,28 @@ fn build_structure(
         }
         if l.contains("------") {
             let h = java_trim(&l.replace('-', "")).to_string();
-            structure.push(DisplayItem { is_header: true, text: h });
+            structure.push(DisplayItem {
+                is_header: true,
+                text: h,
+            });
             continue;
         }
         if let Some((k, v)) = parse_prop_line(l) {
-            structure.push(DisplayItem { is_header: false, text: k.clone() });
+            structure.push(DisplayItem {
+                is_header: false,
+                text: k.clone(),
+            });
             map0.insert(k, v);
         }
     }
 
     // 2. Parse lines1 and merge unique keys
     let mut last_match: Option<usize> = None; // 最近命中/插入位 (Java lastMatchIndex, -1 = None)
-    // Find where the content starts (skip initial headers if possible, or just
-    // merge)
-    // Simple merge: scan lines1. If key exists, update index. If not, insert after
-    // index.
-    // (原注释保留)
+                                              // Find where the content starts (skip initial headers if possible, or just
+                                              // merge)
+                                              // Simple merge: scan lines1. If key exists, update index. If not, insert after
+                                              // index.
+                                              // (原注释保留)
     for l in lines1_safe {
         let l = java_trim(l);
         // Skip headers in merge for now to avoid duplications (原注释保留)
@@ -151,9 +166,18 @@ fn build_structure(
                     let insert_at = last_match.map_or(0, |i| i + 1);
                     // Java `lastMatchIndex < size-1` 即插入位在表内 → insert, 否则尾部 push
                     if insert_at < structure.len() {
-                        structure.insert(insert_at, DisplayItem { is_header: false, text: k });
+                        structure.insert(
+                            insert_at,
+                            DisplayItem {
+                                is_header: false,
+                                text: k,
+                            },
+                        );
                     } else {
-                        structure.push(DisplayItem { is_header: false, text: k });
+                        structure.push(DisplayItem {
+                            is_header: false,
+                            text: k,
+                        });
                     }
                     last_match = Some(insert_at); // 新键落位 (= Java 的 +=1)
                 }
@@ -182,7 +206,11 @@ fn row_win(prop: &str, v0: &str, v1: &str, single_mode: bool) -> Win {
                 if (d0 - d1).abs() > 0.001 {
                     let lower_is_better = rule.is_lower_better();
                     win = if d0 > d1 {
-                        if lower_is_better { Win::Right } else { Win::Left }
+                        if lower_is_better {
+                            Win::Right
+                        } else {
+                            Win::Left
+                        }
                     } else if lower_is_better {
                         Win::Left
                     } else {
@@ -219,7 +247,11 @@ fn winner_name(
     let lower_is_better = rule.is_lower_better();
     Some(
         (if d0 > d1 {
-            if lower_is_better { fm1_name } else { fm0_name }
+            if lower_is_better {
+                fm1_name
+            } else {
+                fm0_name
+            }
         } else if lower_is_better {
             fm0_name
         } else {
@@ -289,7 +321,9 @@ fn build_copy_text(
 
     // Header
     if single_mode {
-        sb.push_str(&format!("========== Aircraft Data: {fm0_name} ==========\n\n"));
+        sb.push_str(&format!(
+            "========== Aircraft Data: {fm0_name} ==========\n\n"
+        ));
     } else {
         sb.push_str(&format!(
             "========== Comparison: {fm0_name} vs {fm1_name} ==========\n\n"
@@ -308,7 +342,12 @@ fn build_copy_text(
             if single_mode {
                 sb.push_str(&format!("{}: {}\n", k, v0.unwrap_or("-")));
             } else {
-                sb.push_str(&format!("{}: {} vs {}", k, v0.unwrap_or("-"), v1.unwrap_or("-")));
+                sb.push_str(&format!(
+                    "{}: {} vs {}",
+                    k,
+                    v0.unwrap_or("-"),
+                    v1.unwrap_or("-")
+                ));
                 if let Some(w) = winner_name(k, v0, v1, fm0_name, fm1_name) {
                     sb.push_str(&format!("  [{w} +]"));
                 }
@@ -368,7 +407,11 @@ pub fn comparison_data_impl(fm0_name: &str, fm1_name: Option<&str>) -> Compariso
             is_header: false,
             text: k.clone(),
             value0: Some(disp0),
-            value1: if single_mode { None } else { Some(v1.unwrap_or("-").to_string()) },
+            value1: if single_mode {
+                None
+            } else {
+                Some(v1.unwrap_or("-").to_string())
+            },
             win,
             symbol: sym.to_string(),
         });
@@ -509,18 +552,40 @@ mod tests {
         // v0 轻 → 左胜
         assert_eq!(row_win("空重(kg)", "3000.0", "4000.0", false), Win::Left);
         // 最大燃油重量: higher better
-        assert_eq!(row_win("最大燃油重量(kg)", "800.0", "500.0", false), Win::Left);
+        assert_eq!(
+            row_win("最大燃油重量(kg)", "800.0", "500.0", false),
+            Win::Left
+        );
         // 临界速度: ListIndexRule(1) — "[144, 1167]" 取 1167, higher better
-        assert_eq!(row_win("临界速度(km/h)", "[144, 1167]", "[144, 1300]", false), Win::Right);
+        assert_eq!(
+            row_win("临界速度(km/h)", "[144, 1167]", "[144, 1300]", false),
+            Win::Right
+        );
         // 允许过载: MultiListIndexRule(0,1) — "[8.5, -4.2], [10.1, -5.3]" 取 -4.2
         assert_eq!(
-            row_win("允许过载(满/半油)", "[8.5, -4.2], [10.1, -5.3]", "[7.0, -3.0], [9.0, -4.0]", false),
+            row_win(
+                "允许过载(满/半油)",
+                "[8.5, -4.2], [10.1, -5.3]",
+                "[7.0, -3.0], [9.0, -4.0]",
+                false
+            ),
             Win::Right
         );
         // 主阻力面积因数: Lambda 取 '/' 后第二个数, lower better
-        assert_eq!(row_win("主阻力面积因数及加速度系数", "0.25 / 0.35", "0.20 / 0.30", false), Win::Right);
+        assert_eq!(
+            row_win(
+                "主阻力面积因数及加速度系数",
+                "0.25 / 0.35",
+                "0.20 / 0.30",
+                false
+            ),
+            Win::Right
+        );
         // 散热/油冷器: SLASH_BOTH 求和, lower better — 0.5+0.6=1.1 vs 0.4+0.5=0.9
-        assert_eq!(row_win("散热/油冷器阻力系数", "0.5 / 0.6", "0.4 / 0.5", false), Win::Right);
+        assert_eq!(
+            row_win("散热/油冷器阻力系数", "0.5 / 0.6", "0.4 / 0.5", false),
+            Win::Right
+        );
         // |d0-d1| <= 0.001 → 平
         assert_eq!(row_win("空重(kg)", "4000.0005", "4000.0", false), Win::Draw);
         // 缺键补 "-" 后 extract 失败 → 平 (Java 调用点形态)
@@ -535,9 +600,15 @@ mod tests {
     fn copy文本_胜负方名() {
         let winner = winner_name("空重(kg)", Some("5000.0"), Some("4000.0"), "fm0", "fm1");
         assert_eq!(winner.as_deref(), Some("fm1")); // 右侧轻 → fm1 胜
-        // 缺键 (v1 None) → None (Java null 判在规则前)
-        assert_eq!(winner_name("空重(kg)", Some("5000.0"), None, "fm0", "fm1"), None);
-        assert_eq!(winner_name("无规则", Some("1"), Some("2"), "fm0", "fm1"), None);
+                                                    // 缺键 (v1 None) → None (Java null 判在规则前)
+        assert_eq!(
+            winner_name("空重(kg)", Some("5000.0"), None, "fm0", "fm1"),
+            None
+        );
+        assert_eq!(
+            winner_name("无规则", Some("1"), Some("2"), "fm0", "fm1"),
+            None
+        );
     }
 
     // ---- 真机腿 (data/ 缺失 SKIP) ----
@@ -570,7 +641,11 @@ mod tests {
             .find(|r| !r.is_header && r.text == "FM文件")
             .expect("应含 FM文件 首行");
         assert!(
-            fmfile.value0.as_deref().unwrap_or("").contains("fm/spitfire_f24.blk"),
+            fmfile
+                .value0
+                .as_deref()
+                .unwrap_or("")
+                .contains("fm/spitfire_f24.blk"),
             "FM文件 行值应含物理文件相对路径"
         );
         // 规则属性存在且值为数字 (Blkx.getload 格式化产物)
@@ -584,7 +659,9 @@ mod tests {
         assert!(dto.rows.iter().all(|r| r.win == Win::Draw));
         assert!(dto.rows.iter().all(|r| r.value1.is_none()));
         // copy 文本单机形态
-        assert!(dto.copy_text.starts_with("========== Aircraft Data: spitfire_f24"));
+        assert!(dto
+            .copy_text
+            .starts_with("========== Aircraft Data: spitfire_f24"));
         assert!(dto.copy_text.contains("空重(kg): "));
     }
 
@@ -607,7 +684,11 @@ mod tests {
         let w0: f64 = fuel.value0.as_deref().unwrap().parse().unwrap();
         let w1: f64 = fuel.value1.as_deref().unwrap().parse().unwrap();
         let expect = if (w0 - w1).abs() > 0.001 {
-            if w0 > w1 { Win::Left } else { Win::Right }
+            if w0 > w1 {
+                Win::Left
+            } else {
+                Win::Right
+            }
         } else {
             Win::Draw
         };

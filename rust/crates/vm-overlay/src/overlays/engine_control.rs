@@ -8,16 +8,16 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::render::palette::{aa, colors};
-use crate::render::canvas::PixCanvas;
-use crate::render::font::LoadedFont;
 use crate::overlays::bars::LabeledLinearGauge;
+use crate::overlays::gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
 use crate::overlays::spec_common::{keyed_spec, FontSlot};
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
-use crate::overlays::gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
+use crate::render::canvas::PixCanvas;
+use crate::render::font::LoadedFont;
+use crate::render::palette::{aa, colors};
 use vm_core::base::event::EventPayload;
-use vm_core::base::format::{self, java_round_f64, java_round_f32};
+use vm_core::base::format::{self, java_round_f32, java_round_f64};
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 // EngineControlOverlay DEFAULT_REFRESH_INTERVAL 的既有移植 (单一来源, 勿重复定义)
@@ -118,39 +118,67 @@ pub const ENGINE_DISABLE_KEYS: [&str; 7] = [
 
 pub const ENGINE_GAUGE_DEFS: &[EngineGaugeDef] = &[
     EngineGaugeDef {
-        disable_key: "disableEngineInfoThrottle", key: "throttle",
-        label: lbl_throttle, unit: "%",
-        gauge_type: GaugeType::Throttle, max_value: 110, is_horizontal: false,
+        disable_key: "disableEngineInfoThrottle",
+        key: "throttle",
+        label: lbl_throttle,
+        unit: "%",
+        gauge_type: GaugeType::Throttle,
+        max_value: 110,
+        is_horizontal: false,
     },
     EngineGaugeDef {
-        disable_key: "disableEngineInfoPitch", key: "pitch",
-        label: lbl_proppitch, unit: "%",
-        gauge_type: GaugeType::Pitch, max_value: 100, is_horizontal: false,
+        disable_key: "disableEngineInfoPitch",
+        key: "pitch",
+        label: lbl_proppitch,
+        unit: "%",
+        gauge_type: GaugeType::Pitch,
+        max_value: 100,
+        is_horizontal: false,
     },
     EngineGaugeDef {
-        disable_key: "disableEngineInfoPower", key: "power",
-        label: lbl_power_percent, unit: "%",
-        gauge_type: GaugeType::Power, max_value: 100, is_horizontal: false,
+        disable_key: "disableEngineInfoPower",
+        key: "power",
+        label: lbl_power_percent,
+        unit: "%",
+        gauge_type: GaugeType::Power,
+        max_value: 100,
+        is_horizontal: false,
     },
     EngineGaugeDef {
-        disable_key: "disableEngineInfoMixture", key: "mixture",
-        label: lbl_mixture, unit: "%",
-        gauge_type: GaugeType::Mixture, max_value: 120, is_horizontal: true,
+        disable_key: "disableEngineInfoMixture",
+        key: "mixture",
+        label: lbl_mixture,
+        unit: "%",
+        gauge_type: GaugeType::Mixture,
+        max_value: 120,
+        is_horizontal: true,
     },
     EngineGaugeDef {
-        disable_key: "disableEngineInfoRadiator", key: "radiator",
-        label: lbl_radiator, unit: "%",
-        gauge_type: GaugeType::Radiator, max_value: 100, is_horizontal: true,
+        disable_key: "disableEngineInfoRadiator",
+        key: "radiator",
+        label: lbl_radiator,
+        unit: "%",
+        gauge_type: GaugeType::Radiator,
+        max_value: 100,
+        is_horizontal: true,
     },
     EngineGaugeDef {
-        disable_key: "disableEngineInfoCompressor", key: "compressor",
-        label: lbl_compressor, unit: "",
-        gauge_type: GaugeType::Compressor, max_value: 1, is_horizontal: true,
+        disable_key: "disableEngineInfoCompressor",
+        key: "compressor",
+        label: lbl_compressor,
+        unit: "",
+        gauge_type: GaugeType::Compressor,
+        max_value: 1,
+        is_horizontal: true,
     },
     EngineGaugeDef {
-        disable_key: "disableEngineInfoLFuel", key: "fuel",
-        label: lbl_fuel_per, unit: "%",
-        gauge_type: GaugeType::Fuel, max_value: 100, is_horizontal: true,
+        disable_key: "disableEngineInfoLFuel",
+        key: "fuel",
+        label: lbl_fuel_per,
+        unit: "%",
+        gauge_type: GaugeType::Fuel,
+        max_value: 100,
+        is_horizontal: true,
     },
 ];
 
@@ -313,10 +341,12 @@ impl EngineControlState {
         }
         if !interval_val.is_empty() {
             // parseLongSafe: null/空/解析异常 → defaultVal (§2.15)
-            let service_loop_interval_ms =
-                interval_val.parse::<i64>().unwrap_or(ENGINE_DEFAULT_REFRESH_MS);
+            let service_loop_interval_ms = interval_val
+                .parse::<i64>()
+                .unwrap_or(ENGINE_DEFAULT_REFRESH_MS);
             // PORT: Java (long)(long * double) 经 f64 再截断, 保持同路径
-            self.refresh_interval = (service_loop_interval_ms as f64 * ENGINE_REFRESH_MULTIPLIER) as i64;
+            self.refresh_interval =
+                (service_loop_interval_ms as f64 * ENGINE_REFRESH_MULTIPLIER) as i64;
         }
     }
 
@@ -421,7 +451,9 @@ impl EngineControlState {
                 continue;
             }
             // Java 循环条件: markedGauge!=null 才处理并 break; null 则继续扫描后续仪表
-            let Some(mg) = g.marked_gauge.as_mut() else { continue };
+            let Some(mg) = g.marked_gauge.as_mut() else {
+                continue;
+            };
             match compressor_stages {
                 Some(stages) if optimal_stage >= 0 && stages > 1 => {
                     // 档 0 = ratio 0, 档 n-1 = ratio 1
@@ -543,7 +575,8 @@ impl EngineControlState {
                     dy += fs + (fs >> 2);
                 } else {
                     // LinearGauge 逻辑自底向上改为自顶向下后, Y 需上移 (4*fontsize) 保持视觉位置
-                    g.gauge.draw(cv, x + dx, y - 4 * fs, 4 * fs, fs >> 1, font_label, aa);
+                    g.gauge
+                        .draw(cv, x + dx, y - 4 * fs, 4 * fs, fs >> 1, font_label, aa);
                     dx += (5 * fs) >> 1;
                 }
             }
@@ -571,7 +604,12 @@ pub fn engine_control_overlay_spec(
 ) -> Result<(EngineControlHandle, OverlaySpec), String> {
     let (font_add, dpi_scale, interval_ms, disables) = {
         let p = params.borrow();
-        (p.engine.font_add, p.dpi_scale, p.service_loop_interval_ms, p.engine.disables)
+        (
+            p.engine.font_add,
+            p.dpi_scale,
+            p.service_loop_interval_ms,
+            p.engine.disables,
+        )
     };
     let interval_str = interval_ms.to_string();
     // init 链 (game 实例): initGaugeFields + calculateLayout + updateGaugesPreview
@@ -597,7 +635,12 @@ pub fn engine_control_overlay_spec(
     let reinit: ReinitFn = Box::new(move || {
         let (fa, dpi, iv, dis) = {
             let p = reinit_params.borrow();
-            (p.engine.font_add, p.dpi_scale, p.service_loop_interval_ms, p.engine.disables)
+            (
+                p.engine.font_add,
+                p.dpi_scale,
+                p.service_loop_interval_ms,
+                p.engine.disables,
+            )
         };
         let new_state = build_engine_state(&reinit_lang, fa, dpi, &iv.to_string(), &dis);
         let half = java_round_f32(new_state.font_size as f32 / 2.0);
@@ -636,11 +679,13 @@ fn build_engine_state(
         lang,
         font_add,
         dpi_scale,
-        &|key: &str| ENGINE_DISABLE_KEYS
-            .iter()
-            .position(|k| *k == key)
-            .map(|i| disables[i])
-            .unwrap_or(false),
+        &|key: &str| {
+            ENGINE_DISABLE_KEYS
+                .iter()
+                .position(|k| *k == key)
+                .map(|i| disables[i])
+                .unwrap_or(false)
+        },
         &|_| interval_str.to_string(),
     )
 }

@@ -87,7 +87,12 @@ impl Rectangle {
 
     /// 对应 `new Rectangle(x, y, width, height)`
     pub fn with_bounds(x: i32, y: i32, width: i32, height: i32) -> Self {
-        Rectangle { x, y, width, height }
+        Rectangle {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
     /// 对应 `setBounds(x, y, width, height)` (原地改写)

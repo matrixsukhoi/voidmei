@@ -121,7 +121,11 @@ impl FormRuntime {
             .about_modal_until
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        *until = if open { Some(Instant::now() + ABOUT_READ_WINDOW) } else { None };
+        *until = if open {
+            Some(Instant::now() + ABOUT_READ_WINDOW)
+        } else {
+            None
+        };
     }
 
     /// About Modal 是否处于展示期 (60s 上界内)
@@ -204,10 +208,16 @@ mod tests {
         let mut rt = FormRuntime::default();
         let cases = vec![
             RequestKind::GetLayoutTree,
-            RequestKind::GetComboOptions { source: "_FONTS_".into(), current: "x".into() },
+            RequestKind::GetComboOptions {
+                source: "_FONTS_".into(),
+                current: "x".into(),
+            },
             RequestKind::FormMessage(crate::dto::FormMessageDto::Save),
             // 批3: 开窗请求同样依赖注入侧 AppHandle (壳形态无 webview 可开)
-            RequestKind::OpenComparisonWindow { fm0: "a_4h".into(), fm1: None },
+            RequestKind::OpenComparisonWindow {
+                fm0: "a_4h".into(),
+                fm1: None,
+            },
         ];
         for c in cases {
             match dispatch(c, &mut rt) {

@@ -6,13 +6,13 @@
 //! vm-core, 全线程安全, 不经主线程 dispatcher); fm1 归一化与物理文件回退
 //! 复用 [`crate::commands_comparison`] 的跨域共用小件。
 
+use vm_core::base::logger;
 use vm_core::fm::data::json::extract_fuel_modifications_json;
 use vm_core::fm::data::{FmData, FuelModification, FuelType};
-use vm_core::base::logger;
 use vm_core::fm::data_paths;
 use vm_core::fm::loader;
-use vm_core::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
 use vm_core::fm::piston_model::generate_power_curve_advanced;
+use vm_core::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
 
 use crate::commands::to_json;
 use crate::commands_comparison::{fallback_physical_file, normalize_secondary};
@@ -44,7 +44,10 @@ fn load_fuel_modification(fm_name: &str) -> Option<FuelModification> {
     match parsed {
         Some(mod_) => {
             if mod_.r#type != FuelType::None {
-                logger::info("PowerCurveWindow", &format!("Fuel modification: {}", mod_.r#type));
+                logger::info(
+                    "PowerCurveWindow",
+                    &format!("Fuel modification: {}", mod_.r#type),
+                );
             }
             Some(mod_)
         }
@@ -179,7 +182,12 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
 /// (Java tooCloseToList)
 /// 波14 泛型化: 高度取值器 `alt_of` 由调用方给 (Phase3/4 传 DTO 的
 /// altitude_m, Phase1 候选传元组 alt 分量), 收编峰/谷臂内两份内联同型检查。
-fn too_close_to_list<T>(alt_m: i32, min_sep_m: i32, list: &[T], alt_of: impl Fn(&T) -> i32) -> bool {
+fn too_close_to_list<T>(
+    alt_m: i32,
+    min_sep_m: i32,
+    list: &[T],
+    alt_of: impl Fn(&T) -> i32,
+) -> bool {
     list.iter().any(|p| (alt_of(p) - alt_m).abs() < min_sep_m)
 }
 
@@ -312,7 +320,8 @@ pub fn identify_inflection_points_for_curve(
 
     // ========== Phase 4: Detect slope kinks ==========
     let kink_half_window = 4;
-    let avg_slope = (power_curve[max_idx as usize] - power_curve[0]).abs() / (max_idx * ALT_STEP) as f64;
+    let avg_slope =
+        (power_curve[max_idx as usize] - power_curve[0]).abs() / (max_idx * ALT_STEP) as f64;
     let kink_threshold = (avg_slope * 2.5).max(0.08);
 
     for i in kink_half_window..=max_idx - kink_half_window {
@@ -335,8 +344,7 @@ pub fn identify_inflection_points_for_curve(
             // 邻域夹逼 [i-2, i+2] ∩ [hw, max_idx-hw]: i-2 可低于 hw,
             // 下界抬到 kink_half_window 保循环体不越界 (原多条件 while 同语义)
             for j in (i - 2).max(kink_half_window)..=(i + 2).min(max_idx - kink_half_window) {
-                let ls = (power_curve[j as usize]
-                    - power_curve[(j - kink_half_window) as usize])
+                let ls = (power_curve[j as usize] - power_curve[(j - kink_half_window) as usize])
                     / (kink_half_window * ALT_STEP) as f64;
                 let rs = (power_curve[(j + kink_half_window) as usize] - power_curve[j as usize])
                     / (kink_half_window * ALT_STEP) as f64;
@@ -410,7 +418,11 @@ fn build_error_message(curve0: &PowerCurveDto, curve1: &Option<PowerCurveDto>) -
                 sb.push_str(e);
             }
         }
-        return if sb.is_empty() { Some("无法加载功率曲线".to_string()) } else { Some(sb) };
+        return if sb.is_empty() {
+            Some("无法加载功率曲线".to_string())
+        } else {
+            Some(sb)
+        };
     } else if !has_fm0 && curve0.error_message.is_some() {
         return curve0.error_message.clone();
     } else if !has_fm1 && curve1.is_some() && curve1.as_ref().unwrap().error_message.is_some() {
@@ -492,10 +504,14 @@ mod tests {
             })
             .collect();
         let pts = identify_inflection_points_for_curve(&curve, 200.0);
-        let peaks: Vec<&InflectionPointDto> =
-            pts.iter().filter(|p| p.kind == InflectionKind::Peak).collect();
-        let valleys: Vec<&InflectionPointDto> =
-            pts.iter().filter(|p| p.kind == InflectionKind::Valley).collect();
+        let peaks: Vec<&InflectionPointDto> = pts
+            .iter()
+            .filter(|p| p.kind == InflectionKind::Peak)
+            .collect();
+        let valleys: Vec<&InflectionPointDto> = pts
+            .iter()
+            .filter(|p| p.kind == InflectionKind::Valley)
+            .collect();
         assert_eq!(peaks.len(), 2, "双峰: {pts:?}");
         assert_eq!(valleys.len(), 1, "一谷: {pts:?}");
         // Phase 3 按高度升序编档号
@@ -514,17 +530,20 @@ mod tests {
     fn 拐点检测_斜率拐点() {
         let curve: Vec<f64> = (0..=400)
             .map(|i| match i {
-                i if i <= 100 => i as f64 * 5.0, // 0.2 hp/m
+                i if i <= 100 => i as f64 * 5.0,     // 0.2 hp/m
                 _ => 500.0 + (i - 100) as f64 * 0.5, // 0.02 hp/m
             })
             .collect();
         let pts = identify_inflection_points_for_curve(&curve, 650.0);
         assert!(
-            pts.iter().all(|p| p.kind != InflectionKind::Peak && p.kind != InflectionKind::Valley),
+            pts.iter()
+                .all(|p| p.kind != InflectionKind::Peak && p.kind != InflectionKind::Valley),
             "同向曲线不应有峰谷: {pts:?}"
         );
-        let kinks: Vec<&InflectionPointDto> =
-            pts.iter().filter(|p| p.kind == InflectionKind::Kink).collect();
+        let kinks: Vec<&InflectionPointDto> = pts
+            .iter()
+            .filter(|p| p.kind == InflectionKind::Kink)
+            .collect();
         assert!(!kinks.is_empty(), "应有 Kink: {pts:?}");
         // 拐点位于 100 档 (2500m) 邻域
         assert!((kinks[0].altitude_m - 2500).abs() <= 100, "{kinks:?}");
@@ -550,7 +569,11 @@ mod tests {
         assert!(!dto.dual_mode);
         assert!(dto.curve1.is_none());
         let c0 = &dto.curve0;
-        assert!(c0.valid, "spitfire_f24 应为可用活塞曲线: {:?}", c0.error_message);
+        assert!(
+            c0.valid,
+            "spitfire_f24 应为可用活塞曲线: {:?}",
+            c0.error_message
+        );
         // 曲线采样点数: 0..=10000m 步 25 → 401
         assert_eq!(c0.power_curve.len(), 401);
         assert_eq!(c0.alt_step, 25);
@@ -561,7 +584,9 @@ mod tests {
         assert!((0..=10000).contains(&c0.peak_altitude));
         // 拐点: 增压器级 → 至少一个峰
         assert!(
-            c0.inflection_points.iter().any(|p| p.kind == InflectionKind::Peak),
+            c0.inflection_points
+                .iter()
+                .any(|p| p.kind == InflectionKind::Peak),
             "应有峰标注: {:?}",
             c0.inflection_points
         );

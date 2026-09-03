@@ -66,14 +66,16 @@ pub(crate) fn probe_fonts_dir() -> PathBuf {
 /// 生产 CWD=仓库根 (java -jar / rust_run.sh); 测试 CWD=crate 根 (cargo 惯例),
 /// 上溯三级 (vm-app → crates → rust → 仓库根) — vm-core/vm-overlay 测试同款路径
 pub(crate) fn locate_template_cfg() -> Option<String> {
-    let mut candidates: Vec<PathBuf> =
-        [PathBuf::from("ui_layout.cfg"), PathBuf::from("../ui_layout.cfg")].to_vec();
-    candidates.push(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../ui_layout.cfg"),
-    );
-    candidates.into_iter().find(|p| p.exists()).map(|p| {
-        p.to_string_lossy().into_owned()
-    })
+    let mut candidates: Vec<PathBuf> = [
+        PathBuf::from("ui_layout.cfg"),
+        PathBuf::from("../ui_layout.cfg"),
+    ]
+    .to_vec();
+    candidates.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../ui_layout.cfg"));
+    candidates
+        .into_iter()
+        .find(|p| p.exists())
+        .map(|p| p.to_string_lossy().into_owned())
 }
 
 /// Java Application.getScreenSize → DPIHelper.init()

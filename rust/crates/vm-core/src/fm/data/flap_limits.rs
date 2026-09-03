@@ -74,7 +74,11 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, fmdata: Option<&Fm
 /// (methods_engine) 曾有逐行同构拷贝, 统一走本实现; 签名对齐 angle 版
 /// 收 Option<&Blkx>。flapPercent==0/无 FM → f64::MAX (Java Double.MAX_VALUE,
 /// 与 resetvaria 侧 Float.MAX_VALUE 刻意不同, 保真)。
-pub fn get_flap_allow_speed(flap_percent: i32, is_downing_flap: bool, fmdata: Option<&FmData>) -> f64 {
+pub fn get_flap_allow_speed(
+    flap_percent: i32,
+    is_downing_flap: bool,
+    fmdata: Option<&FmData>,
+) -> f64 {
     if flap_percent == 0 {
         return f64::MAX;
     }

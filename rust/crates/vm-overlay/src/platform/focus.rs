@@ -72,7 +72,8 @@ mod win {
     pub fn process_image_name(pid: u32) -> Option<String> {
         // 以最小权限打开进程 (PROCESS_QUERY_LIMITED_INFORMATION = 0x1000,
         // Vista+ 获取进程信息所需的最小权限)
-        let h_process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
+        let h_process =
+            unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
         // finally: 必须关闭句柄，避免资源泄漏 — 取名与关句柄分离, 关闭必经
         let result = query_image_name(h_process);
         unsafe {

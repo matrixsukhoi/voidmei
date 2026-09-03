@@ -76,7 +76,8 @@ fn http_get(req_string: &str, dest: SocketAddr) -> io::Result<String> {
         head.push_str(&line);
     }
     // 体: Content-Length 优先, 无则读到 EOF
-    let content_length = head.to_ascii_lowercase()
+    let content_length = head
+        .to_ascii_lowercase()
         .lines()
         .find_map(|l| l.strip_prefix("content-length:"))
         .and_then(|v| v.trim().parse::<usize>().ok());
@@ -229,9 +230,7 @@ impl HttpHelper {
 
             // PORT: lines() 只按 \n/\r\n 切行, Java readLine 额外接受孤立 \r ——
             // 域内 JSON 无孤立 \r
-            let result: String = String::from_utf8_lossy(&body_bytes)
-                .lines()
-                .collect();
+            let result: String = String::from_utf8_lossy(&body_bytes).lines().collect();
             if url.contains("api.github.com") {
                 logger::info(
                     "Update",
@@ -349,7 +348,10 @@ fn parse_url(url: &str) -> Result<(String, String, u16, String), String> {
                 .map_err(|_| format!("端口非法: {}", authority))?;
             (authority[..i].to_string(), p)
         }
-        None => (authority.to_string(), if scheme == "https" { 443 } else { 80 }),
+        None => (
+            authority.to_string(),
+            if scheme == "https" { 443 } else { 80 },
+        ),
     };
     if host.is_empty() {
         return Err(format!("URL 缺少主机: {}", url));
@@ -373,7 +375,10 @@ fn resolve_location(
     // Java new URL(base, loc): loc 以 '/' 开头 = 根相对, 直接替换 path
     // (不与 base path 的目录拼接, 否则 '/first' + '/final' → '//final' 双斜杠)
     if loc.starts_with('/') {
-        return Ok(format!("{}://{}:{}{}", base_scheme, base_host, base_port, loc));
+        return Ok(format!(
+            "{}://{}:{}{}",
+            base_scheme, base_host, base_port, loc
+        ));
     }
     let dir = match base_path.rfind('/') {
         Some(i) => &base_path[..i + 1],
@@ -414,9 +419,7 @@ fn decode_chunked(body: &[u8]) -> Result<Vec<u8>, String> {
     let mut out = Vec::new();
     let mut pos = 0usize;
     loop {
-        let nl = find_subslice(&body[pos..], b"\r\n")
-            .ok_or("chunked: 缺行尾")?
-            + pos;
+        let nl = find_subslice(&body[pos..], b"\r\n").ok_or("chunked: 缺行尾")? + pos;
         let size_str = std::str::from_utf8(&body[pos..nl]).map_err(|_| "chunked: size 非法")?;
         let size = usize::from_str_radix(size_str.trim().split(';').next().unwrap_or("0"), 16)
             .map_err(|_| "chunked: size 非十六进制")?;

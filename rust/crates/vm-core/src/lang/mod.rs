@@ -29,15 +29,12 @@
 //! 改动守则: 新增键 = struct 字段 + init_lang 一行 + table.rs 表项三处同步;
 //! 字段名一律取键名 snake_case, 不自造分组名; 消费方只读 `lang.<field>`。
 
-
 pub mod table;
-
 
 /// `prog.config.Config` 的最小只读替身 (仅 `getValue` 语义)。
 /// PORT: Java 原类在构造时读文件; 本移植数据来自静态表, 待 `crate::config::Config`
 /// 移植落地后可收敛复用。
-#[derive(Default)]
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct Config;
 
 impl Config {
@@ -56,8 +53,7 @@ impl Config {
 // PORT: Java 静态字段隐式初始化为 null (PORTING §2.10); Rust 无 null 字符串,
 // derive(Default) 以 ""/None 占位 — init_lang() 全量覆写后与 Java 终态一致。
 // 消费方只应使用 init_lang() 的产物 (Java 端同样在 Application 启动即调 initLang)。
-#[derive(Default)]
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct Lang {
     pub app_name: &'static str,
     pub app_tooltips: &'static str,
@@ -324,7 +320,6 @@ pub struct Lang {
     pub m_update_available_link_text: &'static str,
 
     // EngineInfo
-
     pub e_throttle: &'static str,
     pub e_proppitch: &'static str,
     pub e_mixture: &'static str,
@@ -399,8 +394,8 @@ pub struct Lang {
     pub c_plsopen: &'static str,
     pub c_openpad: &'static str,
     pub c_enginedmg: Option<&'static str>, // PORT: Java 中从未在 initLang() 赋值, 保持 null
-    pub c_warn1min: Option<&'static str>, // PORT: Java 中从未在 initLang() 赋值, 保持 null
-    pub c_eng_bomb: Option<&'static str>, // PORT: Java 中从未在 initLang() 赋值, 保持 null
+    pub c_warn1min: Option<&'static str>,  // PORT: Java 中从未在 initLang() 赋值, 保持 null
+    pub c_eng_bomb: Option<&'static str>,  // PORT: Java 中从未在 initLang() 赋值, 保持 null
 
     // flightlog
     pub l1: &'static str,
@@ -479,7 +474,6 @@ pub struct Lang {
     pub b_drag: &'static str,
 
     pub lanuage_config: Config, // PORT: Java 类型 prog.config.Config, 拼写错误 lanuage 原样保留
-
 }
 
 impl Lang {
@@ -524,8 +518,10 @@ impl Lang {
         lang.close = Lang::update_language(cfg, "close", lang.close);
         lang.about = Lang::update_language(cfg, "about", lang.about);
         lang.aboutcontent = Lang::update_language(cfg, "aboutcontent", lang.aboutcontent);
-        lang.aboutcontentsub1 = Lang::update_language(cfg, "aboutcontentsub1", lang.aboutcontentsub1);
-        lang.aboutcontentsub2 = Lang::update_language(cfg, "aboutcontentsub2", lang.aboutcontentsub2);
+        lang.aboutcontentsub1 =
+            Lang::update_language(cfg, "aboutcontentsub1", lang.aboutcontentsub1);
+        lang.aboutcontentsub2 =
+            Lang::update_language(cfg, "aboutcontentsub2", lang.aboutcontentsub2);
         lang.failaddto_tray = Lang::update_language(cfg, "failaddtoTray", lang.failaddto_tray);
         lang.http_header = Lang::update_language(cfg, "httpHeader", lang.http_header);
         lang.http_ip = Lang::update_language(cfg, "httpIp", lang.http_ip);
@@ -534,157 +530,298 @@ impl Lang {
         lang.systemerror = Lang::update_language(cfg, "Systemerror", lang.systemerror);
         lang.m_cancel = Lang::update_language(cfg, "mCancel", lang.m_cancel);
         lang.m_start = Lang::update_language(cfg, "mStart", lang.m_start);
-        lang.m_display_preview = Lang::update_language(cfg, "mDisplayPreview", lang.m_display_preview);
+        lang.m_display_preview =
+            Lang::update_language(cfg, "mDisplayPreview", lang.m_display_preview);
 
         lang.m_reset_confirm_title = Lang::update_language(cfg, "mResetConfirmTitle", "确认重置");
-        lang.m_reset_confirm_content = Lang::update_language(cfg, "mResetConfirmContent", "确定要重置所有配置项吗？\n此操作不可撤销。");
+        lang.m_reset_confirm_content = Lang::update_language(
+            cfg,
+            "mResetConfirmContent",
+            "确定要重置所有配置项吗？\n此操作不可撤销。",
+        );
 
         // Config Manager i18n
         lang.m_config_error_title = Lang::update_language(cfg, "mConfigErrorTitle", "配置错误");
-        lang.m_config_error_content = Lang::update_language(cfg, "mConfigErrorContent", "用户配置文件解析失败，将临时使用默认配置。\n请检查 ui_layout.user.cfg 文件是否损坏。");
+        lang.m_config_error_content = Lang::update_language(
+            cfg,
+            "mConfigErrorContent",
+            "用户配置文件解析失败，将临时使用默认配置。\n请检查 ui_layout.user.cfg 文件是否损坏。",
+        );
         lang.m_config_merged_title = Lang::update_language(cfg, "mConfigMergedTitle", "配置已更新");
         lang.m_merge_added_panels = Lang::update_language(cfg, "mMergeAddedPanels", "新增面板:");
         lang.m_merge_added_items = Lang::update_language(cfg, "mMergeAddedItems", "新增配置项:");
-        lang.m_merge_updated_items = Lang::update_language(cfg, "mMergeUpdatedItems", "更新配置项:");
-        lang.m_import_config_title = Lang::update_language(cfg, "mImportConfigTitle", "选择配置文件");
+        lang.m_merge_updated_items =
+            Lang::update_language(cfg, "mMergeUpdatedItems", "更新配置项:");
+        lang.m_import_config_title =
+            Lang::update_language(cfg, "mImportConfigTitle", "选择配置文件");
         lang.m_import_confirm_title = Lang::update_language(cfg, "mImportConfirmTitle", "确认导入");
-        lang.m_import_confirm_content = Lang::update_language(cfg, "mImportConfirmContent", "确定要导入此配置文件吗？\n当前配置将被备份到 ui_layout.user.cfg.bak");
+        lang.m_import_confirm_content = Lang::update_language(
+            cfg,
+            "mImportConfirmContent",
+            "确定要导入此配置文件吗？\n当前配置将被备份到 ui_layout.user.cfg.bak",
+        );
         lang.m_import_success_title = Lang::update_language(cfg, "mImportSuccessTitle", "导入成功");
-        lang.m_import_success_content = Lang::update_language(cfg, "mImportSuccessContent", "配置文件已成功导入，请重启程序以应用所有更改。");
+        lang.m_import_success_content = Lang::update_language(
+            cfg,
+            "mImportSuccessContent",
+            "配置文件已成功导入，请重启程序以应用所有更改。",
+        );
         lang.m_import_fail_title = Lang::update_language(cfg, "mImportFailTitle", "导入失败");
-        lang.m_import_fail_content = Lang::update_language(cfg, "mImportFailContent", "配置文件导入失败，请检查文件格式是否正确。");
-        lang.m_factory_reset_confirm_title = Lang::update_language(cfg, "mFactoryResetConfirmTitle", "确认恢复出厂设置");
-        lang.m_factory_reset_confirm_content = Lang::update_language(cfg, "mFactoryResetConfirmContent", "确定要恢复出厂设置吗？\n所有自定义配置将被清除，当前配置将被备份。");
-        lang.m_factory_reset_success_title = Lang::update_language(cfg, "mFactoryResetSuccessTitle", "恢复成功");
-        lang.m_factory_reset_success_content = Lang::update_language(cfg, "mFactoryResetSuccessContent", "配置已恢复为出厂设置，请重启程序以应用所有更改。");
-        lang.m_factory_reset_fail_title = Lang::update_language(cfg, "mFactoryResetFailTitle", "恢复失败");
-        lang.m_factory_reset_fail_content = Lang::update_language(cfg, "mFactoryResetFailContent", "恢复出厂设置失败，请检查模板文件是否存在。");
+        lang.m_import_fail_content = Lang::update_language(
+            cfg,
+            "mImportFailContent",
+            "配置文件导入失败，请检查文件格式是否正确。",
+        );
+        lang.m_factory_reset_confirm_title =
+            Lang::update_language(cfg, "mFactoryResetConfirmTitle", "确认恢复出厂设置");
+        lang.m_factory_reset_confirm_content = Lang::update_language(
+            cfg,
+            "mFactoryResetConfirmContent",
+            "确定要恢复出厂设置吗？\n所有自定义配置将被清除，当前配置将被备份。",
+        );
+        lang.m_factory_reset_success_title =
+            Lang::update_language(cfg, "mFactoryResetSuccessTitle", "恢复成功");
+        lang.m_factory_reset_success_content = Lang::update_language(
+            cfg,
+            "mFactoryResetSuccessContent",
+            "配置已恢复为出厂设置，请重启程序以应用所有更改。",
+        );
+        lang.m_factory_reset_fail_title =
+            Lang::update_language(cfg, "mFactoryResetFailTitle", "恢复失败");
+        lang.m_factory_reset_fail_content = Lang::update_language(
+            cfg,
+            "mFactoryResetFailContent",
+            "恢复出厂设置失败，请检查模板文件是否存在。",
+        );
 
         // Config Import Dialog - 拖放导入
-        lang.m_import_drop_zone_title = Lang::update_language(cfg, "mImportDropZoneTitle", "拖放配置文件到此处");
-        lang.m_import_drop_zone_subtitle = Lang::update_language(cfg, "mImportDropZoneSubtitle", "或点击选择文件");
-        lang.m_import_drop_zone_format = Lang::update_language(cfg, "mImportDropZoneFormat", "支持的格式: *.cfg, *.bak");
-        lang.m_import_drop_zone_release = Lang::update_language(cfg, "mImportDropZoneRelease", "松开以导入");
-        lang.m_import_drop_zone_invalid = Lang::update_language(cfg, "mImportDropZoneInvalid", "不支持的文件格式，请选择 .cfg 或 .bak 文件");
-        lang.m_import_file_selected = Lang::update_language(cfg, "mImportFileSelected", "已选择: %s");
+        lang.m_import_drop_zone_title =
+            Lang::update_language(cfg, "mImportDropZoneTitle", "拖放配置文件到此处");
+        lang.m_import_drop_zone_subtitle =
+            Lang::update_language(cfg, "mImportDropZoneSubtitle", "或点击选择文件");
+        lang.m_import_drop_zone_format =
+            Lang::update_language(cfg, "mImportDropZoneFormat", "支持的格式: *.cfg, *.bak");
+        lang.m_import_drop_zone_release =
+            Lang::update_language(cfg, "mImportDropZoneRelease", "松开以导入");
+        lang.m_import_drop_zone_invalid = Lang::update_language(
+            cfg,
+            "mImportDropZoneInvalid",
+            "不支持的文件格式，请选择 .cfg 或 .bak 文件",
+        );
+        lang.m_import_file_selected =
+            Lang::update_language(cfg, "mImportFileSelected", "已选择: %s");
         lang.m_import_file_none = Lang::update_language(cfg, "mImportFileNone", "未选择文件");
         lang.m_import_button_import = Lang::update_language(cfg, "mImportButtonImport", "导入配置");
 
-        lang.m_update_available_title = Lang::update_language(cfg, "mUpdateAvailableTitle", "发现新版本");
-        lang.m_update_available_content = Lang::update_language(cfg, "mUpdateAvailableContent", "GitHub上已发布新版本: %s<br>当前版本: %s<br>请点击下方链接下载更新。");
-        lang.m_update_available_link_text = Lang::update_language(cfg, "mUpdateAvailableLinkText", "前往下载页面");
+        lang.m_update_available_title =
+            Lang::update_language(cfg, "mUpdateAvailableTitle", "发现新版本");
+        lang.m_update_available_content = Lang::update_language(
+            cfg,
+            "mUpdateAvailableContent",
+            "GitHub上已发布新版本: %s<br>当前版本: %s<br>请点击下方链接下载更新。",
+        );
+        lang.m_update_available_link_text =
+            Lang::update_language(cfg, "mUpdateAvailableLinkText", "前往下载页面");
         lang.m_close_preview = Lang::update_language(cfg, "mClosePreview", lang.m_close_preview);
         lang.m_move_panel = Lang::update_language(cfg, "mMovePanel", lang.m_move_panel);
         lang.m_simple_mode = Lang::update_language(cfg, "mSimpleMode", lang.m_simple_mode);
         lang.m_detailed_mode = Lang::update_language(cfg, "mDetailedMode", lang.m_detailed_mode);
         lang.m_basic_settings = Lang::update_language(cfg, "mBasicSettings", lang.m_basic_settings);
-        lang.m_display_overlay = Lang::update_language(cfg, "mDisplayOverlay", lang.m_display_overlay);
+        lang.m_display_overlay =
+            Lang::update_language(cfg, "mDisplayOverlay", lang.m_display_overlay);
         lang.m_hotkey_toggle = Lang::update_language(cfg, "mHotkeyToggle", lang.m_hotkey_toggle);
         lang.m_wait_hotkey = Lang::update_language(cfg, "mWaitHotkey", lang.m_wait_hotkey);
 
-        lang.m_p1_temp_notification = Lang::update_language(cfg, "mP1TempNotification", lang.m_p1_temp_notification);
-        lang.m_p1_temp_notification_blank = Lang::update_language(cfg, "mP1TempNotificationBlank", lang.m_p1_temp_notification_blank);
-        lang.m_p1draw_font_shape = Lang::update_language(cfg, "mP1drawFontShape", lang.m_p1draw_font_shape);
-        lang.m_p1draw_font_shape_blank = Lang::update_language(cfg, "mP1drawFontShapeBlank", lang.m_p1draw_font_shape_blank);
+        lang.m_p1_temp_notification =
+            Lang::update_language(cfg, "mP1TempNotification", lang.m_p1_temp_notification);
+        lang.m_p1_temp_notification_blank = Lang::update_language(
+            cfg,
+            "mP1TempNotificationBlank",
+            lang.m_p1_temp_notification_blank,
+        );
+        lang.m_p1draw_font_shape =
+            Lang::update_language(cfg, "mP1drawFontShape", lang.m_p1draw_font_shape);
+        lang.m_p1draw_font_shape_blank =
+            Lang::update_language(cfg, "mP1drawFontShapeBlank", lang.m_p1draw_font_shape_blank);
         lang.m_p1_aa_enable = Lang::update_language(cfg, "mP1AAEnable", lang.m_p1_aa_enable);
-        lang.m_p1_aa_enable_blank = Lang::update_language(cfg, "mP1AAEnableBlank", lang.m_p1_aa_enable_blank);
-        lang.m_p1_voice_warning = Lang::update_language(cfg, "mP1VoiceWarning", lang.m_p1_voice_warning);
-        lang.m_p1_voice_warning_blank = Lang::update_language(cfg, "mP1VoiceWarningBlank", lang.m_p1_voice_warning_blank);
-        lang.m_p1_global_number_font = Lang::update_language(cfg, "mP1GlobalNumberFont", lang.m_p1_global_number_font);
-        lang.m_p1_global_number_font_blank = Lang::update_language(cfg, "mP1GlobalNumberFontBlank", lang.m_p1_global_number_font_blank);
+        lang.m_p1_aa_enable_blank =
+            Lang::update_language(cfg, "mP1AAEnableBlank", lang.m_p1_aa_enable_blank);
+        lang.m_p1_voice_warning =
+            Lang::update_language(cfg, "mP1VoiceWarning", lang.m_p1_voice_warning);
+        lang.m_p1_voice_warning_blank =
+            Lang::update_language(cfg, "mP1VoiceWarningBlank", lang.m_p1_voice_warning_blank);
+        lang.m_p1_global_number_font =
+            Lang::update_language(cfg, "mP1GlobalNumberFont", lang.m_p1_global_number_font);
+        lang.m_p1_global_number_font_blank = Lang::update_language(
+            cfg,
+            "mP1GlobalNumberFontBlank",
+            lang.m_p1_global_number_font_blank,
+        );
         lang.m_p1_interval = Lang::update_language(cfg, "mP1Interval", lang.m_p1_interval);
         // 新增音量
         lang.m_p1voice_volume = Lang::update_language(cfg, "mP1voiceVolume", lang.m_p1voice_volume);
-        lang.m_p1voice_volume_blank = Lang::update_language(cfg, "mP1voiceVolumeBlank", lang.m_p1voice_volume_blank);
+        lang.m_p1voice_volume_blank =
+            Lang::update_language(cfg, "mP1voiceVolumeBlank", lang.m_p1voice_volume_blank);
         // 新增是否关闭状态条
         lang.m_p1_status_bar = Lang::update_language(cfg, "mP1StatusBar", lang.m_p1_status_bar);
-        lang.m_p1_status_bar_blank = Lang::update_language(cfg, "mP1StatusBarBlank", lang.m_p1_status_bar_blank);
+        lang.m_p1_status_bar_blank =
+            Lang::update_language(cfg, "mP1StatusBarBlank", lang.m_p1_status_bar_blank);
 
         lang.m_p1_num_color = Lang::update_language(cfg, "mP1NumColor", lang.m_p1_num_color);
-        lang.m_p1_num_color_blank = Lang::update_language(cfg, "mP1NumColorBlank", lang.m_p1_num_color_blank);
+        lang.m_p1_num_color_blank =
+            Lang::update_language(cfg, "mP1NumColorBlank", lang.m_p1_num_color_blank);
         lang.m_p1_label_color = Lang::update_language(cfg, "mP1LabelColor", lang.m_p1_label_color);
-        lang.m_p1_label_color_blank = Lang::update_language(cfg, "mP1LabelColorBlank", lang.m_p1_label_color_blank);
+        lang.m_p1_label_color_blank =
+            Lang::update_language(cfg, "mP1LabelColorBlank", lang.m_p1_label_color_blank);
         lang.m_p1_unit_color = Lang::update_language(cfg, "mP1UnitColor", lang.m_p1_unit_color);
-        lang.m_p1_unit_color_blank = Lang::update_language(cfg, "mP1UnitColorBlank", lang.m_p1_unit_color_blank);
+        lang.m_p1_unit_color_blank =
+            Lang::update_language(cfg, "mP1UnitColorBlank", lang.m_p1_unit_color_blank);
         lang.m_p1_warn_color = Lang::update_language(cfg, "mP1WarnColor", lang.m_p1_warn_color);
-        lang.m_p1_warn_color_blank = Lang::update_language(cfg, "mP1WarnColorBlank", lang.m_p1_warn_color_blank);
+        lang.m_p1_warn_color_blank =
+            Lang::update_language(cfg, "mP1WarnColorBlank", lang.m_p1_warn_color_blank);
         lang.m_p1_shade_color = Lang::update_language(cfg, "mP1ShadeColor", lang.m_p1_shade_color);
-        lang.m_p1_shade_color_blank = Lang::update_language(cfg, "mP1ShadeColorBlank", lang.m_p1_shade_color_blank);
+        lang.m_p1_shade_color_blank =
+            Lang::update_language(cfg, "mP1ShadeColorBlank", lang.m_p1_shade_color_blank);
 
-        lang.m_p2_engine_panel = Lang::update_language(cfg, "mP2EnginePanel", lang.m_p2_engine_panel);
-        lang.m_p2_engine_panel_blank = Lang::update_language(cfg, "mP2EnginePanelBlank", lang.m_p2_engine_panel_blank);
-        lang.m_p2_engine_glass_edge = Lang::update_language(cfg, "mP2EngineGlassEdge", lang.m_p2_engine_glass_edge);
-        lang.m_p2_engine_glass_edge_blank = Lang::update_language(cfg, "mP2EngineGlassEdgeBlank", lang.m_p2_engine_glass_edge_blank);
+        lang.m_p2_engine_panel =
+            Lang::update_language(cfg, "mP2EnginePanel", lang.m_p2_engine_panel);
+        lang.m_p2_engine_panel_blank =
+            Lang::update_language(cfg, "mP2EnginePanelBlank", lang.m_p2_engine_panel_blank);
+        lang.m_p2_engine_glass_edge =
+            Lang::update_language(cfg, "mP2EngineGlassEdge", lang.m_p2_engine_glass_edge);
+        lang.m_p2_engine_glass_edge_blank = Lang::update_language(
+            cfg,
+            "mP2EngineGlassEdgeBlank",
+            lang.m_p2_engine_glass_edge_blank,
+        );
         lang.m_p2_panel_font = Lang::update_language(cfg, "mP2PanelFont", lang.m_p2_panel_font);
         lang.m_p2_font_adjust = Lang::update_language(cfg, "mP2FontAdjust", lang.m_p2_font_adjust);
 
-        lang.m_p2_engine_blank = Lang::update_language(cfg, "mP2EngineBlank", lang.m_p2_engine_blank);
-        lang.m_p2ei_horse_power = Lang::update_language(cfg, "mP2eiHorsePower", lang.m_p2ei_horse_power);
-        lang.m_p2ei_horse_power_blank = Lang::update_language(cfg, "mP2eiHorsePowerBlank", lang.m_p2ei_horse_power_blank);
+        lang.m_p2_engine_blank =
+            Lang::update_language(cfg, "mP2EngineBlank", lang.m_p2_engine_blank);
+        lang.m_p2ei_horse_power =
+            Lang::update_language(cfg, "mP2eiHorsePower", lang.m_p2ei_horse_power);
+        lang.m_p2ei_horse_power_blank =
+            Lang::update_language(cfg, "mP2eiHorsePowerBlank", lang.m_p2ei_horse_power_blank);
         lang.m_p2ei_thrust = Lang::update_language(cfg, "mP2eiThrust", lang.m_p2ei_thrust);
-        lang.m_p2ei_thrust_blank = Lang::update_language(cfg, "mP2eiThrustBlank", lang.m_p2ei_thrust_blank);
+        lang.m_p2ei_thrust_blank =
+            Lang::update_language(cfg, "mP2eiThrustBlank", lang.m_p2ei_thrust_blank);
         lang.m_p2ei_rpm = Lang::update_language(cfg, "mP2eiRPM", lang.m_p2ei_rpm);
         lang.m_p2ei_rpm_blank = Lang::update_language(cfg, "mP2eiRPMBlank", lang.m_p2ei_rpm_blank);
-        lang.m_p2ei_prop_pitch = Lang::update_language(cfg, "mP2eiPropPitch", lang.m_p2ei_prop_pitch);
-        lang.m_p2ei_prop_pitch_blank = Lang::update_language(cfg, "mP2eiPropPitchBlank", lang.m_p2ei_prop_pitch_blank);
+        lang.m_p2ei_prop_pitch =
+            Lang::update_language(cfg, "mP2eiPropPitch", lang.m_p2ei_prop_pitch);
+        lang.m_p2ei_prop_pitch_blank =
+            Lang::update_language(cfg, "mP2eiPropPitchBlank", lang.m_p2ei_prop_pitch_blank);
         lang.m_p2ei_eff_eta = Lang::update_language(cfg, "mP2eiEffEta", lang.m_p2ei_eff_eta);
-        lang.m_p2ei_eff_eta_blank = Lang::update_language(cfg, "mP2eiEffEtaBlank", lang.m_p2ei_eff_eta_blank);
+        lang.m_p2ei_eff_eta_blank =
+            Lang::update_language(cfg, "mP2eiEffEtaBlank", lang.m_p2ei_eff_eta_blank);
         lang.m_p2ei_eff_hp = Lang::update_language(cfg, "mP2eiEffHp", lang.m_p2ei_eff_hp);
-        lang.m_p2ei_eff_hp_blank = Lang::update_language(cfg, "mP2eiEffHpBlank", lang.m_p2ei_eff_hp_blank);
+        lang.m_p2ei_eff_hp_blank =
+            Lang::update_language(cfg, "mP2eiEffHpBlank", lang.m_p2ei_eff_hp_blank);
         lang.m_p2ei_pressure = Lang::update_language(cfg, "mP2eiPressure", lang.m_p2ei_pressure);
-        lang.m_p2ei_pressure_blank = Lang::update_language(cfg, "mP2eiPressureBlank", lang.m_p2ei_pressure_blank);
-        lang.m_p2ei_power_percent = Lang::update_language(cfg, "mP2eiPowerPercent", lang.m_p2ei_power_percent);
-        lang.m_p2ei_power_percent_blank = Lang::update_language(cfg, "mP2eiPowerPercentBlank", lang.m_p2ei_power_percent_blank);
+        lang.m_p2ei_pressure_blank =
+            Lang::update_language(cfg, "mP2eiPressureBlank", lang.m_p2ei_pressure_blank);
+        lang.m_p2ei_power_percent =
+            Lang::update_language(cfg, "mP2eiPowerPercent", lang.m_p2ei_power_percent);
+        lang.m_p2ei_power_percent_blank = Lang::update_language(
+            cfg,
+            "mP2eiPowerPercentBlank",
+            lang.m_p2ei_power_percent_blank,
+        );
         lang.m_p2ei_fuel_kg = Lang::update_language(cfg, "mP2eiFuelKg", lang.m_p2ei_fuel_kg);
-        lang.m_p2ei_fuel_kg_blank = Lang::update_language(cfg, "mP2eiFuelKgBlank", lang.m_p2ei_fuel_kg_blank);
+        lang.m_p2ei_fuel_kg_blank =
+            Lang::update_language(cfg, "mP2eiFuelKgBlank", lang.m_p2ei_fuel_kg_blank);
         lang.m_p2ei_fuel_time = Lang::update_language(cfg, "mP2eiFuelTime", lang.m_p2ei_fuel_time);
-        lang.m_p2ei_fuel_time_blank = Lang::update_language(cfg, "mP2eiFuelTimeBlank", lang.m_p2ei_fuel_time_blank);
+        lang.m_p2ei_fuel_time_blank =
+            Lang::update_language(cfg, "mP2eiFuelTimeBlank", lang.m_p2ei_fuel_time_blank);
         lang.m_p2ei_wep_kg = Lang::update_language(cfg, "mP2eiWepKg", lang.m_p2ei_wep_kg);
-        lang.m_p2ei_wep_kg_blank = Lang::update_language(cfg, "mP2eiWepKgBlank", lang.m_p2ei_wep_kg_blank);
+        lang.m_p2ei_wep_kg_blank =
+            Lang::update_language(cfg, "mP2eiWepKgBlank", lang.m_p2ei_wep_kg_blank);
         lang.m_p2ei_wep_time = Lang::update_language(cfg, "mP2eiWepTime", lang.m_p2ei_wep_time);
-        lang.m_p2ei_wep_time_blank = Lang::update_language(cfg, "mP2eiWepTimeBlank", lang.m_p2ei_wep_time_blank);
+        lang.m_p2ei_wep_time_blank =
+            Lang::update_language(cfg, "mP2eiWepTimeBlank", lang.m_p2ei_wep_time_blank);
         lang.m_p2ei_temp = Lang::update_language(cfg, "mP2eiTemp", lang.m_p2ei_temp);
-        lang.m_p2ei_temp_blank = Lang::update_language(cfg, "mP2eiTempBlank", lang.m_p2ei_temp_blank);
+        lang.m_p2ei_temp_blank =
+            Lang::update_language(cfg, "mP2eiTempBlank", lang.m_p2ei_temp_blank);
         lang.m_p2ei_oil_temp = Lang::update_language(cfg, "mP2eiOilTemp", lang.m_p2ei_oil_temp);
-        lang.m_p2ei_oil_temp_blank = Lang::update_language(cfg, "mP2eiOilTempBlank", lang.m_p2ei_oil_temp_blank);
-        lang.m_p2ei_heat_tolerance = Lang::update_language(cfg, "mP2eiHeatTolerance", lang.m_p2ei_heat_tolerance);
-        lang.m_p2ei_heat_tolerance_blank = Lang::update_language(cfg, "mP2eiHeatToleranceBlank", lang.m_p2ei_heat_tolerance_blank);
-        lang.m_p2ei_eng_response = Lang::update_language(cfg, "mP2eiEngResponse", lang.m_p2ei_eng_response);
-        lang.m_p2ei_eng_response_blank = Lang::update_language(cfg, "mP2eiEngResponseBlank", lang.m_p2ei_eng_response_blank);
+        lang.m_p2ei_oil_temp_blank =
+            Lang::update_language(cfg, "mP2eiOilTempBlank", lang.m_p2ei_oil_temp_blank);
+        lang.m_p2ei_heat_tolerance =
+            Lang::update_language(cfg, "mP2eiHeatTolerance", lang.m_p2ei_heat_tolerance);
+        lang.m_p2ei_heat_tolerance_blank = Lang::update_language(
+            cfg,
+            "mP2eiHeatToleranceBlank",
+            lang.m_p2ei_heat_tolerance_blank,
+        );
+        lang.m_p2ei_eng_response =
+            Lang::update_language(cfg, "mP2eiEngResponse", lang.m_p2ei_eng_response);
+        lang.m_p2ei_eng_response_blank =
+            Lang::update_language(cfg, "mP2eiEngResponseBlank", lang.m_p2ei_eng_response_blank);
 
         lang.m_p3_crosshair = Lang::update_language(cfg, "mP3Crosshair", lang.m_p3_crosshair);
-        lang.m_p3_crosshair_blank = Lang::update_language(cfg, "mP3CrosshairBlank", lang.m_p3_crosshair_blank);
-        lang.m_p3_crosshair_display = Lang::update_language(cfg, "mP3CrosshairDisplay", lang.m_p3_crosshair_display);
-        lang.m_p3_crosshair_display_blank = Lang::update_language(cfg, "mP3CrosshairDisplayBlank", lang.m_p3_crosshair_display_blank);
+        lang.m_p3_crosshair_blank =
+            Lang::update_language(cfg, "mP3CrosshairBlank", lang.m_p3_crosshair_blank);
+        lang.m_p3_crosshair_display =
+            Lang::update_language(cfg, "mP3CrosshairDisplay", lang.m_p3_crosshair_display);
+        lang.m_p3_crosshair_display_blank = Lang::update_language(
+            cfg,
+            "mP3CrosshairDisplayBlank",
+            lang.m_p3_crosshair_display_blank,
+        );
         lang.m_p3_text = Lang::update_language(cfg, "mP3Text", lang.m_p3_text);
         lang.m_p3_text_blank = Lang::update_language(cfg, "mP3TextBlank", lang.m_p3_text_blank);
-        lang.m_p3_flap_angle_bar = Lang::update_language(cfg, "mP3FlapAngleBar", lang.m_p3_flap_angle_bar);
-        lang.m_p3_flap_angle_bar_blank = Lang::update_language(cfg, "mP3FlapAngleBarBlank", lang.m_p3_flap_angle_bar_blank);
-        lang.m_p3_crosshair_texture = Lang::update_language(cfg, "mP3CrosshairTexture", lang.m_p3_crosshair_texture);
-        lang.m_p3_crosshair_texture_blank = Lang::update_language(cfg, "mP3CrosshairTextureBlank", lang.m_p3_crosshair_texture_blank);
-        lang.m_p3_choose_texture = Lang::update_language(cfg, "mP3ChooseTexture", lang.m_p3_choose_texture);
-        lang.m_p3_choose_texture_blank = Lang::update_language(cfg, "mP3ChooseTextureBlank", lang.m_p3_choose_texture_blank);
-        lang.m_p3_crosshair_size = Lang::update_language(cfg, "mP3CrosshairSize", lang.m_p3_crosshair_size);
+        lang.m_p3_flap_angle_bar =
+            Lang::update_language(cfg, "mP3FlapAngleBar", lang.m_p3_flap_angle_bar);
+        lang.m_p3_flap_angle_bar_blank =
+            Lang::update_language(cfg, "mP3FlapAngleBarBlank", lang.m_p3_flap_angle_bar_blank);
+        lang.m_p3_crosshair_texture =
+            Lang::update_language(cfg, "mP3CrosshairTexture", lang.m_p3_crosshair_texture);
+        lang.m_p3_crosshair_texture_blank = Lang::update_language(
+            cfg,
+            "mP3CrosshairTextureBlank",
+            lang.m_p3_crosshair_texture_blank,
+        );
+        lang.m_p3_choose_texture =
+            Lang::update_language(cfg, "mP3ChooseTexture", lang.m_p3_choose_texture);
+        lang.m_p3_choose_texture_blank =
+            Lang::update_language(cfg, "mP3ChooseTextureBlank", lang.m_p3_choose_texture_blank);
+        lang.m_p3_crosshair_size =
+            Lang::update_language(cfg, "mP3CrosshairSize", lang.m_p3_crosshair_size);
         lang.m_p3_mono_font = Lang::update_language(cfg, "mP3MonoFont", lang.m_p3_mono_font);
-        lang.m_p3_mono_font_blank = Lang::update_language(cfg, "mP3MonoFontBlank", lang.m_p3_mono_font_blank);
+        lang.m_p3_mono_font_blank =
+            Lang::update_language(cfg, "mP3MonoFontBlank", lang.m_p3_mono_font_blank);
 
-        lang.m_p4_flight_info_panel = Lang::update_language(cfg, "mP4FlightInfoPanel", lang.m_p4_flight_info_panel);
-        lang.m_p4attitude_indicator_panel = Lang::update_language(cfg, "mP4attitudeIndicatorPanel", lang.m_p4attitude_indicator_panel);
-        lang.m_p4attitude_indicator_panel_blank = Lang::update_language(cfg, "mP4attitudeIndicatorPanelBlank", lang.m_p4attitude_indicator_panel_blank);
+        lang.m_p4_flight_info_panel =
+            Lang::update_language(cfg, "mP4FlightInfoPanel", lang.m_p4_flight_info_panel);
+        lang.m_p4attitude_indicator_panel = Lang::update_language(
+            cfg,
+            "mP4attitudeIndicatorPanel",
+            lang.m_p4attitude_indicator_panel,
+        );
+        lang.m_p4attitude_indicator_panel_blank = Lang::update_language(
+            cfg,
+            "mP4attitudeIndicatorPanelBlank",
+            lang.m_p4attitude_indicator_panel_blank,
+        );
         lang.m_p4_fm_panel = Lang::update_language(cfg, "mP4FMPanel", lang.m_p4_fm_panel);
-        lang.m_p4_fm_panel_blank = Lang::update_language(cfg, "mP4FMPanelBlank", lang.m_p4_fm_panel_blank);
+        lang.m_p4_fm_panel_blank =
+            Lang::update_language(cfg, "mP4FMPanelBlank", lang.m_p4_fm_panel_blank);
         lang.m_p4fi_ias = Lang::update_language(cfg, "mP4fiIAS", lang.m_p4fi_ias);
         lang.m_p4fi_ias_blank = Lang::update_language(cfg, "mP4fiIASBlank", lang.m_p4fi_ias_blank);
         lang.m_p4fi_tas = Lang::update_language(cfg, "mP4fiTAS", lang.m_p4fi_tas);
         lang.m_p4fi_tas_blank = Lang::update_language(cfg, "mP4fiTASBlank", lang.m_p4fi_tas_blank);
         lang.m_p4fi_mach = Lang::update_language(cfg, "mP4fiMach", lang.m_p4fi_mach);
-        lang.m_p4fi_mach_blank = Lang::update_language(cfg, "mP4fiMachBlank", lang.m_p4fi_mach_blank);
+        lang.m_p4fi_mach_blank =
+            Lang::update_language(cfg, "mP4fiMachBlank", lang.m_p4fi_mach_blank);
         lang.m_p4fi_compass = Lang::update_language(cfg, "mP4fiCompass", lang.m_p4fi_compass);
-        lang.m_p4fi_compass_blank = Lang::update_language(cfg, "mP4fiCompassBlank", lang.m_p4fi_compass_blank);
+        lang.m_p4fi_compass_blank =
+            Lang::update_language(cfg, "mP4fiCompassBlank", lang.m_p4fi_compass_blank);
         lang.m_p4fi_height = Lang::update_language(cfg, "mP4fiHeight", lang.m_p4fi_height);
-        lang.m_p4fi_height_blank = Lang::update_language(cfg, "mP4fiHeightBlank", lang.m_p4fi_height_blank);
+        lang.m_p4fi_height_blank =
+            Lang::update_language(cfg, "mP4fiHeightBlank", lang.m_p4fi_height_blank);
         lang.m_p4fi_vario = Lang::update_language(cfg, "mP4fiVario", lang.m_p4fi_vario);
-        lang.m_p4fi_vario_blank = Lang::update_language(cfg, "mP4fiVarioBlank", lang.m_p4fi_vario_blank);
+        lang.m_p4fi_vario_blank =
+            Lang::update_language(cfg, "mP4fiVarioBlank", lang.m_p4fi_vario_blank);
         lang.m_p4fi_sep = Lang::update_language(cfg, "mP4fiSEP", lang.m_p4fi_sep);
         lang.m_p4fi_sep_blank = Lang::update_language(cfg, "mP4fiSEPBlank", lang.m_p4fi_sep_blank);
         lang.m_p4fi_acc = Lang::update_language(cfg, "mP4fiAcc", lang.m_p4fi_acc);
@@ -694,62 +831,113 @@ impl Lang {
         lang.m_p4fi_ny = Lang::update_language(cfg, "mP4fiNy", lang.m_p4fi_ny);
         lang.m_p4fi_ny_blank = Lang::update_language(cfg, "mP4fiNyBlank", lang.m_p4fi_ny_blank);
         lang.m_p4fi_turn = Lang::update_language(cfg, "mP4fiTurn", lang.m_p4fi_turn);
-        lang.m_p4fi_turn_blank = Lang::update_language(cfg, "mP4fiTurnBlank", lang.m_p4fi_turn_blank);
-        lang.m_p4fi_turn_radius = Lang::update_language(cfg, "mP4fiTurnRadius", lang.m_p4fi_turn_radius);
-        lang.m_p4fi_turn_radius_blank = Lang::update_language(cfg, "mP4fiTurnRadiusBlank", lang.m_p4fi_turn_radius_blank);
+        lang.m_p4fi_turn_blank =
+            Lang::update_language(cfg, "mP4fiTurnBlank", lang.m_p4fi_turn_blank);
+        lang.m_p4fi_turn_radius =
+            Lang::update_language(cfg, "mP4fiTurnRadius", lang.m_p4fi_turn_radius);
+        lang.m_p4fi_turn_radius_blank =
+            Lang::update_language(cfg, "mP4fiTurnRadiusBlank", lang.m_p4fi_turn_radius_blank);
         lang.m_p4fi_ao_a = Lang::update_language(cfg, "mP4fiAoA", lang.m_p4fi_ao_a);
-        lang.m_p4fi_ao_a_blank = Lang::update_language(cfg, "mP4fiAoABlank", lang.m_p4fi_ao_a_blank);
+        lang.m_p4fi_ao_a_blank =
+            Lang::update_language(cfg, "mP4fiAoABlank", lang.m_p4fi_ao_a_blank);
         lang.m_p4fi_ao_s = Lang::update_language(cfg, "mP4fiAoS", lang.m_p4fi_ao_s);
-        lang.m_p4fi_ao_s_blank = Lang::update_language(cfg, "mP4fiAoSBlank", lang.m_p4fi_ao_s_blank);
-        lang.m_p4fi_wing_sweep = Lang::update_language(cfg, "mP4fiWingSweep", lang.m_p4fi_wing_sweep);
-        lang.m_p4fi_wing_sweep_blank = Lang::update_language(cfg, "mP4fiWingSweepBlank", lang.m_p4fi_wing_sweep_blank);
+        lang.m_p4fi_ao_s_blank =
+            Lang::update_language(cfg, "mP4fiAoSBlank", lang.m_p4fi_ao_s_blank);
+        lang.m_p4fi_wing_sweep =
+            Lang::update_language(cfg, "mP4fiWingSweep", lang.m_p4fi_wing_sweep);
+        lang.m_p4fi_wing_sweep_blank =
+            Lang::update_language(cfg, "mP4fiWingSweepBlank", lang.m_p4fi_wing_sweep_blank);
         lang.m_p4fi_radio_alt = Lang::update_language(cfg, "mP4fiRadioAlt", lang.m_p4fi_radio_alt);
-        lang.m_p4fi_radio_alt_blank = Lang::update_language(cfg, "mP4fiRadioAltBlank", lang.m_p4fi_radio_alt_blank);
-        lang.m_p4_flight_info_blank = Lang::update_language(cfg, "mP4FlightInfoBlank", lang.m_p4_flight_info_blank);
-        lang.m_p4_flight_info_glass_edge = Lang::update_language(cfg, "mP4FlightInfoGlassEdge", lang.m_p4_flight_info_glass_edge);
-        lang.m_p4_flight_info_glass_edge_blank = Lang::update_language(cfg, "mP4FlightInfoGlassEdgeBlank", lang.m_p4_flight_info_glass_edge_blank);
+        lang.m_p4fi_radio_alt_blank =
+            Lang::update_language(cfg, "mP4fiRadioAltBlank", lang.m_p4fi_radio_alt_blank);
+        lang.m_p4_flight_info_blank =
+            Lang::update_language(cfg, "mP4FlightInfoBlank", lang.m_p4_flight_info_blank);
+        lang.m_p4_flight_info_glass_edge = Lang::update_language(
+            cfg,
+            "mP4FlightInfoGlassEdge",
+            lang.m_p4_flight_info_glass_edge,
+        );
+        lang.m_p4_flight_info_glass_edge_blank = Lang::update_language(
+            cfg,
+            "mP4FlightInfoGlassEdgeBlank",
+            lang.m_p4_flight_info_glass_edge_blank,
+        );
         lang.m_p4_panel_font = Lang::update_language(cfg, "mP4PanelFont", lang.m_p4_panel_font);
         lang.m_p4_font_adjust = Lang::update_language(cfg, "mP4FontAdjust", lang.m_p4_font_adjust);
-        lang.m_p4_column_adjust = Lang::update_language(cfg, "mP4ColumnAdjust", lang.m_p4_column_adjust);
-        lang.m_p5_logging_and_charting = Lang::update_language(cfg, "mP5LoggingAndCharting", lang.m_p5_logging_and_charting);
-        lang.m_p5_logging_and_charting_blank = Lang::update_language(cfg, "mP5LoggingAndChartingBlank", lang.m_p5_logging_and_charting_blank);
+        lang.m_p4_column_adjust =
+            Lang::update_language(cfg, "mP4ColumnAdjust", lang.m_p4_column_adjust);
+        lang.m_p5_logging_and_charting =
+            Lang::update_language(cfg, "mP5LoggingAndCharting", lang.m_p5_logging_and_charting);
+        lang.m_p5_logging_and_charting_blank = Lang::update_language(
+            cfg,
+            "mP5LoggingAndChartingBlank",
+            lang.m_p5_logging_and_charting_blank,
+        );
         lang.m_p5_information = Lang::update_language(cfg, "mP5Information", lang.m_p5_information);
-        lang.m_p5_information_blank = Lang::update_language(cfg, "mP5InformationBlank", lang.m_p5_information_blank);
+        lang.m_p5_information_blank =
+            Lang::update_language(cfg, "mP5InformationBlank", lang.m_p5_information_blank);
         lang.m_p5_fm_choose = Lang::update_language(cfg, "mP5FMChoose", lang.m_p5_fm_choose);
-        lang.m_p5_fm_choose_blank = Lang::update_language(cfg, "mP5FMChooseBlank", lang.m_p5_fm_choose_blank);
-        lang.m_p5_fm_display_key = Lang::update_language(cfg, "mP5FMDisplayKey", lang.m_p5_fm_display_key);
-        lang.m_p5_fm_display_key_tip = Lang::update_language(cfg, "mP5FMDisplayKeyTip", lang.m_p5_fm_display_key_tip);
-        lang.m_p5_fm_print_enable = Lang::update_language(cfg, "mP5FMPrintEnable", lang.m_p5_fm_print_enable);
-        lang.m_p5_fm_print_enable_blank = Lang::update_language(cfg, "mP5FMPrintEnableBlank", lang.m_p5_fm_print_enable_blank);
+        lang.m_p5_fm_choose_blank =
+            Lang::update_language(cfg, "mP5FMChooseBlank", lang.m_p5_fm_choose_blank);
+        lang.m_p5_fm_display_key =
+            Lang::update_language(cfg, "mP5FMDisplayKey", lang.m_p5_fm_display_key);
+        lang.m_p5_fm_display_key_tip =
+            Lang::update_language(cfg, "mP5FMDisplayKeyTip", lang.m_p5_fm_display_key_tip);
+        lang.m_p5_fm_print_enable =
+            Lang::update_language(cfg, "mP5FMPrintEnable", lang.m_p5_fm_print_enable);
+        lang.m_p5_fm_print_enable_blank = Lang::update_language(
+            cfg,
+            "mP5FMPrintEnableBlank",
+            lang.m_p5_fm_print_enable_blank,
+        );
 
         lang.m_p6_axis_panel = Lang::update_language(cfg, "mP6AxisPanel", lang.m_p6_axis_panel);
-        lang.m_p6_axis_panel_blank = Lang::update_language(cfg, "mP6AxisPanelBlank", lang.m_p6_axis_panel_blank);
+        lang.m_p6_axis_panel_blank =
+            Lang::update_language(cfg, "mP6AxisPanelBlank", lang.m_p6_axis_panel_blank);
         lang.m_p6_axis_edge = Lang::update_language(cfg, "mP6AxisEdge", lang.m_p6_axis_edge);
-        lang.m_p6_axis_edge_blank = Lang::update_language(cfg, "mP6AxisEdgeBlank", lang.m_p6_axis_edge_blank);
-        lang.m_p6_gear_and_flaps = Lang::update_language(cfg, "mP6GearAndFlaps", lang.m_p6_gear_and_flaps);
-        lang.m_p6_gear_and_flaps_edge = Lang::update_language(cfg, "mP6GearAndFlapsEdge", lang.m_p6_gear_and_flaps_edge);
-        lang.m_p6_gear_and_flaps_edge_blank = Lang::update_language(cfg, "mP6GearAndFlapsEdgeBlank", lang.m_p6_gear_and_flaps_edge_blank);
-        lang.m_p6engine_control = Lang::update_language(cfg, "mP6engineControl", lang.m_p6engine_control);
-        lang.m_p6engine_control_blank = Lang::update_language(cfg, "mP6engineControlBlank", lang.m_p6engine_control_blank);
+        lang.m_p6_axis_edge_blank =
+            Lang::update_language(cfg, "mP6AxisEdgeBlank", lang.m_p6_axis_edge_blank);
+        lang.m_p6_gear_and_flaps =
+            Lang::update_language(cfg, "mP6GearAndFlaps", lang.m_p6_gear_and_flaps);
+        lang.m_p6_gear_and_flaps_edge =
+            Lang::update_language(cfg, "mP6GearAndFlapsEdge", lang.m_p6_gear_and_flaps_edge);
+        lang.m_p6_gear_and_flaps_edge_blank = Lang::update_language(
+            cfg,
+            "mP6GearAndFlapsEdgeBlank",
+            lang.m_p6_gear_and_flaps_edge_blank,
+        );
+        lang.m_p6engine_control =
+            Lang::update_language(cfg, "mP6engineControl", lang.m_p6engine_control);
+        lang.m_p6engine_control_blank =
+            Lang::update_language(cfg, "mP6engineControlBlank", lang.m_p6engine_control_blank);
         lang.m_p6ec_throttle = Lang::update_language(cfg, "mP6ecThrottle", lang.m_p6ec_throttle);
-        lang.m_p6ec_throttle_blank = Lang::update_language(cfg, "mP6ecThrottleBlank", lang.m_p6ec_throttle_blank);
+        lang.m_p6ec_throttle_blank =
+            Lang::update_language(cfg, "mP6ecThrottleBlank", lang.m_p6ec_throttle_blank);
         lang.m_p6ec_pitch = Lang::update_language(cfg, "mP6ecPitch", lang.m_p6ec_pitch);
-        lang.m_p6ec_pitch_blank = Lang::update_language(cfg, "mP6ecPitchBlank", lang.m_p6ec_pitch_blank);
+        lang.m_p6ec_pitch_blank =
+            Lang::update_language(cfg, "mP6ecPitchBlank", lang.m_p6ec_pitch_blank);
         lang.m_p6ec_mixture = Lang::update_language(cfg, "mP6ecMixture", lang.m_p6ec_mixture);
-        lang.m_p6ec_mixture_blank = Lang::update_language(cfg, "mP6ecMixtureBlank", lang.m_p6ec_mixture_blank);
+        lang.m_p6ec_mixture_blank =
+            Lang::update_language(cfg, "mP6ecMixtureBlank", lang.m_p6ec_mixture_blank);
         lang.m_p6ec_radiator = Lang::update_language(cfg, "mP6ecRadiator", lang.m_p6ec_radiator);
-        lang.m_p6ec_radiator_blank = Lang::update_language(cfg, "mP6ecRadiatorBlank", lang.m_p6ec_radiator_blank);
-        lang.m_p6ec_compressor = Lang::update_language(cfg, "mP6ecCompressor", lang.m_p6ec_compressor);
-        lang.m_p6ec_compressor_blank = Lang::update_language(cfg, "mP6ecCompressorBlank", lang.m_p6ec_compressor_blank);
+        lang.m_p6ec_radiator_blank =
+            Lang::update_language(cfg, "mP6ecRadiatorBlank", lang.m_p6ec_radiator_blank);
+        lang.m_p6ec_compressor =
+            Lang::update_language(cfg, "mP6ecCompressor", lang.m_p6ec_compressor);
+        lang.m_p6ec_compressor_blank =
+            Lang::update_language(cfg, "mP6ecCompressorBlank", lang.m_p6ec_compressor_blank);
         lang.m_p6ec_l_fuel = Lang::update_language(cfg, "mP6ecLFuel", lang.m_p6ec_l_fuel);
-        lang.m_p6ec_l_fuel_blank = Lang::update_language(cfg, "mP6ecLFuelBlank", lang.m_p6ec_l_fuel_blank);
+        lang.m_p6ec_l_fuel_blank =
+            Lang::update_language(cfg, "mP6ecLFuelBlank", lang.m_p6ec_l_fuel_blank);
 
         lang.m_flight_info = Lang::update_language(cfg, "mFlightInfo", lang.m_flight_info);
         lang.m_engine_info = Lang::update_language(cfg, "mEngineInfo", lang.m_engine_info);
         lang.m_control_info = Lang::update_language(cfg, "mControlInfo", lang.m_control_info);
-        lang.m_logging_and_analysis = Lang::update_language(cfg, "mLoggingAndAnalysis", lang.m_logging_and_analysis);
+        lang.m_logging_and_analysis =
+            Lang::update_language(cfg, "mLoggingAndAnalysis", lang.m_logging_and_analysis);
         lang.m_crosshair = Lang::update_language(cfg, "mCrosshair", lang.m_crosshair);
-        lang.m_advanced_option = Lang::update_language(cfg, "mAdvancedOption", lang.m_advanced_option);
+        lang.m_advanced_option =
+            Lang::update_language(cfg, "mAdvancedOption", lang.m_advanced_option);
         lang.o_skey_word1 = Lang::update_language(cfg, "oSkeyWord1", lang.o_skey_word1);
         lang.o_skey_word2 = Lang::update_language(cfg, "oSkeyWord2", lang.o_skey_word2);
         lang.d_fprev = Lang::update_language(cfg, "dFprev", lang.d_fprev);
@@ -891,13 +1079,20 @@ impl Lang {
         lang.b_fm_version = Lang::update_language(cfg, "bFmVersion", lang.b_fm_version);
         lang.b_weight = Lang::update_language(cfg, "bWeight", lang.b_weight);
         lang.b_crit_speed = Lang::update_language(cfg, "bCritSpeed", lang.b_crit_speed);
-        lang.b_allow_load_factor = Lang::update_language(cfg, "bAllowLoadFactor", lang.b_allow_load_factor);
-        lang.b_average_heat_recovery = Lang::update_language(cfg, "bAverageHeatRecovery", lang.b_average_heat_recovery);
+        lang.b_allow_load_factor =
+            Lang::update_language(cfg, "bAllowLoadFactor", lang.b_allow_load_factor);
+        lang.b_average_heat_recovery =
+            Lang::update_language(cfg, "bAverageHeatRecovery", lang.b_average_heat_recovery);
         lang.b_nitro = Lang::update_language(cfg, "bNitro", lang.b_nitro);
         lang.b_flap_restrict = Lang::update_language(cfg, "bFlapRestrict", lang.b_flap_restrict);
-        lang.b_eff_speed_and_power_loss = Lang::update_language(cfg, "bEffSpeedAndPowerLoss", lang.b_eff_speed_and_power_loss);
+        lang.b_eff_speed_and_power_loss = Lang::update_language(
+            cfg,
+            "bEffSpeedAndPowerLoss",
+            lang.b_eff_speed_and_power_loss,
+        );
         lang.b_inertia = Lang::update_language(cfg, "bInertia", lang.b_inertia);
-        lang.b_max_lift_load350 = Lang::update_language(cfg, "bMaxLiftLoad350", lang.b_max_lift_load350);
+        lang.b_max_lift_load350 =
+            Lang::update_language(cfg, "bMaxLiftLoad350", lang.b_max_lift_load350);
         lang.b_lift = Lang::update_language(cfg, "bLift", lang.b_lift);
         lang.b_drag = Lang::update_language(cfg, "bDrag", lang.b_drag);
 
@@ -908,4 +1103,3 @@ impl Lang {
 // ---------- 边界测试 (期望值 = Java 8 oracle 实测, 生成方法见 table.rs 头部) ----------
 #[cfg(test)]
 mod tests;
-

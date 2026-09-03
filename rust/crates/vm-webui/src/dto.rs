@@ -227,18 +227,36 @@ pub struct PowerCurveDataDto {
 #[serde(tag = "kind")]
 pub enum FormMessageDto {
     /// 开关翻转 (value = 显示值, SWITCH_INV 落库取反)
-    Toggle { panel: String, key: String, value: bool },
+    Toggle {
+        panel: String,
+        key: String,
+        value: bool,
+    },
     /// 滑条值 (拖拽期实时, 不落盘)
-    Slider { panel: String, key: String, value: i32 },
+    Slider {
+        panel: String,
+        key: String,
+        value: i32,
+    },
     /// 下拉选中
-    Combo { panel: String, key: String, value: String },
+    Combo {
+        panel: String,
+        key: String,
+        value: String,
+    },
     /// 颜色 (RGBA 字节; 落库 = 主键十进制串 + legacy 分键)
-    ColorPicked { panel: String, key: String, value: [u8; 4] },
+    ColorPicked {
+        panel: String,
+        key: String,
+        value: [u8; 4],
+    },
     Save,
     StartGame,
     EndGame,
     RefreshPreviews,
-    ButtonAction { action: String },
+    ButtonAction {
+        action: String,
+    },
     ConfirmPending,
     CancelPending,
 }
@@ -316,9 +334,16 @@ mod tests {
         assert!(matches!(m, FormMessageDto::Toggle { value: true, .. }));
         let u: FormMessageDto = serde_json::from_str(r#"{"kind":"Save"}"#).unwrap();
         assert!(matches!(u, FormMessageDto::Save));
-        let c: FormMessageDto =
-            serde_json::from_str(r#"{"kind":"ColorPicked","panel":"p","key":"k","value":[1,2,3,4]}"#)
-                .unwrap();
-        assert!(matches!(c, FormMessageDto::ColorPicked { value: [1, 2, 3, 4], .. }));
+        let c: FormMessageDto = serde_json::from_str(
+            r#"{"kind":"ColorPicked","panel":"p","key":"k","value":[1,2,3,4]}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            c,
+            FormMessageDto::ColorPicked {
+                value: [1, 2, 3, 4],
+                ..
+            }
+        ));
     }
 }

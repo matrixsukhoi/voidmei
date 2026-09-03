@@ -127,7 +127,6 @@ pub struct FmParts {
     pub aoa_crit_low: f64,
 
     pub line_cl_coeff: f64,
-
     // 翼展效率因数，影响诱导阻力，因数越大阻力越小
     // public double oswaldEff;
 }

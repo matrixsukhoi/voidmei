@@ -43,7 +43,11 @@ impl RenderCtx {
 
     /// 对应 getTotalHeight(visibleCount): numHeight + (vis/col + addnum + 1)*numHeight (整数除法)
     pub fn total_height(&self, visible_count: i32) -> i32 {
-        let addnum = if visible_count % self.column_num == 0 { 0 } else { 1 };
+        let addnum = if visible_count % self.column_num == 0 {
+            0
+        } else {
+            1
+        };
         let rows = visible_count / self.column_num + addnum + 1;
         (self.num_height as f32 + rows as f32 * self.num_height as f32) as i32
     }

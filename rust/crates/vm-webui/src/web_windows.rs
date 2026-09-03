@@ -132,10 +132,11 @@ fn build_aux_window(
         let scale = main.scale_factor().ok()?;
         let x = pos.x as f64 + (msize.width as f64 - size.0 * scale) / 2.0;
         let y = pos.y as f64 + (msize.height as f64 - size.1 * scale) / 2.0;
-        Some(win.set_position(tauri::Position::Physical(PhysicalPosition::new(
-            x as i32,
-            y as i32,
-        ))))
+        Some(
+            win.set_position(tauri::Position::Physical(PhysicalPosition::new(
+                x as i32, y as i32,
+            ))),
+        )
     });
     match centered {
         Some(Ok(())) | None => {}
@@ -202,7 +203,10 @@ mod tests {
 
     #[test]
     fn 对比query_单机模式不带fm1() {
-        assert_eq!(comparison_query("a_4h", None), "index.html?win=comparison&fm0=a_4h");
+        assert_eq!(
+            comparison_query("a_4h", None),
+            "index.html?win=comparison&fm0=a_4h"
+        );
         assert_eq!(
             comparison_query("a_4h", Some("")),
             "index.html?win=comparison&fm0=a_4h"

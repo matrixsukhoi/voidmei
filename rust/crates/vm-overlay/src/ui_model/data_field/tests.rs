@@ -4,7 +4,14 @@ use super::*;
 /// precision=0 / format=null / 各 supplier null
 #[test]
 fn initial_state() {
-    let df = DataField::new("getIAS", "表  速", "Km/h", "disableFlightInfoIAS", true, false);
+    let df = DataField::new(
+        "getIAS",
+        "表  速",
+        "Km/h",
+        "disableFlightInfoIAS",
+        true,
+        false,
+    );
     assert_eq!(df.key, "getIAS");
     assert_eq!(df.label, "表  速");
     assert_eq!(df.unit, "Km/h");

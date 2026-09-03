@@ -63,7 +63,10 @@ fn wav_rejects_junk() {
     assert!(parse_wav_duration(b"").is_err(), "空文件");
     assert!(parse_wav_duration(b"RIFF").is_err(), "不足 12 字节头");
     assert!(parse_wav_duration(b"RIFF____WAVX").is_err(), "非 WAVE 标签");
-    assert!(parse_wav_duration(b"this is not a wav file at all!").is_err(), "纯文本");
+    assert!(
+        parse_wav_duration(b"this is not a wav file at all!").is_err(),
+        "纯文本"
+    );
 }
 
 #[test]
@@ -128,7 +131,10 @@ mod win_tests {
         // 8000 B/s 静音 0.4s (源文件在播放期间保留: SND_ASYNC 下 winmm 仍读文件)
         let wav = temp_wav("life", &wav_bytes(3200, 8000, 8000, 1, 8));
         let clip = player.open_clip(&wav).expect("合法 WAV 应打开成功");
-        assert!(!clip.is_running(), "未 start 前 isRunning=false (Java 新建 Clip 同)");
+        assert!(
+            !clip.is_running(),
+            "未 start 前 isRunning=false (Java 新建 Clip 同)"
+        );
         assert_eq!(clip.master_gain_range(), None, "PlaySound 无增益面");
         clip.set_frame_position(0); // no-op, 不 panic
         clip.set_master_gain(0.0); // 同上
@@ -138,8 +144,8 @@ mod win_tests {
         assert!(!clip.is_running());
         clip.close();
         clip.close(); // 幂等 (Drop 前显式双 close)
-        // 已 close 的 clip 再 start(): Java 在已 close line 上抛异常被吞 →
-        // 无声; closed 守卫恢复该语义 (此路径不发 PlaySoundW, 无需音频设备)
+                      // 已 close 的 clip 再 start(): Java 在已 close line 上抛异常被吞 →
+                      // 无声; closed 守卫恢复该语义 (此路径不发 PlaySoundW, 无需音频设备)
         clip.start();
         assert!(!clip.is_running(), "close 后 start 不得出声/置位");
         drop(clip);

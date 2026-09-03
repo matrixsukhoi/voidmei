@@ -6,7 +6,6 @@
 ///
 /// PORT: Java interface → Rust trait (§1 多实现接口, 实现 ConfigurationService.GenericOverlaySettingsImpl)。
 pub trait OverlaySettings {
-
     /// PORT: Java `getGroupConfig()` 返回 `ConfigLoader.GroupConfig` — ConfigLoader
     /// 属 B 类尚未翻译, 以关联类型占位不引入前向依赖; ConfigurationService 实现
     /// 时指定 `type GroupConfig = crate::config::config_loader::GroupConfig`。

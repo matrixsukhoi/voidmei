@@ -11,25 +11,25 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use vm_core::activation::strategy::{ActivationContext, ActivationStrategy};
+use vm_core::audio::voice_resource_manager::VoiceResourceManager;
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
 use vm_core::base::bus::Subscription;
-use vm_core::base::java_compat::{current_time_millis, java_parse_boolean};
-use vm_core::config::config_api::{ConfigProvider, HudSettingsSnapshot};
 use vm_core::base::event::event_payload::EventPayload;
 use vm_core::base::event::flight_data_event::FlightDataEvent;
 use vm_core::base::event::ui_state_events;
-use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::base::java_compat::{current_time_millis, java_parse_boolean};
+use vm_core::base::logger;
+use vm_core::config::config_api::{ConfigProvider, HudSettingsSnapshot};
+use vm_core::derived::hud_calculator::HudColors;
 use vm_core::fm::{FMHandle, FMManager};
 use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口 (W10 后 TelemetrySource 已删)
-use vm_core::derived::hud_calculator::HudColors;
 use vm_core::lang::Lang;
-use vm_core::base::logger;
-use vm_core::base::bus::ui_state_bus::{UiStateEvent, UIStateBus};
-use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
-use vm_overlay::platform::host::{OverlayHost, OverlaySpec};
-use vm_overlay::platform::hotkey::HotkeyEvent;
 use vm_overlay::overlays::attitude::{attitude_overlay_spec, AttitudeOverlayHandle};
-use vm_overlay::overlays::control_surfaces::{control_surfaces_overlay_spec, ControlSurfacesHandle};
+use vm_overlay::overlays::control_surfaces::{
+    control_surfaces_overlay_spec, ControlSurfacesHandle,
+};
 use vm_overlay::overlays::draw_frame_simpl::{
     draw_frame_simpl_spec, DfsFlight, DrawFrameSimplFeed, DrawFrameSimplHandle,
 };
@@ -41,9 +41,11 @@ use vm_overlay::overlays::fm_unpacked::{
 use vm_overlay::overlays::gear_flaps::{gear_flaps_overlay_spec, GearFlapsHandle};
 use vm_overlay::overlays::minihud::{minihud_overlay_spec, MiniHudHandle};
 use vm_overlay::overlays::power_info::{power_info_overlay_spec, PowerInfoHandle};
+use vm_overlay::platform::host::{OverlayHost, OverlaySpec};
+use vm_overlay::platform::hotkey::HotkeyEvent;
 
 #[cfg(target_os = "windows")]
-use vm_overlay::platform::tray::{TrayConfig, TrayIcon, TrayHandler};
+use vm_overlay::platform::tray::{TrayConfig, TrayHandler, TrayIcon};
 
 use crate::commands::{MainEvent, TrayCommand, UiCommand};
 use crate::controller_shared::{is_stale_refresh, ControllerShared};
@@ -176,8 +178,9 @@ impl ActivationContext for HostActivationCtx {
 /// 两处复合策略来自 Java registerWithStrategy)
 pub(crate) fn strategy_for(config_key: &str) -> ActivationStrategy {
     match config_key {
-        "enableVoiceWarn" => ActivationStrategy::config(config_key)
-            .and(&ActivationStrategy::live_only()),
+        "enableVoiceWarn" => {
+            ActivationStrategy::config(config_key).and(&ActivationStrategy::live_only())
+        }
         "thrustdFS" => {
             ActivationStrategy::config("enableFMPrint").and(&ActivationStrategy::jet_only())
         }
@@ -346,8 +349,10 @@ pub(crate) fn register_live_overlays(
                 env.dpi.get_logical_screen_height(),
                 params,
                 // 原 FmFieldConfigSnapshot (FM show* 快照) — SnapshotConfigProvider 三合一
-                Some(Arc::new(SnapshotConfigProvider::new(Arc::clone(fm_field_config)))
-                    as Arc<dyn ConfigProvider>),
+                Some(
+                    Arc::new(SnapshotConfigProvider::new(Arc::clone(fm_field_config)))
+                        as Arc<dyn ConfigProvider>,
+                ),
                 fm,
             )
         },
@@ -356,18 +361,15 @@ pub(crate) fn register_live_overlays(
     // enableFMPrint && jetOnly, previewEnabled=true/needsThread) — 本批补齐
     // (D8 降级清单 P6 尾巴收口; 事件面/run 泵在渲染线程循环驱动)。
     // 无 with_interest 追加键 (键集为空, Java 同); 固定几何在注册成功后落
-    handles.draw_frame_simpl =
-        register_one(host, shared, "推力曲线", &[], || draw_frame_simpl_spec(fonts, fm));
+    handles.draw_frame_simpl = register_one(host, shared, "推力曲线", &[], || {
+        draw_frame_simpl_spec(fonts, fm)
+    });
     // Java init/initPreview 的 setBounds(0, screenH-500, 900, 500) — 每次
     // 实例化固定几何 (thrustdFSX/Y 只写不读, 不参与定位)。
     // PORT: Java Toolkit.getScreenSize() 在生产 JVM 标志 -Dsun.java2d.
     // uiScale=1 下与 DPIHelper 逻辑高同值 (恒等), 取逻辑高
     if handles.draw_frame_simpl.is_some() {
-        host.set_entry_fixed_pos(
-            "thrustdFS",
-            0,
-            env.dpi.get_logical_screen_height() - 500,
-        );
+        host.set_entry_fixed_pos("thrustdFS", 0, env.dpi.get_logical_screen_height() - 500);
     }
 }
 
@@ -535,23 +537,20 @@ pub(crate) fn feed_overlays_live(
         // 3. 引擎控制 (节流闩 = refreshInterval 配置驱动; compressorStages 档位数 =
         //    Java FMManager.current().compressorStages, 非 READY/喷气机 → None)
         if let Some(h) = handles.engine_control.as_ref() {
-            let stages = fm_handle
-                .compressor_stages
-                .as_ref()
-                .map(|v| v.len() as i32);
+            let stages = fm_handle.compressor_stages.as_ref().map(|v| v.len() as i32);
             h.borrow_mut().update(now, &*frame, payload, stages);
         }
         // 4. 起落襟翼 (100ms 节流闩内置)
         if let Some(h) = handles.gear_flaps.as_ref() {
             h.borrow_mut().update_tick(now, lang, &*frame);
         }
-        // 5. 操纵面 (50ms 节流内置; has_service = Java init(S) 的 xs!=null 数据门控,
-        //    单实例形态下由喂入点随游戏窗口形态置位 — 见工厂头注 PORT(数据门控))
-        // 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行更新, 无节流 —
-        // host 50ms 渲染节拍 + 像素指纹兜底; W2: 数据 = TelemetrySource 散字段)
+        // 5. 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行更新, 无节流 —
+        //    host 50ms 渲染节拍 + 像素指纹兜底; W2: 数据 = TelemetrySource 散字段)
         if let Some(h) = handles.flight_info.as_ref() {
             h.borrow_mut().update(&*frame);
         }
+        // 6. 操纵面 (50ms 节流内置; has_service = Java init(S) 的 xs!=null 数据门控,
+        //    单实例形态下由喂入点随游戏窗口形态置位 — 见工厂头注 PORT(数据门控))
         if let Some(h) = handles.control_surfaces.as_ref() {
             let mut cs = h.borrow_mut();
             cs.has_service = true;
@@ -565,7 +564,7 @@ pub(crate) fn feed_overlays_live(
                 frame.var_value("wing_sweep_valid").unwrap_or(0.0) != 0.0,
             );
         }
-        // 6. 地平仪 (节流 = freqMili 40ms 配置驱动, 喂入侧承载;
+        // 7. 地平仪 (节流 = freqMili 40ms 配置驱动, 喂入侧承载;
         //    aoa_limits = blkx.NoFlapsWing.AoACritHigh/Low, 无 FM → None 不显示)
         if let Some(h) = handles.attitude.as_ref() {
             if now - attitude_feed.last_ms > attitude_feed.freq_ms {
@@ -685,9 +684,12 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
             }
             if session.host.is_active("enableFMPrint") {
                 if let Some(h) = session.handles.fm_unpacked.as_ref() {
-                    session
-                        .fm_unpacked_feed
-                        .pump(&mut session.host, "enableFMPrint", h, current_time_millis());
+                    session.fm_unpacked_feed.pump(
+                        &mut session.host,
+                        "enableFMPrint",
+                        h,
+                        current_time_millis(),
+                    );
                 }
             }
             // DrawFrameSimpl run 泵: displayFmKey = Application.displayFmKey 的
@@ -757,8 +759,11 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                 }
                 UiCommand::ShowAllOverlays => {
                     session.host.show_all_overlays();
-                    session.shared.overlays_hidden.store(false, Ordering::SeqCst);
-                },
+                    session
+                        .shared
+                        .overlays_hidden
+                        .store(false, Ordering::SeqCst);
+                }
                 UiCommand::Shutdown => {
                     logger::info("AppShell", "渲染线程退出 (Shutdown)");
                     // Drop 序: return 后 session 按字段声明序销毁 — flight_sub (退订)
@@ -910,7 +915,9 @@ impl RenderSession {
         let lang = Rc::new(Lang::init_lang());
         // WYSIWYG reinit 参数仓 (初始 = 注册快照投影; CONFIG_CHANGED 后
         // UiCommand::ReinitOverlays 覆写, 各 spec 工厂 reinit 闭包读取)
-        let params = Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&inputs)));
+        let params = Rc::new(RefCell::new(
+            vm_overlay::platform::reinit::ReinitParams::from(&inputs),
+        ));
         register_live_overlays(
             &mut host,
             &mut handles,
@@ -937,9 +944,7 @@ impl RenderSession {
         // ---- 托盘 (Java initSystemTray: 失败继续运行) ----
         #[cfg(target_os = "windows")]
         let tray = {
-            let handler = AppTrayHandler {
-                tx: main_event_tx,
-            };
+            let handler = AppTrayHandler { tx: main_event_tx };
             let tray_cfg = TrayConfig {
                 icon_path: env.icon_path.clone(),
                 ..Default::default()
@@ -1042,8 +1047,8 @@ impl RenderSession {
         self.shared
             .overlay_ctx_preview
             .store(false, Ordering::SeqCst); // for_live (Java forGameMode)
-        // 操纵面数据门控 (overlays_field2.rs PORT(数据门控)): Java init(S)
-        // 的 xs!=null 在此翻转 — openpad 即游戏形态 (has_service=true)
+                                             // 操纵面数据门控 (overlays_field2.rs PORT(数据门控)): Java init(S)
+                                             // 的 xs!=null 在此翻转 — openpad 即游戏形态 (has_service=true)
         if let Some(h) = self.handles.control_surfaces.as_ref() {
             h.borrow_mut().has_service = true;
         }
@@ -1060,7 +1065,8 @@ impl RenderSession {
         // 推力曲线游戏形态 (Java init :514-528 的单实例对位):
         // initFmHandleCache (current 快照) + isPreview=false + 隐藏起步
         if let Some(h) = self.handles.draw_frame_simpl.as_ref() {
-            h.borrow_mut().init(self.fm.current().fmdata.clone().map(Arc::new));
+            h.borrow_mut()
+                .init(self.fm.current().fmdata.clone().map(Arc::new));
         }
         if let Err(e) = self.host.open_all() {
             logger::error("OverlayHost", &format!("open_all: {}", e));
@@ -1116,7 +1122,9 @@ impl RenderSession {
         // 销毁, 之后 refreshPreviews 重建的是 initPreview 实例 (无 live
         // 订阅); overlay_ctx_preview 的窗口形态门控在此复位, 防游戏会话
         // 结束后 preview 窗渗 live 残帧
-        self.shared.overlay_ctx_preview.store(true, Ordering::SeqCst);
+        self.shared
+            .overlay_ctx_preview
+            .store(true, Ordering::SeqCst);
         // 操纵面门控同步复位 (Java preview 实例 xs=null 恒显静态值)
         if let Some(h) = self.handles.control_surfaces.as_ref() {
             h.borrow_mut().has_service = false;
@@ -1130,7 +1138,7 @@ impl RenderSession {
         // open/refreshPreview 重建 — 自动退场后的重生入口)
         self.dfs_feed.reset();
         self.host.close_all(); // close 销毁链 (存位置 → drop)
-        // Java overlay dispose → Bus.unregister (drop 槽位即退订)
+                               // Java overlay dispose → Bus.unregister (drop 槽位即退订)
         drop(std::mem::take(&mut self.flight_sub));
         // VoiceWarning 停 (Java OverlayEntry.close: interrupt 告警线程;
         // Drop 兜底 = doit 翻 false + join, 双订阅同时被退订)
@@ -1182,7 +1190,9 @@ impl RenderSession {
             Some(k) => self.host.refresh_preview_key(Some(k)),
             None => self.host.refresh_preview(),
         };
-        self.shared.overlay_ctx_preview.store(session_preview, Ordering::SeqCst);
+        self.shared
+            .overlay_ctx_preview
+            .store(session_preview, Ordering::SeqCst);
         if let Err(e) = r {
             logger::error("OverlayHost", &format!("refresh_previews: {}", e));
         }

@@ -54,14 +54,20 @@ fn test_with_methods() {
 
     // withEnabled
     let updated = original.with_enabled(false);
-    assert_eq!(updated.pack_name, "jarvis", "withEnabled packName unchanged");
+    assert_eq!(
+        updated.pack_name, "jarvis",
+        "withEnabled packName unchanged"
+    );
     assert!(!updated.enabled, "withEnabled new value");
     assert!(original.enabled, "withEnabled original unchanged");
 
     // withPackName
     let updated = original.with_pack_name(Some("custom"));
     assert_eq!(updated.pack_name, "custom", "withPackName new value");
-    assert_eq!(original.pack_name, "jarvis", "withPackName original unchanged");
+    assert_eq!(
+        original.pack_name, "jarvis",
+        "withPackName original unchanged"
+    );
 }
 
 /// 对应 Java testPrefixMethods
@@ -78,7 +84,11 @@ fn test_prefix_methods() {
         Some("aoaCrit"),
         "strip aoaCrit (no prefix)"
     );
-    assert_eq!(VoicePackConfig::strip_voice_prefix(None), None, "strip null");
+    assert_eq!(
+        VoicePackConfig::strip_voice_prefix(None),
+        None,
+        "strip null"
+    );
 
     // withVoicePrefix
     assert_eq!(

@@ -11,7 +11,10 @@ fn update_language_hit() {
 fn update_language_missing_key_returns_empty_not_default() {
     let cfg = Config::new("./lang/cur.properties");
     assert_eq!(Lang::update_language(&cfg, "httpPort", "12345"), "");
-    assert_eq!(Lang::update_language(&cfg, "__no_such_key__", "fallback"), "");
+    assert_eq!(
+        Lang::update_language(&cfg, "__no_such_key__", "fallback"),
+        ""
+    );
 }
 
 #[test]
@@ -49,7 +52,7 @@ fn init_lang_common_values() {
 fn init_lang_missing_or_case_mismatched_keys_stay_empty() {
     let lang = Lang::init_lang();
     assert_eq!(lang.http_port, ""); // 键在 cur.properties 中不存在
-    // Java 查 "mP1StatusBar"(大写 S), 文件里是 "mP1statusBar" — Properties 键大小写敏感
+                                    // Java 查 "mP1StatusBar"(大写 S), 文件里是 "mP1statusBar" — Properties 键大小写敏感
     assert_eq!(lang.m_p1_status_bar, "");
     assert_eq!(lang.m_p1_status_bar_blank, "");
     // Java 查 "mP3MonoFontBlank", 文件里是 "mP3MonoBlank"
@@ -64,7 +67,7 @@ fn init_lang_whitespace_semantics() {
     let lang = Lang::init_lang();
     assert_eq!(lang.m_display_overlay, "显示Overlay: "); // 尾随空格保留
     assert_eq!(lang.f_a_roll1, "速度  "); // 两个尾随空格 (oracle)
-    // 值全为 ASCII 空白 → Properties 前导空白全跳过 → 空串 (oracle)
+                                          // 值全为 ASCII 空白 → Properties 前导空白全跳过 → 空串 (oracle)
     assert_eq!(lang.m_p4attitude_indicator_panel_blank, "");
     // 分隔符后前导空格被跳过: appTooltips 值无前导空格 (oracle)
     assert_eq!(lang.app_tooltips, "WT8111端口信息分析、显示、记录工具");

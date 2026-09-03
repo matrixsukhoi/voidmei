@@ -70,18 +70,19 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::audio::voice_pack_config::VOICE_PREFIX;
+use crate::audio::voice_resource_manager::{SoundClip, SoundPlayer, VoiceResourceManager};
 use crate::audio::{VoiceAlertType, VoicePackConfig};
-use crate::fm::data::FmData;
+use crate::base::bus::flight_data_bus::FlightDataBus;
+use crate::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
 use crate::base::bus::Subscription;
-use crate::config::config_api::ConfigProvider;
 use crate::base::event::flight_data_event::FlightDataEvent;
 use crate::base::event::ui_state_events;
-use crate::base::bus::flight_data_bus::FlightDataBus;
-use crate::fm::FMManager;
+use crate::base::exception_helper::sleep_while_run;
 use crate::base::logger;
+use crate::config::config_api::ConfigProvider;
+use crate::fm::data::FmData;
+use crate::fm::FMManager;
 use crate::telemetry::parser::{Indicators, State};
-use crate::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
-use crate::audio::voice_resource_manager::{SoundClip, SoundPlayer, VoiceResourceManager};
 
 /// clip 槽位锁中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const CLIP_LOCK_MSG: &str = "VoiceAlert clip 锁中毒";
@@ -207,7 +208,11 @@ impl VoiceAlert {
     ///
     /// PORT: `synchronized` 整方法 monitor → 持 clip 锁贯穿方法体 (临界区等价);
     /// 外层 configProvider/VoiceResourceManager 单例取用 → 参数注入。
-    pub fn reload(&self, config_provider: &dyn ConfigProvider, resource_manager: &VoiceResourceManager) {
+    pub fn reload(
+        &self,
+        config_provider: &dyn ConfigProvider,
+        resource_manager: &VoiceResourceManager,
+    ) {
         let mut clip_slot = self.clip.lock().expect(CLIP_LOCK_MSG);
 
         // 先关闭旧资源
@@ -1311,30 +1316,6 @@ impl VoiceWarning {
         if !self.is_flap_alive && self.st.flaps == 0 {
             self.is_flap_alive = true;
         }
-    }
-
-}
-
-/// §2.13 辅助: 睡眠至 deadline 或运行标志翻 false (Java `Thread.sleep` 被
-/// interrupt 打断的对位 — 本类线程停机链: OverlayEntry.close 反射置 doit 因
-/// 包私有字段 getField 失败从不生效, 唯一有效停机是 thread.interrupt() →
-/// while 内 InterruptedException 腿置 doit=false, 故 "标志翻 false" ≡
-/// "收到中断", 退出时效等价)。
-/// 角落偏差: 进入时 doit 已 false 则立即返回; Java 的 sleepQuietly(1000) 是
-/// 无条件睡眠 (init(None)/已停机角落会残留 1 秒线程) — 无 join 方, 外部行为
-/// 无差异。
-/// PORT: [`crate::base::exception_helper::sleep_quietly`] 的 stop 语义是 **true=停**,
-/// 本类 doit 是 **true=运行**, 极性相反且 AtomicBool 无反视图可复用, 就地写
-/// 翻转版 (与 base 的 sleep_while_run 同语义, 收敛归波13 C8)。
-fn sleep_while_run(run: &AtomicBool, millis: u64) {
-    let deadline = Instant::now() + Duration::from_millis(millis);
-    while run.load(Ordering::SeqCst) {
-        let now = Instant::now();
-        if now >= deadline {
-            return;
-        }
-        let chunk = std::cmp::min(deadline - now, Duration::from_millis(10));
-        std::thread::sleep(chunk);
     }
 }
 

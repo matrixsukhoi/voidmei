@@ -10,21 +10,20 @@ use windows::core::w;
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, MonitorFromWindow,
-    ReleaseDC, SelectObject, AC_SRC_ALPHA, BLENDFUNCTION, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
-    DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ, MONITOR_DEFAULTTONEAREST, MONITORINFO,
+    ReleaseDC, SelectObject, AC_SRC_ALPHA, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION,
+    DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ, MONITORINFO, MONITOR_DEFAULTTONEAREST,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::Input::KeyboardAndMouse::{ReleaseCapture, SetCapture};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, DispatchMessageW, GetCursorPos, GetWindowLongPtrW,
-    PeekMessageW, RegisterClassW, SetWindowLongPtrW, SetWindowPos, ShowWindow,
-    TranslateMessage, CS_HREDRAW, CS_VREDRAW, GWL_EXSTYLE, HTCLIENT, HWND_BOTTOM,
-    HWND_NOTOPMOST, HWND_TOPMOST, IDC_ARROW, LoadCursorW, MSG, PM_REMOVE, SWP_NOACTIVATE,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA, WM_CAPTURECHANGED,
-    WINDOW_EX_STYLE, WNDCLASSW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE,
-    WM_NCHITTEST, WM_POINTERUP, WM_DESTROY, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-    WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
+    CreateWindowExW, DestroyWindow, DispatchMessageW, GetCursorPos, GetWindowLongPtrW, LoadCursorW,
+    PeekMessageW, RegisterClassW, SetWindowLongPtrW, SetWindowPos, ShowWindow, TranslateMessage,
+    CS_HREDRAW, CS_VREDRAW, GWL_EXSTYLE, HTCLIENT, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST,
+    IDC_ARROW, MSG, PM_REMOVE, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_HIDE,
+    SW_SHOWNOACTIVATE, ULW_ALPHA, WINDOW_EX_STYLE, WM_CAPTURECHANGED, WM_DESTROY, WM_LBUTTONDOWN,
+    WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCHITTEST, WM_POINTERUP, WNDCLASSW, WS_EX_LAYERED,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
 };
 
 use super::{OverlayEvent, WindowConfig};
@@ -49,7 +48,12 @@ pub struct WinOverlay {
 
 unsafe impl Send for WinOverlay {}
 
-unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn wnd_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
     match msg {
         WM_NCHITTEST => {
             // 整窗客户区 (Java setFocusable(false) 等价效果: 不进系统移动/缩放)
@@ -59,7 +63,13 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             // 捕获鼠标: 快速拖拽滑出窗口后仍能收到 MOVE/UP (否则拖拽中断)
             let _ = SetCapture(hwnd);
             let (x, y) = cursor_root_pos();
-            push_event(hwnd, OverlayEvent::MousePress { root_x: x, root_y: y });
+            push_event(
+                hwnd,
+                OverlayEvent::MousePress {
+                    root_x: x,
+                    root_y: y,
+                },
+            );
             LRESULT(0)
         }
         WM_LBUTTONUP => {
@@ -70,7 +80,14 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         WM_MOUSEMOVE => {
             let (x, y) = cursor_root_pos();
             let left_down = wparam.0 & 0x0001 != 0;
-            push_event(hwnd, OverlayEvent::MouseMove { root_x: x, root_y: y, left_down });
+            push_event(
+                hwnd,
+                OverlayEvent::MouseMove {
+                    root_x: x,
+                    root_y: y,
+                    left_down,
+                },
+            );
             LRESULT(0)
         }
         WM_CAPTURECHANGED => {
@@ -104,9 +121,10 @@ fn push_event(hwnd: HWND, ev: OverlayEvent) {
 
 /// 取走指定窗口队列头事件 (poll_event 用; 测试直接调用做分流模拟)
 fn drain_event(hwnd: HWND) -> Option<OverlayEvent> {
-    EVENT_QUEUES.lock().ok().and_then(|mut map| {
-        map.get_mut(&(hwnd.0 as isize))?.pop_front()
-    })
+    EVENT_QUEUES
+        .lock()
+        .ok()
+        .and_then(|mut map| map.get_mut(&(hwnd.0 as isize))?.pop_front())
 }
 
 /// 移除窗口的事件队列条目 (Drop 用; 滞留事件一并丢弃)
@@ -130,7 +148,9 @@ use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 fn set_dpi_awareness() {
     // Per-Monitor V2: 全 API 物理像素, 对齐 Java -Dsun.java2d.uiScale=1 的行为
     unsafe {
-        let _ = SetProcessDpiAwarenessContext(windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        let _ = SetProcessDpiAwarenessContext(
+            windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+        );
     }
 }
 
@@ -138,8 +158,7 @@ pub fn create(cfg: WindowConfig) -> Result<WinOverlay, String> {
     set_dpi_awareness();
 
     unsafe {
-        let hinstance = GetModuleHandleW(None)
-            .map_err(|e| format!("GetModuleHandleW: {}", e))?;
+        let hinstance = GetModuleHandleW(None).map_err(|e| format!("GetModuleHandleW: {}", e))?;
         let class_name = w!("VoidMeiOverlay");
 
         let wc = WNDCLASSW {
@@ -284,10 +303,17 @@ impl super::OverlayWindow for WinOverlay {
 
     fn set_position(&mut self, x: i32, y: i32) {
         unsafe {
-            let _ = SetWindowPos(self.hwnd, Some(HWND_BOTTOM), x, y, 0, 0,
+            let _ = SetWindowPos(
+                self.hwnd,
+                Some(HWND_BOTTOM),
+                x,
+                y,
+                0,
+                0,
                 windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE
                     | windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER
-                    | windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE);
+                    | windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE,
+            );
         }
     }
 
@@ -315,9 +341,20 @@ impl super::OverlayWindow for WinOverlay {
         // PORT: Java Window.setAlwaysOnTop — AlwaysOnTopCoordinator
         // suspendAll/restoreAll 的底层动作; 创建即 WS_EX_TOPMOST (POC 全窗口置顶), 此处运行时切换
         unsafe {
-            let after = if on { Some(HWND_TOPMOST) } else { Some(HWND_NOTOPMOST) };
-            let _ = SetWindowPos(self.hwnd, after, 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            let after = if on {
+                Some(HWND_TOPMOST)
+            } else {
+                Some(HWND_NOTOPMOST)
+            };
+            let _ = SetWindowPos(
+                self.hwnd,
+                after,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
         }
     }
 
@@ -357,15 +394,20 @@ impl super::OverlayWindow for WinOverlay {
             };
             let hdc_screen = GetDC(None);
             let mut bits: *mut std::ffi::c_void = std::ptr::null_mut();
-            let new_dib =
-                match CreateDIBSection(Some(hdc_screen), &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
-                {
-                    Ok(d) => d,
-                    Err(_) => {
-                        ReleaseDC(None, hdc_screen);
-                        return; // 保持旧尺寸 (见方法头失败路径注)
-                    }
-                };
+            let new_dib = match CreateDIBSection(
+                Some(hdc_screen),
+                &bmi,
+                DIB_RGB_COLORS,
+                &mut bits,
+                None,
+                0,
+            ) {
+                Ok(d) => d,
+                Err(_) => {
+                    ReleaseDC(None, hdc_screen);
+                    return; // 保持旧尺寸 (见方法头失败路径注)
+                }
+            };
             let new_memdc = CreateCompatibleDC(Some(hdc_screen));
             ReleaseDC(None, hdc_screen);
             // 旧资源释放 (select 回默认位图再删, 防 DC 持已删句柄)
@@ -422,9 +464,11 @@ impl super::OverlayWindow for WinOverlay {
             }
             (
                 windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics(
-                    windows::Win32::UI::WindowsAndMessaging::SM_CXSCREEN),
+                    windows::Win32::UI::WindowsAndMessaging::SM_CXSCREEN,
+                ),
                 windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics(
-                    windows::Win32::UI::WindowsAndMessaging::SM_CYSCREEN),
+                    windows::Win32::UI::WindowsAndMessaging::SM_CYSCREEN,
+                ),
             )
         }
     }

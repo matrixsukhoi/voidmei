@@ -13,9 +13,9 @@
 //! 显示不回退); Java 下拉弹出互斥逻辑 (registerComboBox/dismissActivePopups) 属
 //! 窗口管理层, 不迁移。
 
-use vm_core::config::config_loader::{ConfigValue, GroupConfig};
-use crate::renderer_config_helper;
 use crate::render_context::RenderContext;
+use crate::renderer_config_helper;
+use vm_core::config::config_loader::{ConfigValue, GroupConfig};
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 
@@ -55,7 +55,10 @@ pub fn apply(panel: &mut GroupConfig, key: &str, value: &str, ctx: &dyn RenderCo
     let Some(path) = find_row_path(&panel.rows, key) else {
         return;
     };
-    let prop = row_by_path(&panel.rows, &path).expect("find_row_path 已定位").property.clone();
+    let prop = row_by_path(&panel.rows, &path)
+        .expect("find_row_path 已定位")
+        .property
+        .clone();
     // Update memory model so it saves to ui_layout.cfg
     row_by_path_mut(&mut panel.rows, &path)
         .expect("find_row_path 已定位")

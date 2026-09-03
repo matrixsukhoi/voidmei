@@ -1,6 +1,5 @@
 use super::*;
 
-
 // W7: getter 体系消解后, 原 11 个 getter 行为测试收敛为 var_value 语义锚定
 // (直通闭包的哨兵/拓宽语义在 formula/registry.rs 内联对齐; 这里锚定桥本身)
 
@@ -19,7 +18,11 @@ fn var_value_state_passthrough() {
     d.s_indic = Some(vm_core::telemetry::parser::Indicators::default());
     use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("ias"), Some(474.0));
-    assert_eq!(d.var_value("getIAS"), None, "单名制: getter 名不进内核 (W10)");
+    assert_eq!(
+        d.var_value("getIAS"),
+        None,
+        "单名制: getter 名不进内核 (W10)"
+    );
 }
 
 #[test]
@@ -49,10 +52,16 @@ fn var_value_formula_slot_and_single_name() {
     let mut d = ServiceData::default();
     d.formula_slots = mgr.current().slots_arc();
     let raw = vm_core::formula::registry::RawInputs::default();
-    d.formula_values = mgr.eval_frame(&raw, &Default::default(), &Default::default(), 0).0;
+    d.formula_values = mgr
+        .eval_frame(&raw, &Default::default(), &Default::default(), 0)
+        .0;
     use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("mach"), Some(0.72));
-    assert_eq!(d.var_value("getMach"), None, "getter 名不可达 (单名制, 边界外禁用)");
+    assert_eq!(
+        d.var_value("getMach"),
+        None,
+        "getter 名不可达 (单名制, 边界外禁用)"
+    );
 }
 
 /// registry 补齐的助推器/WEP/油量五量 (live 显示回归锚): 直绑闭包语义
@@ -66,10 +75,18 @@ fn var_value_booster_wep_fuel_registry_vars() {
     d.s_state = Some(s);
     use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("booster_fuel_kg"), Some(300.0));
-    assert_eq!(d.var_value("getBoosterFuelKg"), None, "单名制: getter 名不进内核");
+    assert_eq!(
+        d.var_value("getBoosterFuelKg"),
+        None,
+        "单名制: getter 名不进内核"
+    );
     assert_eq!(d.var_value("booster_fuel_percent"), Some(75.0));
     assert_eq!(d.var_value("has_booster"), Some(1.0));
-    assert_eq!(d.var_value("has_wep"), None, "无 FM → None → 消费面 false (对位原 false)");
+    assert_eq!(
+        d.var_value("has_wep"),
+        None,
+        "无 FM → None → 消费面 false (对位原 false)"
+    );
     // fuel_percent 走 SessionInputs 搬运
     assert_eq!(d.var_value("fuel_percent"), Some(0.0));
     // 无助推器 (哨兵) → 归零

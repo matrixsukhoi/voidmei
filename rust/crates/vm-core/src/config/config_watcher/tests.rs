@@ -114,8 +114,10 @@ fn check_equal_mtime_does_not_fire() {
     // 相等分支: 直接钉死 last_mod_time 构造 (两次真实写入无法可靠产生相等 mtime)
     let path = temp_file("check_equal");
     let m = write_until_newer(&path, 0);
-    let svc =
-        ConfigWatcherService::new(path.to_str().unwrap(), Some(|| panic!("相等 mtime 不应触发")));
+    let svc = ConfigWatcherService::new(
+        path.to_str().unwrap(),
+        Some(|| panic!("相等 mtime 不应触发")),
+    );
     lock_state(&svc.state).last_mod_time = m;
     check(&svc.file_path, &svc.state, &svc.on_reload);
     assert_eq!(lock_state(&svc.state).last_mod_time, m);
@@ -126,8 +128,10 @@ fn check_equal_mtime_does_not_fire() {
 fn check_older_mtime_does_not_fire_and_keeps_baseline() {
     let path = temp_file("check_older");
     let m = write_until_newer(&path, 0);
-    let svc =
-        ConfigWatcherService::new(path.to_str().unwrap(), Some(|| panic!("回退 mtime 不应触发")));
+    let svc = ConfigWatcherService::new(
+        path.to_str().unwrap(),
+        Some(|| panic!("回退 mtime 不应触发")),
+    );
     // 人为把基线抬到未来: current(m) > last(m+10000) 为假 → 严格大于方向钉子
     lock_state(&svc.state).last_mod_time = m + 10_000;
     check(&svc.file_path, &svc.state, &svc.on_reload);
@@ -148,7 +152,11 @@ fn ignore_next_suppresses_exactly_one_event_and_absorbs_mtime() {
     let m1 = write_until_newer(&path, t0);
     svc.ignore_next();
     check(&svc.file_path, &svc.state, &svc.on_reload);
-    assert_eq!(hits.load(Ordering::SeqCst), 0, "被 ignore 的那一轮不触发回调");
+    assert_eq!(
+        hits.load(Ordering::SeqCst),
+        0,
+        "被 ignore 的那一轮不触发回调"
+    );
     // Java ignore 分支同时吸收 mtime: lastModTime = currentModTime
     assert_eq!(
         lock_state(&svc.state).last_mod_time,
@@ -171,7 +179,11 @@ fn check_without_callback_updates_mtime_without_panic() {
     let svc = ConfigWatcherService::new(path.to_str().unwrap(), None::<fn()>);
     let m1 = write_until_newer(&path, t0);
     check(&svc.file_path, &svc.state, &svc.on_reload);
-    assert_eq!(lock_state(&svc.state).last_mod_time, m1, "无回调仍应前移基线");
+    assert_eq!(
+        lock_state(&svc.state).last_mod_time,
+        m1,
+        "无回调仍应前移基线"
+    );
     std::fs::remove_file(&path).ok();
 }
 
@@ -240,7 +252,11 @@ fn double_start_replaces_previous_timer() {
     let _m1 = write_until_newer(&path, t0);
     wait_until(10_000, || hits.load(Ordering::SeqCst) >= 1);
     std::thread::sleep(Duration::from_millis(150));
-    assert_eq!(hits.load(Ordering::SeqCst), 1, "旧定时器被替换, 不得双重触发");
+    assert_eq!(
+        hits.load(Ordering::SeqCst),
+        1,
+        "旧定时器被替换, 不得双重触发"
+    );
     std::fs::remove_file(&path).ok();
 }
 
@@ -292,11 +308,8 @@ fn panicking_callback_does_not_kill_timer() {
 fn counter_with_panic() -> (Arc<AtomicU32>, impl FnMut() + Send + 'static) {
     let hits = Arc::new(AtomicU32::new(0));
     let h = Arc::clone(&hits);
-    (
-        hits,
-        move || {
-            h.fetch_add(1, Ordering::SeqCst);
-            panic!("回调模拟异常");
-        },
-    )
+    (hits, move || {
+        h.fetch_add(1, Ordering::SeqCst);
+        panic!("回调模拟异常");
+    })
 }

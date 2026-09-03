@@ -69,11 +69,13 @@ mod win {
     use std::sync::Mutex;
     use std::time::Instant;
 
+    use vm_core::audio::voice_resource_manager::{SoundClip, SoundError, SoundPlayer};
     use vm_core::base::logger;
-    use vm_core::audio::voice_resource_manager::{SoundClip, SoundPlayer, SoundError};
 
     use windows::core::PCWSTR;
-    use windows::Win32::Media::Audio::{PlaySoundW, SND_ASYNC, SND_FILENAME, SND_FLAGS, SND_NODEFAULT};
+    use windows::Win32::Media::Audio::{
+        PlaySoundW, SND_ASYNC, SND_FILENAME, SND_FLAGS, SND_NODEFAULT,
+    };
 
     use super::parse_wav_duration;
 

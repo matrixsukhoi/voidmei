@@ -4,7 +4,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 
 fn mk_event(map_grid: &str) -> FlightDataEvent {
-    FlightDataEvent::new(EventPayload::builder().map_grid(map_grid.to_string()).build())
+    FlightDataEvent::new(
+        EventPayload::builder()
+            .map_grid(map_grid.to_string())
+            .build(),
+    )
 }
 
 struct RecordingListener {
@@ -79,11 +83,15 @@ fn listeners_called_in_registration_order() {
     let order = Arc::new(Mutex::new(Vec::new()));
     let o1 = Arc::clone(&order);
     let _a = bus.register(move |e| {
-        o1.lock().unwrap().push(format!("a:{}", e.get_payload().map_grid));
+        o1.lock()
+            .unwrap()
+            .push(format!("a:{}", e.get_payload().map_grid));
     });
     let o2 = Arc::clone(&order);
     let _b = bus.register(move |e| {
-        o2.lock().unwrap().push(format!("b:{}", e.get_payload().map_grid));
+        o2.lock()
+            .unwrap()
+            .push(format!("b:{}", e.get_payload().map_grid));
     });
     bus.publish(&mk_event("O1"));
     assert_eq!(
@@ -100,17 +108,11 @@ fn same_event_to_all_listeners() {
     let g2 = Arc::new(Mutex::new((String::new(), 0i64)));
     let s1 = Arc::clone(&g1);
     let _a = bus.register(move |e| {
-        *s1.lock().unwrap() = (
-            e.get_payload().map_grid.clone(),
-            e.get_timestamp(),
-        );
+        *s1.lock().unwrap() = (e.get_payload().map_grid.clone(), e.get_timestamp());
     });
     let s2 = Arc::clone(&g2);
     let _b = bus.register(move |e| {
-        *s2.lock().unwrap() = (
-            e.get_payload().map_grid.clone(),
-            e.get_timestamp(),
-        );
+        *s2.lock().unwrap() = (e.get_payload().map_grid.clone(), e.get_timestamp());
     });
     bus.publish(&mk_event("S1"));
     let v1 = g1.lock().unwrap().clone();

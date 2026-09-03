@@ -47,29 +47,29 @@ mod ctx;
 pub use comp::{CompCell, MiniHudComponent, MiniHudComponentInner};
 pub use ctx::{MiniHudFonts, MinimalHudContext};
 
-use crate::render::primitives;
-use vm_core::base::format::pad_width;
+use crate::overlays::rows::{TickScale, MANEUVER_FULL_SCALE, MANEUVER_TICK_STEPS};
 use crate::render::palette::{aa, colors};
-use crate::overlays::rows::{MANEUVER_FULL_SCALE, MANEUVER_TICK_STEPS, TickScale};
+use crate::render::primitives;
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use vm_core::base::format::pad_width;
 
-use vm_core::fm::data::FmData;
-use vm_core::config::config_api::HUDSettings;
-use vm_core::base::event::event_payload::EventPayload;
-use vm_core::derived::hud_calculator::{self, HudColors};
-use vm_core::telemetry::parser::{Indicators, State};
-use vm_core::derived::hud_data::HUDData;
 use crate::layout::hud_layout_node::HUDLayoutNodeExt;
+use vm_core::base::event::event_payload::EventPayload;
+use vm_core::config::config_api::HUDSettings;
+use vm_core::derived::hud_calculator::{self, HudColors};
+use vm_core::derived::hud_data::HUDData;
+use vm_core::fm::data::FmData;
 use vm_core::formula::registry::FormulaView;
+use vm_core::telemetry::parser::{Indicators, State};
 
+use crate::layout::minihud_layout::{AutoSizingPlan, BuiltMiniHudLayout, ModernHUDLayoutEngine};
+use crate::overlays::spec_common::keyed_spec;
+use crate::overlays::warning::WarningBlinkHost;
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
-use crate::overlays::spec_common::keyed_spec;
-use crate::layout::minihud_layout::{AutoSizingPlan, BuiltMiniHudLayout, ModernHUDLayoutEngine};
 use crate::render::canvas::PixCanvas;
-use crate::overlays::warning::WarningBlinkHost;
 
 // ---------------------------------------------------------------------------
 // Java Math / printf 复刻 (§2.3/§2.2; 取整族收敛 vm_core::base::format)
@@ -204,7 +204,10 @@ impl MiniHudOverlay {
             components: Vec::new(),
             hud_rows: Vec::new(),
             warning: WarningBlinkHost::new(service_loop_interval_ms),
-            layout: BuiltMiniHudLayout { engine: empty_engine, sizing: None },
+            layout: BuiltMiniHudLayout {
+                engine: empty_engine,
+                sizing: None,
+            },
             lines: std::array::from_fn(|_| String::new()),
             rel_energy: String::new(),
             line_aoa: String::new(),
@@ -312,14 +315,17 @@ impl MiniHudOverlay {
         let text_visible = settings.draw_hud_text();
 
         let enable_flap_bar = settings.enable_flap_angle_bar();
-        self.flap_angle_bar.set_visible(text_visible && enable_flap_bar);
+        self.flap_angle_bar
+            .set_visible(text_visible && enable_flap_bar);
         let show_attitude = settings.show_attitude_gauge();
-        self.compass_gauge.set_visible(text_visible && !show_attitude);
+        self.compass_gauge
+            .set_visible(text_visible && !show_attitude);
         self.attitude_indicator_gauge
             .set_visible(text_visible && show_attitude && !self.disable_attitude);
         // Dynamic position based on current Width/CrossX —
         // Position handled by ModernHUDLayoutEngine (Java 注释原文; ctx 空块不复刻)
-        self.crosshair_gauge.set_visible(settings.is_display_crosshair());
+        self.crosshair_gauge
+            .set_visible(settings.is_display_crosshair());
         let show_speed = settings.show_speed_bar();
         self.throttle_bar.set_visible(text_visible && !show_speed);
         self.speed_ratio_bar.set_visible(text_visible && show_speed);
@@ -428,7 +434,11 @@ impl MiniHudOverlay {
         });
         // Row 4: Maneuver (G)
         let l4 = self.lines[4].clone();
-        let (mi, l, ticks) = (self.maneuver_index, self.maneuver_index_len, self.tick_scale);
+        let (mi, l, ticks) = (
+            self.maneuver_index,
+            self.maneuver_index_len,
+            self.tick_scale,
+        );
         self.hud_rows[4].map_inner(|inner| {
             if let MiniHudComponentInner::Row4(r) = inner {
                 r.update(&l4, false, mi, l, ticks);
@@ -489,7 +499,8 @@ impl MiniHudOverlay {
     ) {
         // (Java 的 FMManager.current().blkx 快照语义由调用方以 blkx=None 表达 —
         // 非 READY 句柄降级)
-        let data = hud_calculator::calculate(state, indic, payload, service, fmdata, settings, colors);
+        let data =
+            hud_calculator::calculate(state, indic, payload, service, fmdata, settings, colors);
 
         // Dispatch to Reactive Components
         for comp in &self.components {
@@ -539,8 +550,9 @@ impl MiniHudOverlay {
         self.maneuver_index_len =
             java_round_long_narrowed(data.maneuver_index / MANEUVER_FULL_SCALE * right_draw as f64);
         self.tick_scale = TickScale {
-            ticks: MANEUVER_TICK_STEPS
-                .map(|step| java_round_long_narrowed(step / MANEUVER_FULL_SCALE * right_draw as f64)),
+            ticks: MANEUVER_TICK_STEPS.map(|step| {
+                java_round_long_narrowed(step / MANEUVER_FULL_SCALE * right_draw as f64)
+            }),
         };
     }
 

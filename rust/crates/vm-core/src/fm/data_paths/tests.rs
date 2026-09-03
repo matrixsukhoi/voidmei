@@ -10,7 +10,10 @@ fn norm(f: &Path) -> String {
 /// (失败即 panic), 描述与期望/实际值格式逐字保留
 fn assert_equals(expected: &str, actual: &str, desc: &str) {
     // 失败文案 = Java fail() 的 desc 串: desc + " —— 期望: …, 实际: …", 逐字
-    assert!(expected == actual, "{desc} —— 期望: {expected}, 实际: {actual}");
+    assert!(
+        expected == actual,
+        "{desc} —— 期望: {expected}, 实际: {actual}"
+    );
 }
 
 fn test_default_root() {

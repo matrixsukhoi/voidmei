@@ -100,15 +100,16 @@ pub fn format_time(value: f64) -> String {
 }
 
 /// Java `String.format("%N.Mf", d)` 的数值段 (不含宽度): 对**最短往返十进制**
-/// HALF_UP。语义模型与 config_loader::java_format_f4 / flight_analyzer::java_format_f1
-/// 同源 (Java 8 oracle 实证, 本模块 build/oracle_hud 全格式串对拍):
+/// HALF_UP。全库唯一真相 (原 config_loader / flight_analyzer 的算法级私有副本
+/// java_format_f4/java_format_f1 已收割于此, 波19; Java 8 oracle 实证,
+/// 本模块 build/oracle_hud 全格式串对拍):
 /// - 2.675 → "2.68" (Rust `{:.2}` 会给 "2.67");
 /// - -0.4 → "-0" / -0.04 → "-0.0" (舍入到零仍保留负号);
 /// - NaN/Infinity 原样 ("NaN"/"Infinity"/"-Infinity");
 /// - `exp10 > 25` 是纯实现切点, 非语义边界: else 支路的 scaled 定点累加在 u128
 ///   内, 10^308 量级会溢出; 该域最短表示位数 n ≤ 17 < keep, 判定位恒 0, 无舍入,
 ///   走 digits + 补零的字符串路径;
-/// - JDK-4511638 已知分歧 (同 config_loader::java_format_f4 裁决): Java 8 旧 dtoa
+/// - JDK-4511638 已知分歧: Java 8 旧 dtoa
 ///   在大值域 (~1e17 起) 偶发非最短 toString, 而 %f 按**自身 toString 的数字**
 ///   展开 — 1e23 → "9.999999999999999E22" → "99999999999999990000000", 既非精确
 ///   二进制 (...91611392) 也非最短展开; Rust `{:e}` 给真最短 "1e23" → 本实现输出
@@ -119,7 +120,11 @@ pub fn java_f(d: f64, prec: usize) -> String {
         return "NaN".to_string();
     }
     if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
+        return if d > 0.0 {
+            "Infinity".to_string()
+        } else {
+            "-Infinity".to_string()
+        };
     }
     // 负号含 -0.0: Java 舍入到零的负数仍输出 "-0"/"-0.0" (oracle 验证)
     let neg = d.is_sign_negative();
@@ -224,7 +229,11 @@ pub fn java_f_plus(d: f64, prec: usize) -> String {
         return "NaN".to_string();
     }
     if d.is_infinite() {
-        return if d > 0.0 { "+Infinity".to_string() } else { "-Infinity".to_string() };
+        return if d > 0.0 {
+            "+Infinity".to_string()
+        } else {
+            "-Infinity".to_string()
+        };
     }
     if d.is_sign_negative() {
         java_f(d, prec)
@@ -249,7 +258,11 @@ pub fn java_f0_exact(d: f64) -> String {
     }
     // PORT: Formatter 对 ±∞ 输出常量 (org.json "1e999"→inf 可达)
     if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
+        return if d > 0.0 {
+            "Infinity".to_string()
+        } else {
+            "-Infinity".to_string()
+        };
     }
     // 负号判定含 -0.0 (Java Formatter 对负零输出 "-0", v < 0.0 对 -0.0 为 false)
     let neg = d < 0.0 || (d == 0.0 && d.is_sign_negative());

@@ -77,7 +77,9 @@ struct MapConfig {
 
 impl MapConfig {
     fn new() -> Self {
-        MapConfig { values: Mutex::new(HashMap::new()) }
+        MapConfig {
+            values: Mutex::new(HashMap::new()),
+        }
     }
 }
 
@@ -86,7 +88,10 @@ impl ConfigProvider for MapConfig {
         self.values.lock().unwrap().get(key).cloned()
     }
     fn set_config(&self, key: &str, value: &str) {
-        self.values.lock().unwrap().insert(key.to_string(), value.to_string());
+        self.values
+            .lock()
+            .unwrap()
+            .insert(key.to_string(), value.to_string());
     }
     fn is_field_disabled(&self, _key: &str) -> bool {
         false
@@ -171,18 +176,30 @@ fn init_config_flag_variants() {
     let cfg = Arc::new(MapConfig::new());
     cfg.set_config("enableAltInformation", "true");
     let mut fa = FlightAnalyzer::default();
-    fa.init(0, mock_service(), Some(cfg as Arc<dyn ConfigProvider + Send + Sync>));
+    fa.init(
+        0,
+        mock_service(),
+        Some(cfg as Arc<dyn ConfigProvider + Send + Sync>),
+    );
     assert!(fa.is_information);
     // 大小写不敏感 (Boolean.parseBoolean)
     let cfg2 = Arc::new(MapConfig::new());
     cfg2.set_config("enableAltInformation", "TRUE");
     let mut fa2 = FlightAnalyzer::default();
-    fa2.init(0, mock_service(), Some(cfg2 as Arc<dyn ConfigProvider + Send + Sync>));
+    fa2.init(
+        0,
+        mock_service(),
+        Some(cfg2 as Arc<dyn ConfigProvider + Send + Sync>),
+    );
     assert!(fa2.is_information);
     // 键缺失 (getConfig → null) → parseBoolean(null) = false
     let cfg3 = Arc::new(MapConfig::new());
     let mut fa3 = FlightAnalyzer::default();
-    fa3.init(0, mock_service(), Some(cfg3 as Arc<dyn ConfigProvider + Send + Sync>));
+    fa3.init(
+        0,
+        mock_service(),
+        Some(cfg3 as Arc<dyn ConfigProvider + Send + Sync>),
+    );
     assert!(!fa3.is_information);
 }
 
@@ -242,7 +259,11 @@ fn analyze_notification_message_delta1() {
     fa.notify = Some(cb);
     let cfg = Arc::new(MapConfig::new());
     cfg.set_config("enableAltInformation", "true");
-    fa.init(5, svc.clone(), Some(cfg as Arc<dyn ConfigProvider + Send + Sync>));
+    fa.init(
+        5,
+        svc.clone(),
+        Some(cfg as Arc<dyn ConfigProvider + Send + Sync>),
+    );
     set_mock(&svc, 100200, 1100, 12.3);
     fa.analyze(6);
     let msgs = cap.lock().unwrap();
@@ -264,7 +285,11 @@ fn analyze_notification_message_delta3() {
     fa.notify = Some(cb);
     let cfg = Arc::new(MapConfig::new());
     cfg.set_config("enableAltInformation", "true");
-    fa.init(5, svc.clone(), Some(cfg as Arc<dyn ConfigProvider + Send + Sync>));
+    fa.init(
+        5,
+        svc.clone(),
+        Some(cfg as Arc<dyn ConfigProvider + Send + Sync>),
+    );
     set_mock(&svc, 100500, 0, 0.0); // time = 100.5 (f32 精确)
     fa.analyze(6); // delta1: 1000/100.5 → 9 → 0.9
     set_mock(&svc, 100500, 0, 0.0);
@@ -289,7 +314,11 @@ fn analyze_notification_zero_time_float_inf_domain() {
     fa.notify = Some(cb);
     let cfg = Arc::new(MapConfig::new());
     cfg.set_config("enableAltInformation", "true");
-    fa.init(0, svc.clone(), Some(cfg as Arc<dyn ConfigProvider + Send + Sync>));
+    fa.init(
+        0,
+        svc.clone(),
+        Some(cfg as Arc<dyn ConfigProvider + Send + Sync>),
+    );
     fa.analyze(1);
     let msgs = cap.lock().unwrap();
     // oracle (FA.java M1 t=0.0): Java 输出 "2.14748368E8"; 本实现最短往返表示
@@ -395,7 +424,10 @@ fn update_em_chart_turn_updates_and_notifies_half_up() {
     let msgs = cap.lock().unwrap();
     assert_eq!(msgs.len(), 1);
     // 5.25/1.25 是精确半点: Java HALF_UP → 5.3/1.3, Rust {:.1} 半偶会给 5.2/1.2
-    assert_eq!(msgs[0], "速度  300km/h下的最大法向过载: 5.3G, 此时SEP为: 1.3m/s, 记录完成");
+    assert_eq!(
+        msgs[0],
+        "速度  300km/h下的最大法向过载: 5.3G, 此时SEP为: 1.3m/s, 记录完成"
+    );
 }
 
 #[test]
@@ -528,7 +560,11 @@ fn notification_dropped_when_notify_not_wired() {
     let mut fa = FlightAnalyzer::default(); // notify = None
     let cfg = Arc::new(MapConfig::new());
     cfg.set_config("enableAltInformation", "true");
-    fa.init(5, svc.clone(), Some(cfg as Arc<dyn ConfigProvider + Send + Sync>));
+    fa.init(
+        5,
+        svc.clone(),
+        Some(cfg as Arc<dyn ConfigProvider + Send + Sync>),
+    );
     set_mock(&svc, 100200, 0, 0.0);
     fa.analyze(6); // 消息照常构造, 通知丢弃 (P4 接线前)
     assert!(fa.notify.is_none());
@@ -540,35 +576,35 @@ fn notification_dropped_when_notify_not_wired() {
 fn java_float_to_string_matches_java8_oracle() {
     // oracle FA.java: (int)((d*1000)/t) / 10.0f 的 Float.toString 输出
     let cases: &[(f32, &str)] = &[
-        (1.0f32 / 10.0f32, "0.1"),             // d=1 t=600
-        (9.0f32 / 10.0f32, "0.9"),             // d=1 t=100.5
-        (1.0f32 / 10.0f32, "0.1"),             // d=1 t=1000
-        (23.0f32 / 10.0f32, "2.3"),            // d=1 t=42
-        (81.0f32 / 10.0f32, "8.1"),            // d=1 t=12.34
-        (333.0f32 / 10.0f32, "33.3"),          // d=1 t=3
-        (200.0f32, "200.0"),                   // d=1 t=0.5
-        (1000.0f32, "1000.0"),                 // d=1 t=0.1
-        (0.5f32, "0.5"),                       // d=3 t=600: (int)5 / 10.0f
-        (29.0f32 / 10.0f32, "2.9"),            // d=3 t=100.5
-        (71.0f32 / 10.0f32, "7.1"),            // d=3 t=42
-        (243.0f32 / 10.0f32, "24.3"),          // d=3 t=12.34
-        (600.0f32, "600.0"),                   // d=3 t=0.5
-        (3000.0f32, "3000.0"),                 // d=3 t=0.1
-        (20.0f32 / 10.0f32, "2.0"),            // d=12 t=600: (int)20 / 10.0f
-        (119.0f32 / 10.0f32, "11.9"),          // d=12 t=100.5
-        (285.0f32 / 10.0f32, "28.5"),          // d=12 t=42
-        (972.0f32 / 10.0f32, "97.2"),          // d=12 t=12.34
-        (2400.0f32, "2400.0"),                 // d=12 t=0.5
-        (12000.0f32, "12000.0"),               // d=12 t=0.1
-        (426.0f32 / 10.0f32, "42.6"),          // d=256 t=600
-        (2547.0f32 / 10.0f32, "254.7"),        // d=256 t=100.5
-        (6095.0f32 / 10.0f32, "609.5"),        // d=256 t=42
-        (20745.0f32 / 10.0f32, "2074.5"),      // d=256 t=12.34
-        (85333.0f32 / 10.0f32, "8533.3"),      // d=256 t=3
-        (51200.0f32, "51200.0"),               // d=256 t=0.5
-        (256000.0f32, "256000.0"),             // d=256 t=0.1
-        (2560000.0f32, "2560000.0"),           // 平原式尾零补齐探针 (10^6 域, < 10^7)
-        (-20.0f32, "-20.0"),                   // d=1 t=-5
+        (1.0f32 / 10.0f32, "0.1"),        // d=1 t=600
+        (9.0f32 / 10.0f32, "0.9"),        // d=1 t=100.5
+        (1.0f32 / 10.0f32, "0.1"),        // d=1 t=1000
+        (23.0f32 / 10.0f32, "2.3"),       // d=1 t=42
+        (81.0f32 / 10.0f32, "8.1"),       // d=1 t=12.34
+        (333.0f32 / 10.0f32, "33.3"),     // d=1 t=3
+        (200.0f32, "200.0"),              // d=1 t=0.5
+        (1000.0f32, "1000.0"),            // d=1 t=0.1
+        (0.5f32, "0.5"),                  // d=3 t=600: (int)5 / 10.0f
+        (29.0f32 / 10.0f32, "2.9"),       // d=3 t=100.5
+        (71.0f32 / 10.0f32, "7.1"),       // d=3 t=42
+        (243.0f32 / 10.0f32, "24.3"),     // d=3 t=12.34
+        (600.0f32, "600.0"),              // d=3 t=0.5
+        (3000.0f32, "3000.0"),            // d=3 t=0.1
+        (20.0f32 / 10.0f32, "2.0"),       // d=12 t=600: (int)20 / 10.0f
+        (119.0f32 / 10.0f32, "11.9"),     // d=12 t=100.5
+        (285.0f32 / 10.0f32, "28.5"),     // d=12 t=42
+        (972.0f32 / 10.0f32, "97.2"),     // d=12 t=12.34
+        (2400.0f32, "2400.0"),            // d=12 t=0.5
+        (12000.0f32, "12000.0"),          // d=12 t=0.1
+        (426.0f32 / 10.0f32, "42.6"),     // d=256 t=600
+        (2547.0f32 / 10.0f32, "254.7"),   // d=256 t=100.5
+        (6095.0f32 / 10.0f32, "609.5"),   // d=256 t=42
+        (20745.0f32 / 10.0f32, "2074.5"), // d=256 t=12.34
+        (85333.0f32 / 10.0f32, "8533.3"), // d=256 t=3
+        (51200.0f32, "51200.0"),          // d=256 t=0.5
+        (256000.0f32, "256000.0"),        // d=256 t=0.1
+        (2560000.0f32, "2560000.0"),      // 平原式尾零补齐探针 (10^6 域, < 10^7)
+        (-20.0f32, "-20.0"),              // d=1 t=-5
         // t=0 除零域: (int)+Inf = Integer.MAX_VALUE → /10.0f = 214748368.0f32。
         // Java oracle 输出 "2.14748368E8" (9 位, JDK-4511638 域非最短表示);
         // 本实现最短往返 8 位 "2.1474837E8" (回读同一 f32) — 与 config_loader
@@ -590,16 +626,16 @@ fn java_float_to_string_matches_java8_oracle() {
     assert_eq!(java_float_to_string(0.0001f32), "1.0E-4");
 }
 
-// ---- Java 8 oracle: java_format_f1 (String.format("%.1f", double)) ----
+// ---- Java 8 oracle: java_f(d, 1) (String.format("%.1f", double)) ----
 
 #[test]
-fn java_format_f1_matches_java8_oracle() {
+fn java_f_prec1_matches_java8_oracle() {
     // MR.java oracle: 精确半点 5.25/1.25/0.25/0.75 → HALF_UP (Rust {:.1} 半偶会
     // 给 5.2/1.2/0.2/0.8, 双重分歧点钉死)
     let cases: &[(f64, &str)] = &[
         (3.25, "3.3"),
         (3.75, "3.8"),
-        (2.675, "2.7"),   // 最短往返 "2.675" HALF_UP (精确二进制是 2.67499...)
+        (2.675, "2.7"), // 最短往返 "2.675" HALF_UP (精确二进制是 2.67499...)
         (0.05, "0.1"),
         (0.15, "0.2"),
         (9.999999, "10.0"), // 进位级联到整数
@@ -614,12 +650,12 @@ fn java_format_f1_matches_java8_oracle() {
         (2.35, "2.4"),
     ];
     for &(v, want) in cases {
-        assert_eq!(java_format_f1(v), want, "String.format(\"%.1f\", {v})");
+        assert_eq!(java_f(v, 1), want, "String.format(\"%.1f\", {v})");
     }
-    assert_eq!(java_format_f1(-0.0), "-0.0");
-    assert_eq!(java_format_f1(f64::NAN), "NaN");
-    assert_eq!(java_format_f1(f64::INFINITY), "Infinity");
-    assert_eq!(java_format_f1(f64::NEG_INFINITY), "-Infinity");
+    assert_eq!(java_f(-0.0, 1), "-0.0");
+    assert_eq!(java_f(f64::NAN, 1), "NaN");
+    assert_eq!(java_f(f64::INFINITY, 1), "Infinity");
+    assert_eq!(java_f(f64::NEG_INFINITY, 1), "-Infinity");
 }
 
 // ---- Java 8 oracle: java_math_round (Math.round) ----

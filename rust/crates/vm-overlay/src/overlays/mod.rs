@@ -5,11 +5,11 @@
 //! (原 field1/2 壳残留) 已随波16 裁撤。
 
 // ---- 仪表组件 ----
-pub mod attitude;     // 人工地平仪 (Java AttitudeOverlay/AttitudeIndicatorGauge)
-pub mod compass;      // 罗盘 (CompassGauge)
-pub mod crosshair;    // 十字准星 (CrosshairGauge)
-pub mod bars;         // 条形仪表族 (LinearGauge/SpeedRatioBar/FlapAngleBar)
-pub mod gauges;       // MarkedGauge 条+可插拔标记系统 (Field 系共用)
+pub mod attitude; // 人工地平仪 (Java AttitudeOverlay/AttitudeIndicatorGauge)
+pub mod bars; // 条形仪表族 (LinearGauge/SpeedRatioBar/FlapAngleBar)
+pub mod compass; // 罗盘 (CompassGauge)
+pub mod crosshair; // 十字准星 (CrosshairGauge)
+pub mod gauges; // MarkedGauge 条+可插拔标记系统 (Field 系共用)
 
 // ---- Field 系内容组件 (原 overlays_field1 壳: engine_control/gauges/gear_flaps/power_info) ----
 pub mod engine_control;
@@ -21,12 +21,12 @@ pub mod control_surfaces;
 pub mod fm_unpacked;
 
 // ---- 列表/信息组件 ----
-pub mod list;             // 斑马纹列表基座 (BaseListOverlay/ZebraList)
-pub mod warning;          // 告警闪烁 (WarningOverlay)
-pub mod flight_info;      // 飞行数据文本
 pub mod draw_frame_simpl; // FM 曲线可视化 (Java DrawFrameSimpl)
-pub mod minihud;          // 主 HUD (组件化架构)
-pub mod rows;             // HUD 行组件 (HUDTextRow/HUDAkbRow/HUDEnergyRow/HUDManeuverRow)
+pub mod flight_info; // 飞行数据文本
+pub mod list; // 斑马纹列表基座 (BaseListOverlay/ZebraList)
+pub mod minihud; // 主 HUD (组件化架构)
+pub mod rows;
+pub mod warning; // 告警闪烁 (WarningOverlay) // HUD 行组件 (HUDTextRow/HUDAkbRow/HUDEnergyRow/HUDManeuverRow)
 
 // ---- spec 工厂公共脚手架 (波15: 字体热换槽 + 键控 spec 构造) ----
 pub(crate) mod spec_common;

@@ -104,34 +104,68 @@ fn test_context_flag_presets() {
 
 #[test]
 fn test_and_truth_table() {
-    for (a, b, expect) in [(true, true, true), (true, false, false), (false, true, false), (false, false, false)] {
-        let left = if a { ActivationStrategy::always() } else { ActivationStrategy::never() };
-        let right = if b { ActivationStrategy::always() } else { ActivationStrategy::never() };
+    for (a, b, expect) in [
+        (true, true, true),
+        (true, false, false),
+        (false, true, false),
+        (false, false, false),
+    ] {
+        let left = if a {
+            ActivationStrategy::always()
+        } else {
+            ActivationStrategy::never()
+        };
+        let right = if b {
+            ActivationStrategy::always()
+        } else {
+            ActivationStrategy::never()
+        };
         assert_eq!(
             left.and(&right).should_activate(&MockCtx::new()),
             expect,
-            "a={} b={}", a, b
+            "a={} b={}",
+            a,
+            b
         );
     }
 }
 
 #[test]
 fn test_or_truth_table() {
-    for (a, b, expect) in [(true, true, true), (true, false, true), (false, true, true), (false, false, false)] {
-        let left = if a { ActivationStrategy::always() } else { ActivationStrategy::never() };
-        let right = if b { ActivationStrategy::always() } else { ActivationStrategy::never() };
+    for (a, b, expect) in [
+        (true, true, true),
+        (true, false, true),
+        (false, true, true),
+        (false, false, false),
+    ] {
+        let left = if a {
+            ActivationStrategy::always()
+        } else {
+            ActivationStrategy::never()
+        };
+        let right = if b {
+            ActivationStrategy::always()
+        } else {
+            ActivationStrategy::never()
+        };
         assert_eq!(
             left.or(&right).should_activate(&MockCtx::new()),
             expect,
-            "a={} b={}", a, b
+            "a={} b={}",
+            a,
+            b
         );
     }
 }
 
 #[test]
 fn test_not_flips() {
-    assert!(!ActivationStrategy::always().not().should_activate(&MockCtx::new()));
-    assert!(ActivationStrategy::never().not().should_activate(&MockCtx::new()));
+    assert!(!ActivationStrategy::always()
+        .not()
+        .should_activate(&MockCtx::new()));
+    assert!(ActivationStrategy::never()
+        .not()
+        .should_activate(&MockCtx::new()));
     let t = MockCtx::new().with_bool("k", true);
     assert!(!ActivationStrategy::config("k").not().should_activate(&t));
 }
@@ -140,7 +174,9 @@ fn test_not_flips() {
 #[test]
 fn test_and_short_circuits_on_left_false() {
     let ctx = MockCtx::new().with_bool("k", true);
-    assert!(!ActivationStrategy::never().and(&ActivationStrategy::config("k")).should_activate(&ctx));
+    assert!(!ActivationStrategy::never()
+        .and(&ActivationStrategy::config("k"))
+        .should_activate(&ctx));
     assert_eq!(ctx.get_bool_calls.get(), 0, "左假时 config 策略不应被求值");
 }
 
@@ -148,7 +184,9 @@ fn test_and_short_circuits_on_left_false() {
 #[test]
 fn test_or_short_circuits_on_left_true() {
     let ctx = MockCtx::new().with_bool("k", true);
-    assert!(ActivationStrategy::always().or(&ActivationStrategy::config("k")).should_activate(&ctx));
+    assert!(ActivationStrategy::always()
+        .or(&ActivationStrategy::config("k"))
+        .should_activate(&ctx));
     assert_eq!(ctx.get_bool_calls.get(), 0, "左真时 config 策略不应被求值");
 }
 
@@ -156,7 +194,9 @@ fn test_or_short_circuits_on_left_true() {
 #[test]
 fn test_and_evaluates_both_sides_when_left_true() {
     let ctx = MockCtx::new().with_bool("k", true);
-    assert!(ActivationStrategy::always().and(&ActivationStrategy::config("k")).should_activate(&ctx));
+    assert!(ActivationStrategy::always()
+        .and(&ActivationStrategy::config("k"))
+        .should_activate(&ctx));
     assert_eq!(ctx.get_bool_calls.get(), 1);
 }
 
@@ -225,7 +265,10 @@ fn test_stored_and_chained_composition() {
         ActivationStrategy::live_only(),
         ActivationStrategy::always(),
     ];
-    let results: Vec<bool> = entries.iter().map(|s| s.should_activate(&piston_ctx)).collect();
+    let results: Vec<bool> = entries
+        .iter()
+        .map(|s| s.should_activate(&piston_ctx))
+        .collect();
     assert_eq!(results, vec![true, true, true]);
 }
 

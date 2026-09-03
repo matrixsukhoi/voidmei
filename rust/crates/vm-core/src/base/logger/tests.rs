@@ -110,7 +110,11 @@ fn e2e_regex_shape_pin() {
     ] {
         let line = format_line(lv, "Service", "msg", "12:34:56.789");
         assert!(e2e_timestamp_prefix_ok(&line), "时间戳前缀失形: {line}");
-        assert_eq!(e2e_warn_err_marked(&line), marked, "WARN/ERROR 标记: {line}");
+        assert_eq!(
+            e2e_warn_err_marked(&line),
+            marked,
+            "WARN/ERROR 标记: {line}"
+        );
     }
     // 组件名超宽不改变时间戳前缀位置 (前缀恒定 14 字节)
     let line = format_line(Level::Error, "VoiceResourceManager", "m", "12:34:56.789");
@@ -191,7 +195,11 @@ fn set_debug_log_redirects_output_to_file() {
         })
         .collect();
     assert_eq!(lines.len(), 3, "三条本测试日志行: {out:?}");
-    assert!(e2e_timestamp_prefix_ok(lines[0]), "时间戳前缀失形: {}", lines[0]);
+    assert!(
+        e2e_timestamp_prefix_ok(lines[0]),
+        "时间戳前缀失形: {}",
+        lines[0]
+    );
     assert_eq!(&lines[0][15..], "[Update    ] Latest remote version: 1.590");
     assert!(lines[1].contains("[App       ] [ERROR] 软失败: boom"));
     assert!(lines[2].contains("[App       ] [ERROR] 带堆栈: trace-boom"));
@@ -269,7 +277,11 @@ fn child_emit_all_levels() {
     set_min_level(Level::Trace);
     trace("Deep", "trace msg");
     debug("Dbg", "debug msg");
-    error_with_throwable("FMLoader", "FM加载异常(he_162)", &TestIoError("boom".to_string()));
+    error_with_throwable(
+        "FMLoader",
+        "FM加载异常(he_162)",
+        &TestIoError("boom".to_string()),
+    );
     // -- ERROR 级: event 静音 (INFO 闸门) --
     set_min_level(Level::Error);
     event("PUBLISH", "muted", Some("X"), Some("Y"));

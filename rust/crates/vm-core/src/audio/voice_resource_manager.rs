@@ -154,7 +154,10 @@ impl VoiceResourceManager {
                     // 也计入) → fs::metadata(entry.path()) 跟随语义。
                     // PORT: DirEntry::metadata 是 symlink_metadata 等价 (不遍历链接),
                     // 用它会漏列符号链接语音包, 故显式走 path 级 metadata
-                    if fs::metadata(entry.path()).map(|m| m.is_dir()).unwrap_or(false) {
+                    if fs::metadata(entry.path())
+                        .map(|m| m.is_dir())
+                        .unwrap_or(false)
+                    {
                         packs.push(entry.file_name().to_string_lossy().into_owned());
                     }
                 }
@@ -323,8 +326,7 @@ impl VoiceResourceManager {
         // 1. 尝试 Pack 路径
         if let Some(p) = pack_name {
             if !p.is_empty() && p != "default" {
-                let pack_file =
-                    PathBuf::from(format!("{}{p}/{warning_name}.wav", self.voice_dir));
+                let pack_file = PathBuf::from(format!("{}{p}/{warning_name}.wav", self.voice_dir));
                 if pack_file.exists() {
                     return Some(pack_file);
                 }

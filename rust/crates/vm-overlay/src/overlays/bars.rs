@@ -19,13 +19,12 @@
 //!   合成); 1px 线 AA 开关输出一致。
 //! - drawRect 环: 负宽/负高整体不绘制 (oracle 0 像素); 零宽/零高退化 1px 线。
 
+use crate::render::canvas::PixCanvas;
+use crate::render::font::LoadedFont;
+use crate::render::palette::colors;
 use crate::render::primitives::{self, butt_line, vline_1px, vline_square2};
 use vm_core::base::format;
 use vm_core::base::format::java_round_f32;
-use crate::render::palette::colors;
-use crate::render::font::LoadedFont;
-use crate::render::canvas::PixCanvas;
-
 
 /// LinearGauge 私有 drawRect 助手: shade 环 + fill 内芯。
 /// flip_logic=true 为横向 gauge 的竖直刻度:
@@ -254,28 +253,88 @@ impl LinearGauge {
 
             if self.tick_on_right {
                 // PORT: 条在左, 刻度(分隔线+文本)在右
-                Self::draw_bar(cv, x, y, thickness, length, pix_val, shade, colors().num, true);
+                Self::draw_bar(
+                    cv,
+                    x,
+                    y,
+                    thickness,
+                    length,
+                    pix_val,
+                    shade,
+                    colors().num,
+                    true,
+                );
                 let total_width = thickness + label_spacing + text_width;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
                 primitives::text_shaded(
-                    cv, font_num, x + thickness + label_spacing, sep_y - 1,
-                    &self.display_value, c, shade, aa,
+                    cv,
+                    font_num,
+                    x + thickness + label_spacing,
+                    sep_y - 1,
+                    &self.display_value,
+                    c,
+                    shade,
+                    aa,
                 );
             } else {
                 // PORT: 刻度(文本+分隔线)在左, 条在右 (默认)
                 let bar_x = x + text_width + label_spacing;
-                Self::draw_bar(cv, bar_x, y, thickness, length, pix_val, shade, colors().num, true);
+                Self::draw_bar(
+                    cv,
+                    bar_x,
+                    y,
+                    thickness,
+                    length,
+                    pix_val,
+                    shade,
+                    colors().num,
+                    true,
+                );
                 let total_width = text_width + label_spacing + thickness;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
-                primitives::text_shaded(cv, font_num, x, sep_y - 1, &self.display_value, c, shade, aa);
+                primitives::text_shaded(
+                    cv,
+                    font_num,
+                    x,
+                    sep_y - 1,
+                    &self.display_value,
+                    c,
+                    shade,
+                    aa,
+                );
             }
         } else {
             // PORT: 横条 + 竖直分隔线(flip 环在条上方) + 条下方文本
-            Self::draw_bar(cv, x, y, length, thickness, pix_val, shade, colors().num, false);
-            gauge_rect(cv, x + pix_val - 2, y, 3, -thickness - font_num.size, shade, c, true);
+            Self::draw_bar(
+                cv,
+                x,
+                y,
+                length,
+                thickness,
+                pix_val,
+                shade,
+                colors().num,
+                false,
+            );
+            gauge_rect(
+                cv,
+                x + pix_val - 2,
+                y,
+                3,
+                -thickness - font_num.size,
+                shade,
+                c,
+                true,
+            );
             primitives::text_shaded(
-                cv, font_num, x + pix_val, y + thickness + font_num.size,
-                &self.display_value, c, shade, aa,
+                cv,
+                font_num,
+                x + pix_val,
+                y + thickness + font_num.size,
+                &self.display_value,
+                c,
+                shade,
+                aa,
             );
         }
         self.dirty = false;
@@ -318,7 +377,16 @@ impl LabeledLinearGauge {
     ) {
         primitives::text_shaded(cv, font_num, x, y, &self.gauge.label, c, shade, aa);
         let label_w = font_num.measure(&self.gauge.label);
-        primitives::text_shaded(cv, font_num, x + label_w, y, &self.gauge.display_value, c, shade, aa);
+        primitives::text_shaded(
+            cv,
+            font_num,
+            x + label_w,
+            y,
+            &self.gauge.display_value,
+            c,
+            shade,
+            aa,
+        );
     }
 
     /// draw 覆写 (竖向走基类逻辑 + 前置标签宽度; 横向自绘修正分隔线)。
@@ -344,15 +412,41 @@ impl LabeledLinearGauge {
             let label_spacing = 2;
             let sep_y = y + length - 1 - pix_val;
             if g.tick_on_right {
-                LinearGauge::draw_bar(cv, x, y, thickness, length, pix_val, shade, colors().num, true);
+                LinearGauge::draw_bar(
+                    cv,
+                    x,
+                    y,
+                    thickness,
+                    length,
+                    pix_val,
+                    shade,
+                    colors().num,
+                    true,
+                );
                 let total_width = thickness + label_spacing + text_width;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
                 self.draw_value_text(
-                    cv, x + thickness + label_spacing, sep_y - 1, font_num, c, shade, aa,
+                    cv,
+                    x + thickness + label_spacing,
+                    sep_y - 1,
+                    font_num,
+                    c,
+                    shade,
+                    aa,
                 );
             } else {
                 let bar_x = x + text_width + label_spacing;
-                LinearGauge::draw_bar(cv, bar_x, y, thickness, length, pix_val, shade, colors().num, true);
+                LinearGauge::draw_bar(
+                    cv,
+                    bar_x,
+                    y,
+                    thickness,
+                    length,
+                    pix_val,
+                    shade,
+                    colors().num,
+                    true,
+                );
                 let total_width = text_width + label_spacing + thickness;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
                 self.draw_value_text(cv, x, sep_y - 1, font_num, c, shade, aa);
@@ -364,7 +458,17 @@ impl LabeledLinearGauge {
             let shade_shadow = colors().shade_shape;
 
             // 1. 条背景+边框 (drawBarFixed 横向分支与基类横向 drawBar 一致)
-            LinearGauge::draw_bar(cv, x, y, length, thickness, pix_val, shade_shadow, colors().num, false);
+            LinearGauge::draw_bar(
+                cv,
+                x,
+                y,
+                length,
+                thickness,
+                pix_val,
+                shade_shadow,
+                colors().num,
+                false,
+            );
 
             // 2. 竖直分隔线: 条顶延伸到文本底
             //    sepHeight = thickness + fontSize + 2; 影线 x+pixVal+1 / 主线 x+pixVal
@@ -379,7 +483,13 @@ impl LabeledLinearGauge {
 
             // 3. label+value 合成文本, 条下方
             self.draw_value_text(
-                cv, x + pix_val, y + thickness + font_num.size, font_num, c, shade_shadow, aa,
+                cv,
+                x + pix_val,
+                y + thickness + font_num.size,
+                font_num,
+                c,
+                shade_shadow,
+                aa,
             );
         }
         self.gauge.dirty = false;
@@ -502,7 +612,16 @@ impl SpeedRatioBar {
         // 2. 方向舵锁舵刻度 (右)
         if self.rudder_lock_ratio > 0.0 && self.rudder_lock_ratio < 1.0 {
             let lock_y = self.ratio_y(y, self.rudder_lock_ratio);
-            butt_line(cv, x + w / 2, lock_y, x + w + 4, lock_y, 2, colors().num, aa);
+            butt_line(
+                cv,
+                x + w / 2,
+                lock_y,
+                x + w + 4,
+                lock_y,
+                2,
+                colors().num,
+                aa,
+            );
         }
 
         // 3. 背景 colorNum 全条 = 剩余范围
@@ -522,7 +641,16 @@ impl SpeedRatioBar {
             let label_spacing = 2;
             let tick_start_x = x - tick_extend - label_spacing - template_width;
             let tick_width = template_width + label_spacing + tick_extend + w;
-            butt_line(cv, tick_start_x, tick_y, tick_start_x + tick_width - 1, tick_y, 2, colors().num, aa);
+            butt_line(
+                cv,
+                tick_start_x,
+                tick_y,
+                tick_start_x + tick_width - 1,
+                tick_y,
+                2,
+                colors().num,
+                aa,
+            );
 
             if let Some(f) = tick_font {
                 // PORT: (int) Math.round(speedRatio * 100)
@@ -532,7 +660,16 @@ impl SpeedRatioBar {
                 let text_right_edge = x - tick_extend - label_spacing;
                 let text_x = text_right_edge - actual_text_width;
                 let text_y = tick_y - 3; // 刻度上方
-                primitives::text_shaded(cv, f, text_x, text_y, &value_str, colors().num, colors().shade_shape, aa);
+                primitives::text_shaded(
+                    cv,
+                    f,
+                    text_x,
+                    text_y,
+                    &value_str,
+                    colors().num,
+                    colors().shade_shape,
+                    aa,
+                );
             }
         }
 
@@ -543,7 +680,13 @@ impl SpeedRatioBar {
             if stall_w < 2 {
                 stall_w = 2;
             }
-            cv.fill_rect(x + w - stall_w, y + h - stall_h, stall_w, stall_h, colors().warning);
+            cv.fill_rect(
+                x + w - stall_w,
+                y + h - stall_h,
+                stall_w,
+                stall_h,
+                colors().warning,
+            );
         }
 
         // 6. 马赫单位红线
@@ -593,7 +736,7 @@ impl FlapAngleBar {
             total_width: 0,
             bar_height: 0,
             current_angle: 0.0,
-            max_safe_angle: 100.0,     
+            max_safe_angle: 100.0,
             display_text: "  0/100".to_string(),
             dirty: true,
         }
@@ -634,7 +777,14 @@ impl FlapAngleBar {
     }
 
     /// draw。font=None 直接返回。
-    pub fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, font: Option<&LoadedFont>, aa: bool) {
+    pub fn draw(
+        &mut self,
+        cv: &mut PixCanvas,
+        x: i32,
+        y: i32,
+        font: Option<&LoadedFont>,
+        aa: bool,
+    ) {
         let font = match font {
             Some(f) => f,
             None => return, // PORT: font==null 不绘制
@@ -648,7 +798,16 @@ impl FlapAngleBar {
         let str_width = font.measure(&self.display_text);
         // PORT: int 除法向零截断 (strWidth 超宽时整体左移)
         let str_x = x + (total_width - str_width) / 2;
-        primitives::text_shaded(cv, font, str_x, text_y, &self.display_text, colors().num, colors().shade_shape, aa);
+        primitives::text_shaded(
+            cv,
+            font,
+            str_x,
+            text_y,
+            &self.display_text,
+            colors().num,
+            colors().shade_shape,
+            aa,
+        );
 
         // 条位于文本下方 (字号近似行高)
         let bar_y = y + font.size + 2;
@@ -677,7 +836,11 @@ impl FlapAngleBar {
         // 真实布局幅度不可达, 记录备查
         for &tick in &TICK_POSITIONS {
             let tx = x + tick * total_width / MAX_SCALE;
-            let ext = if tick == 100 { bar_height } else { bar_height / 4 };
+            let ext = if tick == 100 {
+                bar_height
+            } else {
+                bar_height / 4
+            };
             vline_square2(cv, tx, bar_y - ext - 2, bar_y, colors().label, aa);
         }
 
@@ -687,11 +850,23 @@ impl FlapAngleBar {
         }
         // 安全裕度区 (current→maxSafe, colorNum)
         if margin_width > 0 {
-            cv.fill_rect(x + used_width, bar_y, margin_width, bar_height, colors().num);
+            cv.fill_rect(
+                x + used_width,
+                bar_y,
+                margin_width,
+                bar_height,
+                colors().num,
+            );
         }
         // 超速区 (右侧剩余, warning)
         if overspeed_width > 0 {
-            cv.fill_rect(x + used_width + margin_width, bar_y, overspeed_width, bar_height, colors().warning);
+            cv.fill_rect(
+                x + used_width + margin_width,
+                bar_y,
+                overspeed_width,
+                bar_height,
+                colors().warning,
+            );
         }
         self.dirty = false;
     }

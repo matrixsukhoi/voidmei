@@ -53,9 +53,25 @@ fn draw_label_bos_type(
     let num_y = (y_offset + y_offset + label.size + unit.size) >> 1;
     primitives::text_shaded_auto(cv, num, x_offset, num_y, s_num, colors().num, aa);
     // 标签名
-    primitives::text_shaded_auto(cv, label, x_offset + lwidth, y_offset, s_label, colors().label, aa);
+    primitives::text_shaded_auto(
+        cv,
+        label,
+        x_offset + lwidth,
+        y_offset,
+        s_label,
+        colors().label,
+        aa,
+    );
     // 单位名
-    primitives::text_shaded_auto(cv, unit, x_offset + lwidth, y_offset + label.size, s_unit, colors().unit, aa);
+    primitives::text_shaded_auto(
+        cv,
+        unit,
+        x_offset + lwidth,
+        y_offset + label.size,
+        s_unit,
+        colors().unit,
+        aa,
+    );
 }
 
 /// drawHBar 的 val_width ≥ 0 分支 (调用域恒非负):
@@ -407,7 +423,11 @@ impl ControlSurfacesOverlay {
         let aileron_val = aileron as i32;
         let elevator_val = elevator as i32;
         let rudder_val = rudder as i32;
-        let ws_val = if wing_sweep_valid { (wing_sweep * 100.0) as i32 } else { 0 };
+        let ws_val = if wing_sweep_valid {
+            (wing_sweep * 100.0) as i32
+        } else {
+            0
+        };
 
         self.px = (100 + aileron_val) * self.width / 200;
         self.py = (100 + elevator_val) * self.width / 200;
@@ -425,19 +445,78 @@ impl ControlSurfacesOverlay {
     /// 参数名对齐 Java: `x`,`y` = 游标中心; `r` = 边框边长 (width 字段);
     /// `width` = 十字臂半长参数 (locateSize 实参); `stroke` = 线宽 (strokeSize)。
     #[allow(clippy::too_many_arguments)] // 对齐 Java locater(g2d, x, y, r, width, stroke)
-    fn locater(&self, cv: &mut PixCanvas, x: i32, y: i32, r: i32, width: i32, stroke: f32, aa: bool) {
+    fn locater(
+        &self,
+        cv: &mut PixCanvas,
+        x: i32,
+        y: i32,
+        r: i32,
+        width: i32,
+        stroke: f32,
+        aa: bool,
+    ) {
         // 绘制边框
-        for &(x0, y0, x1, y1) in &[(0, 0, 0, r), (0, 0, r, 0), (0, r - 1, r - 1, r - 1), (r - 1, 0, r - 1, r - 1)] {
-            cv.draw_line_cap(x0, y0, x1, y1, 1.0, colors().shade_shape, LineCapStyle::Square, aa);
+        for &(x0, y0, x1, y1) in &[
+            (0, 0, 0, r),
+            (0, 0, r, 0),
+            (0, r - 1, r - 1, r - 1),
+            (r - 1, 0, r - 1, r - 1),
+        ] {
+            cv.draw_line_cap(
+                x0,
+                y0,
+                x1,
+                y1,
+                1.0,
+                colors().shade_shape,
+                LineCapStyle::Square,
+                aa,
+            );
         }
 
         // 绘制影子 (横线 + 竖线)
-        cv.draw_line_cap(x - width / 2, y, x + width / 2, y, stroke, colors().shade_shape, LineCapStyle::Square, aa);
-        cv.draw_line_cap(x, y - width / 2, x, y + width / 2, stroke, colors().shade_shape, LineCapStyle::Square, aa);
+        cv.draw_line_cap(
+            x - width / 2,
+            y,
+            x + width / 2,
+            y,
+            stroke,
+            colors().shade_shape,
+            LineCapStyle::Square,
+            aa,
+        );
+        cv.draw_line_cap(
+            x,
+            y - width / 2,
+            x,
+            y + width / 2,
+            stroke,
+            colors().shade_shape,
+            LineCapStyle::Square,
+            aa,
+        );
 
         // 主十字 (colorNum, -1 偏移): 横线 + 竖线
-        cv.draw_line_cap(x - width / 2 - 1, y - 1, x + width / 2 - 1, y - 1, stroke, colors().num, LineCapStyle::Square, aa);
-        cv.draw_line_cap(x - 1, y - width / 2 - 1, x - 1, y + width / 2 - 1, stroke, colors().num, LineCapStyle::Square, aa);
+        cv.draw_line_cap(
+            x - width / 2 - 1,
+            y - 1,
+            x + width / 2 - 1,
+            y - 1,
+            stroke,
+            colors().num,
+            LineCapStyle::Square,
+            aa,
+        );
+        cv.draw_line_cap(
+            x - 1,
+            y - width / 2 - 1,
+            x - 1,
+            y + width / 2 - 1,
+            stroke,
+            colors().num,
+            LineCapStyle::Square,
+            aa,
+        );
     }
 
     /// topPanel.paintComponent 的绘制序:
@@ -448,38 +527,94 @@ impl ControlSurfacesOverlay {
         debug_assert!(
             cv.width() == self.content_width && cv.height() == self.content_height,
             "画布须为 {}×{}, 实为 {}×{}",
-            self.content_width, self.content_height, cv.width(), cv.height()
+            self.content_width,
+            self.content_height,
+            cv.width(),
+            cv.height()
         );
-        self.locater(cv, self.px, self.py, self.width, self.locate_size, self.stroke_size as f32, aa);
+        self.locater(
+            cv,
+            self.px,
+            self.py,
+            self.width,
+            self.locate_size,
+            self.stroke_size as f32,
+            aa,
+        );
 
         // dy 序列: fontSize>>1 起步, 每行 +1.5·fontSize (Java 复合赋值隐式 (int) 截断)
         let mut dy = self.font_size >> 1;
         draw_label_bos_type(
-            cv, fonts.num, fonts.label, fonts.unit, self.width, dy,
-            &self.elevator_num, &self.s_elevator_label, &self.s_elevator_unit, 9, aa,
+            cv,
+            fonts.num,
+            fonts.label,
+            fonts.unit,
+            self.width,
+            dy,
+            &self.elevator_num,
+            &self.s_elevator_label,
+            &self.s_elevator_unit,
+            9,
+            aa,
         );
         dy = ((dy as f64) + 1.5 * self.font_size as f64) as i32;
         draw_label_bos_type(
-            cv, fonts.num, fonts.label, fonts.unit, self.width, dy,
-            &self.aileron_num, &self.s_aileron_label, &self.s_aileron_unit, 9, aa,
+            cv,
+            fonts.num,
+            fonts.label,
+            fonts.unit,
+            self.width,
+            dy,
+            &self.aileron_num,
+            &self.s_aileron_label,
+            &self.s_aileron_unit,
+            9,
+            aa,
         );
         dy = ((dy as f64) + 1.5 * self.font_size as f64) as i32;
         draw_label_bos_type(
-            cv, fonts.num, fonts.label, fonts.unit, self.width, dy,
-            &self.rudder_num, &self.s_rudder_label, &self.s_rudder_unit, 9, aa,
+            cv,
+            fonts.num,
+            fonts.label,
+            fonts.unit,
+            self.width,
+            dy,
+            &self.rudder_num,
+            &self.s_rudder_label,
+            &self.s_rudder_unit,
+            9,
+            aa,
         );
         dy = ((dy as f64) + 1.5 * self.font_size as f64) as i32;
         draw_label_bos_type(
-            cv, fonts.num, fonts.label, fonts.unit, self.width, dy,
-            &self.wing_sweep_num, &self.s_wing_sweep_label, &self.s_wing_sweep_unit, 9, aa,
+            cv,
+            fonts.num,
+            fonts.label,
+            fonts.unit,
+            self.width,
+            dy,
+            &self.wing_sweep_num,
+            &self.s_wing_sweep_label,
+            &self.s_wing_sweep_unit,
+            9,
+            aa,
         );
 
         // 底部方向舵横条: drawHBarTextNum(g2d, 0, height, width, fontSize>>1,
         // rudderValPix, 1, colorNum, lbl, num, fontLabel, fontLabel)
         draw_h_bar_text_num(
-            cv, fonts.label, fonts.label,
-            0, self.height, self.width, self.font_size >> 1, self.rudder_val_pix, 1,
-            colors().num, &self.rudder_num, aa,
+            cv,
+            fonts.label,
+            fonts.label,
+            0,
+            self.height,
+            self.width,
+            self.font_size >> 1,
+            self.rudder_val_pix,
+            1,
+            colors().num,
+            &self.rudder_num,
+            aa,
         );
     }
 }
@@ -560,8 +695,7 @@ pub fn control_surfaces_overlay_spec(
             h,
             Box::new(move |cv: &mut PixCanvas| {
                 // aa = 运行时仓 (cfg AAEnable 可关)
-                let (num, label, unit) =
-                    (render_num.get(), render_label.get(), render_unit.get());
+                let (num, label, unit) = (render_num.get(), render_label.get(), render_unit.get());
                 let fonts = CsFonts {
                     num: &num,
                     label: &label,

@@ -27,101 +27,11 @@
 use super::json::JsonSrc;
 use super::types::{EngineLoad, FmParts, SweepLevel};
 use super::{CompressorData, FmData};
+use crate::base::format::{java_string_format, FmtArg};
+use crate::base::logger;
 use crate::base::physics_constants::g;
 use crate::lang::Lang;
-use crate::base::logger;
 use crate::telemetry::parser::state::MAX_ENG_NUM;
-
-/// [`java_format`] 的实参 (getload fmdata 串构造专用)。
-enum FmtArg {
-    /// Java `%s` (String.toString 形态)
-    S(String),
-    /// Java `%d` (int)
-    D(i32),
-    /// Java `%.Mf` (无宽度域; M 位小数 HALF_UP — crate::base::format 同源语义)
-    F(f64, u8),
-}
-
-/// Java `String.format(tpl, args...)` 的受限子集 — getload 的 fmdata 摘要串构造。
-/// 模板来自 Lang 运行时表 (可被 lang/cur.properties 覆盖),
-/// 不能编译期展开, 故运行时扫描 `%` 转换: `%s`/`%d`/`%.Mf`/`%%` (getload 用到的
-/// 全部形态; 宽度域未用不支持)。参数耗尽 = Java MissingFormatArgumentException
-/// → panic (由 parse_named_opts_json 的 catch_unwind 收敛, 同一防线)。
-fn java_format(tpl: &str, args: &[FmtArg]) -> String {
-    let mut out = String::new();
-    let mut ai = 0usize;
-    let cs: Vec<char> = tpl.chars().collect();
-    let mut i = 0usize;
-    while i < cs.len() {
-        let c = cs[i];
-        if c != '%' {
-            out.push(c);
-            i += 1;
-            continue;
-        }
-        // '%' 转换
-        if i + 1 >= cs.len() {
-            // 尾部孤立 '%' — Java 末尾抛 UnknownFormatConversionException,
-            // 域内模板恒以 \n 收尾不可达; 保真 panic
-            panic!("java_format: 模板尾孤立 '%': {tpl}");
-        }
-        let mut j = i + 1;
-        // 可选宽度数字 (未用, 跳过保兼容)
-        while j < cs.len() && cs[j].is_ascii_digit() {
-            j += 1;
-        }
-        // 可选 .M 精度
-        let mut prec: u8 = 6;
-        if j < cs.len() && cs[j] == '.' {
-            j += 1;
-            let mut p: u8 = 0;
-            while j < cs.len() && cs[j].is_ascii_digit() {
-                p = p.saturating_mul(10).saturating_add(cs[j].to_digit(10).unwrap() as u8);
-                j += 1;
-            }
-            prec = p;
-        }
-        let conv = cs[j];
-        if conv == '%' {
-            // %% — 字面百分号, 不消耗实参
-            out.push('%');
-            i = j + 1;
-            continue;
-        }
-        let arg = args
-            .get(ai)
-            .unwrap_or_else(|| panic!("java_format: 参数耗尽 (模板 {tpl})"));
-        ai += 1;
-        match conv {
-            's' => {
-                if let FmtArg::S(v) = arg {
-                    out.push_str(v);
-                } else {
-                    panic!("java_format: %s 收到非 S 实参 (模板 {tpl})");
-                }
-            }
-            'd' => {
-                if let FmtArg::D(v) = arg {
-                    out.push_str(&v.to_string());
-                } else {
-                    panic!("java_format: %d 收到非 D 实参 (模板 {tpl})");
-                }
-            }
-            'f' => {
-                if let FmtArg::F(v, _p) = arg {
-                    // 最短往返十进制 HALF_UP (java_f, 非 FastNumberFormatter 的
-                    // 二进制半舍入 — 2.675 → "2.68" oracle 钉死)
-                    out.push_str(&crate::base::format::java_f(*v, prec as usize));
-                } else {
-                    panic!("java_format: %f 收到非 F 实参 (模板 {tpl})");
-                }
-            }
-            other => panic!("java_format: 不支持的转换 %{other} (模板 {tpl})"),
-        }
-        i = j + 1;
-    }
-    out
-}
 
 /// load_lift_coeffs 的产出: 升力部件族 + 转动惯量/过载限制原值
 /// (fmdata 摘要段与部件落位共用, 编排层传递)。
@@ -140,7 +50,6 @@ struct LiftLoad {
 }
 
 impl FmData {
-
     // ------------------------------------------------------------------
     // getPartsFm / extractRpmFromThrottleAuto / getEngineLoad / initEngineLoad
     // ------------------------------------------------------------------
@@ -279,8 +188,7 @@ impl FmData {
         #[allow(clippy::needless_range_loop)]
         for i in 0..self.max_eng_load as usize {
             if eng_load[i].recover_time != 0.0 {
-                self.avg_eng_recovery_rate +=
-                    eng_load[i].work_time / eng_load[i].recover_time;
+                self.avg_eng_recovery_rate += eng_load[i].work_time / eng_load[i].recover_time;
             }
             logger::debug(
                 "FmData",
@@ -460,8 +368,7 @@ impl FmData {
         let mut engine_mult_wep = 1.0f64;
         if self.mode_engine_num != 0 {
             engine_mult_wep = mode_engine_mult[self.mode_engine_num as usize - 1];
-            self.engine_rpm_mult_wep =
-                mode_engine_rpm_mult[self.mode_engine_num as usize - 1];
+            self.engine_rpm_mult_wep = mode_engine_rpm_mult[self.mode_engine_num as usize - 1];
         }
 
         // 预计算 AFT 推力表 (曲线窗口 + 峰值推力; MIL 表 Rust 无消费方, 已随
@@ -473,16 +380,16 @@ impl FmData {
         for i in 0..alt_n {
             for j in 0..vel_n {
                 let thr_coff = src.get_f64(&format!("ThrustMax.ThrustMaxCoeff_{i}_{j}"));
-                max_thr_aft_coff[i][j] =
-                    src.get_f64(&format!("ThrustMax.ThrAftMaxCoeff_{i}_{j}"));
+                max_thr_aft_coff[i][j] = src.get_f64(&format!("ThrustMax.ThrAftMaxCoeff_{i}_{j}"));
                 if max_thr_aft_coff[i][j] == 0.0 {
                     max_thr_aft_coff[i][j] = 1.0;
                 }
-                max_thr_aft[i][j] =
-                    self.thr_max0 * thr_coff * self.aftb_coff
-                        * max_thr_aft_coff[i][j]
-                        * engine_mult_wep
-                        * self.engine_num as f64;
+                max_thr_aft[i][j] = self.thr_max0
+                    * thr_coff
+                    * self.aftb_coff
+                    * max_thr_aft_coff[i][j]
+                    * engine_mult_wep
+                    * self.engine_num as f64;
             }
         }
         // 预计算峰值推力
@@ -508,8 +415,7 @@ impl FmData {
     fn load_compressor(&mut self, src: &JsonSrc, hdr_string: &str) {
         self.aftb_coff = src.get_f64(&format!("{hdr_string}Main.AfterburnerBoost"));
         self.comp_num_steps = src.get_f64("Compressor.NumSteps") as i32;
-        self.speed_to_manifold_multiplier =
-            src.get_f64("Compressor.SpeedManifoldMultiplier");
+        self.speed_to_manifold_multiplier = src.get_f64("Compressor.SpeedManifoldMultiplier");
 
         // NegativeArraySizeException → 构造器 catch; as usize 巨量 → Vec
         // 分配 panic 同被 parse_named_opts_json 收敛 (CORRUPT 同语义)
@@ -527,16 +433,12 @@ impl FmData {
             alt[i] = src.get_f64(&format!("Compressor.Altitude{i}"));
             power[i] = src.get_f64(&format!("Compressor.Power{i}"));
             boost[i] = src.get_f64(&format!("Compressor.AfterburnerBoostMul{i}"));
-            has_boost[i] =
-                src.get_str(&format!("Compressor.AfterburnerBoostMul{i}")) != "null";
-            rpm_ratio[i] =
-                src.get_f64(&format!("Compressor.PowerConstRPMCurvature{i}"));
+            has_boost[i] = src.get_str(&format!("Compressor.AfterburnerBoostMul{i}")) != "null";
+            rpm_ratio[i] = src.get_f64(&format!("Compressor.PowerConstRPMCurvature{i}"));
             ceil[i] = src.get_f64(&format!("Compressor.Ceiling{i}"));
             ceil_pwr[i] = src.get_f64(&format!("Compressor.PowerAtCeiling{i}"));
-            const_rpm_alt[i] =
-                src.get_f64(&format!("Compressor.AltitudeConstRPM{i}"));
-            const_rpm_power[i] =
-                src.get_f64(&format!("Compressor.PowerConstRPM{i}"));
+            const_rpm_alt[i] = src.get_f64(&format!("Compressor.AltitudeConstRPM{i}"));
+            const_rpm_power[i] = src.get_f64(&format!("Compressor.PowerConstRPM{i}"));
         }
         // 9 组表同批收拢 (波17 F5)
         self.compressor = Some(CompressorData {
@@ -552,12 +454,9 @@ impl FmData {
         });
 
         // === Extended WAPC-compatible parameters ===
-        self.comp_pressure_at_rpm0 =
-            src.get_f64("Compressor.CompressorPressureAtRPM0");
-        self.comp_omega_factor_sq =
-            src.get_f64("Compressor.CompressorOmegaFactorSq");
-        self.has_comp_omega_factor_sq =
-            src.get_str("Compressor.CompressorOmegaFactorSq") != "null";
+        self.comp_pressure_at_rpm0 = src.get_f64("Compressor.CompressorPressureAtRPM0");
+        self.comp_omega_factor_sq = src.get_f64("Compressor.CompressorOmegaFactorSq");
+        self.has_comp_omega_factor_sq = src.get_str("Compressor.CompressorOmegaFactorSq") != "null";
 
         // ExactAltitudes: explicitly defined in FM file
         let ea_str = src.get_str("Compressor.ExactAltitudes");
@@ -752,52 +651,47 @@ impl FmData {
             }
             src.get_f64(sweep0)
         };
-        self.a_wing_left_in =
-            fallback3("Areas.WingLeftIn", "WingPlane.Areas.LeftIn", "WingPlaneSweep0.Areas.LeftIn");
+        self.a_wing_left_in = fallback3(
+            "Areas.WingLeftIn",
+            "WingPlane.Areas.LeftIn",
+            "WingPlaneSweep0.Areas.LeftIn",
+        );
         self.a_wing_left_mid = fallback3(
-
             "Areas.WingLeftMid",
             "WingPlane.Areas.LeftMid",
             "WingPlaneSweep0.Areas.LeftMid",
         );
         self.a_wing_left_out = fallback3(
-
             "Areas.WingLeftOut",
             "WingPlane.Areas.LeftOut",
             "WingPlaneSweep0.Areas.LeftOut",
         );
         self.a_wing_left_cut = fallback3(
-
             "Areas.WingLeftCut",
             "WingPlane.Areas.LeftCut",
             "WingPlaneSweep0.Areas.LeftCut",
         );
         self.a_wing_right_in = fallback3(
-
             "Areas.WingRightIn",
             "WingPlane.Areas.RightIn",
             "WingPlaneSweep0.Areas.RightIn",
         );
         self.a_wing_right_mid = fallback3(
-
             "Areas.WingRightMid",
             "WingPlane.Areas.RightMid",
             "WingPlaneSweep0.Areas.RightMid",
         );
         self.a_wing_right_out = fallback3(
-
             "Areas.WingRightOut",
             "WingPlane.Areas.RightOut",
             "WingPlaneSweep0.Areas.RightOut",
         );
         self.a_wing_right_cut = fallback3(
-
             "Areas.WingRightCut",
             "WingPlane.Areas.RightCut",
             "WingPlaneSweep0.Areas.RightCut",
         );
         self.a_aileron = fallback3(
-
             "Areas.Aileron",
             "WingPlane.Areas.Aileron",
             "WingPlaneSweep0.Areas.Aileron",
@@ -810,7 +704,6 @@ impl FmData {
         // Java 源码将 AFuselage 三级回退段**原样重复了两遍** — 第二遍
         // 读到相同值, 净效果为同一赋值; 保真保留重复调用
         self.a_fuselage = fallback3(
-
             "Areas.Fuselage",
             "FuselagePlane.Areas.Main",
             "WingPlaneSweep0.Areas.Main",
@@ -959,7 +852,8 @@ impl FmData {
 
         // NoFlapsWing.AoACritHigh 可能不等于 Fuselage.AoACritHigh
         self.no_flap_wll = self.a_wing * no_flaps_wing.cl_crit_high
-            + self.a_fuselage * self.fuse_cl_high
+            + self.a_fuselage
+                * self.fuse_cl_high
                 * (no_flaps_wing.aoa_crit_high / fuselage.aoa_crit_high);
         // 这里用空重; Java: / (emptyweight / 1000.f) — 1000.f 精确
         self.no_flap_wll /= self.emptyweight / 1000.0;
@@ -971,7 +865,8 @@ impl FmData {
 
         // PORT(Java 保真): 分母里是 NoFlapsWing.AoACritHigh (非 FullFlaps) — 源码如此
         self.full_flap_wll = self.a_wing * full_flaps_wing.cl_crit_high
-            + self.a_fuselage * self.fuse_cl_high
+            + self.a_fuselage
+                * self.fuse_cl_high
                 * (no_flaps_wing.aoa_crit_high / fuselage.aoa_crit_high);
         self.full_flap_wll /= self.emptyweight / 1000.0;
         // 阻力面积因子计算
@@ -989,7 +884,8 @@ impl FmData {
         self.aspect_ratio = self.wingspan * self.wingspan / self.a_wing;
 
         // 诱导阻力还要
-        self.ind_cd_f = 1.0 / (std::f64::consts::PI * self.aspect_ratio * self.oswalds_efficiency_number);
+        self.ind_cd_f =
+            1.0 / (std::f64::consts::PI * self.aspect_ratio * self.oswalds_efficiency_number);
 
         let mut max_allow_gload = [0.0f64; 2];
         let _ = src.get_f64s("WingCritOverload", &mut max_allow_gload, 2);
@@ -1031,79 +927,73 @@ impl FmData {
         let full_flaps_wing = &parts.full_flaps_wing;
 
         let lang = Lang::init_lang();
-        let mut s = java_format(
+        let mut s = java_string_format(
             lang.b_fm_version,
             &[
-                FmtArg::S(self.read_file_name.clone().unwrap_or_default()),
-                FmtArg::S(self.version.clone().unwrap_or_default()),
+                FmtArg::S(self.read_file_name.as_deref().unwrap_or("")),
+                FmtArg::S(self.version.as_deref().unwrap_or("")),
             ],
         );
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_weight,
-            &[
-                FmtArg::F(self.emptyweight, 1),
-                FmtArg::F(self.maxfuelweight, 1),
-            ],
+            &[FmtArg::F(self.emptyweight), FmtArg::F(self.maxfuelweight)],
         ));
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_crit_speed,
-            &[
-                FmtArg::F(self.critical_speed * 3.6, 0),
-                FmtArg::F(self.vne, 0),
-            ],
+            &[FmtArg::F(self.critical_speed * 3.6), FmtArg::F(self.vne)],
         ));
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_allow_load_factor,
             &[
-                FmtArg::F(1.2 * (2.0 * max_allow_gload[0] / (g * self.grossweight) + 1.0), 1),
-                FmtArg::F(1.2 * (2.0 * max_allow_gload[1] / (g * self.grossweight) - 1.0), 1),
-                FmtArg::F(1.2 * (2.0 * max_allow_gload[0] / (g * self.halfweight) + 1.0), 1),
-                FmtArg::F(1.2 * (2.0 * max_allow_gload[1] / (g * self.halfweight) - 1.0), 1),
+                FmtArg::F(1.2 * (2.0 * max_allow_gload[0] / (g * self.grossweight) + 1.0)),
+                FmtArg::F(1.2 * (2.0 * max_allow_gload[1] / (g * self.grossweight) - 1.0)),
+                FmtArg::F(1.2 * (2.0 * max_allow_gload[0] / (g * self.halfweight) + 1.0)),
+                FmtArg::F(1.2 * (2.0 * max_allow_gload[1] / (g * self.halfweight) - 1.0)),
             ],
         ));
 
         for i in 0..flaps_destruction_num {
-            s.push_str(&java_format(
+            s.push_str(&java_string_format(
                 lang.b_flap_restrict,
                 &[
                     FmtArg::D(i as i32),
-                    FmtArg::F(flaps_destruction[i][0] * 100.0, 0),
-                    FmtArg::F(flaps_destruction[i][1], 0),
+                    FmtArg::F(flaps_destruction[i][0] * 100.0),
+                    FmtArg::F(flaps_destruction[i][1]),
                 ],
             ));
         }
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_eff_speed_and_power_loss,
             &[
-                FmtArg::F(self.elav_eff, 0),
-                FmtArg::F(self.aileron_eff, 0),
-                FmtArg::F(self.rudder_eff, 0),
-                FmtArg::F(self.elav_power_loss, 0),
-                FmtArg::F(self.aileron_power_loss, 0),
-                FmtArg::F(self.rudder_power_loss, 0),
+                FmtArg::F(self.elav_eff),
+                FmtArg::F(self.aileron_eff),
+                FmtArg::F(self.rudder_eff),
+                FmtArg::F(self.elav_power_loss),
+                FmtArg::F(self.aileron_power_loss),
+                FmtArg::F(self.rudder_power_loss),
             ],
         ));
 
         if self.nitro != 0.0 {
-            s.push_str(&java_format(
+            s.push_str(&java_string_format(
                 lang.b_nitro,
                 &[
-                    FmtArg::F(self.nitro, 1),
-                    FmtArg::F(self.nitro / (self.nitro_decr * 60.0), 1),
+                    FmtArg::F(self.nitro),
+                    FmtArg::F(self.nitro / (self.nitro_decr * 60.0)),
                 ],
             ));
         }
 
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_average_heat_recovery,
-            &[FmtArg::F(self.avg_eng_recovery_rate, 1)],
+            &[FmtArg::F(self.avg_eng_recovery_rate)],
         ));
 
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_max_lift_load350,
             &[
-                FmtArg::F((self.no_flap_wll + 1.0) / 2.0, 1),
-                FmtArg::F((self.full_flap_wll + 1.0) / 2.0, 1),
+                FmtArg::F((self.no_flap_wll + 1.0) / 2.0),
+                FmtArg::F((self.full_flap_wll + 1.0) / 2.0),
             ],
         ));
 
@@ -1113,37 +1003,37 @@ impl FmData {
         self.max_allow_gload = Some(max_allow_gload);
 
         // 三轴转动惯量的值的顺序和三舵的要保持一致, 即pitch, roll, yaw
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_inertia,
             &[
-                FmtArg::F(moment_of_inertia[2], 0),
-                FmtArg::F(moment_of_inertia[0], 0),
-                FmtArg::F(moment_of_inertia[1], 0),
+                FmtArg::F(moment_of_inertia[2]),
+                FmtArg::F(moment_of_inertia[0]),
+                FmtArg::F(moment_of_inertia[1]),
             ],
         ));
 
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_lift,
             &[
-                FmtArg::F(self.a_wing, 1),
-                FmtArg::F(self.a_fuselage, 1),
-                FmtArg::F(self.no_flap_wll, 2),
-                FmtArg::F(self.full_flap_wll, 2),
-                FmtArg::F(self.oswalds_efficiency_number, 2),
-                FmtArg::F(self.aspect_ratio, 2),
-                FmtArg::F(self.swept_wing_angle, 0),
+                FmtArg::F(self.a_wing),
+                FmtArg::F(self.a_fuselage),
+                FmtArg::F(self.no_flap_wll),
+                FmtArg::F(self.full_flap_wll),
+                FmtArg::F(self.oswalds_efficiency_number),
+                FmtArg::F(self.aspect_ratio),
+                FmtArg::F(self.swept_wing_angle),
             ],
         ));
 
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_drag,
             &[
-                FmtArg::F(self.cd_s, 2),
-                FmtArg::F(self.cd_s / (self.halfweight / 1000.0), 2),
-                FmtArg::F(self.ind_cd_f, 3),
-                FmtArg::F(self.halfweight * self.ind_cd_f, 0),
-                FmtArg::F(self.radiator_cd, 0),
-                FmtArg::F(self.oil_radiator_cd, 0),
+                FmtArg::F(self.cd_s),
+                FmtArg::F(self.cd_s / (self.halfweight / 1000.0)),
+                FmtArg::F(self.ind_cd_f),
+                FmtArg::F(self.halfweight * self.ind_cd_f),
+                FmtArg::F(self.radiator_cd),
+                FmtArg::F(self.oil_radiator_cd),
             ],
         ));
 
@@ -1166,22 +1056,19 @@ impl FmData {
     /// Lang 形参: Java 读静态字段 → 快照传入 (blkx crate 先例)。
     fn write_parts_fm(s: String, p: &FmParts, lang: &Lang) -> String {
         let mut s = s;
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_fm_parts,
-            &[FmtArg::S(p.name.clone().unwrap_or_default())],
+            &[FmtArg::S(p.name.as_deref().unwrap_or(""))],
         ));
-        s.push_str(&java_format(lang.b_cd_min, &[FmtArg::F(p.cd_min, 3)]));
-        s.push_str(&java_format(lang.b_cl0, &[FmtArg::F(p.cl0, 3)]));
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(lang.b_cd_min, &[FmtArg::F(p.cd_min)]));
+        s.push_str(&java_string_format(lang.b_cl0, &[FmtArg::F(p.cl0)]));
+        s.push_str(&java_string_format(
             lang.b_ao_a_crit,
-            &[FmtArg::F(p.aoa_crit_low, 1), FmtArg::F(p.aoa_crit_high, 1)],
+            &[FmtArg::F(p.aoa_crit_low), FmtArg::F(p.aoa_crit_high)],
         ));
-        s.push_str(&java_format(
+        s.push_str(&java_string_format(
             lang.b_ao_a_crit_cl,
-            &[
-                FmtArg::F(p.cl_crit_low, 2),
-                FmtArg::F(p.cl_crit_high, 2),
-            ],
+            &[FmtArg::F(p.cl_crit_low), FmtArg::F(p.cl_crit_high)],
         ));
         s
     }

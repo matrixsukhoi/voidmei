@@ -21,7 +21,10 @@ fn find_row_path_locates_nested_and_misses() {
     assert_eq!(find_row_path(&g.rows, "k2"), Some(vec![1, 0]));
     assert_eq!(find_row_path(&g.rows, "absent"), None);
     // row_by_path / row_by_path_mut 往返
-    assert_eq!(row_by_path(&g.rows, &[1, 0]).unwrap().property.as_deref(), Some("k2"));
+    assert_eq!(
+        row_by_path(&g.rows, &[1, 0]).unwrap().property.as_deref(),
+        Some("k2")
+    );
     row_by_path_mut(&mut g.rows, &[1, 0]).unwrap().label = "改名".into();
     assert_eq!(row_by_path(&g.rows, &[1, 0]).unwrap().label, "改名");
     // 空路径 / 越界

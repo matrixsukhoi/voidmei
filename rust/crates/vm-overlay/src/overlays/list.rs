@@ -22,9 +22,9 @@
 //! 间隙 (panel²)=0xE9141414, 行 (label over panel²) alpha=249, 表头 0xF93E3005 /
 //! 偶 0xF9181818 / 奇 0xF9222222。draw() 按 [`java2d_src_over`] 预合成最终单色直铺。
 
-use vm_core::base::format::java_round_f32;
-use crate::render::font::LoadedFont;
 use crate::render::canvas::PixCanvas;
+use crate::render::font::LoadedFont;
+use vm_core::base::format::java_round_f32;
 
 // ---------------------------------------------------------------------------
 // 调色板与边距 (ZebraListRenderer.java / BaseOverlay.java 直读)
@@ -186,7 +186,13 @@ impl ZebraList {
                 zebra_index += 1; // PORT: 仅非表头行自增 rowIndex
             }
             // 满宽斑马条 (VerticalFlowLayout 拉伸子件至容器宽)
-            cv.fill_rect(x, ry, w, row_h.min(y + panel_h - ry), java2d_src_over(bg, panel2));
+            cv.fill_rect(
+                x,
+                ry,
+                w,
+                row_h.min(y + panel_h - ry),
+                java2d_src_over(bg, panel2),
+            );
         }
         // 第二遍: 全部文本 — 左缩进 6, 基线 = 行顶 + 2 + ascent (头注行几何模型)
         let ascent = font.metrics().ascent;
@@ -195,7 +201,14 @@ impl ZebraList {
             if ry >= y + panel_h {
                 break;
             }
-            cv.draw_text(font, x + MARGIN_LEFT, ry + MARGIN_TOP + ascent, line, TEXT_COLOR, aa);
+            cv.draw_text(
+                font,
+                x + MARGIN_LEFT,
+                ry + MARGIN_TOP + ascent,
+                line,
+                TEXT_COLOR,
+                aa,
+            );
         }
     }
 }
@@ -338,10 +351,10 @@ impl BaseListOverlay {
     /// preferred = dataPanel preferred 高 (行数 × 行高); 超过 logicalHeight-40 钳制;
     /// 与当前高差 >2px 才 setSize (宽恒定, 位置由 OverlaySettings 管理)。
     pub fn adjust_position(&mut self) {
-        let mut preferred =
-            self.last_data
-                .as_ref()
-                .map_or(0, |d| d.len() as i32 * self.row_height);
+        let mut preferred = self
+            .last_data
+            .as_ref()
+            .map_or(0, |d| d.len() as i32 * self.row_height);
         let max_h = self.logical_height - 40; // maxHeight
         if preferred > max_h {
             preferred = max_h;
@@ -356,8 +369,17 @@ impl BaseListOverlay {
     /// 把 lastData 画到窗口画布 (左上原点, width × height), 空数据只铺 panel 底色。
     pub fn render(&mut self, cv: &mut PixCanvas, font: &LoadedFont, aa: bool) {
         let lines = self.last_data.as_deref().unwrap_or(&[]);
-        self.zebra
-            .draw(cv, 0, 0, self.width, self.height, lines, font, self.alpha, aa);
+        self.zebra.draw(
+            cv,
+            0,
+            0,
+            self.width,
+            self.height,
+            lines,
+            font,
+            self.alpha,
+            aa,
+        );
     }
 }
 

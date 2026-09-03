@@ -64,8 +64,16 @@ pub fn has_ceiling(p: &CompressorStageParams) -> bool {
 /// to match WAPC's Ceiling_is_useful() which compares against Altitude[i] / Power[i],
 /// not the adjusted critAlt / critPower.
 pub fn ceiling_is_useful(p: &CompressorStageParams) -> bool {
-    let reference_alt = if p.old_altitude > 0.0 { p.old_altitude } else { p.crit_alt };
-    let reference_power = if p.old_power > 0.0 { p.old_power } else { p.crit_power };
+    let reference_alt = if p.old_altitude > 0.0 {
+        p.old_altitude
+    } else {
+        p.crit_alt
+    };
+    let reference_power = if p.old_power > 0.0 {
+        p.old_power
+    } else {
+        p.crit_power
+    };
     has_ceiling(p)
         && (p.ceiling_alt - reference_alt) >= 2.0
         && (reference_power - p.ceiling_power) >= 2.0

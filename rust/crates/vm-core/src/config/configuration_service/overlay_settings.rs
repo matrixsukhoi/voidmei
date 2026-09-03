@@ -73,7 +73,10 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
         let cx = (screen_w - width) / 2;
         logger::debug(
             "OverlaySettings",
-            &format!("[{}] getWindowX: gc=null => center {}", self.section_name, cx),
+            &format!(
+                "[{}] getWindowX: gc=null => center {}",
+                self.section_name, cx
+            ),
         );
         cx
     }
@@ -97,7 +100,10 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
         let cy = (screen_h - height) / 2;
         logger::debug(
             "OverlaySettings",
-            &format!("[{}] getWindowY: gc=null => center {}", self.section_name, cy),
+            &format!(
+                "[{}] getWindowY: gc=null => center {}",
+                self.section_name, cy
+            ),
         );
         cy
     }

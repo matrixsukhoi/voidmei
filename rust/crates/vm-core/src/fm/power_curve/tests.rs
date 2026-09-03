@@ -64,7 +64,7 @@ fn const_rpm_below_old_crit_alt_boundary() {
     p.const_rpm_alt = 4998.0;
     assert!(!const_rpm_below_crit_alt(&p)); // 对 critAlt 不成立
     assert!(const_rpm_below_old_crit_alt(&p)); // 对 oldAltitude 成立
-    // 恰好 -1 边界 (相对 oldAltitude)
+                                               // 恰好 -1 边界 (相对 oldAltitude)
     p.const_rpm_alt = 4999.0;
     assert!(!const_rpm_below_old_crit_alt(&p));
     // 无 ConstRPM 短路

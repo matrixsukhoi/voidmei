@@ -8,15 +8,15 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::render::palette::{aa, colors};
-use crate::render::font::LoadedFont;
 use crate::overlays::spec_common::{keyed_spec, FontSlot};
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
+use crate::render::font::LoadedFont;
+use crate::render::palette::{aa, colors};
 use crate::render::primitives::{draw_h_rect, ring1px, text_shaded_auto};
-use vm_core::base::format::java_round_f64;
 use vm_core::base::format::java_round_f32;
+use vm_core::base::format::java_round_f64;
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 
@@ -27,16 +27,7 @@ pub const FIELD_OVERLAY_REFRESH_INTERVAL_MS: i64 = 50;
 /// UIBaseElements.drawVBar (UIBaseElements): 竖条 (底对齐, shade 环 +
 /// c 内芯); val_height<0 分支为条自 y 向下生长 (GearFlaps 值域 0..100 不可达, 保真保留)
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawVBar(g2d,x,y,width,height,val_height,borderwidth,c)
-fn draw_v_bar(
-    cv: &mut PixCanvas,
-    x: i32,
-    y: i32,
-    w: i32,
-    h: i32,
-    val_h: i32,
-    bw: i32,
-    c: [u8; 4],
-) {
+fn draw_v_bar(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, val_h: i32, bw: i32, c: [u8; 4]) {
     if val_h >= 0 {
         ring1px(cv, x, y - h, w - 1, h - 1, colors().shade_shape);
         cv.fill_rect(x + bw, y + bw - val_h, w - 2 * bw, val_h - 2 * bw, c);
@@ -67,7 +58,15 @@ fn draw_v_bar_text_num(
     let val_h = if val_h > h { h } else { val_h };
     draw_v_bar(cv, x, y, w, h, val_h, bw, c);
     // 指针横线 (drawHRect): colorLabel, 总宽 = width + 3*numFontSize
-    draw_h_rect(cv, x, y - val_h - 1, w + 3 * num_font.size, 3, 1, colors().label);
+    draw_h_rect(
+        cv,
+        x,
+        y - val_h - 1,
+        w + 3 * num_font.size,
+        3,
+        1,
+        colors().label,
+    );
     // 数值文本: shade (+1,+1) + 本色 colorLabel (基线 y-val_height-2)
     text_shaded_auto(cv, num_font, x + w, y - val_h - 2, num, colors().label, aa);
 }
@@ -190,12 +189,30 @@ impl GearFlapsState {
         // 条画在 (0, dy), 数值 "F"+flapText
         let num = format!("F{}", self.flap_text);
         draw_v_bar_text_num(
-            cv, 0, dy, self.bar_width, self.bar_height, self.flap_pix, 1, colors().num,
-            "", &num, font_num, font_label, aa,
+            cv,
+            0,
+            dy,
+            self.bar_width,
+            self.bar_height,
+            self.flap_pix,
+            1,
+            colors().num,
+            "",
+            &num,
+            font_num,
+            font_label,
+            aa,
         );
         // 告警文本: (width, baseline=fontSize), fontLabel, 无阴影
         // PORT: Java 判 warnText != null (恒真, 空串绘制无输出), 空串等价无绘制
-        cv.draw_text(font_label, self.width, fs, &self.warn_text, self.warn_color, aa);
+        cv.draw_text(
+            font_label,
+            self.width,
+            fs,
+            &self.warn_text,
+            self.warn_color,
+            aa,
+        );
     }
 }
 
@@ -246,7 +263,11 @@ pub fn gear_flaps_overlay_spec(
         let new_state = GearFlapsState::new(fa, dpi, edge);
         if !FontSlot::reload_group(&[
             (&reinit_num, &reinit_bold, new_state.font_size),
-            (&reinit_label, &reinit_bold, java_round_f32(new_state.font_size as f32 / 2.0)),
+            (
+                &reinit_label,
+                &reinit_bold,
+                java_round_f32(new_state.font_size as f32 / 2.0),
+            ),
         ]) {
             return None;
         }

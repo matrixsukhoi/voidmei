@@ -101,7 +101,10 @@ pub async fn get_fm_list(state: tauri::State<'_, IpcState>) -> Result<Value, Str
 
 /// 导入外部配置 (阶段③ importConfig; path 来自 tauri-plugin-dialog 的 open())
 #[tauri::command]
-pub async fn import_config(state: tauri::State<'_, IpcState>, path: String) -> Result<Value, String> {
+pub async fn import_config(
+    state: tauri::State<'_, IpcState>,
+    path: String,
+) -> Result<Value, String> {
     roundtrip(&state.tx, RequestKind::ImportConfig { path }).await
 }
 
@@ -156,7 +159,10 @@ pub async fn fm_list() -> Result<serde_json::Value, String> {
 pub(crate) fn ensure_real_data() -> bool {
     // vm-webui 位于 rust/crates/vm-webui → 仓库根 = ../../.. (realtests 同款)
     let root = format!("{}/../../../data", env!("CARGO_MANIFEST_DIR"));
-    if !std::path::Path::new(&root).join("aces/gamedata/flightmodels").exists() {
+    if !std::path::Path::new(&root)
+        .join("aces/gamedata/flightmodels")
+        .exists()
+    {
         return false;
     }
     vm_core::fm::data_paths::set_data_root(&root);
@@ -175,8 +181,14 @@ mod tests {
         }
         let planes = vm_core::fm::data_paths::list_fm_names("fm");
         assert!(planes.len() > 100, "fm/ 目录应有千级机型: {}", planes.len());
-        assert!(planes.contains(&"spitfire_f24".to_string()), "应含 spitfire_f24");
-        assert!(planes.contains(&"a-10c".to_string()), "应含连字符机型 a-10c");
+        assert!(
+            planes.contains(&"spitfire_f24".to_string()),
+            "应含 spitfire_f24"
+        );
+        assert!(
+            planes.contains(&"a-10c".to_string()),
+            "应含连字符机型 a-10c"
+        );
         // 已排序
         let mut sorted = planes.clone();
         sorted.sort();

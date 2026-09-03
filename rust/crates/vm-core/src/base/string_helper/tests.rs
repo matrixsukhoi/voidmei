@@ -58,7 +58,10 @@ fn get_string_truncated_tail() {
 #[test]
 fn get_string_first_occurrence() {
     // indexOf 取第一次出现 (与 getStringBuilder 的 lastIndexOf 相对)
-    assert_eq!(get_string("{\"speed\": 1, \"speed\": 2}", "speed"), Some("1"));
+    assert_eq!(
+        get_string("{\"speed\": 1, \"speed\": 2}", "speed"),
+        Some("1")
+    );
 }
 
 #[test]
@@ -181,7 +184,10 @@ fn get_data_float_trims_whitespace_like_java() {
     assert_eq!(get_data_float(Some("  2.25")), 2.25);
     // 冒号后双空格的脏 payload: getString 只跳 1 码元 → 子串带前导空格,
     // Java parseFloat 正常解析, Rust 靠 trim 对齐
-    assert_eq!(get_data_float(get_string("{\"speed\":  7.5}", "speed")), 7.5);
+    assert_eq!(
+        get_data_float(get_string("{\"speed\":  7.5}", "speed")),
+        7.5
+    );
     // 全空白 trim 后为空串: 两边均 NumberFormatException/panic
 }
 

@@ -183,15 +183,15 @@ mod winmm {
     use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
     use std::sync::Mutex;
 
-    use vm_core::base::logger;
     use vm_core::audio::voice_resource_manager::{SoundClip, SoundError, SoundPlayer};
+    use vm_core::base::logger;
 
     use super::{parse_wav_pcm, scale_pcm_into};
     use windows::core::PSTR;
     use windows::Win32::Media::Audio::{
         waveOutClose, waveOutGetErrorTextW, waveOutOpen, waveOutPrepareHeader, waveOutReset,
-        waveOutUnprepareHeader, waveOutWrite, CALLBACK_NULL, HWAVEOUT, WHDR_DONE, WAVEHDR,
-        WAVEFORMATEX, WAVE_MAPPER, WAVE_FORMAT_PCM,
+        waveOutUnprepareHeader, waveOutWrite, CALLBACK_NULL, HWAVEOUT, WAVEFORMATEX, WAVEHDR,
+        WAVE_FORMAT_PCM, WAVE_MAPPER, WHDR_DONE,
     };
     use windows::Win32::Media::MMSYSERR_NOERROR;
 
@@ -228,7 +228,8 @@ mod winmm {
         };
         let mut hwo = HWAVEOUT::default();
         // CALLBACK_NULL + 立即关闭: 探测本身无声、不留设备占用
-        let mmr = unsafe { waveOutOpen(Some(&mut hwo), WAVE_MAPPER, &wfx, None, None, CALLBACK_NULL) };
+        let mmr =
+            unsafe { waveOutOpen(Some(&mut hwo), WAVE_MAPPER, &wfx, None, None, CALLBACK_NULL) };
         if mmr != MMSYSERR_NOERROR {
             return Some(mmr_text(mmr));
         }
@@ -439,15 +440,11 @@ mod winmm {
             unsafe {
                 let hdr = self.hdr_ptr();
                 std::ptr::addr_of_mut!((*hdr).lpData).write_unaligned(PSTR(play.as_mut_ptr()));
-                std::ptr::addr_of_mut!((*hdr).dwBufferLength)
-                    .write_unaligned(play.len() as u32);
+                std::ptr::addr_of_mut!((*hdr).dwBufferLength).write_unaligned(play.len() as u32);
                 std::ptr::addr_of_mut!((*hdr).dwBytesRecorded).write_unaligned(0);
                 std::ptr::addr_of_mut!((*hdr).dwFlags).write_unaligned(0); // 清 winmm 写回的 DONE
-                let mmr = waveOutPrepareHeader(
-                    self.hwo,
-                    hdr,
-                    std::mem::size_of::<WAVEHDR>() as u32,
-                );
+                let mmr =
+                    waveOutPrepareHeader(self.hwo, hdr, std::mem::size_of::<WAVEHDR>() as u32);
                 if mmr != MMSYSERR_NOERROR {
                     logger::debug(
                         "VoiceAlert",
@@ -485,7 +482,8 @@ mod winmm {
         fn set_frame_position(&self, frame: i32) {
             self.retire_pending();
             let off = frame.max(0) as usize * self.block_align as usize;
-            self.start_offset.store(off.min(self.data.len()), Ordering::SeqCst);
+            self.start_offset
+                .store(off.min(self.data.len()), Ordering::SeqCst);
         }
 
         /// Java: `clip.close()` — 释放行资源并停止播放; 幂等 (Drop 兜底再调)。
@@ -749,14 +747,20 @@ mod tests {
     fn open_clip_缺文件_err() {
         let p = std::env::temp_dir().join(format!("vm_app_winmm_absent_{}", std::process::id()));
         let r = make_player().open_clip(&p);
-        assert!(r.is_err(), "缺失文件必须 Err (Java IOException→catch→null 面)");
+        assert!(
+            r.is_err(),
+            "缺失文件必须 Err (Java IOException→catch→null 面)"
+        );
     }
 
     #[test]
     fn open_clip_非_wav_err() {
         let p = tmp_file("notwav.bin", b"this is definitely not audio");
         let r = make_player().open_clip(&p);
-        assert!(r.is_err(), "非 wav 必须 Err (Java UnsupportedAudioFileException 面)");
+        assert!(
+            r.is_err(),
+            "非 wav 必须 Err (Java UnsupportedAudioFileException 面)"
+        );
     }
 
     #[test]
@@ -804,7 +808,9 @@ mod tests {
                 return;
             }
             let p = tmp_file("ok.wav", &synth_wav(1, 8000, 16, 64));
-            let clip = make_player().open_clip(&p).expect("真实音频会话下应打开成功");
+            let clip = make_player()
+                .open_clip(&p)
+                .expect("真实音频会话下应打开成功");
             assert!(!clip.is_running(), "未 start 不在播");
             let (gmin, gmax) = clip.master_gain_range().expect("waveOut 腿报告增益范围");
             assert_eq!((gmin, gmax), (-80.0, 6.0206));
@@ -827,7 +833,9 @@ mod tests {
                 "run.wav",
                 &synth_wav(1, 8000, 16, 1600), // 1600 样本 @8kHz = 200ms
             );
-            let clip = make_player().open_clip(&p).expect("打开失败 (音频会话不可用?)");
+            let clip = make_player()
+                .open_clip(&p)
+                .expect("打开失败 (音频会话不可用?)");
             clip.start();
             assert!(clip.is_running(), "提交后 200ms 缓冲应处于在播窗口");
             std::thread::sleep(std::time::Duration::from_millis(600));
@@ -854,7 +862,10 @@ mod tests {
             assert!(b.is_running(), "路 B 应在播 (并发混音裁决点)");
             b.stop(); // 停 B 不影响 A (每路独立设备流)
             assert!(!b.is_running());
-            assert!(a.is_running(), "停 B 不得误停 A (PlaySound 全局停缺陷不复存)");
+            assert!(
+                a.is_running(),
+                "停 B 不得误停 A (PlaySound 全局停缺陷不复存)"
+            );
         }
 
         /// start() 重启路径回归 (审查轮 B-B1 修复面): 在播头未归还时直接 start
@@ -874,7 +885,9 @@ mod tests {
                 "restart.wav",
                 &synth_wav(1, 8000, 16, 3200), // 400ms: 重启时首次提交仍在播
             );
-            let clip = make_player().open_clip(&p).expect("打开失败 (音频会话不可用?)");
+            let clip = make_player()
+                .open_clip(&p)
+                .expect("打开失败 (音频会话不可用?)");
             clip.set_frame_position(1600); // 200ms 处
             clip.start(); // 提交 200ms (短提交) — 在播
             assert!(clip.is_running(), "首次提交应在播");
@@ -897,7 +910,9 @@ mod tests {
                 return;
             }
             let p = tmp_file("gaincache.wav", &synth_wav(1, 8000, 16, 3200));
-            let clip = make_player().open_clip(&p).expect("打开失败 (音频会话不可用?)");
+            let clip = make_player()
+                .open_clip(&p)
+                .expect("打开失败 (音频会话不可用?)");
             // 命中分支: 同增益同游标二次 start
             clip.start();
             assert!(clip.is_running());

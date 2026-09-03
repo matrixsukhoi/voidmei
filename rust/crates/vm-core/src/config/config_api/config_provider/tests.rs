@@ -10,7 +10,9 @@ struct MapConfig {
 
 impl MapConfig {
     fn new() -> Self {
-        MapConfig { values: RefCell::new(HashMap::new()) }
+        MapConfig {
+            values: RefCell::new(HashMap::new()),
+        }
     }
 }
 
@@ -21,7 +23,9 @@ impl ConfigProvider for MapConfig {
     }
 
     fn set_config(&self, key: &str, value: &str) {
-        self.values.borrow_mut().insert(key.to_string(), value.to_string());
+        self.values
+            .borrow_mut()
+            .insert(key.to_string(), value.to_string());
     }
 
     fn is_field_disabled(&self, key: &str) -> bool {
@@ -36,7 +40,10 @@ fn test_set_get_roundtrip_cjk() {
     c.set_config("GlobalNumFont", "微软雅黑");
     c.set_config("GlobalTextFont", "DIN Pro 400");
     assert_eq!(c.get_config("GlobalNumFont"), Some("微软雅黑".to_string()));
-    assert_eq!(c.get_config("GlobalTextFont"), Some("DIN Pro 400".to_string()));
+    assert_eq!(
+        c.get_config("GlobalTextFont"),
+        Some("DIN Pro 400".to_string())
+    );
 }
 
 // 未设置键 → None (契约的 null 形态; 与空串 Some("") 区分)
@@ -93,10 +100,7 @@ fn test_generic_dispatch() {
     }
     let c = MapConfig::new();
     c.set_config("a", "x");
-    assert_eq!(
-        read_all(&c, &["a", "b"]),
-        vec![Some("x".to_string()), None]
-    );
+    assert_eq!(read_all(&c, &["a", "b"]), vec![Some("x".to_string()), None]);
 }
 
 // LIFETIMES §7: 配置经 Arc<ConfigStore> 共享, 写路径必须经共享引用可用 —
@@ -128,9 +132,13 @@ fn test_set_config_reentrant_read_during_publish() {
 
         fn set_config(&self, key: &str, value: &str) {
             // 短锁: 写入即释放借用 (§2.8 lock → 释放 → 后续动作)
-            self.values.borrow_mut().insert(key.to_string(), value.to_string());
+            self.values
+                .borrow_mut()
+                .insert(key.to_string(), value.to_string());
             // 模拟同步广播后 handler 的重入读
-            self.reads_during_publish.borrow_mut().push(self.get_config(key));
+            self.reads_during_publish
+                .borrow_mut()
+                .push(self.get_config(key));
         }
 
         fn is_field_disabled(&self, _key: &str) -> bool {

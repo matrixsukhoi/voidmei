@@ -3,8 +3,8 @@
 //! 设计: doc/formula_system_design.md §3.5/§3.6
 
 use super::ast::{BinOp, RExpr, UnOp};
-use super::functions::{eval_pure, fid_from_u16, is_ctx_fn, is_stateful, FnId, Value};
 use super::definition::FormulaResults;
+use super::functions::{eval_pure, fid_from_u16, is_ctx_fn, is_stateful, FnId, Value};
 use super::registry::VarSnapshot;
 use std::collections::HashMap;
 
@@ -24,17 +24,35 @@ pub struct EvalCtx<'a> {
 /// 状态原语的私有状态 (键 = (公式槽, 调用点 site))
 enum PrimState {
     /// sma: 渐进均值, 对齐 calc_helper.rs SimpleMovingAverage
-    Sma { data: Vec<f64>, cnt: usize, avg: f64 },
+    Sma {
+        data: Vec<f64>,
+        cnt: usize,
+        avg: f64,
+    },
     /// prev / blend / deriv 的上一帧记忆
     Prev(f64),
-    PrevT { prev: f64, t: u64 },
+    PrevT {
+        prev: f64,
+        t: u64,
+    },
     /// vote: ±n 冻结投票, 对齐 service_loop 的 check_engine_jet
-    Vote { cnt: i64, frozen: Option<f64> },
+    Vote {
+        cnt: i64,
+        frozen: Option<f64>,
+    },
     /// stable: 值持续不变计时, 对齐 check_flap 的"维持1秒稳定"
-    Stable { prev: f64, held_ms: f64, has_prev: bool },
+    Stable {
+        prev: f64,
+        held_ms: f64,
+        has_prev: bool,
+    },
     /// learn_max: 门控内软逼近最大值+超时锁定,
     /// 对齐 methods_engine 的 get_maximum_rpm_learn
-    LearnMax { cur: f64, elapsed_ms: f64, locked: bool },
+    LearnMax {
+        cur: f64,
+        elapsed_ms: f64,
+        locked: bool,
+    },
 }
 
 /// 状态原语仓: Service 线程私有 (求值单线程, 无竞争)。
@@ -125,20 +143,14 @@ pub fn eval(expr: &RExpr, ctx: &EvalCtx, store: &mut StateStore) -> Value {
             }
             if is_stateful(fid) {
                 // 状态原语: 先求实参, NaN 输入不污染状态 (设计 §3.6 隔离)
-                let vals: Vec<f64> = args
-                    .iter()
-                    .map(|a| eval(a, ctx, store).num())
-                    .collect();
+                let vals: Vec<f64> = args.iter().map(|a| eval(a, ctx, store).num()).collect();
                 if vals.iter().any(|v| v.is_nan()) {
                     return Value::Num(f64::NAN);
                 }
                 Value::Num(eval_stateful(fid, &vals, *site, ctx, store))
             } else if is_ctx_fn(fid) {
                 // FM 查表族: 需上下文携带的当前 blkx (无 FM → NaN 隔离)
-                let vals: Vec<f64> = args
-                    .iter()
-                    .map(|a| eval(a, ctx, store).num())
-                    .collect();
+                let vals: Vec<f64> = args.iter().map(|a| eval(a, ctx, store).num()).collect();
                 if vals.iter().any(|v| v.is_nan()) {
                     return Value::Num(f64::NAN);
                 }
@@ -151,7 +163,13 @@ pub fn eval(expr: &RExpr, ctx: &EvalCtx, store: &mut StateStore) -> Value {
     }
 }
 
-fn eval_binary(op: BinOp, lhs: &RExpr, rhs: &RExpr, ctx: &EvalCtx, store: &mut StateStore) -> Value {
+fn eval_binary(
+    op: BinOp,
+    lhs: &RExpr,
+    rhs: &RExpr,
+    ctx: &EvalCtx,
+    store: &mut StateStore,
+) -> Value {
     // 逻辑短路: 假短路 && / 真短路 ||; NaN 操作数在非短路路径传播 (错误显形)
     match op {
         BinOp::And => {
@@ -206,10 +224,11 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
         FnId::Sma => {
             // sma(x, n): 渐进均值 (窗口未满按已有点平均), 位级对齐 SimpleMovingAverage
             let (x, n) = (vals[0], vals[1].max(1.0) as usize);
-            let st = store
-                .map
-                .entry(key)
-                .or_insert_with(|| PrimState::Sma { data: vec![0.0; n], cnt: 0, avg: 0.0 });
+            let st = store.map.entry(key).or_insert_with(|| PrimState::Sma {
+                data: vec![0.0; n],
+                cnt: 0,
+                avg: 0.0,
+            });
             match st {
                 PrimState::Sma { data, cnt, avg } => {
                     if *cnt < n {
@@ -255,14 +274,18 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
         }
         FnId::Deriv => {
             // deriv(x): 每秒变化率 (x-prev)*1000/interval_ms
-            let st = store
-                .map
-                .entry(key)
-                .or_insert(PrimState::PrevT { prev: vals[0], t: ctx.now_ms });
+            let st = store.map.entry(key).or_insert(PrimState::PrevT {
+                prev: vals[0],
+                t: ctx.now_ms,
+            });
             match st {
                 PrimState::PrevT { prev, t } => {
                     let dt = ctx.now_ms.saturating_sub(*t) as f64;
-                    let out = if dt > 0.0 { (vals[0] - *prev) * 1000.0 / dt } else { 0.0 };
+                    let out = if dt > 0.0 {
+                        (vals[0] - *prev) * 1000.0 / dt
+                    } else {
+                        0.0
+                    };
                     *prev = vals[0];
                     *t = ctx.now_ms;
                     out
@@ -274,10 +297,10 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
             // vote(up, down, n): 每帧 cnt += up - down; |cnt| >= n 冻结输出 ±1
             // 对齐 check_engine_jet: magenato<0 → -1, 否则 +1, ±100 收敛
             let (up, down, n) = (vals[0] != 0.0, vals[1] != 0.0, vals[2] as i64);
-            let st = store
-                .map
-                .entry(key)
-                .or_insert(PrimState::Vote { cnt: 0, frozen: None });
+            let st = store.map.entry(key).or_insert(PrimState::Vote {
+                cnt: 0,
+                frozen: None,
+            });
             match st {
                 PrimState::Vote { cnt, frozen } => {
                     if let Some(f) = frozen {
@@ -298,12 +321,17 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
             // stable(x, ms): x 持续不变达 ms → 1 (持续输出), 变化清零
             // 对齐 check_flap "维持1秒稳定" 的计时语义
             let (x, ms) = (vals[0], vals[1]);
-            let st = store
-                .map
-                .entry(key)
-                .or_insert(PrimState::Stable { prev: x, held_ms: 0.0, has_prev: false });
+            let st = store.map.entry(key).or_insert(PrimState::Stable {
+                prev: x,
+                held_ms: 0.0,
+                has_prev: false,
+            });
             match st {
-                PrimState::Stable { prev, held_ms, has_prev } => {
+                PrimState::Stable {
+                    prev,
+                    held_ms,
+                    has_prev,
+                } => {
                     if *has_prev && x == *prev {
                         *held_ms += ctx.interval_ms;
                     } else {
@@ -322,12 +350,17 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
             // gate 有效时长累计, 超 timeout_ms 锁定。初值 cur=0 (resetvaria maximumThrRPM 语义位级对拍阶段4校准)
             let (x, gate, timeout_ms) = (vals[0], vals[1] != 0.0, vals[2]);
             let ratio = (ctx.interval_ms / 1000.0).clamp(0.0, 1.0);
-            let st = store
-                .map
-                .entry(key)
-                .or_insert(PrimState::LearnMax { cur: 0.0, elapsed_ms: 0.0, locked: false });
+            let st = store.map.entry(key).or_insert(PrimState::LearnMax {
+                cur: 0.0,
+                elapsed_ms: 0.0,
+                locked: false,
+            });
             match st {
-                PrimState::LearnMax { cur, elapsed_ms, locked } => {
+                PrimState::LearnMax {
+                    cur,
+                    elapsed_ms,
+                    locked,
+                } => {
                     if !*locked && gate {
                         if x >= *cur {
                             *cur = (1.0 - ratio) * *cur + ratio * x;

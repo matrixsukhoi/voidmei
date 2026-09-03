@@ -4,8 +4,8 @@
 
 mod debounce_config;
 mod lifecycle;
-mod voice;
 mod render_feeds;
+mod voice;
 
 use super::*;
 
@@ -16,7 +16,6 @@ use vm_core::base::bus::EventBus; // FmChangedBus 底座 (EventBus<FMHandle>) �
 use vm_core::fm::FMHandle;
 
 static CFG_N: AtomicUsize = AtomicUsize::new(0);
-
 
 /// 测试助手 (波4): ServiceData → 帧仓 (发布一帧)。原 "手造 RwLock<ServiceData>
 /// 塞 live" 的测试形态改为帧仓; 需要中途改数据的用 update_live_frame 重发布。
@@ -90,16 +89,17 @@ fn fixture_full(ms: u64, cfg: String) -> AppShell {
     let (hotkey, hotkey_rx) = HotkeyManager::with_channel();
     let mut env = Env::probe(&Lang::init_lang(), false);
     env.app_port = 9; // discard 端口: 无服务监听, connect 立即 RST
-    // 字体目录钉在仓库根 (cargo 测试 CWD=crate 根, CWD 相对探测不稳;
-    // 渲染线程注册面的 spec 工厂需要真实字体文件)
-    env.fonts_dir =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
+                      // 字体目录钉在仓库根 (cargo 测试 CWD=crate 根, CWD 相对探测不稳;
+                      // 渲染线程注册面的 spec 工厂需要真实字体文件)
+    env.fonts_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
     let mut shell = AppShell::with_parts(ShellParts {
         env,
         config,
         ui_bus,
         flight_bus: Arc::new(FlightDataBus::new()),
-        fm: Arc::new(FMManager::new(Arc::new(vm_core::base::bus::EventBus::new()))),
+        fm: Arc::new(FMManager::new(
+            Arc::new(vm_core::base::bus::EventBus::new()),
+        )),
         hotkey,
         hotkey_rx,
         debounce_delay: Duration::from_millis(ms),
@@ -120,7 +120,11 @@ fn pump_events(shell: &mut AppShell) -> bool {
     handled
 }
 
-fn publish_ui_event(bus: &vm_core::base::bus::ui_state_bus::UIStateBus, event_type: &str, data: &str) {
+fn publish_ui_event(
+    bus: &vm_core::base::bus::ui_state_bus::UIStateBus,
+    event_type: &str,
+    data: &str,
+) {
     bus.publish(event_type, Some("MainForm"), Some(data));
 }
 
@@ -186,7 +190,12 @@ fn test_overlay_inputs() -> OverlayInputs {
     OverlayInputs {
         dpi_scale: 1.0,
         hud: HudSettingsSnapshot::build(
-            &fixture().controller.as_ref().unwrap().config.get_hud_settings(),
+            &fixture()
+                .controller
+                .as_ref()
+                .unwrap()
+                .config
+                .get_hud_settings(),
         ),
         font_add_engine: 0,
         font_add_power: 0,

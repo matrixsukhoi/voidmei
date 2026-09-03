@@ -205,9 +205,8 @@ impl HookHandle {
         {
             if self.alive.load(Ordering::Acquire) {
                 // jnativehook 停泵方式: 向钩子线程投 WM_QUIT 唤醒阻塞中的 GetMessageW
-                let _ = unsafe {
-                    PostThreadMessageW(self.thread_id, WM_QUIT, WPARAM(0), LPARAM(0))
-                };
+                let _ =
+                    unsafe { PostThreadMessageW(self.thread_id, WM_QUIT, WPARAM(0), LPARAM(0)) };
             }
         }
         if let Some(j) = self.join {
@@ -270,7 +269,10 @@ impl HotkeyManager {
                 Ok(())
             }
             Err(ex) => {
-                logger::error("HotkeyManager", &format!("Failed to register native hook: {}", ex));
+                logger::error(
+                    "HotkeyManager",
+                    &format!("Failed to register native hook: {}", ex),
+                );
                 Err(ex)
             }
         }
@@ -287,7 +289,10 @@ impl HotkeyManager {
         if let Ok(mut m) = self.key_bindings.lock() {
             m.insert(key_code, event_type.to_string());
         }
-        logger::info("HotkeyManager", &format!("Bound key {} -> {}", key_code, event_type));
+        logger::info(
+            "HotkeyManager",
+            &format!("Bound key {} -> {}", key_code, event_type),
+        );
     }
 
     /// Unbind a key code.
@@ -298,7 +303,10 @@ impl HotkeyManager {
             .ok()
             .and_then(|mut m| m.remove(&key_code));
         if let Some(was) = removed {
-            logger::info("HotkeyManager", &format!("Unbound key {} (was {})", key_code, was));
+            logger::info(
+                "HotkeyManager",
+                &format!("Unbound key {} (was {})", key_code, was),
+            );
         }
     }
 
@@ -309,18 +317,27 @@ impl HotkeyManager {
         // PORT: Java 此行无条件输出 (即便 newKeyCode==0 被 bind 跳过也打日志) — 保真
         logger::info(
             "HotkeyManager",
-            &format!("Rebound {} -> {} for {}", old_key_code, new_key_code, event_type),
+            &format!(
+                "Rebound {} -> {} for {}",
+                old_key_code, new_key_code, event_type
+            ),
         );
     }
 
     /// Check if a key code is currently bound.
     pub fn is_bound(&self, key_code: i32) -> bool {
-        self.key_bindings.lock().map(|m| m.contains_key(&key_code)).unwrap_or(false)
+        self.key_bindings
+            .lock()
+            .map(|m| m.contains_key(&key_code))
+            .unwrap_or(false)
     }
 
     /// Get the event type bound to a key code.
     pub fn get_binding(&self, key_code: i32) -> Option<String> {
-        self.key_bindings.lock().ok().and_then(|m| m.get(&key_code).cloned())
+        self.key_bindings
+            .lock()
+            .ok()
+            .and_then(|m| m.get(&key_code).cloned())
     }
 
     /// Shutdown the hotkey manager.
@@ -412,7 +429,10 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
                     // PORT: Java UIStateBus 对订阅方异常逐个 catch 不中断
                     // (LIFETIMES §2.2); 回调 panic 跨 extern "system" 边界
                     // unwind 会 abort 进程, 此处捕获记日志后继续走钩子链
-                    let event = HotkeyEvent { event_type, key_code: vc };
+                    let event = HotkeyEvent {
+                        event_type,
+                        key_code: vc,
+                    };
                     if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         sink.on_hotkey(&event);
                     })) {
@@ -455,7 +475,9 @@ fn spawn_hook_thread(
 
             let hook = unsafe {
                 match GetModuleHandleW(None) {
-                    Ok(h) => SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), Some(h.into()), 0),
+                    Ok(h) => {
+                        SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), Some(h.into()), 0)
+                    }
                     Err(e) => Err(e),
                 }
             };
@@ -484,14 +506,20 @@ fn spawn_hook_thread(
             }
 
             // 卸钩必须由装钩线程执行 (Windows 契约)
-            unsafe { let _ = UnhookWindowsHookEx(hook); };
+            unsafe {
+                let _ = UnhookWindowsHookEx(hook);
+            };
             HOOK_CTX.with(|c| *c.borrow_mut() = None);
             alive_thr.store(false, Ordering::Release);
         })
         .map_err(|e| format!("spawn hook thread: {}", e))?;
 
     match ready_rx.recv() {
-        Ok(Ok(thread_id)) => Ok(HookHandle { thread_id, alive, join: Some(join) }),
+        Ok(Ok(thread_id)) => Ok(HookHandle {
+            thread_id,
+            alive,
+            join: Some(join),
+        }),
         Ok(Err(e)) => {
             // 线程已自退 (钩子安装失败), join 只收尸
             let _ = join.join();
@@ -499,7 +527,10 @@ fn spawn_hook_thread(
         }
         Err(_) => {
             // 线程在回报前 panic — join 吞掉 panic, 上报为注册失败
-            let panicked = join.join().err().map(|_| "hook 线程启动阶段 panic".to_string());
+            let panicked = join
+                .join()
+                .err()
+                .map(|_| "hook 线程启动阶段 panic".to_string());
             Err(panicked.unwrap_or_else(|| "hook 线程异常退出".into()))
         }
     }

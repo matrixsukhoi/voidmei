@@ -5,7 +5,6 @@
 ///
 /// PORT: Java interface → Rust trait (§1 多实现接口, 主要实现 ConfigurationService)。
 pub trait ConfigProvider {
-
     /// Get a configuration value by key.
     ///
     /// @param key Configuration key

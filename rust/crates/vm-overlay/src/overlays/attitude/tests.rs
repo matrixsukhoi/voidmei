@@ -76,15 +76,25 @@ fn indicator_gauge_dual_mode_target_points() {
     assert!(g.on_data_update(&hud(10.0, 0.0, 5.0, true)));
     assert_eq!(g.aos_x, -16, "aosX = (int)(−slip·4·fontSize/30)");
     g.set_inertial_mode(false);
-    assert_eq!(g.target_point(30, 40), (64, 45), "body: horizon 随 pitch 上移/侧滑右移");
+    assert_eq!(
+        g.target_point(30, 40),
+        (64, 45),
+        "body: horizon 随 pitch 上移/侧滑右移"
+    );
     g.set_inertial_mode(true);
     assert_eq!(g.target_point(30, 40), (16, 55), "earth: 符号全翻");
     // roll 符号: body=+1, earth=−1 (roll_theta)
     let mut zb = gauge();
     zb.on_data_update(&hud(0.0, 90.0, 0.0, true));
-    assert!((zb.roll_theta() - std::f64::consts::FRAC_PI_2).abs() < 1e-12, "body θ=+90°");
+    assert!(
+        (zb.roll_theta() - std::f64::consts::FRAC_PI_2).abs() < 1e-12,
+        "body θ=+90°"
+    );
     zb.set_inertial_mode(true);
-    assert!((zb.roll_theta() + std::f64::consts::FRAC_PI_2).abs() < 1e-12, "earth θ=−90°");
+    assert!(
+        (zb.roll_theta() + std::f64::consts::FRAC_PI_2).abs() < 1e-12,
+        "earth θ=−90°"
+    );
 }
 
 /// onDataUpdate 的文本族 (Java:210-223):
@@ -126,7 +136,11 @@ fn indicator_gauge_marks_geometry_roll0() {
     g.draw(&mut cv, 30, 40, None, false);
 
     // 弧底细带内 (d=10.5): colorNum(240) 叠 shade(42) ≈ 242
-    assert!((235..=250).contains(&a(&cv, 42, 62)), "弧底细带 d=10.5, a={}", a(&cv, 42, 62));
+    assert!(
+        (235..=250).contains(&a(&cv, 42, 62)),
+        "弧底细带 d=10.5, a={}",
+        a(&cv, 42, 62)
+    );
     // 外侧粗独占环 (d=11.5 ∈ [11,12]): 单层 shade 精确 42
     assert_eq!(a(&cv, 42, 63), 42, "外粗独占环 d=11.5");
     // 粗带外 (d=12.6): 透明
@@ -323,11 +337,18 @@ fn overlay_draw_layers_pixels() {
     // 地面: (75,200) colorUnit a=220 预乘 RGB≈143
     let g = px(&cv, 75, 200);
     assert_eq!(g[3], 220, "地面 alpha=colorUnit 220");
-    assert!((g[0] as i32 - 143).abs() <= 1 && g[0] == g[1] && g[1] == g[2], "预乘灰 {g:?}");
+    assert!(
+        (g[0] as i32 - 143).abs() <= 1 && g[0] == g[1] && g[1] == g[2],
+        "预乘灰 {g:?}"
+    );
     // 天空: (75,100) 透明 (刻度不在该行, 中线在 149)
     assert_eq!(a(&cv, 75, 100), 0, "地平线上方透明");
     // 左外中线段 (0..18, 149) colorNum 240
-    assert!((230..=255).contains(&a(&cv, 5, 148)), "中线行 a={}", a(&cv, 5, 148));
+    assert!(
+        (230..=255).contains(&a(&cv, 5, 148)),
+        "中线行 a={}",
+        a(&cv, 5, 148)
+    );
     // 侧滑球十字 (AoS=75, AoA=175): colorNum(240) 叠地面(220) ≈ 247
     assert!(a(&cv, 75, 174) > 240, "十字横臂叠地面");
     // 攻角极限 U=240 (warning 100 叠地面 220 ≈ 234), D=130 (叠天空 = 100)
@@ -344,7 +365,10 @@ fn overlay_draw_layers_pixels() {
     // 边框存在 (shade 弱 alpha; 取天空段避开地平线行的地面叠色)
     assert_eq!(a(&cv, 0, 140), 42, "左边框 shade");
     // pitch 刻度行 (60° 对旋平后 y=0) 与 30° 对 (y=300 界外被裁, y=0 可见)
-    assert!(a(&cv, 120, 0) > 0, "30° 刻度行 y=0 (60° 对在 y=−150 已出界)");
+    assert!(
+        a(&cv, 120, 0) > 0,
+        "30° 刻度行 y=0 (60° 对在 y=−150 已出界)"
+    );
 }
 
 /// 极限线关闭 (哨兵 −10): 窗口内无 warning 横线
@@ -374,7 +398,11 @@ fn indicator_gauge_arc_caps_hole_interior_clean() {
     let mut cv = PixCanvas::new(200, 200).unwrap();
     g.draw(&mut cv, 30, 40, None, false);
     assert_eq!(a(&cv, 35, 52), 0, "孔内左 (距弧心 6.5 < 内缘 8)");
-    assert_eq!(a(&cv, 49, 52), 0, "孔内右 (距弧心 7.5 < 内缘 8, 距弧端帽 2.55>2)");
+    assert_eq!(
+        a(&cv, 49, 52),
+        0,
+        "孔内右 (距弧心 7.5 < 内缘 8, 距弧端帽 2.55>2)"
+    );
 }
 
 /// roll=45: 弧心旋至 (40,52.83), 孔内深处的像素距弧带 (≥8)/牵引圆点 (r=2)/
@@ -410,10 +438,18 @@ fn overlay_center_arc_true_center() {
     o.update_telemetry(0.0, 0.0, 0.0, 0.0, 0.0, None);
     let mut cv = PixCanvas::new(150, 300).unwrap();
     o.draw(&mut cv, false);
-    assert!(a(&cv, 74, 155) > 230, "弧底在正确圆心 (74,149) 下方, a={}", a(&cv, 74, 155));
+    assert!(
+        a(&cv, 74, 155) > 230,
+        "弧底在正确圆心 (74,149) 下方, a={}",
+        a(&cv, 74, 155)
+    );
     assert!(a(&cv, 74, 154) > 230, "弧体径向 5.5 带内");
     assert_eq!(a(&cv, 62, 143), 0, "旧错误圆心 (68,143) 的弧体带内点已无弧");
-    assert!(a(&cv, 79, 149) > 230, "弧端桥接中线右内段, a={}", a(&cv, 79, 149));
+    assert!(
+        a(&cv, 79, 149) > 230,
+        "弧端桥接中线右内段, a={}",
+        a(&cv, 79, 149)
+    );
 }
 
 /// live 工厂: DPI 缩放尺寸 (150%→round(150·1.5)=225/round(300·1.5)=450) +
@@ -426,21 +462,31 @@ fn attitude_overlay_spec_dpi_and_shared_state() {
     }));
     let (h, mut spec) = attitude_overlay_spec(&cell).unwrap();
     assert_eq!((spec.width, spec.height), (225, 450));
-    assert_eq!((spec.id.as_str(), spec.config_key.as_str()),
-        ("enableAttitudeIndicator", "enableAttitudeIndicator"));
+    assert_eq!(
+        (spec.id.as_str(), spec.config_key.as_str()),
+        ("enableAttitudeIndicator", "enableAttitudeIndicator")
+    );
     // 喂入: aoa=10 → AoA = round((10+30)·450/60) = 300
-    h.borrow_mut().update_telemetry(10.0, 0.0, 0.0, 0.0, 0.0, None);
+    h.borrow_mut()
+        .update_telemetry(10.0, 0.0, 0.0, 0.0, 0.0, None);
     assert_eq!(h.borrow().aoa_y, 300);
     let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
     (spec.render)(&mut cv);
     // 侧滑球十字在 y=300 (colorNum 线体, BasicStroke(2) 行 299..300)
-    assert!(a(&cv, 110, 299) > 0 || a(&cv, 110, 300) > 0, "十字随 aoa 喂入下移");
+    assert!(
+        a(&cv, 110, 299) > 0 || a(&cv, 110, 300) > 0,
+        "十字随 aoa 喂入下移"
+    );
 
     // WYSIWYG reinit: 宽 150→200 (150%) → 新尺寸 300×450 (setBounds 面)
     cell.borrow_mut().attitude.width = 200;
     let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert_eq!((w1, h1), (300, 450));
-    assert_eq!((h.borrow().x_width, h.borrow().x_height), (300, 450), "state 已换新几何");
+    assert_eq!(
+        (h.borrow().x_width, h.borrow().x_height),
+        (300, 450),
+        "state 已换新几何"
+    );
 }
 
 /// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
@@ -451,7 +497,8 @@ fn attitude_reset_preview_clears_telemetry_state() {
     let cell = Rc::new(RefCell::new(ReinitParams::default()));
     let (h, _spec) = attitude_overlay_spec(&cell).unwrap();
     // live 残留: aoa/pitch/roll/极限线全量喂入 (非构造态)
-    h.borrow_mut().update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
+    h.borrow_mut()
+        .update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
     {
         let g = h.borrow();
         assert_ne!(g.aoa_y, 0, "aoa 喂入已离开构造态");
@@ -466,12 +513,26 @@ fn attitude_reset_preview_clears_telemetry_state() {
     h.borrow_mut().reset_preview();
     let att = h.borrow();
     assert_eq!(
-        (att.aos_x, att.aoa_y, att.pitch_y, att.compass_x, att.compass_y),
+        (
+            att.aos_x,
+            att.aoa_y,
+            att.pitch_y,
+            att.compass_x,
+            att.compass_y
+        ),
         (0, 0, 0, 0, 0)
     );
-    assert_eq!((att.aoa_limit_u, att.aoa_limit_d), (AOA_LIMIT_OFF, AOA_LIMIT_OFF));
+    assert_eq!(
+        (att.aoa_limit_u, att.aoa_limit_d),
+        (AOA_LIMIT_OFF, AOA_LIMIT_OFF)
+    );
     assert!(att.p_t.iter().all(|&p| p == (0, 0)), "姿态点集清空");
     assert!(att.is_dirty(), "重置标脏 (强制下一帧重绘)");
-    let geo_after = (att.x_width, att.x_height, att.show_direction, att.show_aoa_limits);
+    let geo_after = (
+        att.x_width,
+        att.x_height,
+        att.show_direction,
+        att.show_aoa_limits,
+    );
     assert_eq!(geo_before, geo_after, "几何保留 (reinit 面不动)");
 }

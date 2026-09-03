@@ -50,8 +50,8 @@ fn round_f(x: f32) -> i32 {
 impl LoadedFont {
     /// 从 ttf/otf 数据创建指定字号的字体
     pub fn new(path: &std::path::Path, size: i32) -> Result<Self, String> {
-        let data = std::fs::read(path)
-            .map_err(|e| format!("读取字体 {} 失败: {}", path.display(), e))?;
+        let data =
+            std::fs::read(path).map_err(|e| format!("读取字体 {} 失败: {}", path.display(), e))?;
         let data = Arc::new(data);
         Ok(LoadedFont {
             data,
@@ -93,9 +93,7 @@ impl LoadedFont {
         let face = self.face().expect("字体已校验");
         let gid = face.glyph_index(ch).unwrap_or(ttf_parser::GlyphId(0));
         let upem = face.units_per_em() as f32;
-        let adv_units = face
-            .glyph_hor_advance(gid)
-            .unwrap_or(0) as f32;
+        let adv_units = face.glyph_hor_advance(gid).unwrap_or(0) as f32;
         let w = round_f(adv_units * self.size as f32 / upem);
         self.adv_cache.borrow_mut().insert(ch, w);
         w

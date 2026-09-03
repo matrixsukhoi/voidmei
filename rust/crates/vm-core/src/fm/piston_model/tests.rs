@@ -42,7 +42,10 @@ fn test_torque_rpm_boost() {
     let boost1 = torque_rpm_boost(2400.0, 2500.0);
     let boost2 = torque_rpm_boost(2400.0, 2600.0);
     let boost3 = torque_rpm_boost(2400.0, 2700.0);
-    assert_true("boost increases with RPM diff", boost1 < boost2 && boost2 < boost3);
+    assert_true(
+        "boost increases with RPM diff",
+        boost1 < boost2 && boost2 < boost3,
+    );
 }
 
 fn test_torque_from_hp() {
@@ -72,10 +75,20 @@ fn test_supercharger_rpm_effect() {
     assert_true("effect > 1 with RPM increase", effect > 1.0);
 
     // No RPM difference = no effect
-    assert_close("same RPM", supercharger_rpm_effect(2400.0, 2400.0, 0.2, 0.1), 1.0, 0.001);
+    assert_close(
+        "same RPM",
+        supercharger_rpm_effect(2400.0, 2400.0, 0.2, 0.1),
+        1.0,
+        0.001,
+    );
 
     // Invalid input
-    assert_close("zero milRPM", supercharger_rpm_effect(0.0, 2600.0, 0.2, 0.1), 1.0, 0.001);
+    assert_close(
+        "zero milRPM",
+        supercharger_rpm_effect(0.0, 2600.0, 0.2, 0.1),
+        1.0,
+        0.001,
+    );
 
     // Higher compressor factors = more effect
     let effect1 = supercharger_rpm_effect(2400.0, 2600.0, 0.1, 0.1);
@@ -101,14 +114,22 @@ fn test_interpolate_power() {
     // Curvature effect
     let linear = interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 2500.0, 1.0);
     let curved = interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 2500.0, 2.0);
-    assert_true("curvature affects interpolation", (linear - curved).abs() > 1.0);
+    assert_true(
+        "curvature affects interpolation",
+        (linear - curved).abs() > 1.0,
+    );
 }
 
 fn test_wep_power_multiplier() {
     // Testing wepPowerMultiplier()...
 
     // All factors = 1 and same RPM = multiplier of 1
-    assert_close("baseline", wep_power_multiplier(1.0, 1.0, 1.0, 1.0, 2400.0, 2400.0), 1.0, 0.01);
+    assert_close(
+        "baseline",
+        wep_power_multiplier(1.0, 1.0, 1.0, 1.0, 2400.0, 2400.0),
+        1.0,
+        0.01,
+    );
 
     // Typical WEP parameters
     let mult = wep_power_multiplier(1.15, 1.0, 1.0, 1.0, 2400.0, 2600.0);
@@ -129,11 +150,17 @@ fn test_wep_critical_altitude() {
 
     // With supercharger RPM effect boost
     let wep_crit_alt2 = wep_critical_altitude(7000.0, 1.42, 1.65, 1.1, 1.0);
-    assert_true("RPM effect raises WEP crit alt", wep_crit_alt2 > wep_crit_alt);
+    assert_true(
+        "RPM effect raises WEP crit alt",
+        wep_crit_alt2 > wep_crit_alt,
+    );
 
     // With pressure boost
     let wep_crit_alt3 = wep_critical_altitude(7000.0, 1.42, 1.65, 1.0, 1.1);
-    assert_true("pressure boost raises WEP crit alt", wep_crit_alt3 > wep_crit_alt);
+    assert_true(
+        "pressure boost raises WEP crit alt",
+        wep_crit_alt3 > wep_crit_alt,
+    );
 }
 
 fn test_power_at_altitude() {
@@ -241,7 +268,10 @@ fn test_generate_power_curve() {
 
     // Power decreases after critical altitude (8000m = index 160)
     let high_alt_idx = 8000 / 50;
-    assert_true("power decreases at high alt", curve[high_alt_idx] < curve[crit_alt_idx]);
+    assert_true(
+        "power decreases at high alt",
+        curve[high_alt_idx] < curve[crit_alt_idx],
+    );
 }
 
 fn test_ram_effect_integration() {
@@ -264,11 +294,17 @@ fn test_ram_effect_integration() {
     let p_moving_12k = power_at_altitude_advanced(&stage, 12000.0, false, 400.0, true, 15.0);
 
     // RAM effect should increase power above critical altitude
-    assert_true("RAM increases power above crit alt", p_moving_12k > p_static_12k);
+    assert_true(
+        "RAM increases power above crit alt",
+        p_moving_12k > p_static_12k,
+    );
 
     // Higher speed = more RAM effect (use moderate speeds to stay above crit alt)
     let p_faster_12k = power_at_altitude_advanced(&stage, 12000.0, false, 500.0, true, 15.0);
-    assert_true("faster = more RAM above crit alt", p_faster_12k > p_moving_12k);
+    assert_true(
+        "faster = more RAM above crit alt",
+        p_faster_12k > p_moving_12k,
+    );
 
     // Note: Below critical altitude, RAM effect may DECREASE power because
     // in this model deck power < crit power (power increases toward crit alt).
@@ -347,7 +383,10 @@ fn test_no_wep_aircraft_identical_curves() {
             all_match_ram = false;
         }
     }
-    assert_true("no-WEP with RAM: WEP curve equals military curve", all_match_ram);
+    assert_true(
+        "no-WEP with RAM: WEP curve equals military curve",
+        all_match_ram,
+    );
 }
 
 fn test_peak_wep_power() {
@@ -368,7 +407,12 @@ fn test_peak_wep_power() {
     let peak_single = peak_wep_power(&single_stage);
     // Peak should be critPower × wepPowerMult = 1500 × 1.15 = 1725 hp (approximately)
     let expected_peak = stage.crit_power * stage.wep_power_mult;
-    assert_close("single-stage peak WEP power", peak_single, expected_peak, 20.0);
+    assert_close(
+        "single-stage peak WEP power",
+        peak_single,
+        expected_peak,
+        20.0,
+    );
 
     // Test 2: Multi-stage supercharger (peak is max across all stages)
     let mut stage1 = CompressorStageParams::default();
@@ -397,7 +441,12 @@ fn test_peak_wep_power() {
     let peak_multi = peak_wep_power(&multi_stage);
     // Stage 1 should give higher peak (1400 × 1.1 = 1540hp vs 1300 × 1.1 = 1430hp)
     let expected_multi_peak = stage1.crit_power * stage1.wep_power_mult;
-    assert_close("multi-stage peak WEP power", peak_multi, expected_multi_peak, 20.0);
+    assert_close(
+        "multi-stage peak WEP power",
+        peak_multi,
+        expected_multi_peak,
+        20.0,
+    );
 
     // Test 3: Empty array returns 0
     let peak_empty = peak_wep_power(&[]);
@@ -422,7 +471,12 @@ fn test_peak_wep_power() {
 
     let peak_no_wep = peak_wep_power(&no_wep_array);
     // With no WEP, peak should equal critPower
-    assert_close("no-WEP peak equals critPower", peak_no_wep, no_wep_stage.crit_power, 10.0);
+    assert_close(
+        "no-WEP peak equals critPower",
+        peak_no_wep,
+        no_wep_stage.crit_power,
+        10.0,
+    );
 }
 
 /// Java 8 oracle 对拍 (PORTING.md §5.1 A 类策略):
@@ -444,32 +498,124 @@ fn java8_oracle_parity() {
 
     // === Part A: 纯函数 ===
     check("tq_same", torque_rpm_boost(2400.0, 2400.0), 1.0);
-    check("tq_2600", torque_rpm_boost(2400.0, 2600.0), 1.0171296296296297);
-    check("tq_2700", torque_rpm_boost(2400.0, 2700.0), 1.0355113636363635);
-    check("tq_2500", torque_rpm_boost(2400.0, 2500.0), 1.0046939300411524);
+    check(
+        "tq_2600",
+        torque_rpm_boost(2400.0, 2600.0),
+        1.0171296296296297,
+    );
+    check(
+        "tq_2700",
+        torque_rpm_boost(2400.0, 2700.0),
+        1.0355113636363635,
+    );
+    check(
+        "tq_2500",
+        torque_rpm_boost(2400.0, 2500.0),
+        1.0046939300411524,
+    );
     check("tq_zero_lo", torque_rpm_boost(0.0, 2600.0), 1.0);
     check("tq_zero_hi", torque_rpm_boost(2400.0, 0.0), 1.0);
-    check("tqf_1000_2400", torque_from_hp(1000.0, 2400.0), 302.54791666666665);
-    check("tqf_1000_4800", torque_from_hp(1000.0, 4800.0), 151.27395833333333);
-    check("tqf_2000_2400", torque_from_hp(2000.0, 2400.0), 605.0958333333333);
+    check(
+        "tqf_1000_2400",
+        torque_from_hp(1000.0, 2400.0),
+        302.54791666666665,
+    );
+    check(
+        "tqf_1000_4800",
+        torque_from_hp(1000.0, 4800.0),
+        151.27395833333333,
+    );
+    check(
+        "tqf_2000_2400",
+        torque_from_hp(2000.0, 2400.0),
+        605.0958333333333,
+    );
     check("tqf_zero_rpm", torque_from_hp(1000.0, 0.0), 0.0);
-    check("sce_typ", supercharger_rpm_effect(2400.0, 2600.0, 0.2, 0.1), 1.0735730379653925);
-    check("sce_same", supercharger_rpm_effect(2400.0, 2400.0, 0.2, 0.1), 1.0);
-    check("sce_p03", supercharger_rpm_effect(2400.0, 2600.0, 0.3, 0.1), 1.0643506320619338);
-    check("sce_om05", supercharger_rpm_effect(2400.0, 2600.0, 0.2, 0.5), 1.1016485962545541);
-    check("ip_low", interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 0.0, 1.0), 2000.0);
-    check("ip_high", interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 5000.0, 1.0), 1800.0);
-    check("ip_mid1", interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 2500.0, 1.0), 1887.3589678159094);
-    check("ip_mid2", interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 2500.0, 2.0), 1936.5599893425133);
-    check("ip_below", interpolate_power(1800.0, 5000.0, 2000.0, 0.0, -100.0, 1.0), 2005.1034456173313);
-    check("ip_degen", interpolate_power(1000.0, 3000.0, 990.0, 3000.0, 2500.0, 1.0), 990.0);
-    check("wepm_115", wep_power_multiplier(1.15, 1.0, 1.0, 1.0, 2400.0, 2600.0), 1.169_699_074_074_074);
-    check("wepm_110", wep_power_multiplier(1.10, 1.0, 1.0, 1.0, 2400.0, 2400.0), 1.1);
-    check("wepm_120", wep_power_multiplier(1.20, 1.0, 1.0, 1.0, 2400.0, 2400.0), 1.2);
-    check("wepm_oct18", wep_power_multiplier(1.15, 1.0, 1.1, 1.8, 2400.0, 2600.0), 1.4209300925925925);
-    check("wca_base", wep_critical_altitude(7000.0, 1.42, 1.65, 1.0, 1.0), 5_918.386_017_652_959);
-    check("wca_rpm11", wep_critical_altitude(7000.0, 1.42, 1.65, 1.1, 1.0), 6_608.678_596_256_166);
-    check("wca_pb11", wep_critical_altitude(7000.0, 1.42, 1.65, 1.0, 1.1), 6_608.678_596_256_166);
+    check(
+        "sce_typ",
+        supercharger_rpm_effect(2400.0, 2600.0, 0.2, 0.1),
+        1.0735730379653925,
+    );
+    check(
+        "sce_same",
+        supercharger_rpm_effect(2400.0, 2400.0, 0.2, 0.1),
+        1.0,
+    );
+    check(
+        "sce_p03",
+        supercharger_rpm_effect(2400.0, 2600.0, 0.3, 0.1),
+        1.0643506320619338,
+    );
+    check(
+        "sce_om05",
+        supercharger_rpm_effect(2400.0, 2600.0, 0.2, 0.5),
+        1.1016485962545541,
+    );
+    check(
+        "ip_low",
+        interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 0.0, 1.0),
+        2000.0,
+    );
+    check(
+        "ip_high",
+        interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 5000.0, 1.0),
+        1800.0,
+    );
+    check(
+        "ip_mid1",
+        interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 2500.0, 1.0),
+        1887.3589678159094,
+    );
+    check(
+        "ip_mid2",
+        interpolate_power(1800.0, 5000.0, 2000.0, 0.0, 2500.0, 2.0),
+        1936.5599893425133,
+    );
+    check(
+        "ip_below",
+        interpolate_power(1800.0, 5000.0, 2000.0, 0.0, -100.0, 1.0),
+        2005.1034456173313,
+    );
+    check(
+        "ip_degen",
+        interpolate_power(1000.0, 3000.0, 990.0, 3000.0, 2500.0, 1.0),
+        990.0,
+    );
+    check(
+        "wepm_115",
+        wep_power_multiplier(1.15, 1.0, 1.0, 1.0, 2400.0, 2600.0),
+        1.169_699_074_074_074,
+    );
+    check(
+        "wepm_110",
+        wep_power_multiplier(1.10, 1.0, 1.0, 1.0, 2400.0, 2400.0),
+        1.1,
+    );
+    check(
+        "wepm_120",
+        wep_power_multiplier(1.20, 1.0, 1.0, 1.0, 2400.0, 2400.0),
+        1.2,
+    );
+    check(
+        "wepm_oct18",
+        wep_power_multiplier(1.15, 1.0, 1.1, 1.8, 2400.0, 2600.0),
+        1.4209300925925925,
+    );
+    check(
+        "wca_base",
+        wep_critical_altitude(7000.0, 1.42, 1.65, 1.0, 1.0),
+        5_918.386_017_652_959,
+    );
+    check(
+        "wca_rpm11",
+        wep_critical_altitude(7000.0, 1.42, 1.65, 1.1, 1.0),
+        6_608.678_596_256_166,
+    );
+    check(
+        "wca_pb11",
+        wep_critical_altitude(7000.0, 1.42, 1.65, 1.0, 1.1),
+        6_608.678_596_256_166,
+    );
 
     // === Part B: P-47D-like 单级 ===
     let mut p47 = CompressorStageParams::default();
@@ -484,17 +630,61 @@ fn java8_oracle_parity() {
     p47.old_altitude = 7000.0;
     p47.old_power = 2000.0;
     p47.old_power_new_rpm = 2000.0;
-    check("p47_0", power_at_altitude_advanced(&p47, 0.0, false, 0.0, false, 15.0), 1850.0);
-    check("p47_5000m", power_at_altitude_advanced(&p47, 5000.0, false, 0.0, false, 15.0), 1_967.744_152_587_75);
-    check("p47_5000w", power_at_altitude_advanced(&p47, 5000.0, true, 0.0, false, 15.0), 2278.2116615819164);
-    check("p47_7000", power_at_altitude_advanced(&p47, 7000.0, false, 0.0, false, 15.0), 2000.0);
-    check("p47_7000w", power_at_altitude_advanced(&p47, 7000.0, true, 0.0, false, 15.0), 2001.6456091340815);
-    check("p47_9000", power_at_altitude_advanced(&p47, 9000.0, false, 0.0, false, 15.0), 1497.4132153786454);
-    check("p47_10000", power_at_altitude_advanced(&p47, 10000.0, false, 0.0, false, 15.0), 1287.6657433610794);
-    check("p47_12000s", power_at_altitude_advanced(&p47, 12000.0, false, 0.0, false, 15.0), 939.280_857_552_052_6);
-    check("p47_12000v400", power_at_altitude_advanced(&p47, 12000.0, false, 400.0, true, 15.0), 1270.7683498691983);
-    check("p47_12000v500", power_at_altitude_advanced(&p47, 12000.0, false, 500.0, true, 15.0), 1_457.230_064_297_593);
-    check("p47_5000v500", power_at_altitude_advanced(&p47, 5000.0, false, 500.0, true, 15.0), 1941.2765375362055);
+    check(
+        "p47_0",
+        power_at_altitude_advanced(&p47, 0.0, false, 0.0, false, 15.0),
+        1850.0,
+    );
+    check(
+        "p47_5000m",
+        power_at_altitude_advanced(&p47, 5000.0, false, 0.0, false, 15.0),
+        1_967.744_152_587_75,
+    );
+    check(
+        "p47_5000w",
+        power_at_altitude_advanced(&p47, 5000.0, true, 0.0, false, 15.0),
+        2278.2116615819164,
+    );
+    check(
+        "p47_7000",
+        power_at_altitude_advanced(&p47, 7000.0, false, 0.0, false, 15.0),
+        2000.0,
+    );
+    check(
+        "p47_7000w",
+        power_at_altitude_advanced(&p47, 7000.0, true, 0.0, false, 15.0),
+        2001.6456091340815,
+    );
+    check(
+        "p47_9000",
+        power_at_altitude_advanced(&p47, 9000.0, false, 0.0, false, 15.0),
+        1497.4132153786454,
+    );
+    check(
+        "p47_10000",
+        power_at_altitude_advanced(&p47, 10000.0, false, 0.0, false, 15.0),
+        1287.6657433610794,
+    );
+    check(
+        "p47_12000s",
+        power_at_altitude_advanced(&p47, 12000.0, false, 0.0, false, 15.0),
+        939.280_857_552_052_6,
+    );
+    check(
+        "p47_12000v400",
+        power_at_altitude_advanced(&p47, 12000.0, false, 400.0, true, 15.0),
+        1270.7683498691983,
+    );
+    check(
+        "p47_12000v500",
+        power_at_altitude_advanced(&p47, 12000.0, false, 500.0, true, 15.0),
+        1_457.230_064_297_593,
+    );
+    check(
+        "p47_5000v500",
+        power_at_altitude_advanced(&p47, 5000.0, false, 500.0, true, 15.0),
+        1941.2765375362055,
+    );
 
     // === Part C: 两级机械增压器 ===
     let mut s1 = CompressorStageParams::default();
@@ -518,16 +708,53 @@ fn java8_oracle_parity() {
     s2.old_power = 1300.0;
     s2.old_power_new_rpm = 1300.0;
     let two = [s1, s2];
-    check("two_1000opt", optimal_power_advanced(&two, 1000.0, false, 0.0, false, 15.0), 1368.3403761790846);
-    check("two_1000s1", power_at_altitude_advanced(&s1, 1000.0, false, 0.0, false, 15.0), 1368.3403761790846);
-    check("two_1000s2", power_at_altitude_advanced(&s2, 1000.0, false, 0.0, false, 15.0), 1_139.973_474_805_542);
-    check("two_6000opt", optimal_power_advanced(&two, 6000.0, false, 0.0, false, 15.0), 1_289.016_680_952_667);
-    check("two_6000s1", power_at_altitude_advanced(&s1, 6000.0, false, 0.0, false, 15.0), 942.159_246_548_316);
-    check("two_6000s2", power_at_altitude_advanced(&s2, 6000.0, false, 0.0, false, 15.0), 1_289.016_680_952_667);
-    check("two_4000w", optimal_power_advanced(&two, 4000.0, true, 0.0, false, 15.0), 1371.2487721441946);
-    assert_eq!(find_optimal_stage_index(&two, 1000.0, false, 0.0, false, 15.0), 0);
-    assert_eq!(find_optimal_stage_index(&two, 6000.0, false, 0.0, false, 15.0), 1);
-    assert_eq!(find_optimal_stage_index(&two, 4000.0, true, 0.0, false, 15.0), 1);
+    check(
+        "two_1000opt",
+        optimal_power_advanced(&two, 1000.0, false, 0.0, false, 15.0),
+        1368.3403761790846,
+    );
+    check(
+        "two_1000s1",
+        power_at_altitude_advanced(&s1, 1000.0, false, 0.0, false, 15.0),
+        1368.3403761790846,
+    );
+    check(
+        "two_1000s2",
+        power_at_altitude_advanced(&s2, 1000.0, false, 0.0, false, 15.0),
+        1_139.973_474_805_542,
+    );
+    check(
+        "two_6000opt",
+        optimal_power_advanced(&two, 6000.0, false, 0.0, false, 15.0),
+        1_289.016_680_952_667,
+    );
+    check(
+        "two_6000s1",
+        power_at_altitude_advanced(&s1, 6000.0, false, 0.0, false, 15.0),
+        942.159_246_548_316,
+    );
+    check(
+        "two_6000s2",
+        power_at_altitude_advanced(&s2, 6000.0, false, 0.0, false, 15.0),
+        1_289.016_680_952_667,
+    );
+    check(
+        "two_4000w",
+        optimal_power_advanced(&two, 4000.0, true, 0.0, false, 15.0),
+        1371.2487721441946,
+    );
+    assert_eq!(
+        find_optimal_stage_index(&two, 1000.0, false, 0.0, false, 15.0),
+        0
+    );
+    assert_eq!(
+        find_optimal_stage_index(&two, 6000.0, false, 0.0, false, 15.0),
+        1
+    );
+    assert_eq!(
+        find_optimal_stage_index(&two, 4000.0, true, 0.0, false, 15.0),
+        1
+    );
 
     // === Part D: generatePowerCurveAdvanced ===
     let mut gc = CompressorStageParams::new(5000.0, 1500.0, 1400.0);
@@ -581,24 +808,51 @@ fn java8_oracle_parity() {
     y1.speed_manifold_mult = 1.0;
     let yak = [y0, y1];
     let yak_m = [
-        1290.0, 1_194.470_459_653_116, 1196.6571288157202, 1_178.207_276_690_934,
-        1034.4645783240283, 905.115_774_247_377_9, 789.031_271_730_281_6, 685.144_435_518_207_6,
-        592.449_584_215_098, 510.0, 436.90595194307707,
+        1290.0,
+        1_194.470_459_653_116,
+        1196.6571288157202,
+        1_178.207_276_690_934,
+        1034.4645783240283,
+        905.115_774_247_377_9,
+        789.031_271_730_281_6,
+        685.144_435_518_207_6,
+        592.449_584_215_098,
+        510.0,
+        436.90595194307707,
     ];
     // Java dump: WEP 曲线与军用逐点相同 (无 WEP 机型)
     for (k, &exp) in yak_m.iter().enumerate() {
         let alt = (k as i32 * 1000) as f64;
-        check(&format!("yak_{k}m"), optimal_power_advanced(&yak, alt, false, 0.0, false, 15.0), exp);
-        check(&format!("yak_{k}w"), optimal_power_advanced(&yak, alt, true, 0.0, false, 15.0), exp);
+        check(
+            &format!("yak_{k}m"),
+            optimal_power_advanced(&yak, alt, false, 0.0, false, 15.0),
+            exp,
+        );
+        check(
+            &format!("yak_{k}w"),
+            optimal_power_advanced(&yak, alt, true, 0.0, false, 15.0),
+            exp,
+        );
     }
     let yakr = [
-        1265.8932300069234, 1200.6608991925395, 977.797_114_068_640_6,
-        710.139_880_165_562_4, 509.587_291_764_339_5,
+        1265.8932300069234,
+        1200.6608991925395,
+        977.797_114_068_640_6,
+        710.139_880_165_562_4,
+        509.587_291_764_339_5,
     ];
     for (k, &exp) in yakr.iter().enumerate() {
         let alt = (k as i32 * 2500) as f64;
-        check(&format!("yakr_{k}m"), optimal_power_advanced(&yak, alt, false, 301.0, true, 15.0), exp);
-        check(&format!("yakr_{k}w"), optimal_power_advanced(&yak, alt, true, 301.0, true, 15.0), exp);
+        check(
+            &format!("yakr_{k}m"),
+            optimal_power_advanced(&yak, alt, false, 301.0, true, 15.0),
+            exp,
+        );
+        check(
+            &format!("yakr_{k}w"),
+            optimal_power_advanced(&yak, alt, true, 301.0, true, 15.0),
+            exp,
+        );
     }
 
     // === Part F1: ConstRPM 低于甲板零功率区 ===
@@ -613,8 +867,16 @@ fn java8_oracle_parity() {
     f1.old_power_new_rpm = 2000.0;
     f1.const_rpm_alt = 0.0;
     f1.const_rpm_power = 100.0;
-    check("f1_m100m", power_at_altitude_advanced(&f1, -100.0, false, 0.0, false, 15.0), 0.0);
-    check("f1_m100w", power_at_altitude_advanced(&f1, -100.0, true, 0.0, false, 15.0), 0.0);
+    check(
+        "f1_m100m",
+        power_at_altitude_advanced(&f1, -100.0, false, 0.0, false, 15.0),
+        0.0,
+    );
+    check(
+        "f1_m100w",
+        power_at_altitude_advanced(&f1, -100.0, true, 0.0, false, 15.0),
+        0.0,
+    );
 
     // === Part F2: ConstRPM 弯折低于临界高度 (两段式) ===
     let mut f2 = CompressorStageParams::default();
@@ -632,15 +894,43 @@ fn java8_oracle_parity() {
     f2.wep_const_rpm_alt = 2800.0;
     f2.stage0_deck_alt = 0.0;
     f2.wep_deck_alt = 0.0;
-    check("f2_1500m", power_at_altitude_advanced(&f2, 1500.0, false, 0.0, false, 15.0), 1876.8592257962787);
-    check("f2_5000m", power_at_altitude_advanced(&f2, 5000.0, false, 0.0, false, 15.0), 1941.2200836990635);
-    check("f2_9000m", power_at_altitude_advanced(&f2, 9000.0, false, 0.0, false, 15.0), 1497.4132153786454);
+    check(
+        "f2_1500m",
+        power_at_altitude_advanced(&f2, 1500.0, false, 0.0, false, 15.0),
+        1876.8592257962787,
+    );
+    check(
+        "f2_5000m",
+        power_at_altitude_advanced(&f2, 5000.0, false, 0.0, false, 15.0),
+        1941.2200836990635,
+    );
+    check(
+        "f2_9000m",
+        power_at_altitude_advanced(&f2, 9000.0, false, 0.0, false, 15.0),
+        1497.4132153786454,
+    );
     f2.exact_altitudes = true;
-    check("f2e_1500w", power_at_altitude_advanced(&f2, 1500.0, true, 0.0, false, 15.0), 2158.3881096657205);
-    check("f2e_5000w", power_at_altitude_advanced(&f2, 5000.0, true, 0.0, false, 15.0), 2_232.403_096_253_923);
+    check(
+        "f2e_1500w",
+        power_at_altitude_advanced(&f2, 1500.0, true, 0.0, false, 15.0),
+        2158.3881096657205,
+    );
+    check(
+        "f2e_5000w",
+        power_at_altitude_advanced(&f2, 5000.0, true, 0.0, false, 15.0),
+        2_232.403_096_253_923,
+    );
     f2.exact_altitudes = false;
-    check("f2n_1500w", power_at_altitude_advanced(&f2, 1500.0, true, 0.0, false, 15.0), 2160.2798813437057);
-    check("f2n_5000w", power_at_altitude_advanced(&f2, 5000.0, true, 0.0, false, 15.0), 2_244.127_818_748_27);
+    check(
+        "f2n_1500w",
+        power_at_altitude_advanced(&f2, 1500.0, true, 0.0, false, 15.0),
+        2160.2798813437057,
+    );
+    check(
+        "f2n_5000w",
+        power_at_altitude_advanced(&f2, 5000.0, true, 0.0, false, 15.0),
+        2_244.127_818_748_27,
+    );
 
     // === Part F3: powerIsDeckPower (critAlt==deckAlt) + ceiling ===
     let mut f3 = CompressorStageParams::default();
@@ -655,13 +945,37 @@ fn java8_oracle_parity() {
     f3.old_power_new_rpm = 2000.0;
     f3.ceiling_alt = 10000.0;
     f3.ceiling_power = 900.0;
-    check("f3_2000m", power_at_altitude_advanced(&f3, 2000.0, false, 0.0, false, 15.0), 3015.9225747678397);
-    check("f3_6000m", power_at_altitude_advanced(&f3, 6000.0, false, 0.0, false, 15.0), 1727.2740837849933);
-    check("f3_8000w", power_at_altitude_advanced(&f3, 8000.0, true, 0.0, false, 15.0), 1280.6909993159848);
+    check(
+        "f3_2000m",
+        power_at_altitude_advanced(&f3, 2000.0, false, 0.0, false, 15.0),
+        3015.9225747678397,
+    );
+    check(
+        "f3_6000m",
+        power_at_altitude_advanced(&f3, 6000.0, false, 0.0, false, 15.0),
+        1727.2740837849933,
+    );
+    check(
+        "f3_8000w",
+        power_at_altitude_advanced(&f3, 8000.0, true, 0.0, false, 15.0),
+        1280.6909993159848,
+    );
     f3.exact_altitudes = true;
-    check("f3e_2000m", power_at_altitude_advanced(&f3, 2000.0, false, 0.0, false, 15.0), 3015.9225747678397);
-    check("f3e_6000m", power_at_altitude_advanced(&f3, 6000.0, false, 0.0, false, 15.0), 1727.2740837849933);
-    check("f3e_8000w", power_at_altitude_advanced(&f3, 8000.0, true, 0.0, false, 15.0), 1_291.654_865_726_723);
+    check(
+        "f3e_2000m",
+        power_at_altitude_advanced(&f3, 2000.0, false, 0.0, false, 15.0),
+        3015.9225747678397,
+    );
+    check(
+        "f3e_6000m",
+        power_at_altitude_advanced(&f3, 6000.0, false, 0.0, false, 15.0),
+        1727.2740837849933,
+    );
+    check(
+        "f3e_8000w",
+        power_at_altitude_advanced(&f3, 8000.0, true, 0.0, false, 15.0),
+        1_291.654_865_726_723,
+    );
 
     // === Part F4: Fw-190A-1 式 oldAltitude < altRam <= wepCritAlt ===
     let mut f4 = CompressorStageParams::default();
@@ -675,9 +989,17 @@ fn java8_oracle_parity() {
     f4.old_power_new_rpm = 1800.0;
     f4.ceiling_alt = 10000.0;
     f4.ceiling_power = 800.0;
-    check("f4_6000w", power_at_altitude_advanced(&f4, 6000.0, true, 0.0, false, 15.0), 1980.0000000000002);
+    check(
+        "f4_6000w",
+        power_at_altitude_advanced(&f4, 6000.0, true, 0.0, false, 15.0),
+        1980.0000000000002,
+    );
     f4.exact_altitudes = true;
-    check("f4e_6000w", power_at_altitude_advanced(&f4, 6000.0, true, 0.0, false, 15.0), 1980.0000000000002);
+    check(
+        "f4e_6000w",
+        power_at_altitude_advanced(&f4, 6000.0, true, 0.0, false, 15.0),
+        1980.0000000000002,
+    );
 
     // === Part F5: Math.round 分支 (round(wepCritAlt) < altRam <= round(oldAltitude)) ===
     let mut f5 = CompressorStageParams::default();
@@ -691,9 +1013,17 @@ fn java8_oracle_parity() {
     f5.old_power_new_rpm = 1800.0;
     f5.ceiling_alt = 10000.0;
     f5.ceiling_power = 800.0;
-    check("f5_4450w", power_at_altitude_advanced(&f5, 4450.0, true, 0.0, false, 15.0), 1966.0358146615285);
+    check(
+        "f5_4450w",
+        power_at_altitude_advanced(&f5, 4450.0, true, 0.0, false, 15.0),
+        1966.0358146615285,
+    );
     f5.exact_altitudes = true;
-    check("f5e_4450w", power_at_altitude_advanced(&f5, 4450.0, true, 0.0, false, 15.0), 1_961.272_999_158_355);
+    check(
+        "f5e_4450w",
+        power_at_altitude_advanced(&f5, 4450.0, true, 0.0, false, 15.0),
+        1_961.272_999_158_355,
+    );
     // 无 ceiling 变体 (ceilingIsUseful=false)
     let mut f5b = CompressorStageParams::default();
     f5b.crit_alt = 5000.0;
@@ -704,7 +1034,11 @@ fn java8_oracle_parity() {
     f5b.old_altitude = 5000.7;
     f5b.old_power = 1800.0;
     f5b.old_power_new_rpm = 1800.0;
-    check("f5b_4450w", power_at_altitude_advanced(&f5b, 4450.0, true, 0.0, false, 15.0), 1_967.159_626_018_502);
+    check(
+        "f5b_4450w",
+        power_at_altitude_advanced(&f5b, 4450.0, true, 0.0, false, 15.0),
+        1_967.159_626_018_502,
+    );
     // constRpmBelowWepCritAlt=true 变体
     let mut b = CompressorStageParams::default();
     b.crit_alt = 5000.0;
@@ -718,9 +1052,17 @@ fn java8_oracle_parity() {
     b.const_rpm_alt = 3000.0;
     b.const_rpm_power = 1650.0;
     b.curvature = 1.3;
-    check("b_4450w", power_at_altitude_advanced(&b, 4450.0, true, 0.0, false, 15.0), 1_967.159_626_018_502);
+    check(
+        "b_4450w",
+        power_at_altitude_advanced(&b, 4450.0, true, 0.0, false, 15.0),
+        1_967.159_626_018_502,
+    );
     b.exact_altitudes = true;
-    check("be_4450w", power_at_altitude_advanced(&b, 4450.0, true, 0.0, false, 15.0), 1915.0609690787915);
+    check(
+        "be_4450w",
+        power_at_altitude_advanced(&b, 4450.0, true, 0.0, false, 15.0),
+        1915.0609690787915,
+    );
 
     // === Part F6: WEP 高于双临界高度 ===
     let mut f6 = CompressorStageParams::default();
@@ -732,12 +1074,24 @@ fn java8_oracle_parity() {
     f6.old_altitude = 7000.0;
     f6.old_power = 2000.0;
     f6.old_power_new_rpm = 2000.0;
-    check("f6_8000w", power_at_altitude_advanced(&f6, 8000.0, true, 0.0, false, 15.0), 1418.3597215439743);
+    check(
+        "f6_8000w",
+        power_at_altitude_advanced(&f6, 8000.0, true, 0.0, false, 15.0),
+        1418.3597215439743,
+    );
     f6.ceiling_alt = 11000.0;
     f6.ceiling_power = 700.0;
-    check("f6c_8000w", power_at_altitude_advanced(&f6, 8000.0, true, 0.0, false, 15.0), 1291.1852371464227);
+    check(
+        "f6c_8000w",
+        power_at_altitude_advanced(&f6, 8000.0, true, 0.0, false, 15.0),
+        1291.1852371464227,
+    );
     f6.exact_altitudes = true;
-    check("f6ce_8000w", power_at_altitude_advanced(&f6, 8000.0, true, 0.0, false, 15.0), 1_023.158_284_819_586);
+    check(
+        "f6ce_8000w",
+        power_at_altitude_advanced(&f6, 8000.0, true, 0.0, false, 15.0),
+        1_023.158_284_819_586,
+    );
     let mut f6d = CompressorStageParams::default();
     f6d.crit_alt = 7000.0;
     f6d.crit_power = 2000.0;
@@ -747,13 +1101,25 @@ fn java8_oracle_parity() {
     f6d.old_altitude = 7000.0;
     f6d.old_power = 2000.0;
     f6d.old_power_new_rpm = 2000.0;
-    check("f6d_8000w", power_at_altitude_advanced(&f6d, 8000.0, true, 0.0, false, 15.0), 1859.4262634513013);
+    check(
+        "f6d_8000w",
+        power_at_altitude_advanced(&f6d, 8000.0, true, 0.0, false, 15.0),
+        1859.4262634513013,
+    );
     f6d.exact_altitudes = true;
-    check("f6de_8000w", power_at_altitude_advanced(&f6d, 8000.0, true, 0.0, false, 15.0), 1859.4262634513013);
+    check(
+        "f6de_8000w",
+        power_at_altitude_advanced(&f6d, 8000.0, true, 0.0, false, 15.0),
+        1859.4262634513013,
+    );
     f6d.exact_altitudes = false;
     f6d.const_rpm_alt = 3000.0;
     f6d.const_rpm_power = 1900.0;
-    check("f6dr_8000w", power_at_altitude_advanced(&f6d, 8000.0, true, 0.0, false, 15.0), 1859.4262634513013);
+    check(
+        "f6dr_8000w",
+        power_at_altitude_advanced(&f6d, 8000.0, true, 0.0, false, 15.0),
+        1859.4262634513013,
+    );
 
     // wepCritAlt == critAlt, 高于双临界 (无 constRPM → !constRpmBelowCritAlt 分支)
     let mut a = CompressorStageParams::default();
@@ -765,22 +1131,46 @@ fn java8_oracle_parity() {
     a.old_altitude = 7000.0;
     a.old_power = 2000.0;
     a.old_power_new_rpm = 2000.0;
-    check("a_8000w", power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0), 1994.1079618146214);
+    check(
+        "a_8000w",
+        power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0),
+        1994.1079618146214,
+    );
     a.exact_altitudes = true;
-    check("ae_8000w", power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0), 1994.1079618146214);
+    check(
+        "ae_8000w",
+        power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0),
+        1994.1079618146214,
+    );
     a.exact_altitudes = false;
     a.ceiling_alt = 11000.0;
     a.ceiling_power = 700.0;
-    check("ac_8000w", power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0), 1_825.875_275_812_053);
+    check(
+        "ac_8000w",
+        power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0),
+        1_825.875_275_812_053,
+    );
     a.exact_altitudes = true;
-    check("ace_8000w", power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0), 1856.9897108368868);
+    check(
+        "ace_8000w",
+        power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0),
+        1856.9897108368868,
+    );
     a.exact_altitudes = false;
     a.curvature = 1.5;
     a.const_rpm_alt = 7000.0;
     a.const_rpm_power = 1700.0;
-    check("acr_8000w", power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0), 2041.9054028586359);
+    check(
+        "acr_8000w",
+        power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0),
+        2041.9054028586359,
+    );
     a.exact_altitudes = true;
-    check("acre_8000w", power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0), 2041.9054028586359);
+    check(
+        "acre_8000w",
+        power_at_altitude_advanced(&a, 8000.0, true, 0.0, false, 15.0),
+        2041.9054028586359,
+    );
 
     // === Part F7: constRpmAboveCritAlt (P-63 弯折高于临界) ===
     let mut f7 = CompressorStageParams::default();
@@ -797,11 +1187,27 @@ fn java8_oracle_parity() {
     f7.ceiling_power = 800.0;
     f7.const_rpm_alt = 5000.0;
     f7.const_rpm_power = 1700.0;
-    check("f7_5200m", power_at_altitude_advanced(&f7, 5200.0, false, 0.0, false, 15.0), 1788.2179935134372);
-    check("f7_6000m", power_at_altitude_advanced(&f7, 6000.0, false, 0.0, false, 15.0), 1676.5473017913841);
+    check(
+        "f7_5200m",
+        power_at_altitude_advanced(&f7, 5200.0, false, 0.0, false, 15.0),
+        1788.2179935134372,
+    );
+    check(
+        "f7_6000m",
+        power_at_altitude_advanced(&f7, 6000.0, false, 0.0, false, 15.0),
+        1676.5473017913841,
+    );
     f7.exact_altitudes = true;
-    check("f7e_5200m", power_at_altitude_advanced(&f7, 5200.0, false, 0.0, false, 15.0), 1788.2179935134372);
-    check("f7e_6000m", power_at_altitude_advanced(&f7, 6000.0, false, 0.0, false, 15.0), 1676.5473017913841);
+    check(
+        "f7e_5200m",
+        power_at_altitude_advanced(&f7, 5200.0, false, 0.0, false, 15.0),
+        1788.2179935134372,
+    );
+    check(
+        "f7e_6000m",
+        power_at_altitude_advanced(&f7, 6000.0, false, 0.0, false, 15.0),
+        1676.5473017913841,
+    );
 
     // === Part F8: 无 ceiling 高空衰减 (military) ===
     let mut f8 = CompressorStageParams::default();
@@ -813,8 +1219,16 @@ fn java8_oracle_parity() {
     f8.old_altitude = 5000.0;
     f8.old_power = 1500.0;
     f8.old_power_new_rpm = 1500.0;
-    check("f8_9000m", power_at_altitude_advanced(&f8, 9000.0, false, 0.0, false, 15.0), 853.641_937_572_037_8);
-    check("f8_5200m", power_at_altitude_advanced(&f8, 5200.0, false, 0.0, false, 15.0), 1_460.341_572_137_396);
+    check(
+        "f8_9000m",
+        power_at_altitude_advanced(&f8, 9000.0, false, 0.0, false, 15.0),
+        853.641_937_572_037_8,
+    );
+    check(
+        "f8_5200m",
+        power_at_altitude_advanced(&f8, 5200.0, false, 0.0, false, 15.0),
+        1_460.341_572_137_396,
+    );
 
     // === RAM 使 effectiveAlt 落入 WEP 低于临界分支 ===
     let mut c = CompressorStageParams::default();
@@ -827,9 +1241,21 @@ fn java8_oracle_parity() {
     c.old_altitude = 7000.0;
     c.old_power = 2000.0;
     c.old_power_new_rpm = 2000.0;
-    check("c_6500w_tas600", power_at_altitude_advanced(&c, 6500.0, true, 600.0, false, 15.0), 2_285.179_163_632_901);
-    check("c_6500w_ias600", power_at_altitude_advanced(&c, 6500.0, true, 600.0, true, 15.0), 2261.2387414765312);
-    check("c_6500w_ias600_t30", power_at_altitude_advanced(&c, 6500.0, true, 600.0, true, 30.0), 2261.2387414765312);
+    check(
+        "c_6500w_tas600",
+        power_at_altitude_advanced(&c, 6500.0, true, 600.0, false, 15.0),
+        2_285.179_163_632_901,
+    );
+    check(
+        "c_6500w_ias600",
+        power_at_altitude_advanced(&c, 6500.0, true, 600.0, true, 15.0),
+        2261.2387414765312,
+    );
+    check(
+        "c_6500w_ias600_t30",
+        power_at_altitude_advanced(&c, 6500.0, true, 600.0, true, 30.0),
+        2261.2387414765312,
+    );
 
     // === Part G: peakWepPower ===
     let mut pk = CompressorStageParams::default();

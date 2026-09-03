@@ -52,9 +52,17 @@ impl ComparisonCalculator {
         }
 
         let win = if higher_is_better {
-            if diff > 0.0 { WinState::Win } else { WinState::Loss }
+            if diff > 0.0 {
+                WinState::Win
+            } else {
+                WinState::Loss
+            }
         } else {
-            if diff < 0.0 { WinState::Win } else { WinState::Loss }
+            if diff < 0.0 {
+                WinState::Win
+            } else {
+                WinState::Loss
+            }
         };
 
         DiffResult::new(diff, percent, win)

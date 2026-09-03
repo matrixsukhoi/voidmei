@@ -12,9 +12,9 @@
 //! PORT: Java 的 gpuCompatibilityMode 特例 (SwitchRowRenderer, 经
 //! GPUCompatibilityHelper 存独立文件 + 重启对话框) 不迁移 — 该类在 D7 弃译清单。
 
-use vm_core::config::config_loader::{ConfigValue, GroupConfig};
-use crate::renderer_config_helper;
 use crate::render_context::RenderContext;
+use crate::renderer_config_helper;
+use vm_core::config::config_loader::{ConfigValue, GroupConfig};
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 

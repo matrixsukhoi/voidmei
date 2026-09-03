@@ -185,7 +185,8 @@ impl ShellForm {
     /// 主窗口当前可见性 (主循环同步 visible 态 — 窗口 X 被 on_window_event
     /// 拦截转 hide, Rust 侧经查询感知)
     pub fn is_main_visible(&self) -> bool {
-        self.main_window().is_some_and(|w| w.is_visible().unwrap_or(false))
+        self.main_window()
+            .is_some_and(|w| w.is_visible().unwrap_or(false))
     }
 
     /// 前端是否已就绪 (UiReady 到达; show 前置参考, 非强制)

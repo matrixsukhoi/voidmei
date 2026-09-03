@@ -26,25 +26,37 @@ fn extracts_from_specified_list_and_item() {
 #[test]
 fn list_index_out_of_range_returns_none() {
     // oracle: li=2 → 越界 null
-    assert_eq!(MultiListIndexRule::new(2, 0, false).extract_value(TWO_LISTS), None);
+    assert_eq!(
+        MultiListIndexRule::new(2, 0, false).extract_value(TWO_LISTS),
+        None
+    );
 }
 
 #[test]
 fn item_index_out_of_range_returns_none() {
     // oracle: ii=5 → 越界 null
-    assert_eq!(MultiListIndexRule::new(0, 5, false).extract_value(TWO_LISTS), None);
+    assert_eq!(
+        MultiListIndexRule::new(0, 5, false).extract_value(TWO_LISTS),
+        None
+    );
 }
 
 #[test]
 fn negative_list_index_returns_none() {
     // oracle: li=-1 → guard `listIndex >= 0` 短路 → null
-    assert_eq!(MultiListIndexRule::new(-1, 0, false).extract_value(Some("[8.5, -4.2]")), None);
+    assert_eq!(
+        MultiListIndexRule::new(-1, 0, false).extract_value(Some("[8.5, -4.2]")),
+        None
+    );
 }
 
 #[test]
 fn no_brackets_returns_none() {
     // oracle: 无任何 [..] 列表 → lists 为空 → null
-    assert_eq!(MultiListIndexRule::new(0, 0, false).extract_value(Some("no list")), None);
+    assert_eq!(
+        MultiListIndexRule::new(0, 0, false).extract_value(Some("no list")),
+        None
+    );
 }
 
 #[test]

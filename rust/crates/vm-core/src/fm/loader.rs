@@ -27,14 +27,14 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::base::exception_helper::panic_message;
+use crate::base::logger;
 use crate::fm::data::json::{extract_fuel_modifications_json, get_last_string_ci};
 use crate::fm::data::{FmData, FuelModification, FuelType};
 use crate::fm::data_paths;
 use crate::fm::handle::FMHandle;
-use crate::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
-use crate::base::logger;
 use crate::fm::piston_model::peak_wep_power;
-use crate::base::exception_helper::panic_message;
+use crate::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
 
 /// 白盒测试计数器：FMLoader.load 真正执行（进入加载流程）的次数
 // PORT: Java `private static volatile long loadCount` → AtomicU64 (§1 volatile →
@@ -73,7 +73,7 @@ pub fn load(plane_name: Option<&str>) -> FMHandle {
     // (fm_data_paths.rs 同款先例); trim 差异同类: Java String.trim 只剥
     // <= U+0020 的 C0 控制符, Rust str::trim 剥 Unicode White_Space (含 NBSP
     // U+00A0) —— 机型名域为游戏 API type 字段 (ASCII), 差异不可达
-    // (blkx/reader.rs java_trim 同域声明先例)
+    // (java_trim 的语义注记见 base::java_compat)
     let name = plane_name.to_lowercase().trim().to_string();
     LOAD_COUNT.fetch_add(1, Ordering::Relaxed);
 
@@ -170,10 +170,7 @@ fn try_load_json(name: &str) -> Result<FMHandle, String> {
     // 5. 全量解析物理 FM 文件 (JSON 版映射: 剥尾 .blk 拼 .json, 不再补 x;
     //    display_name 传映射前 fmfile 串 — read_file_name/fmdata 版本行与
     //    文本链逐字节一致, parity 同款 name 协议)
-    let physical_name = format!(
-        "{}.json",
-        fmfile.strip_suffix(".blk").unwrap_or(&fmfile)
-    );
+    let physical_name = format!("{}.json", fmfile.strip_suffix(".blk").unwrap_or(&fmfile));
     let physical = data_paths::physical_file(&physical_name);
     let fmdata = match FmData::parse_named_json(&physical.to_string_lossy(), &fmfile) {
         Ok(b) => b,

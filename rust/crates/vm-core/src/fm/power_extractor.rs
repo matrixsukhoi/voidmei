@@ -1,32 +1,24 @@
-//! Extracts engine parameters from parsed FM (Flight Model) data and converts
-//! them to the format required by [`crate::fm::piston_model`].
+//! 从解析后的 FM (飞行模型) 数据提取发动机参数, 转换为
+//! [`crate::fm::piston_model`] 所需的结构化 [`CompressorStageParams`]。
 //!
-//! <p>This module bridges the gap between FmData's raw data arrays and the
-//! structured CompressorStageParams objects needed for power calculations.
+//! WAPC 兼容性: 本实现遵循 wt-aircraft-performance-calculator (WAPC) 公式, 包括:
+//! - 甲板功率: 0 级取 Main.Power, 后续级取 0.8×前级甲板功率
+//! - WEP 乘数: 四因子公式 (辛烷值/节流阀/级/RPM)
+//! - WEP 临界高度: 增压器压力模型
+//! - ExactAltitudes 探测: 旧 FM 格式处理
+//! - definition_alt_power_adjuster: 基于 RPM 的功率/高度修正
+//! - ConstRPM 与 Ceiling 参数传递
+//! - 燃油修正: 苏联辛烷值 (+1.8% 功率) 与英国辛烷值 (WEP 增压)
 //!
-//! <h3>WAPC Compatibility</h3>
-//! <p>This implementation follows the wt-aircraft-performance-calculator (WAPC)
-//! formulas, including:
-//! <ul>
-//!   <li>Deck power: Uses Main.Power for stage 0, 0.8× previous stage deck power for later stages</li>
-//!   <li>WEP multiplier: 4-factor formula (octane, throttle, stage, RPM)</li>
-//!   <li>WEP critical altitude: Supercharger pressure model</li>
-//!   <li>ExactAltitudes detection: Old FM format handling</li>
-//!   <li>definition_alt_power_adjuster: RPM-based power/altitude correction</li>
-//!   <li>ConstRPM and Ceiling parameter propagation</li>
-//!   <li>Fuel modifications: Soviet octane (1.8% power) and British octane (WEP boost)</li>
-//! </ul>
-//!
-//! <h3>Fuel Modification Application Order (matching WAPC)</h3>
-//! <pre>
-//! 1. soviet_octane_adder()           ← modifies raw Power values
-//! 2. definition_alt_power_adjuster() ← uses boosted values
-//! 3. deck_power_maker()              ← cascades boost to all stages
-//! 4. brrritish_octane_adder()        ← modifies WEP parameters
-//! 5. wep_mulitiplierer()             ← uses modified WEP params
-//! </pre>
+//! 燃油修正应用顺序 (与 WAPC 一致):
+//! 1. soviet_octane_adder()           ← 修改原始 Power 值
+//! 2. definition_alt_power_adjuster() ← 使用已增压的值
+//! 3. deck_power_maker()              ← 将增益级联到所有级
+//! 4. brrritish_octane_adder()        ← 修改 WEP 参数
+//! 5. wep_mulitiplierer()             ← 使用修改后的 WEP 参数
 
 use crate::base::atmosphere_model::{altitude_at_pressure, pressure};
+use crate::base::format::java_round;
 use crate::fm::data::{CompressorData, FmData, FuelModification, FuelType};
 use crate::fm::piston_model::{
     interpolate_power, supercharger_rpm_effect, torque_rpm_boost, CompressorStageParams,
@@ -63,10 +55,9 @@ pub fn extract_stages(fmdata: Option<&FmData>) -> Option<Vec<CompressorStagePara
 /// Extracts compressor stage parameters from a parsed Blkx FM file,
 /// applying fuel quality modifications from the Central file.
 ///
-/// <p>Fuel modifications are applied at the correct point in the WAPC pipeline:
-/// Soviet octane is applied to raw power values BEFORE deck_power_maker and
-/// definition_alt_power_adjuster, ensuring the boost cascades correctly through
-/// the entire calculation chain.
+/// 燃油修正在 WAPC 流水线的正确位置施加: 苏联辛烷值先于 deck_power_maker 与
+/// definition_alt_power_adjuster 施加到原始功率值, 保证增益正确级联贯穿整条
+/// 计算链.
 ///
 /// - `blkx`:    parsed FM file data
 /// - `fuel_mod`: fuel modification data from Central file, or None
@@ -111,11 +102,26 @@ pub fn extract_stages_with_fuel(
 
     // --- Pass 1: Basic parameter extraction + Soviet octane ---
     let mut stage_deck_power = vec![0.0f64; n];
-    pass1_basic_and_soviet(&mut stages, &mut stage_deck_power, fmdata, comp, spm, exact_altitudes);
+    pass1_basic_and_soviet(
+        &mut stages,
+        &mut stage_deck_power,
+        fmdata,
+        comp,
+        spm,
+        exact_altitudes,
+    );
 
     // --- Pass 2: definition_alt_power_adjuster ---
     let needs_rpm_adjustment = needs_rpm_adjustment(fmdata, default_rpm);
-    pass2_rpm_adjust(&mut stages, &mut stage_deck_power, fmdata, comp, default_rpm, spm, needs_rpm_adjustment);
+    pass2_rpm_adjust(
+        &mut stages,
+        &mut stage_deck_power,
+        fmdata,
+        comp,
+        default_rpm,
+        spm,
+        needs_rpm_adjustment,
+    );
 
     // Set stage0DeckAlt for all stages (used in WEP non-ExactAltitudes mode)
     let stage0_deck_alt = stages[0].deck_alt;
@@ -173,8 +179,7 @@ fn pass1_basic_and_soviet(
         if let Some(const_rpm_alt) = comp.const_rpm_alt.as_ref() {
             if i < const_rpm_alt.len() {
                 stages[i].const_rpm_alt = const_rpm_alt[i];
-                stages[i].const_rpm_power =
-                    comp.const_rpm_power.as_ref().unwrap()[i] * spm;
+                stages[i].const_rpm_power = comp.const_rpm_power.as_ref().unwrap()[i] * spm;
             }
         }
 
@@ -288,8 +293,7 @@ fn pass3_wep_params(
 
 /// Computes the Soviet octane power multiplier from fuel modification data.
 ///
-/// <p>Returns 1.0 (no change) if fuel modification is null, not Soviet type,
-/// or addHorsePowers is not exactly 50.
+/// 燃油修正为 None / 非苏联类型 / addHorsePowers 恰不为 50 时返回 1.0 (不变).
 ///
 /// - `fuel_mod`: fuel modification data, or null
 ///
@@ -300,7 +304,8 @@ fn compute_soviet_power_multiplier(fuel_mod: Option<&FuelModification>) -> f64 {
         None => return 1.0,
     };
 
-    let is_soviet = fuel_mod.r#type == FuelType::SovietB95 || fuel_mod.r#type == FuelType::SovietB100;
+    let is_soviet =
+        fuel_mod.r#type == FuelType::SovietB95 || fuel_mod.r#type == FuelType::SovietB100;
     if !is_soviet {
         return 1.0;
     }
@@ -323,13 +328,11 @@ fn needs_rpm_adjustment(fmdata: &FmData, default_rpm: f64) -> bool {
 
 /// Determines the "default RPM" — the RPM at which FM file power values are defined.
 ///
-/// <p>Port of WAPC wep_rpm_ratioer priority logic:
-/// <ol>
-///   <li>ShaftRPMMax: if far from military AND close to WEP RPM</li>
-///   <li>RPMNom: if far from military RPM</li>
-///   <li>GovernorMaxParam: if far from military RPM</li>
-///   <li>Fallback: military RPM (no adjustment needed)</li>
-/// </ol>
+/// WAPC wep_rpm_ratioer 优先级逻辑:
+/// 1. ShaftRPMMax: 远离军用转速且接近 WEP 转速
+/// 2. RPMNom: 远离军用转速
+/// 3. GovernorMaxParam: 远离军用转速
+/// 4. 回退: 军用转速 (无需修正)
 fn determine_default_rpm(fmdata: &FmData) -> f64 {
     // Priority 1: ShaftRPMMax close to WEP but far from military
     if fmdata.shaft_rpm_max > 0.0
@@ -396,8 +399,9 @@ fn adjust_power_and_altitude(
     let fake_supercharger_strength = military_mp / pressure(stage.crit_alt);
     let real_supercharger_strength = fake_supercharger_strength / default_mil_rpm_effect;
     // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
-    let adjusted_crit_alt =
-        java_round(altitude_at_pressure(military_mp / real_supercharger_strength)) as f64;
+    let adjusted_crit_alt = java_round(altitude_at_pressure(
+        military_mp / real_supercharger_strength,
+    )) as f64;
 
     // Adjust deck altitude similarly
     let fake_deck_strength = military_mp / pressure(0.0);
@@ -462,13 +466,11 @@ fn adjust_power_and_altitude(
 
 /// Calculates the complete WEP power multiplier.
 ///
-/// <p>Implements WAPC WEP_power_mult formula:
-/// <pre>
+/// WAPC WEP_power_mult 公式:
 /// WEP_mult = (1 + (AfterburnerBoost - 1) x OctaneAfterburnerMult)
 ///          x ThrottleBoost
 ///          x AfterburnerBoostMul[i]
 ///          x torque_rpm_boost(military_RPM, WEP_RPM)
-/// </pre>
 fn calculate_wep_multiplier(fmdata: &FmData, stage_index: usize) -> f64 {
     let comp_boost = &fmdata.compressor.as_ref().unwrap().boost; // unwrap 对齐 NPE, 见顶部批注
     let afterburner_boost = or_one(fmdata.aftb_coff);
@@ -506,14 +508,15 @@ fn wep_supercharger_strength(fmdata: &FmData, base_strength: f64, stage_index: u
 }
 
 /// Calculates the WEP critical altitude using supercharger pressure model.
+/// `stage.wep_power_mult` 须已由 pass3 写入 (调用序保证), 就近读字段 —
+/// 不再内部重算 calculate_wep_multiplier (等价重复计算, 复核波19 消除)。
 fn calculate_wep_critical_altitude(
     fmdata: &FmData,
     stage: &CompressorStageParams,
     stage_index: usize,
 ) -> f64 {
     // If WEP power multiplier ≈ 1.0, WEP is effectively military — no altitude shift
-    let wep_mult = calculate_wep_multiplier(fmdata, stage_index);
-    if (wep_mult - 1.0).abs() < 0.001 {
+    if (stage.wep_power_mult - 1.0).abs() < 0.001 {
         return stage.crit_alt;
     }
 
@@ -527,20 +530,22 @@ fn calculate_wep_critical_altitude(
     // Use the adjusted (military) critical altitude for strength calculation
     let supercharger_strength = military_mp / pressure(stage.crit_alt);
 
-    let wep_crit_pressure = wep_mp / wep_supercharger_strength(fmdata, supercharger_strength, stage_index);
+    let wep_crit_pressure =
+        wep_mp / wep_supercharger_strength(fmdata, supercharger_strength, stage_index);
     // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
     java_round(altitude_at_pressure(wep_crit_pressure)) as f64
 }
 
 /// Calculates the WEP deck altitude.
+/// `stage.wep_power_mult` 须已由 pass3 写入 (调用序保证), 就近读字段 —
+/// 不再内部重算 calculate_wep_multiplier (等价重复计算, 复核波19 消除)。
 fn calculate_wep_deck_altitude(
     fmdata: &FmData,
     stage: &CompressorStageParams,
     stage_index: usize,
 ) -> f64 {
     // If WEP power multiplier ≈ 1.0, WEP is effectively military — no deck shift
-    let wep_mult = calculate_wep_multiplier(fmdata, stage_index);
-    if (wep_mult - 1.0).abs() < 0.001 {
+    if (stage.wep_power_mult - 1.0).abs() < 0.001 {
         return stage.deck_alt;
     }
 
@@ -553,8 +558,9 @@ fn calculate_wep_deck_altitude(
 
     let deck_strength = military_mp / pressure(stage.deck_alt);
     // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
-    java_round(altitude_at_pressure(wep_mp / wep_supercharger_strength(fmdata, deck_strength, stage_index)))
-        as f64
+    java_round(altitude_at_pressure(
+        wep_mp / wep_supercharger_strength(fmdata, deck_strength, stage_index),
+    )) as f64
 }
 
 /// Calculates the WEP ConstRPM altitude for non-ExactAltitudes FMs.
@@ -571,21 +577,19 @@ fn calculate_wep_const_rpm_altitude(
     }
 
     let const_rpm_strength = military_mp / pressure(stage.const_rpm_alt);
-    altitude_at_pressure(wep_mp / wep_supercharger_strength(fmdata, const_rpm_strength, stage_index))
+    altitude_at_pressure(
+        wep_mp / wep_supercharger_strength(fmdata, const_rpm_strength, stage_index),
+    )
 }
 
 // ==================== British Octane (Post-processing) ====================
 
 /// Applies British fuel octane bonus to all compressor stages.
 ///
-/// <p>Port of WAPC brrritish_octane_adder():
-/// <ul>
-///   <li>If invertEnableLogic is true: high octane is the default, so
-///       the modification represents REMOVING it — no bonus applied</li>
-///   <li>Otherwise: replaces OctaneAfterburnerMult in the WEP formula
-///       with the fuel's afterburnerMult value, and recalculates WEP
-///       critical altitude using afterburnerCompressorMult</li>
-/// </ul>
+/// WAPC brrritish_octane_adder():
+/// - invertEnableLogic 为 true 时高辛烷值是默认态, 该修正表示移除它 — 不加成
+/// - 否则: 以燃油的 afterburnerMult 替换 WEP 公式中的 OctaneAfterburnerMult,
+///   并用 afterburnerCompressorMult 重算 WEP 临界高度
 ///
 /// - `stages`:  compressor stages to modify in-place
 /// - `fuel_mod`: fuel modification containing British fuel parameters
@@ -681,15 +685,6 @@ pub fn get_speed_manifold_multiplier(fmdata: Option<&FmData>) -> f64 {
         None => return 1.0,
     };
     or_one(fmdata.speed_to_manifold_multiplier)
-}
-
-// ==================== Java Math.round 复刻 (§2.3) ====================
-
-/// Java `Math.round(double)` = `floor(x + 0.5)`, 返回 long
-// PORT: Rust f64::round 是半偶舍入, 不可用; 与 format.rs / piston_power_model.rs 的
-// java_round 同源实现; 调用处 `as f64` 复刻 Java long→double 拓宽
-fn java_round(x: f64) -> i64 {
-    (x + 0.5).floor() as i64
 }
 
 // =====================================================================

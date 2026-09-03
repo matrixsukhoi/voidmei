@@ -102,20 +102,21 @@ impl OverlayInputs {
         let fm_print = config.get_overlay_settings("FM拆包数据");
         let attitude = config.get_overlay_settings("地平仪");
         let flight = config.get_overlay_settings("飞行信息");
-        let compile_rows = |title: &str| -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
-            match config.get_overlay_settings(title).get_group_config() {
-                Some(gc) => {
-                    // 行开关 (is_field_disabled = Java isFieldDisabled): value=false
-                    // 的 data 行不进面板 — Rust 侧此前 no-op, W-D 接线修复
-                    let rows = vm_core::ui_support::row_def::rows_from_group(gc, &|r| {
-                        let key = r.property.clone().unwrap_or_else(|| r.label.clone());
-                        ConfigProvider::is_field_disabled(config, &key)
-                    });
-                    std::sync::Arc::new(rows)
+        let compile_rows =
+            |title: &str| -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
+                match config.get_overlay_settings(title).get_group_config() {
+                    Some(gc) => {
+                        // 行开关 (is_field_disabled = Java isFieldDisabled): value=false
+                        // 的 data 行不进面板 — Rust 侧此前 no-op, W-D 接线修复
+                        let rows = vm_core::ui_support::row_def::rows_from_group(gc, &|r| {
+                            let key = r.property.clone().unwrap_or_else(|| r.label.clone());
+                            ConfigProvider::is_field_disabled(config, &key)
+                        });
+                        std::sync::Arc::new(rows)
+                    }
+                    None => std::sync::Arc::new(Vec::new()),
                 }
-                None => std::sync::Arc::new(Vec::new()),
-            }
-        };
+            };
         OverlayInputs {
             dpi_scale: env.dpi.get_scale(),
             hud: HudSettingsSnapshot::build(&config.get_hud_settings()),
@@ -132,10 +133,8 @@ impl OverlayInputs {
             attitude_width: attitude.get_int("attitudeIndicatorWidth", 150),
             attitude_height: attitude.get_int("attitudeIndicatorHeight", 300),
             attitude_freq_ms: attitude.get_int("attitudeIndicatorFreqMs", 40) as i64,
-            attitude_show_direction: attitude
-                .get_bool("attitudeIndicatorDisplayDirection", false),
-            attitude_show_aoa_limits: attitude
-                .get_bool("attitudeIndicatorDisplayAoALimits", true),
+            attitude_show_direction: attitude.get_bool("attitudeIndicatorDisplayDirection", false),
+            attitude_show_aoa_limits: attitude.get_bool("attitudeIndicatorDisplayAoALimits", true),
             // load_app_check 缺省 50 (ConfigurationService.java 同源)
             service_loop_interval_ms: if interval > 0 { interval } else { 50 },
             colors: config.global_colors(),

@@ -20,8 +20,7 @@ fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParam
 #[test]
 fn spec_renders_preview_rows_to_pixcanvas() {
     let (handle, mut spec) =
-        flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {}))
-            .expect("字体目录应可用");
+        flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).expect("字体目录应可用");
     assert_eq!(spec.id, "flightInfoSwitch");
     assert_eq!(handle.borrow().rows().len(), cfg_rows("飞行信息").len());
     assert!(spec.width > 0 && spec.height > 0);
@@ -50,8 +49,7 @@ impl vm_core::formula::registry::FormulaView for ZeroView {
 }
 #[test]
 fn update_applies_visibility() {
-    let (handle, _spec) =
-        flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
+    let (handle, _spec) = flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
     handle.borrow_mut().update(&ZeroView);
     let n_zero = handle.borrow().rows().len();
     // 全零值: Mach (>0) 等条件行被滤; 至少 IAS 等直通行保留
@@ -70,11 +68,17 @@ fn update_applies_visibility() {
     }
     handle.borrow_mut().update(&MachView);
     let n_live = handle.borrow().rows().len();
-    assert!(n_live >= n_zero, "非零帧可见行应不少于全零帧 ({n_live} vs {n_zero})");
+    assert!(
+        n_live >= n_zero,
+        "非零帧可见行应不少于全零帧 ({n_live} vs {n_zero})"
+    );
     // Mach 行真的回来了 (值 0.72 → 文本 "0.72")
     let rows = handle.borrow().rows().to_vec();
     let labels: Vec<&str> = rows.iter().map(|(l, _, _)| l.as_str()).collect();
-    assert!(labels.contains(&"马赫数"), "非零 mach 帧行应可见: {labels:?}");
+    assert!(
+        labels.contains(&"马赫数"),
+        "非零 mach 帧行应可见: {labels:?}"
+    );
 }
 
 /// 守卫: FIELDS 全部 target 短名经 registry/公式集可达 — 断链即行消失/恒 0
@@ -110,7 +114,11 @@ fn reinit_grows_with_font_add_and_keeps_rows() {
     let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(h1 > h0, "字号增量后高度应变大 ({} → {})", h0, h1);
     assert!(w1 > 0);
-    assert_eq!(handle.borrow().rows(), rows_before.as_slice(), "reinit 不动字段行数据");
+    assert_eq!(
+        handle.borrow().rows(),
+        rows_before.as_slice(),
+        "reinit 不动字段行数据"
+    );
 }
 
 /// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
@@ -119,8 +127,7 @@ fn reinit_grows_with_font_add_and_keeps_rows() {
 /// 不得显示上次 live 数值
 #[test]
 fn reset_preview_rows_restores_statics() {
-    let (handle, _spec) =
-        flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
+    let (handle, _spec) = flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
     // live 残留: 非零 Mach/IAS 帧 (行集与 preview 静态不同)
     struct MachView;
     impl vm_core::formula::registry::FormulaView for MachView {

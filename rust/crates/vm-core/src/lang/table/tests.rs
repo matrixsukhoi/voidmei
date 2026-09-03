@@ -136,11 +136,17 @@ fn ideographic_space_alignment_preserved() {
 #[test]
 fn properties_escape_semantics() {
     // oracle: 文件值 `...？\\n此操作...` → 字面 反斜杠+n, 不是换行
-    assert_eq!(config_get_value("mResetConfirmContent"), "确定要重置所有配置项吗？\\n此操作不可撤销。");
+    assert_eq!(
+        config_get_value("mResetConfirmContent"),
+        "确定要重置所有配置项吗？\\n此操作不可撤销。"
+    );
     // oracle: aboutcontent 以 \n\r 转义结尾 → 真实 CR LF
     assert!(config_get_value("aboutcontent").ends_with("\n\r"));
     // oracle: noblkx 分隔符后的前导空格被 Properties 跳过
-    assert_eq!(config_get_value("noblkx"), "找不到blkx文件\n请使用最新WT拆包aces.vromfs.bin");
+    assert_eq!(
+        config_get_value("noblkx"),
+        "找不到blkx文件\n请使用最新WT拆包aces.vromfs.bin"
+    );
 }
 
 /// 快照对拍 (两轮审查共同警告的漂移守护): 本表必须等于源文件
@@ -154,9 +160,8 @@ fn table_matches_cur_properties_source() {
         .join("..")
         .join("lang")
         .join("cur.properties");
-    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| {
-        panic!("读取 {} 失败: {e} — 对拍需要仓库内源文件", path.display())
-    });
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("读取 {} 失败: {e} — 对拍需要仓库内源文件", path.display()));
     let parsed = load_java_properties(&text);
 
     let table: BTreeMap<&str, &str> = LANGUAGE_PROPERTIES.iter().copied().collect();

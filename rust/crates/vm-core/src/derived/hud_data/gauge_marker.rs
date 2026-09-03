@@ -131,7 +131,7 @@ impl Default for Builder {
         Builder {
             id: String::new(),
             r#type: MarkerType::LineFull,
-            ratio: -1.0, // Hidden by default
+            ratio: -1.0,             // Hidden by default
             color: [255, 0, 0, 255], // Color.RED
             label: String::new(),
             width_ratio: 0.5,

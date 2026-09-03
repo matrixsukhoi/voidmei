@@ -72,7 +72,10 @@ pub struct RuleEngine {
 
 impl RuleEngine {
     pub fn new() -> Self {
-        RuleEngine { rules: Vec::new(), states: Vec::new() }
+        RuleEngine {
+            rules: Vec::new(),
+            states: Vec::new(),
+        }
     }
 
     /// 编译规则集 (when 表达式走公式编译链; 坏规则隔离不阻断)
@@ -116,7 +119,13 @@ impl RuleEngine {
                 Err(_) => continue, // 坏规则隔离
             };
             // 规则条件暂不含 FM 查表函数 (阶段 5 后续), fm_blkx=None
-            let ctx = EvalCtx { snap, results, now_ms, interval_ms, fm_data: None };
+            let ctx = EvalCtx {
+                snap,
+                results,
+                now_ms,
+                interval_ms,
+                fm_data: None,
+            };
             let v = eval(cond, &ctx, &mut super::eval::StateStore::new()).num();
             // 条件 NaN = 不可判定, 视为假 (不累计不触发)
             let active = !v.is_nan() && v != 0.0;
@@ -127,10 +136,16 @@ impl RuleEngine {
                     let h = if active { held_ms + interval_ms } else { 0.0 };
                     if now_ms < until_ms {
                         // 冷却期: 条件持续累计 (出冷却即判), 不触发
-                        RuleState::Cooling { until_ms, held_ms: h }
+                        RuleState::Cooling {
+                            until_ms,
+                            held_ms: h,
+                        }
                     } else if active && h >= r.def.hold_ms {
                         self.fire(r, now_ms, &mut out);
-                        RuleState::Cooling { until_ms: cd_until, held_ms: 0.0 }
+                        RuleState::Cooling {
+                            until_ms: cd_until,
+                            held_ms: 0.0,
+                        }
                     } else {
                         RuleState::Idle { held_ms: h }
                     }
@@ -142,7 +157,10 @@ impl RuleEngine {
                         let held = held_ms + interval_ms;
                         if held >= r.def.hold_ms {
                             self.fire(r, now_ms, &mut out);
-                            RuleState::Cooling { until_ms: cd_until, held_ms: 0.0 }
+                            RuleState::Cooling {
+                                until_ms: cd_until,
+                                held_ms: 0.0,
+                            }
                         } else {
                             RuleState::Idle { held_ms: held }
                         }
@@ -191,8 +209,15 @@ mod tests {
     /// 快照 (Session radio_alt 可配)
     fn snap(alt: f64) -> VarSnapshot {
         let ind0 = crate::telemetry::parser::Indicators::default();
-        let raw0 = crate::formula::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
-        let sess = crate::formula::registry::SessionInputs { radio_alt: alt, ..Default::default() };
+        let raw0 = crate::formula::registry::RawInputs {
+            state: None,
+            indic: Some(&ind0),
+            fmdata: None,
+        };
+        let sess = crate::formula::registry::SessionInputs {
+            radio_alt: alt,
+            ..Default::default()
+        };
         assemble_snapshot(&raw0, &sess, &MetaInputs::default())
     }
 
@@ -212,7 +237,10 @@ mod tests {
     #[test]
     fn hold_then_fire_then_cooldown() {
         let mut eng = RuleEngine::new();
-        eng.install(&[def("低空", "radio_altitude <= 500", 300.0, 5.0)], registry());
+        eng.install(
+            &[def("低空", "radio_altitude <= 500", 300.0, 5.0)],
+            registry(),
+        );
         let s = snap(400.0);
         // 前 5 帧 (250ms) 未达 hold 300ms
         for i in 0..5 {
@@ -225,7 +253,10 @@ mod tests {
         assert_eq!(ev[0].rule, "低空");
         // 冷却期 (5s) 条件仍真不重复
         for t in (300..5000u64).step_by(50) {
-            assert!(eng.eval(&s, &RESULTS, t, 50.0).is_empty(), "冷却期 {t} 不应触发");
+            assert!(
+                eng.eval(&s, &RESULTS, t, 50.0).is_empty(),
+                "冷却期 {t} 不应触发"
+            );
         }
         // 出冷却后条件仍真 → 冷却期已持续累计, held 达 300ms 再触发
         let mut fired = false;
@@ -248,11 +279,17 @@ mod tests {
         let _ = eng.eval(&hi, &RESULTS, 0, 50.0);
         let _ = eng.eval(&hi, &RESULTS, 50, 50.0);
         let _ = eng.eval(&lo, &RESULTS, 100, 50.0); // 假 → 清零
-        // 重累计: t=150 起每帧 +50, t=400 达 300ms 触发
+                                                    // 重累计: t=150 起每帧 +50, t=400 达 300ms 触发
         for t in [150, 200, 250, 300, 350] {
-            assert!(eng.eval(&hi, &RESULTS, t, 50.0).is_empty(), "t={t} 未达 300ms");
+            assert!(
+                eng.eval(&hi, &RESULTS, t, 50.0).is_empty(),
+                "t={t} 未达 300ms"
+            );
         }
-        assert!(!eng.eval(&hi, &RESULTS, 400, 50.0).is_empty(), "重累计 300ms 后触发");
+        assert!(
+            !eng.eval(&hi, &RESULTS, 400, 50.0).is_empty(),
+            "重累计 300ms 后触发"
+        );
     }
 
     #[test]

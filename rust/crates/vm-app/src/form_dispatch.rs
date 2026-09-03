@@ -6,11 +6,11 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use crate::{AppShell, UiCommand};
 use vm_core::base::java_compat::{java_parse_boolean, java_parse_int_or};
 use vm_core::config::config_manager;
 use vm_core::config::configuration_service::ConfigurationService;
 use vm_ui::main_form::{self, MainFormState, Message};
-use crate::{AppShell, UiCommand};
 use vm_webui::dto::{FormMessageDto, PanelDto};
 use vm_webui::ipc::{self, FormRuntime, IpcReply, RequestKind};
 
@@ -57,7 +57,9 @@ fn dispatch_form(
                 .as_ref()
                 .map(|f| f.groups().iter().map(Into::into).collect())
                 .unwrap_or_default();
-            serde_json::to_value(panels).map(IpcReply::Ok).unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+            serde_json::to_value(panels)
+                .map(IpcReply::Ok)
+                .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
         }
         RequestKind::GetComboOptions { source, current } => {
             let borrowed = cell.borrow();
@@ -138,7 +140,12 @@ pub enum WebWindowRequest {
     /// CompactComparisonWindow(parent, ctr, fm0, fm1)
     Comparison { fm0: String, fm1: Option<String> },
     /// PowerCurveWindow(parent, fm0, fm1, speedKmh, wep)
-    PowerCurve { fm0: String, fm1: Option<String>, speed_kmh: i32, wep: bool },
+    PowerCurve {
+        fm0: String,
+        fm1: Option<String>,
+        speed_kmh: i32,
+        wep: bool,
+    },
 }
 
 // Java 标准库语义助手 (java_parse_int_or / java_parse_boolean) 已收敛
@@ -159,7 +166,11 @@ fn route_open_action(action: &str, shell: &Rc<RefCell<AppShell>>) -> Option<WebW
             .as_ref()
             .and_then(|c| c.config.get_config(key))
             .unwrap_or_default();
-        if s.is_empty() { default.to_string() } else { s }
+        if s.is_empty() {
+            default.to_string()
+        } else {
+            s
+        }
     };
 
     match action {
@@ -190,15 +201,18 @@ fn open_web_window(req: &WebWindowRequest, rt: &FormRuntime) -> IpcReply {
         WebWindowRequest::Comparison { fm0, fm1 } => {
             vm_webui::web_windows::open_comparison_window(handle, fm0, fm1.as_deref())
         }
-        WebWindowRequest::PowerCurve { fm0, fm1, speed_kmh, wep } => {
-            vm_webui::web_windows::open_power_curve_window(
-                handle,
-                fm0,
-                fm1.as_deref(),
-                *speed_kmh,
-                *wep,
-            )
-        }
+        WebWindowRequest::PowerCurve {
+            fm0,
+            fm1,
+            speed_kmh,
+            wep,
+        } => vm_webui::web_windows::open_power_curve_window(
+            handle,
+            fm0,
+            fm1.as_deref(),
+            *speed_kmh,
+            *wep,
+        ),
     };
     match res {
         Ok(()) => IpcReply::Ok(serde_json::json!({ "ok": true })),
@@ -264,8 +278,7 @@ fn preview_voice_clip(
     key: &str,
     pack: &str,
 ) -> Option<std::thread::JoinHandle<()>> {
-    let p_key =
-        vm_core::audio::VoicePackConfig::strip_voice_prefix(Some(key)).unwrap_or_default();
+    let p_key = vm_core::audio::VoicePackConfig::strip_voice_prefix(Some(key)).unwrap_or_default();
     if let Some(clip) = mgr.load_clip(&p_key, Some(pack)) {
         clip.set_frame_position(0);
         clip.start();
@@ -281,11 +294,9 @@ fn to_message(dto: FormMessageDto) -> Message {
         FormMessageDto::Toggle { panel, key, value } => Message::Toggle { panel, key, value },
         FormMessageDto::Slider { panel, key, value } => Message::Slider { panel, key, value },
         FormMessageDto::Combo { panel, key, value } => Message::Combo { panel, key, value },
-        FormMessageDto::ColorPicked { panel, key, value } => Message::ColorPicked {
-            panel,
-            key,
-            value,
-        },
+        FormMessageDto::ColorPicked { panel, key, value } => {
+            Message::ColorPicked { panel, key, value }
+        }
         FormMessageDto::Save => Message::Save,
         FormMessageDto::StartGame => Message::StartGame,
         FormMessageDto::EndGame => Message::EndGame,
@@ -309,7 +320,11 @@ mod tests {
             Message::Toggle { panel, key, value: true } if panel == "p" && key == "k"
         ));
         assert!(matches!(
-            to_message(FormMessageDto::Slider { panel: "p".into(), key: "k".into(), value: 42 }),
+            to_message(FormMessageDto::Slider {
+                panel: "p".into(),
+                key: "k".into(),
+                value: 42
+            }),
             Message::Slider { value: 42, .. }
         ));
         assert!(matches!(
@@ -317,19 +332,41 @@ mod tests {
             Message::Combo { value, .. } if value == "v"
         ));
         assert!(matches!(
-            to_message(FormMessageDto::ColorPicked { panel: "p".into(), key: "k".into(), value: [1, 2, 3, 4] }),
-            Message::ColorPicked { value: [1, 2, 3, 4], .. }
+            to_message(FormMessageDto::ColorPicked {
+                panel: "p".into(),
+                key: "k".into(),
+                value: [1, 2, 3, 4]
+            }),
+            Message::ColorPicked {
+                value: [1, 2, 3, 4],
+                ..
+            }
         ));
         assert!(matches!(to_message(FormMessageDto::Save), Message::Save));
-        assert!(matches!(to_message(FormMessageDto::StartGame), Message::StartGame));
-        assert!(matches!(to_message(FormMessageDto::EndGame), Message::EndGame));
-        assert!(matches!(to_message(FormMessageDto::RefreshPreviews), Message::RefreshPreviews));
+        assert!(matches!(
+            to_message(FormMessageDto::StartGame),
+            Message::StartGame
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::EndGame),
+            Message::EndGame
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::RefreshPreviews),
+            Message::RefreshPreviews
+        ));
         assert!(matches!(
             to_message(FormMessageDto::ButtonAction { action: "resetConfig".into() }),
             Message::ButtonAction { action } if action == "resetConfig"
         ));
-        assert!(matches!(to_message(FormMessageDto::ConfirmPending), Message::ConfirmPending));
-        assert!(matches!(to_message(FormMessageDto::CancelPending), Message::CancelPending));
+        assert!(matches!(
+            to_message(FormMessageDto::ConfirmPending),
+            Message::ConfirmPending
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::CancelPending),
+            Message::CancelPending
+        ));
     }
 
     /// 最小壳装配 (app_shell tests fixture 的 bin 侧本地版 — dispatcher 需真 shell;
@@ -349,10 +386,8 @@ mod tests {
         use crate::ShellParts;
         let ui_bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
-        let cfg = std::env::temp_dir().join(format!(
-            "vm_app_formdisp_{tag}_{}.cfg",
-            std::process::id()
-        ));
+        let cfg =
+            std::env::temp_dir().join(format!("vm_app_formdisp_{tag}_{}.cfg", std::process::id()));
         std::fs::write(&cfg, cfg_text).unwrap();
         config.load_layout(cfg.to_str().unwrap());
         let (hotkey, hotkey_rx) = vm_overlay::platform::hotkey::HotkeyManager::with_channel();
@@ -362,7 +397,9 @@ mod tests {
             config,
             ui_bus,
             flight_bus: Arc::new(vm_core::base::bus::flight_data_bus::FlightDataBus::new()),
-            fm: Arc::new(vm_core::fm::FMManager::new(Arc::new(vm_core::base::bus::EventBus::new()))),
+            fm: Arc::new(vm_core::fm::FMManager::new(Arc::new(
+                vm_core::base::bus::EventBus::new(),
+            ))),
             hotkey,
             hotkey_rx,
             debounce_delay: std::time::Duration::from_millis(30),
@@ -438,10 +475,7 @@ mod tests {
             self.calls.lock().unwrap().push(format!("seek:{frame}"));
         }
         fn close(&self) {
-            if self
-                .closed
-                .swap(true, std::sync::atomic::Ordering::SeqCst)
-            {
+            if self.closed.swap(true, std::sync::atomic::Ordering::SeqCst) {
                 return; // 已 close 再 close 无副作用 (Java line close 状态机)
             }
             self.calls.lock().unwrap().push("close".into());
@@ -533,7 +567,11 @@ mod tests {
         // GC finalizer 延迟释放)
         assert_eq!(
             *calls.lock().unwrap(),
-            vec!["seek:0".to_string(), "start".to_string(), "close".to_string()],
+            vec![
+                "seek:0".to_string(),
+                "start".to_string(),
+                "close".to_string()
+            ],
             "按钮序: setFramePosition(0) → start → 播完 close"
         );
         let _ = std::fs::remove_dir_all(&root);
@@ -557,7 +595,11 @@ mod tests {
         hold.expect("回退命中应有保活线程").join().unwrap();
         assert_eq!(
             *calls.lock().unwrap(),
-            vec!["seek:0".to_string(), "start".to_string(), "close".to_string()],
+            vec![
+                "seek:0".to_string(),
+                "start".to_string(),
+                "close".to_string()
+            ],
             "回退路径照常播放 + 保活收尾同款"
         );
         let _ = std::fs::remove_dir_all(&root);
@@ -568,10 +610,7 @@ mod tests {
     fn preview_voice_clip_全缺失_零调用静默() {
         let (mgr, opened, calls, root) = mock_voice_mgr();
         let hold = preview_voice_clip(&mgr, "voice_nosuch", "default");
-        assert!(
-            hold.is_none(),
-            "clip==null 无保活线程 (Java 无声失败面)"
-        );
+        assert!(hold.is_none(), "clip==null 无保活线程 (Java 无声失败面)");
         assert!(
             opened.lock().unwrap().is_empty(),
             "文件不存在不得触达播放器 (resolve 阶段即 None)"
@@ -607,10 +646,7 @@ mod tests {
                 self.running.load(Ordering::SeqCst)
             }
             fn set_frame_position(&self, frame: i32) {
-                self.calls
-                    .lock()
-                    .unwrap()
-                    .push(format!("seek:{frame}"));
+                self.calls.lock().unwrap().push(format!("seek:{frame}"));
             }
             fn close(&self) {
                 // swap 兼做幂等闸 (首调返回 false): 保活线程显式 close 后
@@ -668,8 +704,8 @@ mod tests {
             root.to_string_lossy().into_owned(),
         );
 
-        let hold = preview_voice_clip(&mgr, "voice_aoaCrit", "default")
-            .expect("应加载 clip 并起保活线程");
+        let hold =
+            preview_voice_clip(&mgr, "voice_aoaCrit", "default").expect("应加载 clip 并起保活线程");
         // 在播窗口内 (running=true): close 不得发生 — 若 clip 被函数尾 Drop
         // (原 bug), 150ms 时 close 必已置位
         std::thread::sleep(std::time::Duration::from_millis(150));
@@ -691,7 +727,11 @@ mod tests {
         );
         assert_eq!(
             *calls.lock().unwrap(),
-            vec!["seek:0".to_string(), "start".to_string(), "close".to_string()],
+            vec![
+                "seek:0".to_string(),
+                "start".to_string(),
+                "close".to_string()
+            ],
             "完整序: seek → start → (播完) close"
         );
         let _ = std::fs::remove_dir_all(&root);
@@ -781,9 +821,12 @@ mod tests {
         // PowerCurve 请求字段解构 (variant 无结构更新语法, 逐字段断言)
         let params = |req: Option<WebWindowRequest>| -> (String, Option<String>, i32, bool) {
             match req {
-                Some(WebWindowRequest::PowerCurve { fm0, fm1, speed_kmh, wep }) => {
-                    (fm0, fm1, speed_kmh, wep)
-                }
+                Some(WebWindowRequest::PowerCurve {
+                    fm0,
+                    fm1,
+                    speed_kmh,
+                    wep,
+                }) => (fm0, fm1, speed_kmh, wep),
                 other => panic!("期望 PowerCurve 请求: {other:?}"),
             }
         };
@@ -797,7 +840,12 @@ mod tests {
         let shell = min_shell_with_controller();
         assert_eq!(
             params(route_open_action("openPowerCurve", &shell)),
-            ("spitfire_f24".into(), Some("p-51c-10-nt".into()), 350, false)
+            (
+                "spitfire_f24".into(),
+                Some("p-51c-10-nt".into()),
+                350,
+                false
+            )
         );
         set_cfg(&shell, "selectedFM0", "spitfire_f24");
         set_cfg(&shell, "selectedFM1", "p-51c-10-nt");
@@ -823,9 +871,15 @@ mod tests {
         // Boolean.parseBoolean: "1" 非 true; "TRUE" 忽略大小写真
         set_cfg(&shell, "powerCurveSpeed", "350");
         set_cfg(&shell, "powerCurveWep", "1");
-        assert!(!params(route_open_action("openPowerCurve", &shell)).3, "\"1\" 应为 false");
+        assert!(
+            !params(route_open_action("openPowerCurve", &shell)).3,
+            "\"1\" 应为 false"
+        );
         set_cfg(&shell, "powerCurveWep", "TRUE");
-        assert!(params(route_open_action("openPowerCurve", &shell)).3, "\"TRUE\" 应为 true");
+        assert!(
+            params(route_open_action("openPowerCurve", &shell)).3,
+            "\"TRUE\" 应为 true"
+        );
     }
 
     /// 拦截面: open* ButtonAction 不再落 main_form::update — 无 webview 形态
@@ -840,7 +894,9 @@ mod tests {
         let mut rt = FormRuntime::default(); // 无 app_handle (不开 webview 的测试形态)
         for action in ["openComparison", "openPowerCurve"] {
             let reply = disp(
-                RequestKind::FormMessage(FormMessageDto::ButtonAction { action: action.into() }),
+                RequestKind::FormMessage(FormMessageDto::ButtonAction {
+                    action: action.into(),
+                }),
                 &mut rt,
             );
             match &reply {
@@ -853,7 +909,10 @@ mod tests {
         }
         // FMLIST 对比按钮链 (显式参数版) 同款
         let reply = disp(
-            RequestKind::OpenComparisonWindow { fm0: "spitfire_f24".into(), fm1: None },
+            RequestKind::OpenComparisonWindow {
+                fm0: "spitfire_f24".into(),
+                fm1: None,
+            },
             &mut rt,
         );
         assert!(
@@ -862,7 +921,9 @@ mod tests {
         );
         // 对照组 1: 非开窗按钮动作走原表单链 (cell 空的 Err 与开窗 Err 不同文案)
         let reply = disp(
-            RequestKind::FormMessage(FormMessageDto::ButtonAction { action: "resetConfig".into() }),
+            RequestKind::FormMessage(FormMessageDto::ButtonAction {
+                action: "resetConfig".into(),
+            }),
             &mut rt,
         );
         assert!(
@@ -871,7 +932,10 @@ mod tests {
         );
         // 对照组 2: 壳态请求照常 Ok (dispatcher 健在)
         let reply = disp(RequestKind::Ping { nonce: 1 }, &mut rt);
-        assert!(matches!(reply, IpcReply::Ok(_)), "Ping 不受拦截影响: {reply:?}");
+        assert!(
+            matches!(reply, IpcReply::Ok(_)),
+            "Ping 不受拦截影响: {reply:?}"
+        );
     }
 
     /// java_parse_int_or 边界: 负数 / 溢出 / 空串 (Java parseInt 抛异常 → catch 0)

@@ -2,9 +2,9 @@
 
 use std::sync::Mutex;
 
-use crate::fm::data::{FmData, EngineLoad};
-use crate::fm::status::FMStatus;
+use crate::fm::data::{EngineLoad, FmData};
 use crate::fm::piston_model::CompressorStageParams;
+use crate::fm::status::FMStatus;
 
 // PORT: 原 BlkxPlaceholder 零字段占位已按 blkx/mod.rs 字段波次陷阱注 5 的排期
 // (构造点波次 = FMLoader 波次) 兑现切换为真实 crate::fm::data::FmData 聚合 struct;
@@ -97,7 +97,10 @@ impl FMHandle {
     // PORT(allow 借用警告): eng_load_state (Mutex) 使常量含内部可变性 —
     // clippy 建议 static 化, 但 const 的按值内联语义被全库使用点依赖
     // (struct 更新语法等), 保 const 形态
-    #[allow(clippy::declare_interior_mutable_const, clippy::borrow_interior_mutable_const)]
+    #[allow(
+        clippy::declare_interior_mutable_const,
+        clippy::borrow_interior_mutable_const
+    )]
     pub const UNRESOLVED: FMHandle = FMHandle {
         name: None,
         status: FMStatus::Unresolved,

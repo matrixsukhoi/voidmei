@@ -19,6 +19,8 @@
 use std::fmt;
 use std::rc::Rc;
 
+use crate::base::java_compat::java_trim;
+
 // --- AST Nodes ---
 
 /// Java: `public interface SExp { boolean isList(); boolean isAtom(); SList asList(); SAtom asAtom(); }`
@@ -138,10 +140,9 @@ impl SAtom {
         match java_parse_double(&self.value) {
             Ok(v) => v,
             Err(ParseDoubleErr::Empty) => panic!("empty String"),
-            Err(ParseDoubleErr::Invalid) => panic!(
-                "For input string: \"{}\"",
-                self.value.trim_matches(|c: char| (c as u32) <= 0x20)
-            ),
+            Err(ParseDoubleErr::Invalid) => {
+                panic!("For input string: \"{}\"", java_trim(&self.value))
+            }
         }
     }
 
@@ -259,7 +260,7 @@ enum ParseDoubleErr {
 /// - 次正规边界位形: 中间量若落入次正规区产生双重舍入 (需 ~250+ 位小数或
 ///   |e10|>2000, 详见 hex 求值处注释); 正常指数域已按 oracle 位级对齐
 fn java_parse_double(s: &str) -> Result<f64, ParseDoubleErr> {
-    let t = s.trim_matches(|c: char| (c as u32) <= 0x20);
+    let t = java_trim(s);
     if t.is_empty() {
         // oracle: parseDouble(""/"   ") 抛 NumberFormatException: empty String
         return Err(ParseDoubleErr::Empty);
@@ -273,7 +274,11 @@ fn java_parse_double(s: &str) -> Result<f64, ParseDoubleErr> {
         return Ok(f64::NAN);
     }
     if rest == "Infinity" {
-        return Ok(if neg { f64::NEG_INFINITY } else { f64::INFINITY });
+        return Ok(if neg {
+            f64::NEG_INFINITY
+        } else {
+            f64::INFINITY
+        });
     }
     if rest.starts_with("0x") || rest.starts_with("0X") {
         let hex = &rest[2..];
@@ -326,9 +331,7 @@ fn java_parse_double(s: &str) -> Result<f64, ParseDoubleErr> {
         // PORT: Java int/long 静默回绕 — 超长指数位串 (≥19 位) 回绕成小值 (§2.2 先例,
         // 同上 m 尾数累积); 域外输入, 正常指数无差异
         for b in exp_digits.bytes() {
-            e10 = e10
-                .wrapping_mul(10)
-                .wrapping_add(i64::from(b - b'0'));
+            e10 = e10.wrapping_mul(10).wrapping_add(i64::from(b - b'0'));
         }
         if exp_neg {
             e10 = -e10;

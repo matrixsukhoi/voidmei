@@ -17,7 +17,12 @@ fn v(s: &str) -> Value {
 #[test]
 fn preserve_order_canary() {
     let root = v(r#"{"b": 1, "a": 2}"#);
-    let keys: Vec<&str> = root.as_object().unwrap().keys().map(|s| s.as_str()).collect();
+    let keys: Vec<&str> = root
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(|s| s.as_str())
+        .collect();
     assert_eq!(keys, ["b", "a"]);
 }
 
@@ -38,7 +43,10 @@ fn section_ci_与_后缀语义() {
     let root = v(r#"{"WingPlane": {"Span": 1}}"#);
     assert!(find_section_ci(&root, "wingplane").is_some(), "全名 CI");
     assert!(find_section_ci(&root, "Plane").is_some(), "后缀命中");
-    assert!(find_section_ci(&root, "wing").is_none(), "前缀不命中 (文本 cut 同)");
+    assert!(
+        find_section_ci(&root, "wing").is_none(),
+        "前缀不命中 (文本 cut 同)"
+    );
 }
 
 #[test]
@@ -85,14 +93,16 @@ fn leaf_跳过_object_值_数组取首() {
     // 块名不是 leaf (文本版块名行无 '=', 扫向块内首个值行); 多分量值
     // (ElevatorsEffectiveSpeed 的 p2 数组): find_leaf_cs 返回**原始数组**,
     // 首行取值由 leaf_to_text 承担 (get_f64 取首 = 文本行首数)
-    let root = v(
-        r#"{"ElevatorsEffectiveSpeed": [400.0, 400.0],
+    let root = v(r#"{"ElevatorsEffectiveSpeed": [400.0, 400.0],
             "WingPlane": {"Span": 11.3},
-            "Vne": 875.0}"#,
-    );
+            "Vne": 875.0}"#);
     let arr = find_leaf_cs(&root, "ElevatorsEffectiveSpeed").unwrap();
     assert_eq!(arr[0], 400.0, "p2 数组原样返回");
-    assert_eq!(leaf_to_text(arr).unwrap(), "400.0, 400.0", "join(', ') ≡ 文本行值");
+    assert_eq!(
+        leaf_to_text(arr).unwrap(),
+        "400.0, 400.0",
+        "join(', ') ≡ 文本行值"
+    );
     assert!(find_leaf_cs(&root, "Span").is_some(), "穿透 object 继续找");
     assert_eq!(find_leaf_cs(&root, "Vne").unwrap(), 875.0);
 }
@@ -100,10 +110,8 @@ fn leaf_跳过_object_值_数组取首() {
 #[test]
 fn leaf_ci_last_文档序最后_merge取末() {
     // getlastone: CI rfind — fmFile 键混合大小写 (真机中央文件实测为 "fmFile")
-    let central = v(
-        r#"{"fmFile": "fm/spitfire_f24.blk",
-            "modifications": {"fmFile": ["fm/a.blk", "fm/b.blk"]}}"#,
-    );
+    let central = v(r#"{"fmFile": "fm/spitfire_f24.blk",
+            "modifications": {"fmFile": ["fm/a.blk", "fm/b.blk"]}}"#);
     assert_eq!(
         get_last_string_ci(&central, "fmfile").unwrap(),
         "fm/b.blk",
@@ -218,9 +226,7 @@ fn fuel_苏联b100优先于b95() {
 
 #[test]
 fn fuel_effects缺失_数值保持默认() {
-    let fm = extract_fuel_modifications_json(&mods_fuel(
-        r#"{"ussr_fuel_b-100": {}}"#,
-    ));
+    let fm = extract_fuel_modifications_json(&mods_fuel(r#"{"ussr_fuel_b-100": {}}"#));
     assert_eq!(fm.r#type, FuelType::SovietB100);
     assert_eq!(fm.soviet_octane_hp_bonus, 0.0);
 }
@@ -230,23 +236,21 @@ fn fuel_嵌套穿透_section_ci_leaf_cs() {
     // modifications 不在根层 (嵌套于任意包装块下也能找到, 对齐文本全文搜索);
     // section 键名允许大小写变体 (cut_static 是 CI), 但 leaf 键名必须逐字符命中
     // (getDoubleFromBlock 是 CS) — 真机键名为小写驼峰 addHorsePowers (yak-3 实测)
-    let root = v(
-        r#"{"wrap": {"Modifications": {"ussr_fuel_b-100":
-            {"Effects": {"addHorsePowers": 50.0}}}}}"#,
-    );
+    let root = v(r#"{"wrap": {"Modifications": {"ussr_fuel_b-100":
+            {"Effects": {"addHorsePowers": 50.0}}}}}"#);
     let fm = extract_fuel_modifications_json(&root);
     assert_eq!(fm.r#type, FuelType::SovietB100);
     assert_eq!(fm.soviet_octane_hp_bonus, 50.0);
 
     // leaf 键名大小写不匹配 → 两侧 (文本/JSON) 一致取 0
-    let bad = v(
-        r#"{"modifications": {"ussr_fuel_b-100":
-            {"effects": {"AddHorsePowers": 50.0}}}}"#,
-    );
+    let bad = v(r#"{"modifications": {"ussr_fuel_b-100":
+            {"effects": {"AddHorsePowers": 50.0}}}}"#);
     let fm2 = extract_fuel_modifications_json(&bad);
-    assert_eq!(fm2.soviet_octane_hp_bonus, 0.0, "CS 语义: 键名不匹配时与文本版一致取默认");
+    assert_eq!(
+        fm2.soviet_octane_hp_bonus, 0.0,
+        "CS 语义: 键名不匹配时与文本版一致取默认"
+    );
 }
-
 
 // ==================== parity 实测裁决的语义锁定 ====================
 
@@ -268,7 +272,10 @@ fn leaf_冒号label后缀匹配() {
 fn section_后缀不误吞_fuselageplane() {
     // cut("Fuselage") 不命中 "FuselagePlane" (parity 实测: a-10a 回退链曾被短路)
     let root = v(r#"{"Aerodynamics": {"FuselagePlane": {"Polar": {"CdMin": 0.02}}}}"#);
-    assert!(find_section_ci(&root, "Fuselage").is_none(), "后缀语义: FuselagePlane 不以 Fuselage 结尾");
+    assert!(
+        find_section_ci(&root, "Fuselage").is_none(),
+        "后缀语义: FuselagePlane 不以 Fuselage 结尾"
+    );
     assert!(find_section_ci(&root, "FuselagePlane").is_some());
 }
 
@@ -276,10 +283,8 @@ fn section_后缀不误吞_fuselageplane() {
 fn leaf_键名命中section_取块内首leaf() {
     // 引擎计数 getone("Engine1") 命中块名行 → 文本跨行扫到块内首个 '=' 行;
     // 树版: 键名命中 section 时返回其 DFS 首个 leaf (parity 实测 a-10a 双发)
-    let root = v(
-        r#"{"Engine1": {"Position": [1.0, 2.0, 3.0], "Mass": 50.0},
-            "Engine2": {"Mass": 60.0}}"#,
-    );
+    let root = v(r#"{"Engine1": {"Position": [1.0, 2.0, 3.0], "Mass": 50.0},
+            "Engine2": {"Mass": 60.0}}"#);
     let hit = find_leaf_cs(&root, "Engine1").expect("键名命中块应返回块内首 leaf");
     assert_eq!(hit[0], 1.0, "Position 是 Engine1 块内首个 leaf");
 }
@@ -293,6 +298,13 @@ fn leaf_to_text_merge三形态() {
         "0.0, 0.0",
         "merge 曲线取首行"
     );
-    assert_eq!(leaf_to_text(&v(r#"["fm/a.blk", "fm/b.blk"]"#)).unwrap(), "fm/a.blk");
-    assert_eq!(leaf_to_text(&v("[false, false]")).unwrap(), "false", "同名 bool merge 取首行");
+    assert_eq!(
+        leaf_to_text(&v(r#"["fm/a.blk", "fm/b.blk"]"#)).unwrap(),
+        "fm/a.blk"
+    );
+    assert_eq!(
+        leaf_to_text(&v("[false, false]")).unwrap(),
+        "false",
+        "同名 bool merge 取首行"
+    );
 }

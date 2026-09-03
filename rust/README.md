@@ -27,7 +27,7 @@ War Thunder HTTP API (127.0.0.1:8111)
 │ 主线程: AppShell 监督循环 + vm-webui ShellForm (Tauri 泵)  │
 │ 渲染线程: render_thread.rs (OverlayHost 单泵全部 overlay   │
 │           窗口 + 托盘 + 热键消费, Rc<RefCell> 单线程共享)   │
-│ Controller: 生命周期状态机 (INIT→CONNECTED→IN_GAME→PREVIEW)│
+│ Controller: 生命周期状态机 (Init→Connected→InGame→Preview) │
 └───┬──────────────────────┬────────────────────────────────┘
     │ ReinitParams/UiCommand │ 规则触发/状态推送
     ▼                        ▼

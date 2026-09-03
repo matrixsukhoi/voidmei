@@ -10,11 +10,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::render::canvas::PixCanvas;
-use crate::render::renderers::{BosStyleRenderer, Field, OverlayRenderer, RenderContext};
 use crate::overlays::spec_common::{keyed_spec, log_font_reload_failed};
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
+use crate::render::canvas::PixCanvas;
+use crate::render::renderers::{BosStyleRenderer, Field, OverlayRenderer, RenderContext};
 use crate::ui_model::DataField;
 use vm_core::base::format;
 use vm_core::formula::registry::FormulaView;
@@ -190,8 +190,13 @@ pub fn power_info_overlay_spec(
         let p = params.borrow();
         (p.power.font_add, p.power.columns)
     };
-    let ctx = Rc::new(RefCell::new(RenderContext::load(fonts_dir, font_add, column_num)?));
-    let state = PowerInfoState::new({ let p = params.borrow(); std::sync::Arc::clone(&p.power.rows) });
+    let ctx = Rc::new(RefCell::new(RenderContext::load(
+        fonts_dir, font_add, column_num,
+    )?));
+    let state = PowerInfoState::new({
+        let p = params.borrow();
+        std::sync::Arc::clone(&p.power.rows)
+    });
     let (w, h) = state.preferred_size(&ctx.borrow());
     let handle: PowerInfoHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
@@ -204,7 +209,11 @@ pub fn power_info_overlay_spec(
     let reinit: ReinitFn = Box::new(move || {
         let (fa, col, defs) = {
             let p = reinit_params.borrow();
-            (p.power.font_add, p.power.columns, std::sync::Arc::clone(&p.power.rows))
+            (
+                p.power.font_add,
+                p.power.columns,
+                std::sync::Arc::clone(&p.power.rows),
+            )
         };
         // 行定义随包更新 (行开关变更即时生效); preview 值回填, live 下一帧覆写
         reinit_handle.borrow_mut().rebind_defs(defs);
@@ -227,7 +236,9 @@ pub fn power_info_overlay_spec(
             w,
             h,
             Box::new(move |cv: &mut PixCanvas| {
-                render_handle.borrow().draw(cv, &ctx.borrow(), &mut renderer);
+                render_handle
+                    .borrow()
+                    .draw(cv, &ctx.borrow(), &mut renderer);
             }),
             Some(reinit),
         ),

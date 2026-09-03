@@ -1,7 +1,7 @@
 use super::*;
+use crate::layout::hud_layout_node::Dimension;
 use std::cell::Cell;
 use std::rc::Rc;
-use crate::layout::hud_layout_node::Dimension;
 
 /// 测试组件: 固定尺寸 + 可见开关 (对齐 HUDComponent 两方法契约)
 struct VisComp {
@@ -41,11 +41,22 @@ impl HasVisibility for DynComp {
 }
 
 fn node(id: &str, w: i32, h: i32) -> SharedNode<VisComp> {
-    HUDLayoutNode::new(id, VisComp { w, h, visible: true })
+    HUDLayoutNode::new(
+        id,
+        VisComp {
+            w,
+            h,
+            visible: true,
+        },
+    )
 }
 
 fn vis(w: i32, h: i32) -> VisComp {
-    VisComp { w, h, visible: true }
+    VisComp {
+        w,
+        h,
+        visible: true,
+    }
 }
 
 fn render_ids<T: HasPreferredSize + HasVisibility>(e: &ModernHUDLayoutEngine<T>) -> Vec<String> {
@@ -187,7 +198,12 @@ fn drop_sweeps_adversarial_cycle_edges() {
 #[test]
 fn do_layout_recalculates_when_clean() {
     let size = Rc::new(Cell::new((10, 10)));
-    let n = HUDLayoutNode::new("d", DynComp { size: Rc::clone(&size) });
+    let n = HUDLayoutNode::new(
+        "d",
+        DynComp {
+            size: Rc::clone(&size),
+        },
+    );
     let mut e = ModernHUDLayoutEngine::new(100, 100);
     e.add_node(n.clone());
     e.do_layout();
@@ -210,8 +226,14 @@ fn solve_chain_via_engine_matches_manual_math() {
     e.add_node(root.clone());
     e.add_node(child.clone());
     e.do_layout();
-    assert_eq!(root.get_pixel_rect(), Rectangle::with_bounds(42, 70, 50, 10));
-    assert_eq!(child.get_pixel_rect(), Rectangle::with_bounds(42, 82, 60, 10));
+    assert_eq!(
+        root.get_pixel_rect(),
+        Rectangle::with_bounds(42, 70, 50, 10)
+    );
+    assert_eq!(
+        child.get_pixel_rect(),
+        Rectangle::with_bounds(42, 82, 60, 10)
+    );
 }
 
 /// getContentBounds: 只统计可见节点; 空集 (含未布局) 返回 1x1 兜底。
@@ -220,7 +242,14 @@ fn get_content_bounds_visible_only_and_empty_fallback() {
     let mut e = ModernHUDLayoutEngine::new(300, 200);
     let a = HUDLayoutNode::new("a", vis(20, 20));
     let b = node("b", 50, 10).set_relative_position(2.1, 3.5);
-    let hidden = HUDLayoutNode::new("h", VisComp { w: 999, h: 999, visible: false });
+    let hidden = HUDLayoutNode::new(
+        "h",
+        VisComp {
+            w: 999,
+            h: 999,
+            visible: false,
+        },
+    );
     e.add_node(a);
     e.add_node(b);
     e.add_node(hidden);
@@ -241,7 +270,12 @@ fn auto_sizing_plan_and_render_offset() {
     let plan = e.apply_auto_sizing(10);
     assert_eq!(
         plan,
-        AutoSizingPlan { new_width: 112, new_height: 100, offset_x: 10, offset_y: 10 }
+        AutoSizingPlan {
+            new_width: 112,
+            new_height: 100,
+            offset_x: 10,
+            offset_y: 10
+        }
     );
     let mut seen = Vec::new();
     e.render(|n, x, y, dbg| {
@@ -250,7 +284,10 @@ fn auto_sizing_plan_and_render_offset() {
         }
     });
     // b: (42,70) + offset(10,10) = (52,80)
-    assert_eq!(seen, vec![("a".to_string(), 10, 10), ("b".to_string(), 52, 80)]);
+    assert_eq!(
+        seen,
+        vec![("a".to_string(), 10, 10), ("b".to_string(), 52, 80)]
+    );
 }
 
 /// render: 隐藏节点跳过; debug 开启时每节点本体之后紧跟调试框回调
@@ -259,7 +296,14 @@ fn auto_sizing_plan_and_render_offset() {
 fn render_skips_hidden_and_emits_debug_frame() {
     let mut e = ModernHUDLayoutEngine::new(100, 100);
     let a = node("a", 30, 10).set_relative_position(1.0, 2.0); // (20,40)
-    let hidden = HUDLayoutNode::new("x", VisComp { w: 5, h: 5, visible: false });
+    let hidden = HUDLayoutNode::new(
+        "x",
+        VisComp {
+            w: 5,
+            h: 5,
+            visible: false,
+        },
+    );
     e.add_node(a.clone());
     e.add_node(hidden);
     e.set_render_offset(5, 7);
@@ -355,39 +399,235 @@ struct MiniHudCfgItem {
 /// 须从 ui_layout.cfg 另出全量表, 勿复用本表 (避免单一来源分裂)。
 const MINIHUD_PANEL_ITEMS: &[MiniHudCfgItem] = &[
     // (group "基本设定")
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "crosshairSwitch", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "crosshairSwitch",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
     // (group "hud面板设置")
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "drawHUDtext", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "displayCrosshair", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "drawHUDtext",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "displayCrosshair",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
     // (group "hud数据设置")
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "enableFlapAngleBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showSpeedBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showAttitudeGauge", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "attitudeIndicatorInertialMode", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "hudMach", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "alwaysShowRadarAltitude", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Slider, target: "miniHUDaoaWarningRatio", default: CfgDefault::Int(20), min: Some(0), max: Some(100), unit: Some("%") },
-    MiniHudCfgItem { item_type: MiniHudItemType::Slider, target: "miniHUDaoaBarWarningRatio", default: CfgDefault::Int(25), min: Some(0), max: Some(100), unit: Some("%") },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDSpeed", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDAoA", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDAltitude", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDEnergy", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDFlaps", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDAirbrake", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDGear", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDSep", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDGLoad", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDManeuverBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "enableFlapAngleBar",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showSpeedBar",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showAttitudeGauge",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "attitudeIndicatorInertialMode",
+        default: CfgDefault::Bool(false),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "hudMach",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "alwaysShowRadarAltitude",
+        default: CfgDefault::Bool(false),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Slider,
+        target: "miniHUDaoaWarningRatio",
+        default: CfgDefault::Int(20),
+        min: Some(0),
+        max: Some(100),
+        unit: Some("%"),
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Slider,
+        target: "miniHUDaoaBarWarningRatio",
+        default: CfgDefault::Int(25),
+        min: Some(0),
+        max: Some(100),
+        unit: Some("%"),
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDSpeed",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDAoA",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDAltitude",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDEnergy",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDFlaps",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDAirbrake",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDGear",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDSep",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDGLoad",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Switch,
+        target: "showHUDManeuverBar",
+        default: CfgDefault::Bool(true),
+        min: None,
+        max: None,
+        unit: None,
+    },
     // (group "hud文字标签设置")
-    MiniHudCfgItem { item_type: MiniHudItemType::SwitchInv, target: "disableHUDSpeedLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::SwitchInv, target: "disableHUDHeightLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::SwitchInv, target: "disableHUDSEPLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::SwitchInv,
+        target: "disableHUDSpeedLabel",
+        default: CfgDefault::Bool(false),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::SwitchInv,
+        target: "disableHUDHeightLabel",
+        default: CfgDefault::Bool(false),
+        min: None,
+        max: None,
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::SwitchInv,
+        target: "disableHUDSEPLabel",
+        default: CfgDefault::Bool(false),
+        min: None,
+        max: None,
+        unit: None,
+    },
     // (group "hud准星设置")
-    MiniHudCfgItem { item_type: MiniHudItemType::Combo, target: "crosshairName", default: CfgDefault::Str("软件渲染准星"), min: None, max: None, unit: None },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Combo,
+        target: "crosshairName",
+        default: CfgDefault::Str("软件渲染准星"),
+        min: None,
+        max: None,
+        unit: None,
+    },
     // (group "外观设置")
-    MiniHudCfgItem { item_type: MiniHudItemType::Slider, target: "crosshairScale", default: CfgDefault::Int(113), min: Some(0), max: Some(200), unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Slider, target: "fontSize", default: CfgDefault::Int(0), min: Some(-10), max: Some(10), unit: None },
-    MiniHudCfgItem { item_type: MiniHudItemType::Combo, target: "MonoNumFont", default: CfgDefault::Str("Sarasa Mono SC"), min: None, max: None, unit: None },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Slider,
+        target: "crosshairScale",
+        default: CfgDefault::Int(113),
+        min: Some(0),
+        max: Some(200),
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Slider,
+        target: "fontSize",
+        default: CfgDefault::Int(0),
+        min: Some(-10),
+        max: Some(10),
+        unit: None,
+    },
+    MiniHudCfgItem {
+        item_type: MiniHudItemType::Combo,
+        target: "MonoNumFont",
+        default: CfgDefault::Str("Sarasa Mono SC"),
+        min: None,
+        max: None,
+        unit: None,
+    },
 ];
 
 /// enableLayoutDebug 不在 MiniHUD panel 段 (位于「杂项→调试」组), 布局引擎
@@ -411,25 +651,52 @@ fn cfg_snapshot_matches_ui_layout_panel() {
     assert_eq!(find("enableFlapAngleBar").default, CfgDefault::Bool(true));
     assert_eq!(find("showSpeedBar").default, CfgDefault::Bool(true));
     assert_eq!(find("showAttitudeGauge").default, CfgDefault::Bool(true));
-    assert_eq!(find("attitudeIndicatorInertialMode").default, CfgDefault::Bool(false));
-    assert_eq!(find("alwaysShowRadarAltitude").default, CfgDefault::Bool(false));
+    assert_eq!(
+        find("attitudeIndicatorInertialMode").default,
+        CfgDefault::Bool(false)
+    );
+    assert_eq!(
+        find("alwaysShowRadarAltitude").default,
+        CfgDefault::Bool(false)
+    );
     let aoa = find("miniHUDaoaWarningRatio");
     assert_eq!(aoa.default, CfgDefault::Int(20));
-    assert_eq!((aoa.min, aoa.max, aoa.unit), (Some(0), Some(100), Some("%")));
+    assert_eq!(
+        (aoa.min, aoa.max, aoa.unit),
+        (Some(0), Some(100), Some("%"))
+    );
     let aoa_bar = find("miniHUDaoaBarWarningRatio");
     assert_eq!(aoa_bar.default, CfgDefault::Int(25));
-    assert_eq!((aoa_bar.min, aoa_bar.max, aoa_bar.unit), (Some(0), Some(100), Some("%")));
-    assert_eq!(find("disableHUDSpeedLabel").item_type, MiniHudItemType::SwitchInv);
-    assert_eq!(find("disableHUDHeightLabel").item_type, MiniHudItemType::SwitchInv);
-    assert_eq!(find("disableHUDSEPLabel").item_type, MiniHudItemType::SwitchInv);
+    assert_eq!(
+        (aoa_bar.min, aoa_bar.max, aoa_bar.unit),
+        (Some(0), Some(100), Some("%"))
+    );
+    assert_eq!(
+        find("disableHUDSpeedLabel").item_type,
+        MiniHudItemType::SwitchInv
+    );
+    assert_eq!(
+        find("disableHUDHeightLabel").item_type,
+        MiniHudItemType::SwitchInv
+    );
+    assert_eq!(
+        find("disableHUDSEPLabel").item_type,
+        MiniHudItemType::SwitchInv
+    );
     let scale = find("crosshairScale");
     assert_eq!(scale.default, CfgDefault::Int(113));
     assert_eq!((scale.min, scale.max), (Some(0), Some(200)));
     let font = find("fontSize");
     assert_eq!(font.default, CfgDefault::Int(0));
     assert_eq!((font.min, font.max), (Some(-10), Some(10)));
-    assert_eq!(find("crosshairName").default, CfgDefault::Str("软件渲染准星"));
-    assert_eq!(find("MonoNumFont").default, CfgDefault::Str("Sarasa Mono SC"));
+    assert_eq!(
+        find("crosshairName").default,
+        CfgDefault::Str("软件渲染准星")
+    );
+    assert_eq!(
+        find("MonoNumFont").default,
+        CfgDefault::Str("Sarasa Mono SC")
+    );
     // target 在 panel 段内唯一
     let mut targets: Vec<&str> = MINIHUD_PANEL_ITEMS.iter().map(|i| i.target).collect();
     let n = targets.len();
@@ -470,20 +737,32 @@ fn build_full_tree_topology_and_geometry() {
     // row4 的 speedBar/throttle) 全部先于 attitude/compass; crosshair 根最后
     assert_eq!(
         render_ids(&built.engine),
-        ["row0", "flap", "row1", "row2", "row3", "row4", "speedBar", "throttle", "attitude", "compass", "crosshair"]
+        [
+            "row0",
+            "flap",
+            "row1",
+            "row2",
+            "row3",
+            "row4",
+            "speedBar",
+            "throttle",
+            "attitude",
+            "compass",
+            "crosshair"
+        ]
     );
     // 逐节点 rect 手算 (单位偏移 ×24 后 (int) 截断, 锚点公式见各注释)
     let expect: [(&str, Rectangle); 11] = [
-        ("row0", Rectangle::with_bounds(50, 84, 40, 20)),       // (2.1,3.5)*24 → (50.4,84)→(50,84)
-        ("flap", Rectangle::with_bounds(50, 62, 40, 20)),       // row0 顶 (50,84)+(-0.1*24=-2.4→-2), 底锚上移 h=20
-        ("row1", Rectangle::with_bounds(50, 106, 40, 20)),      // row0 底 (50,104)+2.4→2
-        ("row2", Rectangle::with_bounds(50, 128, 40, 20)),      // row1 底 (50,126)+2
-        ("attitude", Rectangle::with_bounds(50, 160, 40, 20)),  // row2 右下 (90,148)+0.5*24=12, TOP_RIGHT: x=90-40
-        ("compass", Rectangle::with_bounds(50, 150, 40, 20)),   // (90,148)+2.4→2, TOP_RIGHT
-        ("row3", Rectangle::with_bounds(50, 150, 40, 20)),      // row2 底 (50,148)+2
-        ("row4", Rectangle::with_bounds(50, 172, 40, 20)),      // row3 底 (50,170)+2
-        ("speedBar", Rectangle::with_bounds(3, 172, 40, 20)),   // row4 左下 (50,192)+(-0.3*24=-7.2→-7), BOTTOM_RIGHT: (43-40,192-20)
-        ("throttle", Rectangle::with_bounds(3, 172, 40, 20)),   // 同 speedBar (Java 同位互斥可见)
+        ("row0", Rectangle::with_bounds(50, 84, 40, 20)), // (2.1,3.5)*24 → (50.4,84)→(50,84)
+        ("flap", Rectangle::with_bounds(50, 62, 40, 20)), // row0 顶 (50,84)+(-0.1*24=-2.4→-2), 底锚上移 h=20
+        ("row1", Rectangle::with_bounds(50, 106, 40, 20)), // row0 底 (50,104)+2.4→2
+        ("row2", Rectangle::with_bounds(50, 128, 40, 20)), // row1 底 (50,126)+2
+        ("attitude", Rectangle::with_bounds(50, 160, 40, 20)), // row2 右下 (90,148)+0.5*24=12, TOP_RIGHT: x=90-40
+        ("compass", Rectangle::with_bounds(50, 150, 40, 20)),  // (90,148)+2.4→2, TOP_RIGHT
+        ("row3", Rectangle::with_bounds(50, 150, 40, 20)),     // row2 底 (50,148)+2
+        ("row4", Rectangle::with_bounds(50, 172, 40, 20)),     // row3 底 (50,170)+2
+        ("speedBar", Rectangle::with_bounds(3, 172, 40, 20)), // row4 左下 (50,192)+(-0.3*24=-7.2→-7), BOTTOM_RIGHT: (43-40,192-20)
+        ("throttle", Rectangle::with_bounds(3, 172, 40, 20)), // 同 speedBar (Java 同位互斥可见)
         ("crosshair", Rectangle::with_bounds(560, 90, 40, 20)), // 画布 600x200 MIDDLE_RIGHT (600,100), 自锚减半宽/半高
     ];
     for (id, rect) in expect {
@@ -494,11 +773,21 @@ fn build_full_tree_topology_and_geometry() {
         );
     }
     // crosshair 为根 (父=None)
-    assert!(built.engine.get_node("crosshair").unwrap().get_parent().is_none());
+    assert!(built
+        .engine
+        .get_node("crosshair")
+        .unwrap()
+        .get_parent()
+        .is_none());
     // 内容包围盒 (3,62)~(600,192) → padding 45 自动尺寸
     assert_eq!(
         built.sizing,
-        Some(AutoSizingPlan { new_width: 687, new_height: 220, offset_x: 42, offset_y: -17 })
+        Some(AutoSizingPlan {
+            new_width: 687,
+            new_height: 220,
+            offset_x: 42,
+            offset_y: -17
+        })
     );
 }
 
@@ -514,14 +803,25 @@ fn build_without_crosshair() {
         compass_gauge: vis(40, 20),
         crosshair_gauge: None,
     };
-    let cfg = MiniHudLayoutConfig { display_crosshair: false, ..Default::default() };
+    let cfg = MiniHudLayoutConfig {
+        display_crosshair: false,
+        ..Default::default()
+    };
     let built = build_mihud_layout(&cfg, parts, 300, 200, 24.0);
     assert!(built.engine.get_node("crosshair").is_none());
-    assert_eq!(built.engine.get_node("row0").unwrap().get_pixel_rect(), Rectangle::with_bounds(50, 84, 40, 20));
+    assert_eq!(
+        built.engine.get_node("row0").unwrap().get_pixel_rect(),
+        Rectangle::with_bounds(50, 84, 40, 20)
+    );
     // maxX 回落到 90 (attitude/compass/文本列右缘), 包围盒 (3,62,87,130)
     assert_eq!(
         built.sizing,
-        Some(AutoSizingPlan { new_width: 177, new_height: 220, offset_x: 42, offset_y: -17 })
+        Some(AutoSizingPlan {
+            new_width: 177,
+            new_height: 220,
+            offset_x: 42,
+            offset_y: -17
+        })
     );
 }
 
@@ -539,7 +839,10 @@ fn build_short_rows_variant() {
         compass_gauge: vis(40, 20),
         crosshair_gauge: None,
     };
-    let cfg = MiniHudLayoutConfig { display_crosshair: false, ..Default::default() };
+    let cfg = MiniHudLayoutConfig {
+        display_crosshair: false,
+        ..Default::default()
+    };
     let built = build_mihud_layout(&cfg, parts, 300, 200, 24.0);
     assert_eq!(
         render_ids(&built.engine),
@@ -557,7 +860,12 @@ fn build_short_rows_variant() {
     // 包围盒 (-47,62)~(90,200) → (-47,62,137,138)
     assert_eq!(
         built.sizing,
-        Some(AutoSizingPlan { new_width: 227, new_height: 228, offset_x: 92, offset_y: -17 })
+        Some(AutoSizingPlan {
+            new_width: 227,
+            new_height: 228,
+            offset_x: 92,
+            offset_y: -17
+        })
     );
 }
 

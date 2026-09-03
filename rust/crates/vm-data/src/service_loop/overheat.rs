@@ -16,8 +16,8 @@ impl Service {
     pub(super) fn check_overheat(&mut self, fm: &FMHandle) {
         // 输入快照 (锁外取, §2.8): sState.power[0]/throttle + 温度/轮询周期。
         // power 空数组索引 panic = Java AIOOBE 同构 (run 顶层 catch_unwind 兜住)
-        let (power0, throttle, poll_cycle_duration_ms, nwater_temp, noil_temp) =
-            self.with_snapshot(|d| {
+        let (power0, throttle, poll_cycle_duration_ms, nwater_temp, noil_temp) = self
+            .with_snapshot(|d| {
                 let s = d.s_state.as_ref().unwrap();
                 (
                     s.power[0],
@@ -41,10 +41,7 @@ impl Service {
         //  Java 守卫内 `curLoadMinWorkTime = 99999*1000; return;` 的早退写回收口到
         //  闭包外的 write 段统一落 —— 期间无任何读者 (单写者线程), 语义不变)
         let outcome = (|| -> Option<(i32, i32, f64)> {
-            let mut session = fm
-                .eng_load_state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
+            let mut session = fm.eng_load_state.lock().unwrap_or_else(|e| e.into_inner());
             let (fmdata, p_l) = match (fm.fmdata.as_ref(), session.as_deref_mut()) {
                 (Some(b), Some(p)) => (b, p),
                 // R2 hasFM 守卫（P3 修复 NPE 点）: 旧版 Controller.getBlkx() 可能返回
@@ -146,20 +143,15 @@ impl Service {
     pub(super) fn reset_eng_load(fm: &FMHandle) {
         // R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无耐久数据可重置
         if let Some(fmdata) = &fm.fmdata {
-            let mut session = fm
-                .eng_load_state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
+            let mut session = fm.eng_load_state.lock().unwrap_or_else(|e| e.into_inner());
             // 畸形 FM 在 Java 裸索引即 NPE (resetvaria 调用域由 run 顶层 catch 兜住),
             // expect panic 同构
             let p_l = session
                 .as_deref_mut()
                 .expect("PORT: Java NPE — fmdata.engLoad 为 null");
             for idx in 0..fmdata.max_eng_load {
-                p_l[idx as usize].cur_water_work_time_mili =
-                    p_l[idx as usize].work_time * 1000.0;
-                p_l[idx as usize].cur_oil_work_time_mili =
-                    p_l[idx as usize].work_time * 1000.0;
+                p_l[idx as usize].cur_water_work_time_mili = p_l[idx as usize].work_time * 1000.0;
+                p_l[idx as usize].cur_oil_work_time_mili = p_l[idx as usize].work_time * 1000.0;
             }
         }
     }
@@ -171,13 +163,13 @@ impl Service {
 // =====================================================================
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::{read_data, write_data};
+    use super::*;
     use std::sync::Arc;
-    use vm_core::fm::data::{FmData, EngineLoad};
-    use vm_core::base::bus::EventBus;
-    use vm_core::fm::FMManager;
     use vm_core::base::bus::flight_data_bus::FlightDataBus;
+    use vm_core::base::bus::EventBus;
+    use vm_core::fm::data::{EngineLoad, FmData};
+    use vm_core::fm::FMManager;
 
     use crate::service_loop::ServiceConfig;
 
@@ -192,12 +184,7 @@ mod tests {
     /// 或由参数覆写)。maxEngLoad=2。
     // PORT: Blkx 含 blkx 模块私有字段 → 跨 crate 无法用 struct 字面量 +
     // ..Default::default() (E0451), 走 default() 后逐字段赋值 (tests.rs 同款形态)
-    fn test_fmdata(
-        cur_water0: f64,
-        cur_oil0: f64,
-        cur_water1: f64,
-        cur_oil1: f64,
-    ) -> FmData {
+    fn test_fmdata(cur_water0: f64, cur_oil0: f64, cur_water1: f64, cur_oil1: f64) -> FmData {
         let mk = |water_limit: f64,
                   oil_limit: f64,
                   work_time: f64,
@@ -260,8 +247,7 @@ mod tests {
         assert_eq!(d.cur_load_min_work_time, 59950.0, "minWorkTime 汇聚最小值");
         // blkx 本体保持不可变解析产物 (会话态提升契约)
         assert_eq!(
-            fm.fmdata.as_ref().unwrap().eng_load.as_ref().unwrap()[1]
-                .cur_water_work_time_mili,
+            fm.fmdata.as_ref().unwrap().eng_load.as_ref().unwrap()[1].cur_water_work_time_mili,
             60000.0
         );
     }
@@ -303,12 +289,18 @@ mod tests {
         svc.check_overheat(&fm);
 
         let p = session(&fm);
-        assert_eq!(p[0].cur_water_work_time_mili, 300000.0, "关机回满 WorkTime*1000");
+        assert_eq!(
+            p[0].cur_water_work_time_mili, 300000.0,
+            "关机回满 WorkTime*1000"
+        );
         assert_eq!(p[0].cur_oil_work_time_mili, 300000.0);
         assert_eq!(p[1].cur_water_work_time_mili, 60000.0);
         assert_eq!(p[1].cur_oil_work_time_mili, 60000.0);
         let d = read_data(&svc.data);
-        assert_eq!(d.cur_load_min_work_time, 99999000.0, "回满分支不进 minWorkTime");
+        assert_eq!(
+            d.cur_load_min_work_time, 99999000.0,
+            "回满分支不进 minWorkTime"
+        );
     }
 
     /// 场景 C 分流: engOff 但 curWLoad>0 且上一档 WorkTime>=0.1 → 不回满,
@@ -344,7 +336,10 @@ mod tests {
         svc.check_overheat(&fm);
 
         let d = read_data(&svc.data);
-        assert_eq!(d.cur_load_min_work_time, 99999000.0, "哨兵 → sEngWorkTime 显示 \"-\"");
+        assert_eq!(
+            d.cur_load_min_work_time, 99999000.0,
+            "哨兵 → sEngWorkTime 显示 \"-\""
+        );
         // 会话态未被触碰
         assert!(fm.eng_load_state.lock().unwrap().is_none());
     }

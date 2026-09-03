@@ -67,7 +67,11 @@ fn cas_guard_blocks_click_while_processing() {
     // 模拟"上一次点击尚未处理完" (标志被占)
     TRAY_CLICK_PROCESSING.store(true, Ordering::SeqCst);
     dispatch_activate();
-    assert_eq!(counts.activate.load(Ordering::SeqCst), 0, "占用期点击必须被忽略");
+    assert_eq!(
+        counts.activate.load(Ordering::SeqCst),
+        0,
+        "占用期点击必须被忽略"
+    );
     // 释放后恢复受理
     TRAY_CLICK_PROCESSING.store(false, Ordering::SeqCst);
     dispatch_activate();
@@ -160,8 +164,7 @@ fn icon_load_missing_file_errs() {
 /// 通道数不符若放行会按 4B/px 错位解析 (花屏), 报错走 IDI_APPLICATION 回退
 #[test]
 fn icon_rejects_non_rgba_png() {
-    let path =
-        std::env::temp_dir().join(format!("voidmei_tray_rgb8_{}.png", std::process::id()));
+    let path = std::env::temp_dir().join(format!("voidmei_tray_rgb8_{}.png", std::process::id()));
     let file = std::fs::File::create(&path).expect("建临时 PNG");
     let mut enc = png::Encoder::new(std::io::BufWriter::new(file), 4, 4);
     enc.set_color(png::ColorType::Rgb);
@@ -219,10 +222,7 @@ fn second_tray_instance_rejected() {
         },
     )
     .expect("首个托盘创建失败");
-    let r2 = TrayIcon::new(
-        Box::new(Recorder::default_counts()),
-        TrayConfig::default(),
-    );
+    let r2 = TrayIcon::new(Box::new(Recorder::default_counts()), TrayConfig::default());
     assert!(r2.is_err(), "进程内第二个托盘必须被拒绝");
     drop(t1);
     // 首个 Drop 后可重建

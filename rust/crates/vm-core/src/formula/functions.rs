@@ -5,6 +5,7 @@
 
 use crate::base::atmosphere_model;
 use crate::base::interpolation;
+use crate::base::string_helper::F_INVALID;
 use std::sync::Arc;
 
 /// 求值期的值类型: 数值 (bool 以 0.0/1.0 编码) 或命名表 (不透明, 仅插值函数实参)
@@ -179,8 +180,16 @@ pub fn fn_name(fid: FnId) -> &'static str {
 pub fn arity(fid: FnId) -> (usize, usize) {
     match fid {
         FnId::Min | FnId::Max => (2, usize::MAX),
-        FnId::Abs | FnId::Sqrt | FnId::Sin | FnId::Cos | FnId::Exp | FnId::Ln | FnId::Floor
-        | FnId::Ceil | FnId::IsValid | FnId::IsNan => (1, 1),
+        FnId::Abs
+        | FnId::Sqrt
+        | FnId::Sin
+        | FnId::Cos
+        | FnId::Exp
+        | FnId::Ln
+        | FnId::Floor
+        | FnId::Ceil
+        | FnId::IsValid
+        | FnId::IsNan => (1, 1),
         FnId::Na => (0, 0),
         FnId::Atan2 | FnId::Round => (2, 2),
         FnId::Clamp => (3, 3),
@@ -208,7 +217,11 @@ pub fn arity(fid: FnId) -> (usize, usize) {
 pub fn is_ctx_fn(fid: FnId) -> bool {
     matches!(
         fid,
-        FnId::FmVne | FnId::FmMne | FnId::FmAoaHigh | FnId::FmFlapAllowSpeed | FnId::FmFlapAllowAngle
+        FnId::FmVne
+            | FnId::FmMne
+            | FnId::FmAoaHigh
+            | FnId::FmFlapAllowSpeed
+            | FnId::FmFlapAllowAngle
     )
 }
 
@@ -216,7 +229,13 @@ pub fn is_ctx_fn(fid: FnId) -> bool {
 pub fn is_stateful(fid: FnId) -> bool {
     matches!(
         fid,
-        FnId::Sma | FnId::Prev | FnId::Blend | FnId::Deriv | FnId::Vote | FnId::Stable | FnId::LearnMax
+        FnId::Sma
+            | FnId::Prev
+            | FnId::Blend
+            | FnId::Deriv
+            | FnId::Vote
+            | FnId::Stable
+            | FnId::LearnMax
             | FnId::Latch
     )
 }
@@ -237,7 +256,48 @@ macro_rules! fn_id_codec {
         }
     };
 }
-fn_id_codec!(Abs, Min, Max, Sqrt, Sin, Cos, Atan2, Exp, Ln, Floor, Ceil, Round, Clamp, IsValid, Na, IsNan, Lerp, Interp1d, Interp1dEx, Interp2d, IsaPressure, IsaDensity, IsaTemp, IasToTas, TasToIas, IasPerMach, Invalid, FmVne, FmMne, FmAoaHigh, FmFlapAllowSpeed, FmFlapAllowAngle, Sma, Prev, Blend, Deriv, Vote, Stable, LearnMax, Latch);
+fn_id_codec!(
+    Abs,
+    Min,
+    Max,
+    Sqrt,
+    Sin,
+    Cos,
+    Atan2,
+    Exp,
+    Ln,
+    Floor,
+    Ceil,
+    Round,
+    Clamp,
+    IsValid,
+    Na,
+    IsNan,
+    Lerp,
+    Interp1d,
+    Interp1dEx,
+    Interp2d,
+    IsaPressure,
+    IsaDensity,
+    IsaTemp,
+    IasToTas,
+    TasToIas,
+    IasPerMach,
+    Invalid,
+    FmVne,
+    FmMne,
+    FmAoaHigh,
+    FmFlapAllowSpeed,
+    FmFlapAllowAngle,
+    Sma,
+    Prev,
+    Blend,
+    Deriv,
+    Vote,
+    Stable,
+    LearnMax,
+    Latch
+);
 /// 表实参取引用; 数值实参 → None (类型错误, 上层 NaN)
 fn tbl(v: &Value) -> Option<&Arc<Vec<f64>>> {
     match v {
@@ -246,18 +306,17 @@ fn tbl(v: &Value) -> Option<&Arc<Vec<f64>>> {
     }
 }
 
-/// F_INVALID 哨兵 (parser/state.rs 全域约定, 公式侧同一约定)
-const F_INVALID: f64 = -65535.0;
-
 /// 纯函数求值 (arity 已由编译期检查; 状态原语不走这里)
 pub fn eval_pure(fid: FnId, args: &[Value]) -> Value {
     use FnId as F;
     // 数值实参统一收集 (Table 混入会变 NaN, 由 num() 语义隔离)
-    let nums: Vec<f64> = args.iter().map(|v| match v {
-        Value::Num(x) => *x,
-        Value::Table(_) => f64::NAN,
-    })
-    .collect();
+    let nums: Vec<f64> = args
+        .iter()
+        .map(|v| match v {
+            Value::Num(x) => *x,
+            Value::Table(_) => f64::NAN,
+        })
+        .collect();
     let v = match fid {
         F::Abs => nums[0].abs(),
         F::Min => nums.iter().cloned().fold(f64::INFINITY, f64::min),
@@ -288,7 +347,9 @@ pub fn eval_pure(fid: FnId, args: &[Value]) -> Value {
             }
         }
         F::Interp1dEx => match (tbl(&args[1]), tbl(&args[2])) {
-            (Some(xs), Some(ys)) => interpolation::interp1d_extrapolate(nums[0], xs, ys, nums[3] != 0.0),
+            (Some(xs), Some(ys)) => {
+                interpolation::interp1d_extrapolate(nums[0], xs, ys, nums[3] != 0.0)
+            }
             _ => f64::NAN,
         },
         F::Interp2d => {
@@ -308,8 +369,19 @@ pub fn eval_pure(fid: FnId, args: &[Value]) -> Value {
             3.6 * (1.4 / 1.225 * 101325.0 * (1.0 - 0.0000225577 * h).powf(5.25588)).sqrt()
         }
         // 状态原语/FM 查表不由本函数处理 (编译期已分流); 防御性兜底 NaN
-        F::Sma | F::Prev | F::Blend | F::Deriv | F::Vote | F::Stable | F::LearnMax | F::Latch
-        | F::FmVne | F::FmMne | F::FmAoaHigh | F::FmFlapAllowSpeed | F::FmFlapAllowAngle => f64::NAN,
+        F::Sma
+        | F::Prev
+        | F::Blend
+        | F::Deriv
+        | F::Vote
+        | F::Stable
+        | F::LearnMax
+        | F::Latch
+        | F::FmVne
+        | F::FmMne
+        | F::FmAoaHigh
+        | F::FmFlapAllowSpeed
+        | F::FmFlapAllowAngle => f64::NAN,
         F::Invalid => f64::NAN,
     };
     Value::Num(v)

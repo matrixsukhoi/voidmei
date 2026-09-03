@@ -6,20 +6,20 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use vm_core::base::bus::Subscription;
-use vm_core::config::config_api::ConfigProvider;
-use vm_core::config::configuration_service::ConfigurationService;
 use crate::controller_state::ControllerState;
+use vm_core::audio::voice_resource_manager::VoiceResourceManager;
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
+use vm_core::base::bus::Subscription;
 use vm_core::base::event::flight_data_event::FlightDataEvent;
 use vm_core::base::event::ui_state_events;
-use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::base::logger;
+use vm_core::config::config_api::ConfigProvider;
+use vm_core::config::configuration_service::ConfigurationService;
 use vm_core::derived::flight_log::FlightLogSlot;
 use vm_core::fm::{FMManager, FMStatus};
-use vm_core::telemetry::http::HttpHelper;
 use vm_core::lang::Lang;
-use vm_core::base::logger;
-use vm_core::base::bus::ui_state_bus::UIStateBus;
-use vm_core::audio::voice_resource_manager::VoiceResourceManager;
+use vm_core::telemetry::http::HttpHelper;
 
 use vm_data::service_loop::{
     flight_log_snapshot, start as spawn_service_thread, Service, ServiceAnalyzerSource,
@@ -32,8 +32,8 @@ use vm_overlay::platform::hotkey::{HotkeyManager, VC_P};
 use crate::commands::{MainEvent, UiCommand};
 use crate::controller_shared::{ControllerShared, FLIGHT_SILENT_EXIT_MS};
 use crate::env::Env;
-use crate::voice_setup::SnapshotConfigProvider;
 use crate::render_thread::ChannelFocusBridge;
+use crate::voice_setup::SnapshotConfigProvider;
 
 // =====================================================================
 // FlightLog 接线辅助 (openpad/closepad 的依赖注入面)
@@ -100,7 +100,7 @@ pub struct Controller {
     pub(crate) flight_log: FlightLogSlot,
     /// Service 线程句柄 (stop 步4: take + stop)
     pub service: Option<ServiceHandle>,
-    /// Java `public MainForm M` 的存活位 (真窗归主线程 iced/W2; 此处只承载 null 判定)
+    /// Java `public MainForm M` 的存活位 (真窗归主线程 web 壳; 此处只承载 null 判定)
     pub(crate) main_form_alive: bool,
     /// 网络探测开关 (ControllerDeps.probe_network, 测试注入面)
     probe_network: bool,
@@ -165,7 +165,9 @@ impl Controller {
         c.subs.push(ui_bus.subscribe(
             ui_state_events::CONFIG_CHANGED,
             move |ev: &vm_core::base::bus::ui_state_bus::UiStateEvent| {
-                let _ = tx.send(MainEvent::ConfigChanged(ev.data.clone().unwrap_or_default()));
+                let _ = tx.send(MainEvent::ConfigChanged(
+                    ev.data.clone().unwrap_or_default(),
+                ));
             },
         ));
         let tx = main_event_tx.clone();
@@ -191,7 +193,6 @@ impl Controller {
                 corrupt: false,
             });
         }));
-
 
         let auto_start = if is_initial_launch {
             java_parse_boolean(&c.config.get_config("autoStartGameMode").unwrap_or_default())
@@ -253,7 +254,10 @@ impl Controller {
             .name("FM-Detect".to_string())
             .spawn(move || detect_and_identify(&selected, &http_header, &fm, probe))
         {
-            logger::error("Controller", &format!("FM-Detect 线程创建失败, 跳过: {}", e));
+            logger::error(
+                "Controller",
+                &format!("FM-Detect 线程创建失败, 跳过: {}", e),
+            );
         }
     }
 
@@ -277,10 +281,7 @@ impl Controller {
                 hm.unbind(flags.current_fm_hotkey_code);
                 logger::info(
                     "Controller",
-                    &format!(
-                        "Unbound old FM hotkey: {}",
-                        flags.current_fm_hotkey_code
-                    ),
+                    &format!("Unbound old FM hotkey: {}", flags.current_fm_hotkey_code),
                 );
             }
             if enable && new_code != 0 {
@@ -308,16 +309,25 @@ impl Controller {
         // Service (旧句柄 Drop 兜底 = 会话重启中断)。Java 无托盘 Start 入口故无
         // 此形态; 此处以"Service 已在跑"为幂等条件丢弃, 保留首次会话。
         if self.service.is_some() {
-            logger::info("Controller", "Service 已在运行, 忽略重复 start (托盘 Start 与确认叠加)");
+            logger::info(
+                "Controller",
+                "Service 已在运行, 忽略重复 start (托盘 Start 与确认叠加)",
+            );
             return;
         }
         if self.main_form_alive {
             release_main_form();
             self.main_form_alive = false;
         }
-        logger::info("Controller", "--------------------------------------------------");
+        logger::info(
+            "Controller",
+            "--------------------------------------------------",
+        );
         logger::info("Controller", "ACTION: Starting Game Mode Services...");
-        logger::info("Controller", "--------------------------------------------------");
+        logger::info(
+            "Controller",
+            "--------------------------------------------------",
+        );
         // (MAX_PRIORITY 不可移植 — service_loop.rs 同注)
         let interval = self
             .shared
@@ -341,7 +351,11 @@ impl Controller {
                 // load_app_check 缺省 50; 字段 0 = 未跑过 loadFromConfig 的防御回退
                 service_loop_interval_ms: if interval > 0 { interval } else { 50 },
                 // 白盒 CLI 覆盖 > cfg httpPort 键 > Lang 启动值 (见 Env.port_override 注)
-                app_port: self.env.port_override.or(cfg_port).unwrap_or(self.env.app_port),
+                app_port: self
+                    .env
+                    .port_override
+                    .or(cfg_port)
+                    .unwrap_or(self.env.app_port),
                 http_header: self.env.http_header.clone(),
             },
             Arc::clone(&self.fm),
@@ -368,7 +382,11 @@ impl Controller {
             fm.set_enabled(auto_hide);
             logger::info(
                 "Controller",
-                if auto_hide { "焦点监控已启用 (随 Service 装配)" } else { "焦点监控未启用 (autoHideOnFocusLoss=false)" },
+                if auto_hide {
+                    "焦点监控已启用 (随 Service 装配)"
+                } else {
+                    "焦点监控未启用 (autoHideOnFocusLoss=false)"
+                },
             );
             service.set_focus_monitor(fm);
         }
@@ -397,7 +415,7 @@ impl Controller {
     }
 
     /// Controller 五步销毁 (对位 Java stop(), LIFETIMES §4.2 规范)。
-    /// 顺序逐字保留; 步3 释放设置窗经注入闭包 (MainForm 归主线程 iced, W2 接线)。
+    /// 顺序逐字保留; 步3 释放设置窗经注入闭包 (MainForm 归主线程 web 壳, 组装层接线)。
     pub fn stop(&mut self, release_main_form: &mut dyn FnMut()) {
         // 1. 先关闭所有 overlay (预览/游戏模式) — 必须在 dispose MainForm 之前
         //    (previewGeneration++ 作废在途回调)
@@ -572,7 +590,9 @@ impl Controller {
         logger::info("Controller", Lang::init_lang().c_startlog);
         // 与 Java 同时刻从 live ServiceData 取快照。Service 缺失 = 测试 fixture
         // 手塞 live 绕过 start() 的专有形态 (Java 轮询链 openpad 必有 S), 跳过
-        let Some(handle) = self.service.as_ref() else { return };
+        let Some(handle) = self.service.as_ref() else {
+            return;
+        };
         let data = Arc::clone(&handle.data);
         let snap = flight_log_snapshot(&data.read().unwrap_or_else(|e| e.into_inner()));
         // 修 (批3裁决, 运行期兜底): records/ 相对 CWD 硬编码, 目录缺失时 init 的
@@ -594,7 +614,8 @@ impl Controller {
                 "enableAltInformation",
                 self.config.get_config("enableAltInformation"),
             )]))),
-            Arc::new(|t: &str| logger::info("FlightLog", t)) as vm_core::derived::flight_log::NotifySink,
+            Arc::new(|t: &str| logger::info("FlightLog", t))
+                as vm_core::derived::flight_log::NotifySink,
             Arc::new(ServiceAnalyzerSource::new(data)),
         );
         // 注: init 失败路径的 xc.logon=false 被 Java openpad
@@ -610,11 +631,7 @@ impl Controller {
         if !java_parse_boolean(&self.config.get_config("enableLogging").unwrap_or_default()) {
             return;
         }
-        let log = self
-            .flight_log
-            .lock()
-            .expect("flight_log 槽锁中毒")
-            .take();
+        let log = self.flight_log.lock().expect("flight_log 槽锁中毒").take();
         let Some(log) = log else { return };
         let mut log = log.lock().expect("flight_log 实例锁中毒");
         // toast 未移植 (豁免), logger 顶位
@@ -627,8 +644,7 @@ impl Controller {
         // Log.close() 的 NPE 逃逸 closepad 时, 由 Service 轮询线程顶层 catch(Exception)
         // 吞掉 — 本方法在主线程 (pump) 无该兜底, catch_unwind
         // 复刻 "崩方法不崩应用" 的 Java 净效果
-        if let Err(payload) =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| log.close()))
+        if let Err(payload) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| log.close()))
         {
             let msg = if let Some(s) = payload.downcast_ref::<String>() {
                 s.clone()
@@ -733,7 +749,8 @@ impl Controller {
         // last=0 视为非静默 (flags 真值必经串非空轮, 该轮 player_live 置真即同轮
         // 发布事件, 竞态窗口远小于阈值; 保守侧防首轮误判)。
         let last = self.shared.last_flight_event_ms.load(Ordering::SeqCst);
-        let silent = last != 0 && current_time_millis().saturating_sub(last) > FLIGHT_SILENT_EXIT_MS;
+        let silent =
+            last != 0 && current_time_millis().saturating_sub(last) > FLIGHT_SILENT_EXIT_MS;
         if silent && s_flag && i_flag && player_live {
             self.s4to_s1();
             return;

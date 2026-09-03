@@ -1,22 +1,25 @@
-//! Java `String.format` printf 引擎 — 全库唯一真相 (Lang 模板域)。
+//! Java `String.format` printf 引擎 — 全库唯一真相 (Lang 模板域 +
+//! fm/data/reader 的 fmdata 摘要串域, 两域引擎已合一)。
 //!
-//! 支持的格式子集: `%s` / `%d` / `%.0f`~`%.9f` / `%%` (语言模板的全部位点)。
+//! 支持的格式子集: `%s` / `%d` / `%f`/`%.0f`~`%.9f` / `%%`。
+//! 宽度域 (`%3d` 形态) 域内模板未用 — 解析时跳过、不填充; `%f` 缺省精度 6
+//! (Java Formatter 同), 两条语义自 reader 版汇入。
 //!
 //! 与 base::format 其他函数的关系:
-//! - 数值段 `%.Nf` 直接复用 [`super::java_f`] (同一算法: 对最短往返十进制表示
+//! - 数值段 `%f` 直接复用 [`super::java_f`] (同一算法: 对最短往返十进制表示
 //!   做 HALF_UP, Java 8 oracle 实证), [`java_format_f`] 是其 u8 精度薄包装;
-//! - 宽度与符号标志不在本子集内, 由同模块姊妹函数承担, 需要时调用方组合:
-//!   `%Ns` 宽度 → [`super::pad_width`], `%0Nd` 零填充 → [`super::java_d0`],
+//! - 宽度填充与符号标志不在扫描器子集内, 由同模块姊妹函数承担, 需要时调用方
+//!   组合: `%Ns` 宽度 → [`super::pad_width`], `%0Nd` 零填充 → [`super::java_d0`],
 //!   `%+.Nf` 强制正号 → [`super::java_f_plus`]。
 
-/// printf 实参 (Lang 模板传入的三类占位)。
+/// printf 实参 (Lang 模板与 fmdata 摘要串两类占位)。
 #[derive(Clone, Copy, Debug)]
 pub enum FmtArg<'a> {
     /// %s — null 实参以 "null" 文本呈现 (Java Formatter 行为)
     S(&'a str),
     /// %d — 十进制序号 (i32)
     D(i32),
-    /// %.Nf — 精度由模板解析
+    /// %f/`%.Nf` — 精度由模板解析 (缺省 6)
     F(f64),
 }
 
@@ -43,12 +46,27 @@ pub fn java_string_format(template: &str, args: &[FmtArg]) -> String {
             out.push_str(&template[start..i]);
             continue;
         }
-        // '%' 分发
-        let next = bytes.get(i + 1).copied();
-        match next {
+        // '%' 转换: [宽度数字] ('.'精度)? 转换符。
+        // 宽度域域内模板未用 — 跳过不填充; '%f' 缺省精度 6 (Java Formatter 同)。
+        let mut j = i + 1;
+        while j < bytes.len() && bytes[j].is_ascii_digit() {
+            j += 1;
+        }
+        let mut prec: u32 = 6;
+        if j < bytes.len() && bytes[j] == b'.' {
+            j += 1;
+            let mut p: u32 = 0;
+            while j < bytes.len() && bytes[j].is_ascii_digit() {
+                p = p * 10 + u32::from(bytes[j] - b'0');
+                j += 1;
+            }
+            prec = p;
+        }
+        let conv = bytes.get(j).copied();
+        match conv {
             Some(b'%') => {
-                out.push('%'); // %% → 字面 %
-                i += 2;
+                out.push('%'); // %% → 字面 % (不消耗实参)
+                i = j + 1;
             }
             Some(b's') | Some(b'd') => {
                 let arg = args.get(arg_i).unwrap_or_else(|| {
@@ -56,7 +74,7 @@ pub fn java_string_format(template: &str, args: &[FmtArg]) -> String {
                 });
                 arg_i += 1;
                 match *arg {
-                    FmtArg::S(s) => match next {
+                    FmtArg::S(s) => match conv {
                         Some(b's') => out.push_str(s),
                         _ => panic!(
                             "String.format %d 收到字符串实参 (IllegalFormatConversionException): {template:?}"
@@ -64,7 +82,7 @@ pub fn java_string_format(template: &str, args: &[FmtArg]) -> String {
                     },
                     // Integer 的 %s/%d 位点 Java 均合法 (toString / 十进制)
                     FmtArg::D(v) => out.push_str(&v.to_string()),
-                    FmtArg::F(_) => match next {
+                    FmtArg::F(_) => match conv {
                         Some(b'd') => panic!(
                             "String.format %d 收到浮点实参 (IllegalFormatConversionException): {template:?}"
                         ),
@@ -72,23 +90,16 @@ pub fn java_string_format(template: &str, args: &[FmtArg]) -> String {
                         _ => panic!("模板 %s 位点收到数值实参 (域外防御): {template:?}"),
                     },
                 }
-                i += 2;
+                i = j + 1;
             }
-            Some(b'.') => {
-                // %.Nf
-                let mut j = i + 2;
-                let mut prec: u32 = 0;
-                while j < bytes.len() && bytes[j].is_ascii_digit() {
-                    prec = prec * 10 + u32::from(bytes[j] - b'0');
-                    j += 1;
-                }
-                if j >= bytes.len() || bytes[j] != b'f' {
-                    panic!("String.format 未支持的转换符: {template:?} @ {i}");
-                }
+            Some(b'f') => {
                 // PORT: Java BigDecimal 任意精度合法, 本实现 u128 尾数累加上界 ≤9
                 // (下方 as u8 截断与 10u128.pow 回绕均在此拦截); 超域仅模板漂移
                 // 可达 → debug 断言, release 不引入 Java 没有的崩溃
-                debug_assert!(prec <= 9, "String.format 精度超域 (.{prec}f > .9f): {template:?}");
+                debug_assert!(
+                    prec <= 9,
+                    "String.format 精度超域 (.{prec}f > .9f): {template:?}"
+                );
                 let arg = args.get(arg_i).unwrap_or_else(|| {
                     panic!("String.format 实参不足: {template:?} 第 {arg_i} 个占位")
                 });

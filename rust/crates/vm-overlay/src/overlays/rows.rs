@@ -14,8 +14,8 @@
 //! // PORT: Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
 //! 由 preferred_size 实现覆盖, 不单独建 trait —— Rust 侧该接口无第二实现需求。
 
-use crate::render::primitives::{self, draw_h_rect};
 use crate::render::palette::colors;
+use crate::render::primitives::{self, draw_h_rect};
 use vm_core::derived::hud_data::HUDData;
 
 use crate::render::font::LoadedFont;

@@ -30,7 +30,13 @@ fn apply_switch_falls_back_to_row_value() {
     let row = row_by_path(&panel.rows, &[0]).unwrap();
     assert_eq!(row.value, Some(ConfigValue::Bool(false)));
     // write_bool 总同步服务 (RendererConfigHelper.java:127-134)
-    assert_eq!(*ctx.calls.borrow(), vec!["sync:crosshairSwitch=false".to_string(), "on_save".to_string()]);
+    assert_eq!(
+        *ctx.calls.borrow(),
+        vec![
+            "sync:crosshairSwitch=false".to_string(),
+            "on_save".to_string()
+        ]
+    );
 }
 
 // SWITCH_INV 写回: 显示 true → 存 false; row.value=显示值 (Java L33-38)
@@ -58,7 +64,11 @@ fn apply_switch_binds_group_field() {
 
     apply(&mut panel, "visible", true, &ctx);
     assert!(panel.visible, "PropertyBinder 写组字段 visible");
-    assert_eq!(panel.rows[0].value, Some(ConfigValue::Bool(false)), "绑定成功不回落 row.value");
+    assert_eq!(
+        panel.rows[0].value,
+        Some(ConfigValue::Bool(false)),
+        "绑定成功不回落 row.value"
+    );
 }
 
 // 未命中 key: 无副作用无 panic (消息域外防护, Java 闭包捕获无此面)
@@ -86,7 +96,11 @@ fn toggle_message_routes_data_write_chain() {
     );
     update(
         &mut state,
-        Message::Toggle { panel: "数据".into(), key: "getIAS".into(), value: false },
+        Message::Toggle {
+            panel: "数据".into(),
+            key: "getIAS".into(),
+            value: false,
+        },
     );
     assert_eq!(state.service_string("getIAS"), "false");
     // 服务树行值 Bool(false) (setConfig instanceof Boolean 分支), mirror 回快照
@@ -106,11 +120,19 @@ fn toggle_message_routes_data_on() {
     );
     update(
         &mut state,
-        Message::Toggle { panel: "数据".into(), key: "getMach".into(), value: false },
+        Message::Toggle {
+            panel: "数据".into(),
+            key: "getMach".into(),
+            value: false,
+        },
     );
     update(
         &mut state,
-        Message::Toggle { panel: "数据".into(), key: "getMach".into(), value: true },
+        Message::Toggle {
+            panel: "数据".into(),
+            key: "getMach".into(),
+            value: true,
+        },
     );
     assert_eq!(state.service_string("getMach"), "true");
     assert!(state.snapshot_row("数据", "getMach").unwrap().get_bool());

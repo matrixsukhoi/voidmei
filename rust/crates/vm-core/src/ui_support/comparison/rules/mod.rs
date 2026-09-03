@@ -21,8 +21,8 @@ pub use simple_rule::SimpleRule;
 // 均无注释; LIST_PATTERN 各有一条, 见 find_bracket_list /
 // find_all_bracket_lists 处。
 
-use crate::telemetry::parser::char_len_at;
 use crate::base::java_compat::java_trim;
+use crate::telemetry::parser::char_len_at;
 
 /// Java 正则 `\d`: [0-9] (无 UNICODE_CHARACTER_CLASS 标志的 ASCII 定义)。
 /// UTF-8 多字节字符的首/续字节均 ≥ 0x80, 不会被误判为数字。

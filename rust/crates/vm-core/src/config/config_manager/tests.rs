@@ -21,7 +21,10 @@ fn md5_rfc1321_test_vectors() {
         ("a", "0cc175b9c0f1b6a831c399e269772661"),
         ("abc", "900150983cd24fb0d6963f7d28e17f72"),
         ("message digest", "f96b697d7cb7938d525a2f31aaf161d0"),
-        ("abcdefghijklmnopqrstuvwxyz", "c3fcd3d76192e4007dfb496cca67e13b"),
+        (
+            "abcdefghijklmnopqrstuvwxyz",
+            "c3fcd3d76192e4007dfb496cca67e13b",
+        ),
         (
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
             "d174ab98d277d9f5a5611c2c9f419d9f",
@@ -46,7 +49,10 @@ fn tmp(name: &str) -> String {
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
     std::env::temp_dir()
-        .join(format!("vm_core_config_manager_{name}_{}_{n}", std::process::id()))
+        .join(format!(
+            "vm_core_config_manager_{name}_{}_{n}",
+            std::process::id()
+        ))
         .to_str()
         .unwrap()
         .to_string()
@@ -56,7 +62,10 @@ fn tmp(name: &str) -> String {
 fn calculate_file_hash_reads_file_and_missing_returns_none() {
     let p = tmp("hash_ok.cfg");
     fs::write(&p, "abc").unwrap();
-    assert_eq!(calculate_file_hash(&p).as_deref(), Some("900150983cd24fb0d6963f7d28e17f72"));
+    assert_eq!(
+        calculate_file_hash(&p).as_deref(),
+        Some("900150983cd24fb0d6963f7d28e17f72")
+    );
     let missing = tmp("hash_missing.cfg");
     let _ = fs::remove_file(&missing);
     assert_eq!(calculate_file_hash(&missing), None);
@@ -98,16 +107,28 @@ fn merge_row_field_sources_double_checkpoint() {
     assert!(row.hide_when_zero, "对撞: 模板 true vs 用户 false → 取模板");
     assert_eq!(row.precision, 2);
     assert_eq!(row.target_name.as_deref(), Some("表压"));
-    assert_eq!(row.min_val, 1, "对撞: 模板 1 vs 用户 77 → 取模板 (滑块范围模板定义)");
+    assert_eq!(
+        row.min_val, 1,
+        "对撞: 模板 1 vs 用户 77 → 取模板 (滑块范围模板定义)"
+    );
     assert_eq!(row.max_val, 9, "对撞: 模板 9 vs 用户 88 → 取模板");
-    assert_eq!(row.group_columns, 0, "item 无 :column 解析面 → 声明默认 (group 级对撞另测)");
+    assert_eq!(
+        row.group_columns, 0,
+        "item 无 :column 解析面 → 声明默认 (group 级对撞另测)"
+    );
     assert_eq!(row.fg_color.as_deref(), Some("1,2,3,4"));
     assert_eq!(row.default_value, Some(ConfigValue::Bool(true)));
     assert_eq!(row.unit_source.as_deref(), Some("getU"));
     assert_eq!(row.precision_source.as_deref(), Some("getP"));
     // SExp Display 形态 (config_loader 写回同款)
-    assert_eq!(row.visible_when.as_ref().map(|e| e.to_string()), Some("(> value 0)".to_string()));
-    assert_eq!(row.na_when.as_ref().map(|e| e.to_string()), Some("(> value 9999)".to_string()));
+    assert_eq!(
+        row.visible_when.as_ref().map(|e| e.to_string()),
+        Some("(> value 0)".to_string())
+    );
+    assert_eq!(
+        row.na_when.as_ref().map(|e| e.to_string()),
+        Some("(> value 9999)".to_string())
+    );
     // --- 用户来源 ---
     assert_eq!(row.value, Some(ConfigValue::Bool(false)));
 }
@@ -120,7 +141,11 @@ fn merge_row_unit_source_regression_2e53f94() {
     let user = load_str_cfg("reg_u.cfg", USR_RICH); // 无 unit-source/precision-source/visible-when/na-when
     let merged = merge_configs_no_report(&template, &user);
     let row = &merged[0].rows[0];
-    assert_eq!(row.unit_source.as_deref(), Some("getU"), "unitSource 必须取模板");
+    assert_eq!(
+        row.unit_source.as_deref(),
+        Some("getU"),
+        "unitSource 必须取模板"
+    );
     assert_eq!(row.precision_source.as_deref(), Some("getP"));
     assert!(row.visible_when.is_some(), "visibleWhen 必须取模板");
     assert!(row.na_when.is_some(), "naWhen 必须取模板");
@@ -140,7 +165,10 @@ fn merge_row_children_recursive_with_report() {
     assert_eq!(merged[0].rows.len(), 2);
     let group = &merged[0].rows[0];
     assert_eq!(group.r#type, "HEADER");
-    assert_eq!(group.group_columns, 2, "对撞: 模板 :column 2 vs 用户 5 → 取模板");
+    assert_eq!(
+        group.group_columns, 2,
+        "对撞: 模板 :column 2 vs 用户 5 → 取模板"
+    );
     assert_eq!(group.children.len(), 2);
     // 子行: 用户值保留 / 模板新增项
     assert_eq!(group.children[0].value, Some(ConfigValue::Bool(false)));
@@ -157,13 +185,22 @@ fn merge_row_children_recursive_with_report() {
 #[test]
 fn merge_configs_row_map_flattens_nested_user_children() {
     let tpl = "(panel \"P\" (item \"顶\" :type switch :target \"k1\" :value true))\n";
-    let usr = "(panel \"P\" (group \"G\" (item \"藏\" :type switch :target \"k1\" :value false)))\n";
+    let usr =
+        "(panel \"P\" (group \"G\" (item \"藏\" :type switch :target \"k1\" :value false)))\n";
     let template = load_str_cfg("flat_t.cfg", tpl);
     let user = load_str_cfg("flat_u.cfg", usr);
     let merged = merge_configs_no_report(&template, &user);
-    assert_eq!(merged[0].rows.len(), 1, "用户独有 group 行应被丢弃 (模板驱动结构)");
+    assert_eq!(
+        merged[0].rows.len(),
+        1,
+        "用户独有 group 行应被丢弃 (模板驱动结构)"
+    );
     assert_eq!(merged[0].rows[0].label, "顶");
-    assert_eq!(merged[0].rows[0].value, Some(ConfigValue::Bool(false)), "值应取自嵌套用户子行");
+    assert_eq!(
+        merged[0].rows[0].value,
+        Some(ConfigValue::Bool(false)),
+        "值应取自嵌套用户子行"
+    );
 }
 
 /// 重复键后写覆盖 (Java HashMap.put 后者胜)
@@ -186,7 +223,11 @@ fn merge_configs_keyless_rows_skip_tracking() {
     let user = load_str_cfg("nokey_u.cfg", usr);
     let mut report = MergeReport::default();
     let merged = merge_configs(&template, &user, Some(&mut report));
-    assert_eq!(merged[0].rows[0].value, Some(ConfigValue::Int(7)), "无键行应取模板原值");
+    assert_eq!(
+        merged[0].rows[0].value,
+        Some(ConfigValue::Int(7)),
+        "无键行应取模板原值"
+    );
     assert!(!report.has_changes());
 }
 
@@ -229,11 +270,17 @@ fn merge_configs_new_panel_reported_user_panel_dropped() {
     assert_eq!(merged.len(), 2, "输出面板集合 = 模板面板集合");
     assert_eq!(merged[0].title, "A");
     assert_eq!(merged[1].title, "B");
-    assert!(merged.iter().all(|g| g.title != "C"), "用户独有面板 C 应被丢弃");
+    assert!(
+        merged.iter().all(|g| g.title != "C"),
+        "用户独有面板 C 应被丢弃"
+    );
     assert_eq!(report.added_panels, vec!["B".to_string()]);
     // — 面板内新项不进 addedItems (报告只记面板级); 新项报告仅发生在
     // 既有面板内 (见 merge_row_children_recursive_with_report)
-    assert!(report.added_items.is_empty(), "全新面板的内部条目不应逐项报告");
+    assert!(
+        report.added_items.is_empty(),
+        "全新面板的内部条目不应逐项报告"
+    );
 }
 
 #[test]
@@ -268,7 +315,10 @@ fn merge_report_updated_items_never_written_has_changes_matrix() {
     let mut r2 = MergeReport::default();
     let _ = merge_configs(&template, &user, Some(&mut r2));
     assert!(r2.has_changes());
-    assert!(r2.updated_items.is_empty(), "Java 原实现无 updatedItems 写入点");
+    assert!(
+        r2.updated_items.is_empty(),
+        "Java 原实现无 updatedItems 写入点"
+    );
 }
 
 #[test]
@@ -325,7 +375,10 @@ fn initialize_missing_template_returns_empty() {
     let (_g, _sg) = sandbox("init_no_tpl");
     let cfgs = initialize();
     assert!(cfgs.is_empty());
-    assert!(!Path::new(USER_PATH).exists(), "首跑分支未走, 不应生成用户配置");
+    assert!(
+        !Path::new(USER_PATH).exists(),
+        "首跑分支未走, 不应生成用户配置"
+    );
 }
 
 #[test]
@@ -340,7 +393,10 @@ fn initialize_first_run_copies_template_and_saves_hash() {
     assert!(Path::new(USER_PATH).exists());
     assert_eq!(load_config(USER_PATH)[0].title, "面板A");
     // 模板哈希已存 (与 Java 共存 ui_state.properties 的 templateConfigHash)
-    assert_eq!(ui_state_load_template_hash().as_deref(), Some(md5_hex(TPL_V1.as_bytes()).as_str()));
+    assert_eq!(
+        ui_state_load_template_hash().as_deref(),
+        Some(md5_hex(TPL_V1.as_bytes()).as_str())
+    );
     // 首跑不生成备份
     assert!(!Path::new(BACKUP_PATH).exists());
 }
@@ -357,9 +413,16 @@ fn initialize_unchanged_template_skips_merge() {
     save_config(USER_PATH, &user);
 
     let cfgs = initialize();
-    assert_eq!(cfgs[0].rows[0].value, Some(ConfigValue::Bool(false)), "哈希一致应原样返回用户配置");
+    assert_eq!(
+        cfgs[0].rows[0].value,
+        Some(ConfigValue::Bool(false)),
+        "哈希一致应原样返回用户配置"
+    );
     assert!(!Path::new(BACKUP_PATH).exists(), "跳过合并不生成备份");
-    assert_eq!(ui_state_load_template_hash().as_deref(), Some(md5_hex(TPL_V1.as_bytes()).as_str()));
+    assert_eq!(
+        ui_state_load_template_hash().as_deref(),
+        Some(md5_hex(TPL_V1.as_bytes()).as_str())
+    );
 }
 
 #[test]
@@ -380,18 +443,37 @@ fn initialize_template_change_merges_backs_up_updates_hash() {
 
     let cfgs = initialize();
     assert_eq!(cfgs.len(), 2, "新面板 B 应并入");
-    assert_eq!(cfgs[0].rows[0].value, Some(ConfigValue::Bool(false)), "用户开关值保留");
+    assert_eq!(
+        cfgs[0].rows[0].value,
+        Some(ConfigValue::Bool(false)),
+        "用户开关值保留"
+    );
     assert!((cfgs[0].x - 0.9).abs() < 1e-12, "用户面板位置保留");
-    assert_eq!(cfgs[0].rows[2].property.as_deref(), Some("k3"), "模板新项并入");
-    assert_eq!(cfgs[0].rows[2].value, Some(ConfigValue::Bool(false)), "模板新项取模板默认值");
+    assert_eq!(
+        cfgs[0].rows[2].property.as_deref(),
+        Some("k3"),
+        "模板新项并入"
+    );
+    assert_eq!(
+        cfgs[0].rows[2].value,
+        Some(ConfigValue::Bool(false)),
+        "模板新项取模板默认值"
+    );
     assert_eq!(cfgs[1].title, "面板B");
 
     // 备份 = 合并前用户文件; 用户文件已重写为合并结果; 哈希更新为新模板
-    assert_eq!(fs::read(BACKUP_PATH).unwrap(), pre_merge_user, "备份应是合并前的用户配置");
+    assert_eq!(
+        fs::read(BACKUP_PATH).unwrap(),
+        pre_merge_user,
+        "备份应是合并前的用户配置"
+    );
     let reread = load_config(USER_PATH);
     assert_eq!(reread.len(), 2);
     assert_eq!(reread[0].rows[0].value, Some(ConfigValue::Bool(false)));
-    assert_eq!(ui_state_load_template_hash().as_deref(), Some(md5_hex(TPL_V2.as_bytes()).as_str()));
+    assert_eq!(
+        ui_state_load_template_hash().as_deref(),
+        Some(md5_hex(TPL_V2.as_bytes()).as_str())
+    );
 }
 
 /// 存储哈希缺失 (老版本程序升级, 无 ui_state 记录) → 触发合并
@@ -406,7 +488,10 @@ fn initialize_missing_stored_hash_triggers_merge() {
     let cfgs = initialize();
     assert_eq!(cfgs.len(), 2, "应走合并路径并入新面板");
     assert!(Path::new(BACKUP_PATH).exists());
-    assert_eq!(ui_state_load_template_hash().as_deref(), Some(md5_hex(TPL_V2.as_bytes()).as_str()));
+    assert_eq!(
+        ui_state_load_template_hash().as_deref(),
+        Some(md5_hex(TPL_V2.as_bytes()).as_str())
+    );
 }
 
 // ---- 弹窗 sink (ConfigDialog: web 壳形态的 showMergeReport 转发面) ----
@@ -439,17 +524,27 @@ fn initialize_merge_report_reaches_dialog_sink() {
         if let ConfigDialog::MergeReport(message) = d {
             recorder.lock().unwrap().push(message.clone());
         }
-        // ParseError 分支: 调用点为 Java 侧死路径 (见 show_parse_error_dialog 注),
+        // ParseError 分支: 调用点为 Java 侧死路径 (loadConfig 的 catch 先行),
         // 唯一活路径 showMergeReport 不产生 — 记录面只挂 MergeReport
     }));
 
     let cfgs = initialize();
     assert_eq!(cfgs.len(), 2, "合并路径本身不受 sink 影响");
     let dialogs = seen.lock().unwrap();
-    assert_eq!(dialogs.len(), 1, "合并报告应经 sink 转发恰一次: {dialogs:?}");
-    assert!(dialogs[0].contains("新增面板:"), "Lang 标题就绪: {dialogs:?}");
+    assert_eq!(
+        dialogs.len(),
+        1,
+        "合并报告应经 sink 转发恰一次: {dialogs:?}"
+    );
+    assert!(
+        dialogs[0].contains("新增面板:"),
+        "Lang 标题就绪: {dialogs:?}"
+    );
     assert!(dialogs[0].contains("面板B"));
-    assert!(dialogs[0].contains("新增配置项:"), "新增项 k3 在列: {dialogs:?}");
+    assert!(
+        dialogs[0].contains("新增配置项:"),
+        "新增项 k3 在列: {dialogs:?}"
+    );
 }
 
 /// 无 sink 期 (启动早期) 的合并报告: 日志兜底 + 缓存最后一条; web 就绪后
@@ -478,7 +573,10 @@ fn merge_report_without_sink_cached_then_replayed() {
     assert!(!replay_pending_config_dialog(), "回放取后清空");
     let dialogs = seen.lock().unwrap();
     assert_eq!(dialogs.len(), 1, "补发恰一次: {dialogs:?}");
-    assert!(dialogs[0].contains("面板B"), "合并报告内容在列: {dialogs:?}");
+    assert!(
+        dialogs[0].contains("面板B"),
+        "合并报告内容在列: {dialogs:?}"
+    );
 }
 
 #[test]
@@ -489,7 +587,11 @@ fn create_backup_only_when_user_exists() {
 
     fs::write(USER_PATH, "old-bytes").unwrap();
     create_backup();
-    assert_eq!(fs::read(BACKUP_PATH).unwrap(), b"old-bytes", "备份覆盖已有 .bak 并复制用户文件");
+    assert_eq!(
+        fs::read(BACKUP_PATH).unwrap(),
+        b"old-bytes",
+        "备份覆盖已有 .bak 并复制用户文件"
+    );
 }
 
 #[test]
@@ -507,7 +609,11 @@ fn import_config_success_merges_with_template() {
 
     let user = load_config(USER_PATH);
     assert_eq!(user.len(), 2, "外部配置(V1 结构)与模板(V2)合并");
-    assert_eq!(user[0].rows[0].value, Some(ConfigValue::Bool(false)), "外部值保留");
+    assert_eq!(
+        user[0].rows[0].value,
+        Some(ConfigValue::Bool(false)),
+        "外部值保留"
+    );
     assert_eq!(user[1].title, "面板B", "模板新面板并入");
 }
 
@@ -533,7 +639,10 @@ fn import_config_empty_source_false() {
 fn import_config_missing_template_writes_empty_user() {
     let (_g, _sg) = sandbox("imp_notpl");
     fs::write("external.cfg", TPL_V1).unwrap();
-    assert!(import_config("external.cfg"), "Java: 模板缺失不构成导入失败");
+    assert!(
+        import_config("external.cfg"),
+        "Java: 模板缺失不构成导入失败"
+    );
     assert!(Path::new(USER_PATH).exists());
     assert!(load_config(USER_PATH).is_empty(), "空模板 → 合并结果为空");
 }
@@ -545,8 +654,16 @@ fn reset_to_factory_overwrites_user_with_template() {
     fs::write(USER_PATH, "user custom junk").unwrap();
 
     assert!(reset_to_factory());
-    assert_eq!(fs::read(USER_PATH).unwrap(), TPL_V2.as_bytes(), "用户配置应被模板字节覆盖");
-    assert_eq!(fs::read(BACKUP_PATH).unwrap(), b"user custom junk", "重置前备份");
+    assert_eq!(
+        fs::read(USER_PATH).unwrap(),
+        TPL_V2.as_bytes(),
+        "用户配置应被模板字节覆盖"
+    );
+    assert_eq!(
+        fs::read(BACKUP_PATH).unwrap(),
+        b"user custom junk",
+        "重置前备份"
+    );
 }
 
 #[test]
@@ -554,7 +671,11 @@ fn reset_to_factory_missing_template_false() {
     let (_g, _sg) = sandbox("reset_notpl");
     fs::write(USER_PATH, "keep me").unwrap();
     assert!(!reset_to_factory());
-    assert_eq!(fs::read(USER_PATH).unwrap(), b"keep me", "失败路径不动用户配置");
+    assert_eq!(
+        fs::read(USER_PATH).unwrap(),
+        b"keep me",
+        "失败路径不动用户配置"
+    );
 }
 
 /// env 恢复守卫 (panic 安全): Drop 时还原被测试改写的环境变量
@@ -591,7 +712,9 @@ fn ui_state_properties_latin1_bytes_preserve_other_keys() {
     assert!(text.contains("note=caf\\u00E9"), "Latin-1 值应转义: {text}");
     // 转义往返: 重新读回后值还原
     let reloaded = ui_state_read_properties(&file).unwrap();
-    assert!(reloaded.iter().any(|(k, v)| k == "note" && v == "caf\u{e9}"));
+    assert!(reloaded
+        .iter()
+        .any(|(k, v)| k == "note" && v == "caf\u{e9}"));
 }
 
 /// 对撞 (审查 A1): Windows APPDATA 为空串时, Java 字符串拼接得 "\voidmei"
@@ -607,8 +730,14 @@ fn ui_state_config_dir_empty_appdata_is_drive_rooted() {
 
     let dir = ui_state_config_dir();
     let expected = PathBuf::from(format!("{}{UI_STATE_APP_NAME}", std::path::MAIN_SEPARATOR));
-    assert_eq!(dir, expected, "空 APPDATA + File.separator + APP_NAME = 盘根路径");
-    assert!(dir.has_root(), "Java new File(\"\\\\voidmei\") 为绝对路径语义");
+    assert_eq!(
+        dir, expected,
+        "空 APPDATA + File.separator + APP_NAME = 盘根路径"
+    );
+    assert!(
+        dir.has_root(),
+        "Java new File(\"\\\\voidmei\") 为绝对路径语义"
+    );
 }
 
 /// 同上, Linux 侧 HOME 为空串的等价对撞 (user.home="" → "/.config/voidmei")

@@ -62,7 +62,13 @@ fn drive_from_live_opens_overlays() {
     );
     // 会话首机只记名 (sessionAircraftType)
     assert_eq!(
-        shell.shared.flags.lock().unwrap().session_aircraft_type.as_deref(),
+        shell
+            .shared
+            .flags
+            .lock()
+            .unwrap()
+            .session_aircraft_type
+            .as_deref(),
         Some("test-plane")
     );
 }
@@ -83,7 +89,7 @@ fn drive_from_live_exit_resets_session() {
     let live_store = frame_store_of(&data);
     *shell.shared.live.write().unwrap() = Some(Arc::clone(&live_store));
     shell.controller.as_mut().unwrap().drive_from_live(); // 进 Preview + identify(p1)
-    // flags 丢失 (Java Service.java:1780 路径): 仅 flag 翻假, 其余保留
+                                                          // flags 丢失 (Java Service.java:1780 路径): 仅 flag 翻假, 其余保留
     {
         data.s_state.as_mut().unwrap().flag = false;
         data.s_indic.as_mut().unwrap().flag = false;
@@ -94,13 +100,15 @@ fn drive_from_live_exit_resets_session() {
         shell.controller.as_ref().unwrap().state(),
         ControllerState::Init
     );
-    assert_eq!(
-        shell.fm.current_target_name(),
-        None,
-        "会话结束清识别目标"
-    );
+    assert_eq!(shell.fm.current_target_name(), None, "会话结束清识别目标");
     assert!(
-        shell.shared.flags.lock().unwrap().session_aircraft_type.is_none(),
+        shell
+            .shared
+            .flags
+            .lock()
+            .unwrap()
+            .session_aircraft_type
+            .is_none(),
         "会话机型记忆清除"
     );
 }
@@ -273,7 +281,11 @@ fn flight_log_open_close_lifecycle() {
         let file_name = {
             let c = shell.controller.as_ref().unwrap();
             let slot = c.flight_log.lock().expect("flight_log 槽锁中毒");
-            let log = slot.as_ref().expect("openpad 应建 FlightLog").lock().unwrap();
+            let log = slot
+                .as_ref()
+                .expect("openpad 应建 FlightLog")
+                .lock()
+                .unwrap();
             log.file_name.clone()
         };
         assert!(
@@ -363,7 +375,9 @@ fn stop_five_step_order() {
 
     let gen_before = shell.shared.preview_generation.load(Ordering::SeqCst);
     // 路由总线按 event_type 计数 (原桩总线广播计数已随波1 退役)
-    let cfg_subs_before = shell.ui_bus.subscriber_count(ui_state_events::CONFIG_CHANGED);
+    let cfg_subs_before = shell
+        .ui_bus
+        .subscriber_count(ui_state_events::CONFIG_CHANGED);
     let ready_subs_before = shell.ui_bus.subscriber_count(ui_state_events::UI_READY);
     let fm_subs_before = shell.fm.fm_changed_bus().subscriber_count();
     assert!(cfg_subs_before >= 1, "Controller 应持 CONFIG_CHANGED 订阅");
@@ -401,7 +415,9 @@ fn stop_five_step_order() {
     assert!(got_close, "步①应发 CloseAllOverlays (closepad 路径)");
     // ②: 订阅全部退订 (路由后按类型各 -1)
     assert_eq!(
-        shell.ui_bus.subscriber_count(ui_state_events::CONFIG_CHANGED),
+        shell
+            .ui_bus
+            .subscriber_count(ui_state_events::CONFIG_CHANGED),
         cfg_subs_before - 1
     );
     assert_eq!(
@@ -497,7 +513,9 @@ fn end_preview_invalidates_inflight_generation() {
 #[test]
 fn tray_activate_rebuilds_controller() {
     let mut shell = fixture();
-    let before = shell.ui_bus.subscriber_count(ui_state_events::CONFIG_CHANGED)
+    let before = shell
+        .ui_bus
+        .subscriber_count(ui_state_events::CONFIG_CHANGED)
         + shell.ui_bus.subscriber_count(ui_state_events::UI_READY);
     shell.handle_main_event(MainEvent::Tray(TrayCommand::Activate));
     assert_eq!(
@@ -506,7 +524,9 @@ fn tray_activate_rebuilds_controller() {
         "新核从 INIT 开始"
     );
     assert_eq!(
-        shell.ui_bus.subscriber_count(ui_state_events::CONFIG_CHANGED)
+        shell
+            .ui_bus
+            .subscriber_count(ui_state_events::CONFIG_CHANGED)
             + shell.ui_bus.subscriber_count(ui_state_events::UI_READY),
         before,
         "旧核退订 + 新核订阅, 净计数不变 (无泄漏累积)"
@@ -588,9 +608,12 @@ fn change_s3_openpad_delay_guarded_on_exit() {
         Ordering::SeqCst,
     );
     shell.controller.as_mut().unwrap().drive_from_live();
-    assert_eq!(shell.controller.as_ref().unwrap().state(), ControllerState::Init);
+    assert_eq!(
+        shell.controller.as_ref().unwrap().state(),
+        ControllerState::Init
+    );
     std::thread::sleep(Duration::from_millis(250)); // 越过延迟窗口
-    // 通道内可有 CloseAllOverlays (s4to_s1 的 closepad), 但不应有 OpenAllOverlays
+                                                    // 通道内可有 CloseAllOverlays (s4to_s1 的 closepad), 但不应有 OpenAllOverlays
     let ui_rx = shell.ui_cmd_rx.take().unwrap();
     loop {
         match ui_rx.recv_timeout(Duration::from_millis(50)) {

@@ -1,7 +1,7 @@
 use super::*;
 use crate::base::event::ui_state_events;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Mutex;
 
 #[test]
 fn subscribe_and_publish_delivers_payload() {
@@ -74,10 +74,7 @@ fn multiple_subscribers_in_subscription_order() {
     );
     assert_eq!(
         *order.lock().unwrap(),
-        vec![
-            "a:ui_layout.cfg".to_string(),
-            "b:ui_layout.cfg".to_string()
-        ]
+        vec!["a:ui_layout.cfg".to_string(), "b:ui_layout.cfg".to_string()]
     );
 }
 
@@ -194,15 +191,9 @@ fn in_flight_delivery_survives_clear_inside_handler() {
     let _second = bus.subscribe(ui_state_events::CONFIG_CHANGED, move |_| {
         g2.fetch_add(1, Ordering::SeqCst);
     });
-    assert_eq!(
-        bus.publish(ui_state_events::CONFIG_CHANGED, None, None),
-        2
-    );
+    assert_eq!(bus.publish(ui_state_events::CONFIG_CHANGED, None, None), 2);
     assert_eq!(got.load(Ordering::SeqCst), 2); // 第二个 handler 本轮仍被调用
-    assert_eq!(
-        bus.publish(ui_state_events::CONFIG_CHANGED, None, None),
-        0
-    ); // 下轮为 0
+    assert_eq!(bus.publish(ui_state_events::CONFIG_CHANGED, None, None), 0); // 下轮为 0
 }
 
 // §2.8: 回调在路由表锁外执行 — handler 内重入订阅/清空/发布**另一**
@@ -225,8 +216,7 @@ fn reentrant_publish_and_subscribe_inside_handler() {
     let o2 = Arc::clone(&outer_hits);
     let l2 = Arc::clone(&late_hits);
     let b_out = Arc::clone(&bus);
-    let late_slot: Arc<Mutex<Option<Subscription<UiStateEvent>>>> =
-        Arc::new(Mutex::new(None));
+    let late_slot: Arc<Mutex<Option<Subscription<UiStateEvent>>>> = Arc::new(Mutex::new(None));
     let slot2 = Arc::clone(&late_slot);
     let _outer = bus.subscribe(ui_state_events::CONFIG_CHANGED, move |_| {
         o2.fetch_add(1, Ordering::SeqCst);
@@ -237,10 +227,9 @@ fn reentrant_publish_and_subscribe_inside_handler() {
         // l2 须在闭包体内克隆 — 外层 FnMut 可能多次执行, 不能整值移出
         let b2 = Arc::clone(&b_out);
         let l3 = Arc::clone(&l2);
-        *slot2.lock().unwrap() =
-            Some(b2.subscribe(ui_state_events::CONFIG_CHANGED, move |_| {
-                l3.fetch_add(1, Ordering::SeqCst);
-            }));
+        *slot2.lock().unwrap() = Some(b2.subscribe(ui_state_events::CONFIG_CHANGED, move |_| {
+            l3.fetch_add(1, Ordering::SeqCst);
+        }));
     });
     bus.publish(ui_state_events::CONFIG_CHANGED, Some("t"), Some("k"));
     assert_eq!(outer_hits.load(Ordering::SeqCst), 1);

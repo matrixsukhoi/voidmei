@@ -20,18 +20,54 @@ fn assert_stage(tag: &str, a: &CompressorStageParams, e: &CompressorStageParams)
     check(&format!("{tag}.deckAlt"), a.deck_alt, e.deck_alt);
     check(&format!("{tag}.curvature"), a.curvature, e.curvature);
     check(&format!("{tag}.wepCritAlt"), a.wep_crit_alt, e.wep_crit_alt);
-    check(&format!("{tag}.wepPowerMult"), a.wep_power_mult, e.wep_power_mult);
-    check(&format!("{tag}.speedManifoldMult"), a.speed_manifold_mult, e.speed_manifold_mult);
-    check(&format!("{tag}.constRpmAlt"), a.const_rpm_alt, e.const_rpm_alt);
-    check(&format!("{tag}.constRpmPower"), a.const_rpm_power, e.const_rpm_power);
+    check(
+        &format!("{tag}.wepPowerMult"),
+        a.wep_power_mult,
+        e.wep_power_mult,
+    );
+    check(
+        &format!("{tag}.speedManifoldMult"),
+        a.speed_manifold_mult,
+        e.speed_manifold_mult,
+    );
+    check(
+        &format!("{tag}.constRpmAlt"),
+        a.const_rpm_alt,
+        e.const_rpm_alt,
+    );
+    check(
+        &format!("{tag}.constRpmPower"),
+        a.const_rpm_power,
+        e.const_rpm_power,
+    );
     check(&format!("{tag}.ceilingAlt"), a.ceiling_alt, e.ceiling_alt);
-    check(&format!("{tag}.ceilingPower"), a.ceiling_power, e.ceiling_power);
-    check(&format!("{tag}.oldAltitude"), a.old_altitude, e.old_altitude);
+    check(
+        &format!("{tag}.ceilingPower"),
+        a.ceiling_power,
+        e.ceiling_power,
+    );
+    check(
+        &format!("{tag}.oldAltitude"),
+        a.old_altitude,
+        e.old_altitude,
+    );
     check(&format!("{tag}.oldPower"), a.old_power, e.old_power);
-    check(&format!("{tag}.oldPowerNewRpm"), a.old_power_new_rpm, e.old_power_new_rpm);
+    check(
+        &format!("{tag}.oldPowerNewRpm"),
+        a.old_power_new_rpm,
+        e.old_power_new_rpm,
+    );
     check(&format!("{tag}.wepDeckAlt"), a.wep_deck_alt, e.wep_deck_alt);
-    check(&format!("{tag}.wepConstRpmAlt"), a.wep_const_rpm_alt, e.wep_const_rpm_alt);
-    check(&format!("{tag}.stage0DeckAlt"), a.stage0_deck_alt, e.stage0_deck_alt);
+    check(
+        &format!("{tag}.wepConstRpmAlt"),
+        a.wep_const_rpm_alt,
+        e.wep_const_rpm_alt,
+    );
+    check(
+        &format!("{tag}.stage0DeckAlt"),
+        a.stage0_deck_alt,
+        e.stage0_deck_alt,
+    );
     assert_eq!(a.stage_index, e.stage_index, "{tag}.stageIndex");
     assert_eq!(a.exact_altitudes, e.exact_altitudes, "{tag}.exactAltitudes");
 }
@@ -40,20 +76,48 @@ fn assert_stage(tag: &str, a: &CompressorStageParams, e: &CompressorStageParams)
 // PORT: Java 保真 — 20 参逐字段对应 oracle dump, 不打包成结构体
 #[allow(clippy::too_many_arguments)]
 fn exp(
-    crit_alt: f64, crit_power: f64, deck_power: f64, deck_alt: f64, curvature: f64,
-    wep_crit_alt: f64, wep_power_mult: f64, speed_mm: f64,
-    const_rpm_alt: f64, const_rpm_power: f64, ceiling_alt: f64, ceiling_power: f64,
-    old_altitude: f64, old_power: f64, old_power_new_rpm: f64,
-    wep_deck_alt: f64, wep_const_rpm_alt: f64, stage0_deck_alt: f64,
-    stage_index: i32, exact_altitudes: bool,
+    crit_alt: f64,
+    crit_power: f64,
+    deck_power: f64,
+    deck_alt: f64,
+    curvature: f64,
+    wep_crit_alt: f64,
+    wep_power_mult: f64,
+    speed_mm: f64,
+    const_rpm_alt: f64,
+    const_rpm_power: f64,
+    ceiling_alt: f64,
+    ceiling_power: f64,
+    old_altitude: f64,
+    old_power: f64,
+    old_power_new_rpm: f64,
+    wep_deck_alt: f64,
+    wep_const_rpm_alt: f64,
+    stage0_deck_alt: f64,
+    stage_index: i32,
+    exact_altitudes: bool,
 ) -> CompressorStageParams {
     CompressorStageParams {
-        crit_alt, crit_power, deck_power, deck_alt, curvature,
-        wep_crit_alt, wep_power_mult, speed_manifold_mult: speed_mm,
-        const_rpm_alt, const_rpm_power, ceiling_alt, ceiling_power,
-        old_altitude, old_power, old_power_new_rpm,
-        wep_deck_alt, wep_const_rpm_alt, stage0_deck_alt,
-        stage_index, exact_altitudes,
+        crit_alt,
+        crit_power,
+        deck_power,
+        deck_alt,
+        curvature,
+        wep_crit_alt,
+        wep_power_mult,
+        speed_manifold_mult: speed_mm,
+        const_rpm_alt,
+        const_rpm_power,
+        ceiling_alt,
+        ceiling_power,
+        old_altitude,
+        old_power,
+        old_power_new_rpm,
+        wep_deck_alt,
+        wep_const_rpm_alt,
+        stage0_deck_alt,
+        stage_index,
+        exact_altitudes,
     }
 }
 
@@ -218,7 +282,8 @@ fn fuel_mod_json(central: &str) -> crate::fm::data::FuelModification {
 
 const CENTRAL_SPITFIRE_F24: &str = "{\"modifications\": {\"150_octan_fuel\": {\"invertEnableLogic\": false, \"effects\": {\"afterburnerMult\": 1.42, \"afterburnerCompressorMult\": 1.33}}}}";
 /// yak-3.json (flightmodels 根, 中央文件) — 苏联 B-100 油料
-const CENTRAL_YAK3: &str = "{\"modifications\": {\"ussr_fuel_b-100\": {\"effects\": {\"addHorsePowers\": 50.0}}}}";
+const CENTRAL_YAK3: &str =
+    "{\"modifications\": {\"ussr_fuel_b-100\": {\"effects\": {\"addHorsePowers\": 50.0}}}}";
 /// tempest_mkv.json (flightmodels 根, 中央文件) — invertEnableLogic=true
 const CENTRAL_TEMPEST_MKV: &str = "{\"modifications\": {\"150_octan_fuel\": {\"invertEnableLogic\": true, \"effects\": {\"afterburnerMult\": 0.4167, \"afterburnerCompressorMult\": 0.411}}}}";
 
@@ -232,43 +297,115 @@ fn java8_oracle_spitfire_f24_stages() {
     // 无油料
     let stages = extract_stages(Some(&fmdata)).unwrap();
     assert_eq!(stages.len(), 2);
-    assert_stage("spit_nofuel[0]", &stages[0], &exp(
-        4100.0, 1510.0, 1360.0, 0.0, 0.5,
-        2204.0, 1.4365986458951632, speed_mm,
-        18034.599609375, 200.0, 10000.0, 600.0,
-        4100.0, 1510.0, 1510.0,
-        -2090.0, 0.0, 0.0,
-        0, true,
-    ));
-    assert_stage("spit_nofuel[1]", &stages[1], &exp(
-        8100.0, 1340.0, 1088.0, 0.0, 0.5,
-        6392.0, 1.3939274392789431, speed_mm,
-        18034.599609375, 200.0, 12000.0, 830.0,
-        8100.0, 1340.0, 1340.0,
-        -2090.0, 0.0, 0.0,
-        1, true,
-    ));
+    assert_stage(
+        "spit_nofuel[0]",
+        &stages[0],
+        &exp(
+            4100.0,
+            1510.0,
+            1360.0,
+            0.0,
+            0.5,
+            2204.0,
+            1.4365986458951632,
+            speed_mm,
+            18034.599609375,
+            200.0,
+            10000.0,
+            600.0,
+            4100.0,
+            1510.0,
+            1510.0,
+            -2090.0,
+            0.0,
+            0.0,
+            0,
+            true,
+        ),
+    );
+    assert_stage(
+        "spit_nofuel[1]",
+        &stages[1],
+        &exp(
+            8100.0,
+            1340.0,
+            1088.0,
+            0.0,
+            0.5,
+            6392.0,
+            1.3939274392789431,
+            speed_mm,
+            18034.599609375,
+            200.0,
+            12000.0,
+            830.0,
+            8100.0,
+            1340.0,
+            1340.0,
+            -2090.0,
+            0.0,
+            0.0,
+            1,
+            true,
+        ),
+    );
 
     // 150 辛烷 (invertEnableLogic=false → 应用加成, 仅 WEP 参数变化)
     let fuel = fuel_mod_json(CENTRAL_SPITFIRE_F24);
     assert_eq!(fuel.r#type, FuelType::British150Octane);
     let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
-    assert_stage("spit_fuel[0]", &stages[0], &exp(
-        4100.0, 1510.0, 1360.0, 0.0, 0.5,
-        1502.0, 1.6120470661360677, speed_mm,
-        18034.599609375, 200.0, 10000.0, 600.0,
-        4100.0, 1510.0, 1510.0,
-        -2090.0, 0.0, 0.0,
-        0, true,
-    ));
-    assert_stage("spit_fuel[1]", &stages[1], &exp(
-        8100.0, 1340.0, 1088.0, 0.0, 0.5,
-        5760.0, 1.5641645252254845, speed_mm,
-        18034.599609375, 200.0, 12000.0, 830.0,
-        8100.0, 1340.0, 1340.0,
-        -2090.0, 0.0, 0.0,
-        1, true,
-    ));
+    assert_stage(
+        "spit_fuel[0]",
+        &stages[0],
+        &exp(
+            4100.0,
+            1510.0,
+            1360.0,
+            0.0,
+            0.5,
+            1502.0,
+            1.6120470661360677,
+            speed_mm,
+            18034.599609375,
+            200.0,
+            10000.0,
+            600.0,
+            4100.0,
+            1510.0,
+            1510.0,
+            -2090.0,
+            0.0,
+            0.0,
+            0,
+            true,
+        ),
+    );
+    assert_stage(
+        "spit_fuel[1]",
+        &stages[1],
+        &exp(
+            8100.0,
+            1340.0,
+            1088.0,
+            0.0,
+            0.5,
+            5760.0,
+            1.5641645252254845,
+            speed_mm,
+            18034.599609375,
+            200.0,
+            12000.0,
+            830.0,
+            8100.0,
+            1340.0,
+            1340.0,
+            -2090.0,
+            0.0,
+            0.0,
+            1,
+            true,
+        ),
+    );
 }
 
 // ---- oracle: spitfire_f24 功率曲线 (300 km/h IAS, 15C) + TestSpitfireF24Power 断言移植 ----
@@ -281,22 +418,36 @@ fn java8_oracle_spitfire_f24_power_curve() {
 
     // Java 实测值 (wtapc 参考表的相同高度点)
     let mil = [
-        (0.0, 1_347.392_094_045_017), (1000.0, 1389.8180391263297),
-        (1830.0, 1422.0049800128452), (2000.0, 1428.2754521790348),
-        (3000.0, 1463.0547845674043), (4000.0, 1494.4314160977465),
-        (4100.0, 1_497.392_094_045_017), (5000.0, 1419.5820703859804),
-        (6000.0, 1281.0453572285796), (7000.0, 1304.3300257488868),
-        (8000.0, 1325.1061795411342), (8100.0, 1327.0541081198485),
-        (9000.0, 1309.5830015928336), (10000.0, 1170.6209315511492),
+        (0.0, 1_347.392_094_045_017),
+        (1000.0, 1389.8180391263297),
+        (1830.0, 1422.0049800128452),
+        (2000.0, 1428.2754521790348),
+        (3000.0, 1463.0547845674043),
+        (4000.0, 1494.4314160977465),
+        (4100.0, 1_497.392_094_045_017),
+        (5000.0, 1419.5820703859804),
+        (6000.0, 1281.0453572285796),
+        (7000.0, 1304.3300257488868),
+        (8000.0, 1325.1061795411342),
+        (8100.0, 1327.0541081198485),
+        (9000.0, 1309.5830015928336),
+        (10000.0, 1170.6209315511492),
     ];
     let wep = [
-        (0.0, 2172.0594721402026), (1000.0, 2240.4520924365825),
-        (1830.0, 2292.3389560605847), (2000.0, 2252.2040537265793),
-        (3000.0, 2020.2184732230976), (4000.0, 1917.7207364971378),
-        (4100.0, 1922.4758689193295), (5000.0, 1963.0683450432875),
-        (6000.0, 2003.7657029817524), (7000.0, 1884.3087499654412),
-        (8000.0, 1718.4280598352361), (8100.0, 1702.8754344459285),
-        (9000.0, 1565.2725233772742), (10000.0, 1408.8425620388034),
+        (0.0, 2172.0594721402026),
+        (1000.0, 2240.4520924365825),
+        (1830.0, 2292.3389560605847),
+        (2000.0, 2252.2040537265793),
+        (3000.0, 2020.2184732230976),
+        (4000.0, 1917.7207364971378),
+        (4100.0, 1922.4758689193295),
+        (5000.0, 1963.0683450432875),
+        (6000.0, 2003.7657029817524),
+        (7000.0, 1884.3087499654412),
+        (8000.0, 1718.4280598352361),
+        (8100.0, 1702.8754344459285),
+        (9000.0, 1565.2725233772742),
+        (10000.0, 1408.8425620388034),
     ];
     for (alt, expected) in mil {
         check(
@@ -334,8 +485,14 @@ fn java8_oracle_spitfire_f24_power_curve() {
     // TestSpitfireF24Power.testPowerCurveCalculations 验收断言移植:
     // assertClose("Military peak power", milPeakPower, 1510.0, 50.0);
     // assertClose("WEP peak power", wepPeakPower, 2292.5, 100.0);
-    assert!((mil_peak - 1510.0).abs() <= 50.0, "Military peak power vs wtapc 1510");
-    assert!((wep_peak - 2292.5).abs() <= 100.0, "WEP peak power vs wtapc 2292.5");
+    assert!(
+        (mil_peak - 1510.0).abs() <= 50.0,
+        "Military peak power vs wtapc 1510"
+    );
+    assert!(
+        (wep_peak - 2292.5).abs() <= 100.0,
+        "WEP peak power vs wtapc 2292.5"
+    );
 }
 
 // ---- oracle: yak-3 苏联 B-100 油料 (soviet_octane_adder, spm=1.018) ----
@@ -349,41 +506,77 @@ fn java8_oracle_yak3_soviet_fuel() {
 
     // 无油料: 无 WEP 机型 (aftbCoff=1 → wepMult=1, WEP 曲线与军用一致)
     let stages = extract_stages(Some(&fmdata)).unwrap();
-    assert_stage("yak3_nofuel[0]", &stages[0], &exp(
-        300.0, 1310.0, 1290.0, 0.0, 1.0,
-        300.0, 1.0, 1.0,
-        18300.0, 1310.0, 5000.0, 670.0,
-        300.0, 1310.0, 1310.0,
-        0.0, 0.0, 0.0,
-        0, true,
-    ));
-    assert_stage("yak3_nofuel[1]", &stages[1], &exp(
-        2600.0, 1240.0, 1032.0, 0.0, 1.0,
-        2600.0, 1.0, 1.0,
-        18300.0, 1240.0, 9000.0, 510.0,
-        2600.0, 1240.0, 1240.0,
-        0.0, 0.0, 0.0,
-        1, true,
-    ));
+    assert_stage(
+        "yak3_nofuel[0]",
+        &stages[0],
+        &exp(
+            300.0, 1310.0, 1290.0, 0.0, 1.0, 300.0, 1.0, 1.0, 18300.0, 1310.0, 5000.0, 670.0,
+            300.0, 1310.0, 1310.0, 0.0, 0.0, 0.0, 0, true,
+        ),
+    );
+    assert_stage(
+        "yak3_nofuel[1]",
+        &stages[1],
+        &exp(
+            2600.0, 1240.0, 1032.0, 0.0, 1.0, 2600.0, 1.0, 1.0, 18300.0, 1240.0, 9000.0, 510.0,
+            2600.0, 1240.0, 1240.0, 0.0, 0.0, 0.0, 1, true,
+        ),
+    );
 
     // B-100 (addHorsePowers=50): 全功率值 ×1.018
     let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
-    assert_stage("yak3_fuel[0]", &stages[0], &exp(
-        300.0, 1333.58, 1313.22, 0.0, 1.0,
-        300.0, 1.0, 1.0,
-        18300.0, 1333.58, 5000.0, 682.060_000_000_000_1,
-        300.0, 1333.58, 1333.58,
-        0.0, 0.0, 0.0,
-        0, true,
-    ));
-    assert_stage("yak3_fuel[1]", &stages[1], &exp(
-        2600.0, 1262.32, 1050.576, 0.0, 1.0,
-        2600.0, 1.0, 1.0,
-        18300.0, 1262.32, 9000.0, 519.180_000_000_000_1,
-        2600.0, 1262.32, 1262.32,
-        0.0, 0.0, 0.0,
-        1, true,
-    ));
+    assert_stage(
+        "yak3_fuel[0]",
+        &stages[0],
+        &exp(
+            300.0,
+            1333.58,
+            1313.22,
+            0.0,
+            1.0,
+            300.0,
+            1.0,
+            1.0,
+            18300.0,
+            1333.58,
+            5000.0,
+            682.060_000_000_000_1,
+            300.0,
+            1333.58,
+            1333.58,
+            0.0,
+            0.0,
+            0.0,
+            0,
+            true,
+        ),
+    );
+    assert_stage(
+        "yak3_fuel[1]",
+        &stages[1],
+        &exp(
+            2600.0,
+            1262.32,
+            1050.576,
+            0.0,
+            1.0,
+            2600.0,
+            1.0,
+            1.0,
+            18300.0,
+            1262.32,
+            9000.0,
+            519.180_000_000_000_1,
+            2600.0,
+            1262.32,
+            1262.32,
+            0.0,
+            0.0,
+            0.0,
+            1,
+            true,
+        ),
+    );
 }
 
 // ---- oracle: spitfire_ix RPM 调整 (definition_alt_power_adjuster) ----
@@ -395,23 +588,59 @@ fn java8_oracle_spitfire_ix_rpm_adjuster() {
     let deck_alt_adj = -614.535_722_854_266_6;
 
     let stages = extract_stages(Some(&fmdata)).unwrap();
-    assert_stage("spix_nofuel[0]", &stages[0], &exp(
-        3035.0, 1414.9355361480882, 1297.5481529514284, deck_alt_adj, 0.5,
-        1986.0, 1.2894766986926651, speed_mm,
-        18034.599609375, 198.55, 9524.0, 500.0,
-        3600.0, 1440.0, 1429.5600000000002,
-        -1756.0, 0.0, deck_alt_adj,
-        0, true,
-    ));
+    assert_stage(
+        "spix_nofuel[0]",
+        &stages[0],
+        &exp(
+            3035.0,
+            1414.9355361480882,
+            1297.5481529514284,
+            deck_alt_adj,
+            0.5,
+            1986.0,
+            1.2894766986926651,
+            speed_mm,
+            18034.599609375,
+            198.55,
+            9524.0,
+            500.0,
+            3600.0,
+            1440.0,
+            1429.5600000000002,
+            -1756.0,
+            0.0,
+            deck_alt_adj,
+            0,
+            true,
+        ),
+    );
     // stage1: constRpmAlt=-2000 (power ≠ oldPower → 走 /rpmBoost 分支), deckPower 级联 minDeck
-    assert_stage("spix_nofuel[1]", &stages[1], &exp(
-        6280.0, 1_317.959_589_650_867, 1072.0, deck_alt_adj, 0.5,
-        5314.0, 1.2507924346241095, speed_mm,
-        -2000.0, 943.112_500_000_000_1, 8601.0, 930.0,
-        6800.0, 1340.0, 1_330.285,
-        -1756.0, 0.0, deck_alt_adj,
-        1, true,
-    ));
+    assert_stage(
+        "spix_nofuel[1]",
+        &stages[1],
+        &exp(
+            6280.0,
+            1_317.959_589_650_867,
+            1072.0,
+            deck_alt_adj,
+            0.5,
+            5314.0,
+            1.2507924346241095,
+            speed_mm,
+            -2000.0,
+            943.112_500_000_000_1,
+            8601.0,
+            930.0,
+            6800.0,
+            1340.0,
+            1_330.285,
+            -1756.0,
+            0.0,
+            deck_alt_adj,
+            1,
+            true,
+        ),
+    );
 
     // 150 辛烷 (abm=1.75, abcm=2.14): 在已调整的 WEP 参数上后处理
     let fuel = FuelModification {
@@ -422,22 +651,58 @@ fn java8_oracle_spitfire_ix_rpm_adjuster() {
         ..Default::default()
     };
     let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
-    assert_stage("spix_fuel[0]", &stages[0], &exp(
-        3035.0, 1414.9355361480882, 1297.5481529514284, deck_alt_adj, 0.5,
-        419.0, 1.501_031_452_684_01, speed_mm,
-        18034.599609375, 198.55, 9524.0, 500.0,
-        3600.0, 1440.0, 1429.5600000000002,
-        -1756.0, 0.0, deck_alt_adj,
-        0, true,
-    ));
-    assert_stage("spix_fuel[1]", &stages[1], &exp(
-        6280.0, 1_317.959_589_650_867, 1072.0, deck_alt_adj, 0.5,
-        3869.0, 1.456_000_552_048_344, speed_mm,
-        -2000.0, 943.112_500_000_000_1, 8601.0, 930.0,
-        6800.0, 1340.0, 1_330.285,
-        -1756.0, 0.0, deck_alt_adj,
-        1, true,
-    ));
+    assert_stage(
+        "spix_fuel[0]",
+        &stages[0],
+        &exp(
+            3035.0,
+            1414.9355361480882,
+            1297.5481529514284,
+            deck_alt_adj,
+            0.5,
+            419.0,
+            1.501_031_452_684_01,
+            speed_mm,
+            18034.599609375,
+            198.55,
+            9524.0,
+            500.0,
+            3600.0,
+            1440.0,
+            1429.5600000000002,
+            -1756.0,
+            0.0,
+            deck_alt_adj,
+            0,
+            true,
+        ),
+    );
+    assert_stage(
+        "spix_fuel[1]",
+        &stages[1],
+        &exp(
+            6280.0,
+            1_317.959_589_650_867,
+            1072.0,
+            deck_alt_adj,
+            0.5,
+            3869.0,
+            1.456_000_552_048_344,
+            speed_mm,
+            -2000.0,
+            943.112_500_000_000_1,
+            8601.0,
+            930.0,
+            6800.0,
+            1340.0,
+            1_330.285,
+            -1756.0,
+            0.0,
+            deck_alt_adj,
+            1,
+            true,
+        ),
+    );
 }
 
 // ---- oracle: tempest_mkv (invertEnableLogic=true 机型, 无 RPM 调整路径) ----
@@ -449,44 +714,116 @@ fn java8_oracle_tempest_mkv_stages() {
 
     let stages = extract_stages(Some(&fmdata)).unwrap();
     assert_eq!(stages.len(), 2);
-    assert_stage("temp_nofuel[0]", &stages[0], &exp(
-        1447.0, 2065.0, 1995.0, 0.0, 0.5,
-        -276.0, 1.2362353427420838, speed_mm,
-        18_093.199_218_75, 2001.0799560546875, 1447.0999755859375, 2_064.969_970_703_125,
-        1447.0, 2065.0, 2065.0,
-        -1781.0, 0.0, 0.0,
-        0, true,
-    ));
-    assert_stage("temp_nofuel[1]", &stages[1], &exp(
-        4981.0, 1735.0, 1596.0, 0.0, 0.5,
-        3400.0, 1.2362353427420838, speed_mm,
-        18_093.199_218_75, 2001.0799560546875, 9144.0, 1015.0,
-        4981.0, 1735.0, 1735.0,
-        -1781.0, 0.0, 0.0,
-        1, true,
-    ));
+    assert_stage(
+        "temp_nofuel[0]",
+        &stages[0],
+        &exp(
+            1447.0,
+            2065.0,
+            1995.0,
+            0.0,
+            0.5,
+            -276.0,
+            1.2362353427420838,
+            speed_mm,
+            18_093.199_218_75,
+            2001.0799560546875,
+            1447.0999755859375,
+            2_064.969_970_703_125,
+            1447.0,
+            2065.0,
+            2065.0,
+            -1781.0,
+            0.0,
+            0.0,
+            0,
+            true,
+        ),
+    );
+    assert_stage(
+        "temp_nofuel[1]",
+        &stages[1],
+        &exp(
+            4981.0,
+            1735.0,
+            1596.0,
+            0.0,
+            0.5,
+            3400.0,
+            1.2362353427420838,
+            speed_mm,
+            18_093.199_218_75,
+            2001.0799560546875,
+            9144.0,
+            1015.0,
+            4981.0,
+            1735.0,
+            1735.0,
+            -1781.0,
+            0.0,
+            0.0,
+            1,
+            true,
+        ),
+    );
 
     // 150 辛烷 invertEnableLogic=true → 不加成 (与无油料完全一致)
     let fuel = fuel_mod_json(CENTRAL_TEMPEST_MKV);
     assert_eq!(fuel.r#type, FuelType::British150Octane);
     assert!(fuel.british_invert_logic);
     let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
-    assert_stage("temp_fuel[0]", &stages[0], &exp(
-        1447.0, 2065.0, 1995.0, 0.0, 0.5,
-        -276.0, 1.2362353427420838, speed_mm,
-        18_093.199_218_75, 2001.0799560546875, 1447.0999755859375, 2_064.969_970_703_125,
-        1447.0, 2065.0, 2065.0,
-        -1781.0, 0.0, 0.0,
-        0, true,
-    ));
-    assert_stage("temp_fuel[1]", &stages[1], &exp(
-        4981.0, 1735.0, 1596.0, 0.0, 0.5,
-        3400.0, 1.2362353427420838, speed_mm,
-        18_093.199_218_75, 2001.0799560546875, 9144.0, 1015.0,
-        4981.0, 1735.0, 1735.0,
-        -1781.0, 0.0, 0.0,
-        1, true,
-    ));
+    assert_stage(
+        "temp_fuel[0]",
+        &stages[0],
+        &exp(
+            1447.0,
+            2065.0,
+            1995.0,
+            0.0,
+            0.5,
+            -276.0,
+            1.2362353427420838,
+            speed_mm,
+            18_093.199_218_75,
+            2001.0799560546875,
+            1447.0999755859375,
+            2_064.969_970_703_125,
+            1447.0,
+            2065.0,
+            2065.0,
+            -1781.0,
+            0.0,
+            0.0,
+            0,
+            true,
+        ),
+    );
+    assert_stage(
+        "temp_fuel[1]",
+        &stages[1],
+        &exp(
+            4981.0,
+            1735.0,
+            1596.0,
+            0.0,
+            0.5,
+            3400.0,
+            1.2362353427420838,
+            speed_mm,
+            18_093.199_218_75,
+            2001.0799560546875,
+            9144.0,
+            1015.0,
+            4981.0,
+            1735.0,
+            1735.0,
+            -1781.0,
+            0.0,
+            0.0,
+            1,
+            true,
+        ),
+    );
 }
 
 // ---- oracle: tempest_mkv 功率曲线 (300 km/h IAS, 15C) + TestTempestMk5Power 断言移植 ----
@@ -498,20 +835,32 @@ fn java8_oracle_tempest_mkv_power_curve() {
 
     // Java 实测值 (invert=true 机型, 油料不改变结果, 与 Java 测试同用无油料级)
     let mil = [
-        (0.0, 1982.1485424919429), (1000.0, 2_031.571_975_675_931),
-        (1730.0, 2_064.712_288_887_363), (2000.0, 2001.0719318704785),
-        (3000.0, 1773.3185985020484), (4000.0, 1704.1738213842752),
-        (5000.0, 1726.6303467845094), (6000.0, 1615.3744254417463),
-        (7000.0, 1432.2817673942739), (8000.0, 1_268.914_132_656_07),
-        (9000.0, 1123.6030029761318), (10000.0, 994.780_295_170_574_6),
+        (0.0, 1982.1485424919429),
+        (1000.0, 2_031.571_975_675_931),
+        (1730.0, 2_064.712_288_887_363),
+        (2000.0, 2001.0719318704785),
+        (3000.0, 1773.3185985020484),
+        (4000.0, 1704.1738213842752),
+        (5000.0, 1726.6303467845094),
+        (6000.0, 1615.3744254417463),
+        (7000.0, 1432.2817673942739),
+        (8000.0, 1_268.914_132_656_07),
+        (9000.0, 1123.6030029761318),
+        (10000.0, 994.780_295_170_574_6),
     ];
     let wep = [
-        (0.0, 2441.076377387389), (1000.0, 2222.94701594032),
-        (1730.0, 2076.682887909097), (2000.0, 2041.7125330963042),
-        (3000.0, 2075.909061190071), (4000.0, 2046.7054138147478),
-        (5000.0, 1845.3496781561112), (6000.0, 1650.074489978947),
-        (7000.0, 1466.0583319832253), (8000.0, 1301.866688222294),
-        (9000.0, 1155.8226246160557), (10000.0, 1026.3501487353587),
+        (0.0, 2441.076377387389),
+        (1000.0, 2222.94701594032),
+        (1730.0, 2076.682887909097),
+        (2000.0, 2041.7125330963042),
+        (3000.0, 2075.909061190071),
+        (4000.0, 2046.7054138147478),
+        (5000.0, 1845.3496781561112),
+        (6000.0, 1650.074489978947),
+        (7000.0, 1466.0583319832253),
+        (8000.0, 1301.866688222294),
+        (9000.0, 1155.8226246160557),
+        (10000.0, 1026.3501487353587),
     ];
     for (alt, expected) in mil {
         check(
@@ -578,23 +927,41 @@ fn java8_oracle_synthetic_branches() {
     syn1.has_comp_omega_factor_sq = true;
     syn1.explicit_exact_altitudes = Some(true);
     let stages = extract_stages(Some(&syn1)).unwrap();
-    assert_stage("syn1[0]", &stages[0], &exp(
-        4100.0, 1510.0, 1208.0, 0.0, 0.5,
-        2204.0, 1.2800094274420408, 0.8,
-        0.0, 0.0, 10000.0, 600.0,
-        4100.0, 1510.0, 1510.0,
-        -2090.0, 0.0, 0.0,
-        0, true,
-    ));
+    assert_stage(
+        "syn1[0]",
+        &stages[0],
+        &exp(
+            4100.0,
+            1510.0,
+            1208.0,
+            0.0,
+            0.5,
+            2204.0,
+            1.2800094274420408,
+            0.8,
+            0.0,
+            0.0,
+            10000.0,
+            600.0,
+            4100.0,
+            1510.0,
+            1510.0,
+            -2090.0,
+            0.0,
+            0.0,
+            0,
+            true,
+        ),
+    );
     // stage1: WEP 禁用 (wepMult=1, wepCritAlt=critAlt, wepDeckAlt=0)
-    assert_stage("syn1[1]", &stages[1], &exp(
-        8100.0, 1340.0, 1072.0, 0.0, 0.5,
-        8100.0, 1.0, 0.8,
-        0.0, 0.0, 12000.0, 830.0,
-        8100.0, 1340.0, 1340.0,
-        0.0, 0.0, 0.0,
-        1, true,
-    ));
+    assert_stage(
+        "syn1[1]",
+        &stages[1],
+        &exp(
+            8100.0, 1340.0, 1072.0, 0.0, 0.5, 8100.0, 1.0, 0.8, 0.0, 0.0, 12000.0, 830.0, 8100.0,
+            1340.0, 1340.0, 0.0, 0.0, 0.0, 1, true,
+        ),
+    );
 
     // syn2: 旧格式 (无 OmegaFactorSq) + ShaftRPMMax 优先 + ConstRPM 调整
     // (hasBoost 缺席 → None, 消费方 is_some_and=false)
@@ -628,14 +995,32 @@ fn java8_oracle_synthetic_branches() {
     syn2.has_comp_omega_factor_sq = false;
     syn2.explicit_exact_altitudes = None; // → !hasCompOmegaFactorSq = true
     let stages = extract_stages(Some(&syn2)).unwrap();
-    assert_stage("syn2[0]", &stages[0], &exp(
-        3571.0, 1427.2405762633953, 1_310.624_962_826_641, -1610.7846991254821, 1.2,
-        3884.0, 1.250_379_971_590_909, 0.9,
-        1000.0, 1401.6821765265818, 8753.0, 700.0,
-        5000.0, 1500.0, 1450.0160446826708,
-        -1258.0, 0.0, -1610.7846991254821,
-        0, true,
-    ));
+    assert_stage(
+        "syn2[0]",
+        &stages[0],
+        &exp(
+            3571.0,
+            1427.2405762633953,
+            1_310.624_962_826_641,
+            -1610.7846991254821,
+            1.2,
+            3884.0,
+            1.250_379_971_590_909,
+            0.9,
+            1000.0,
+            1401.6821765265818,
+            8753.0,
+            700.0,
+            5000.0,
+            1500.0,
+            1450.0160446826708,
+            -1258.0,
+            0.0,
+            -1610.7846991254821,
+            0,
+            true,
+        ),
+    );
 
     // syn3: militaryMP=0 → wepCritAlt 走 critAlt*0.9 前需先过 mult≈1 早退 (此处 mult=1)
     let mut syn3_base = FmData::default();
@@ -663,12 +1048,8 @@ fn java8_oracle_synthetic_branches() {
     syn3_base.has_comp_omega_factor_sq = true;
     syn3_base.explicit_exact_altitudes = None;
     let syn3_exp = exp(
-        3000.0, 1200.0, 1180.0, 0.0, 1.0,
-        3000.0, 1.0, 0.95,
-        0.0, 0.0, 8000.0, 500.0,
-        3000.0, 1200.0, 1200.0,
-        0.0, 0.0, 0.0,
-        0, false,
+        3000.0, 1200.0, 1180.0, 0.0, 1.0, 3000.0, 1.0, 0.95, 0.0, 0.0, 8000.0, 500.0, 3000.0,
+        1200.0, 1200.0, 0.0, 0.0, 0.0, 0, false,
     );
     let stages = extract_stages(Some(&syn3_base)).unwrap();
     assert_stage("syn3[0]", &stages[0], &syn3_exp);
@@ -694,14 +1075,14 @@ fn java8_oracle_synthetic_branches() {
         ..Default::default()
     };
     let stages = extract_stages_with_fuel(Some(&syn3b), Some(&sov50)).unwrap();
-    assert_stage("syn4_sov50[0]", &stages[0], &exp(
-        3000.0, 1_221.6, 1_201.24, 0.0, 1.0,
-        3000.0, 1.0, 0.95,
-        0.0, 0.0, 8000.0, 509.0,
-        3000.0, 1_221.6, 1_221.6,
-        0.0, 0.0, 0.0,
-        0, false,
-    ));
+    assert_stage(
+        "syn4_sov50[0]",
+        &stages[0],
+        &exp(
+            3000.0, 1_221.6, 1_201.24, 0.0, 1.0, 3000.0, 1.0, 0.95, 0.0, 0.0, 8000.0, 509.0,
+            3000.0, 1_221.6, 1_221.6, 0.0, 0.0, 0.0, 0, false,
+        ),
+    );
 
     // syn5: 英国油 invertEnableLogic=true → 不加成 (与 syn3b 相同)
     let inv = FuelModification {
@@ -745,22 +1126,58 @@ fn java8_oracle_synthetic_branches() {
     syn6.explicit_exact_altitudes = Some(false);
     syn6.comp_afterburner_pressure_boost = Some(vec![1.08, 1.05]);
     let stages = extract_stages(Some(&syn6)).unwrap();
-    assert_stage("syn6[0]", &stages[0], &exp(
-        5000.0, 1500.0, 1400.0, 0.0, 1.0,
-        4984.0, 1.2281840277777778, 0.9,
-        1200.0, 1450.0, 10000.0, 700.0,
-        5000.0, 1500.0, 1500.0,
-        -18.0, 1_182.229_918_848_382, 0.0,
-        0, false,
-    ));
-    assert_stage("syn6[1]", &stages[1], &exp(
-        8000.0, 1300.0, 1120.0, 0.0, 1.0,
-        7790.0, 1.1930930555555554, 0.9,
-        0.0, 0.0, 11000.0, 600.0,
-        8000.0, 1300.0, 1300.0,
-        -257.0, 0.0, 0.0,
-        1, false,
-    ));
+    assert_stage(
+        "syn6[0]",
+        &stages[0],
+        &exp(
+            5000.0,
+            1500.0,
+            1400.0,
+            0.0,
+            1.0,
+            4984.0,
+            1.2281840277777778,
+            0.9,
+            1200.0,
+            1450.0,
+            10000.0,
+            700.0,
+            5000.0,
+            1500.0,
+            1500.0,
+            -18.0,
+            1_182.229_918_848_382,
+            0.0,
+            0,
+            false,
+        ),
+    );
+    assert_stage(
+        "syn6[1]",
+        &stages[1],
+        &exp(
+            8000.0,
+            1300.0,
+            1120.0,
+            0.0,
+            1.0,
+            7790.0,
+            1.1930930555555554,
+            0.9,
+            0.0,
+            0.0,
+            11000.0,
+            600.0,
+            8000.0,
+            1300.0,
+            1300.0,
+            -257.0,
+            0.0,
+            0.0,
+            1,
+            false,
+        ),
+    );
 }
 
 // ---- oracle: null / 守卫边界 ----
@@ -787,8 +1204,16 @@ fn java8_oracle_null_and_guard_boundaries() {
     // 有数据时工具函数直读 (Java spitfire 实测: wepBoost=1.41(f32) speedMM=0.8(f32))
     let fmdata = spitfire_f24();
     assert!(is_piston_engine(Some(&fmdata)));
-    check("spit wepBoost", get_wep_boost_factor(Some(&fmdata)), 1.409_999_966_621_399);
-    check("spit speedMM", get_speed_manifold_multiplier(Some(&fmdata)), 0.800_000_011_920_929);
+    check(
+        "spit wepBoost",
+        get_wep_boost_factor(Some(&fmdata)),
+        1.409_999_966_621_399,
+    );
+    check(
+        "spit speedMM",
+        get_speed_manifold_multiplier(Some(&fmdata)),
+        0.800_000_011_920_929,
+    );
 }
 
 // ---- TestSpitfireF24Power.testParameterExtraction 断言移植 (fixture 自检) ----
@@ -866,8 +1291,15 @@ fn java_test_port_tempest_invert_enable_logic() {
     // fuelMod != null 由类型系统保证; Java 的 SKIP 分支不移植
 
     // Tempest Mk V has invertEnableLogic:b = true (150 octane is default)
-    assert_eq!(fuel.r#type, FuelType::British150Octane, "detected British 150 octane fuel");
-    assert!(fuel.british_invert_logic, "invertEnableLogic is true (150 octane is default)");
+    assert_eq!(
+        fuel.r#type,
+        FuelType::British150Octane,
+        "detected British 150 octane fuel"
+    );
+    assert!(
+        fuel.british_invert_logic,
+        "invertEnableLogic is true (150 octane is default)"
+    );
 
     // With invertEnableLogic=true, fuel mod should NOT change WEP params
     let stages_no_fuel = extract_stages(Some(&fmdata)).unwrap();
@@ -907,15 +1339,31 @@ fn java_test_port_tempest_power_curve() {
     let stages = extract_stages(Some(&fmdata)).unwrap();
 
     let wtapc_mil = [
-        (0.0, 1982.4), (1000.0, 2031.5), (1730.0, 2064.7),
-        (2000.0, 2001.8), (3000.0, 1773.7), (4000.0, 1704.3),
-        (5000.0, 1726.7), (6000.0, 1615.6), (7000.0, 1432.2),
-        (8000.0, 1269.0), (9000.0, 1124.1), (10000.0, 994.2),
+        (0.0, 1982.4),
+        (1000.0, 2031.5),
+        (1730.0, 2064.7),
+        (2000.0, 2001.8),
+        (3000.0, 1773.7),
+        (4000.0, 1704.3),
+        (5000.0, 1726.7),
+        (6000.0, 1615.6),
+        (7000.0, 1432.2),
+        (8000.0, 1269.0),
+        (9000.0, 1124.1),
+        (10000.0, 994.2),
     ];
     let wtapc_wep = [
-        (0.0, 2439.9), (1000.0, 2223.0), (2000.0, 2041.6), (3000.0, 2075.9),
-        (4000.0, 2045.9), (5000.0, 1844.6), (6000.0, 1650.3), (7000.0, 1466.0),
-        (8000.0, 1302.0), (9000.0, 1156.3), (10000.0, 1025.8),
+        (0.0, 2439.9),
+        (1000.0, 2223.0),
+        (2000.0, 2041.6),
+        (3000.0, 2075.9),
+        (4000.0, 2045.9),
+        (5000.0, 1844.6),
+        (6000.0, 1650.3),
+        (7000.0, 1466.0),
+        (8000.0, 1302.0),
+        (9000.0, 1156.3),
+        (10000.0, 1025.8),
     ];
 
     let mut mil_max_err = 0.0f64;
@@ -923,14 +1371,20 @@ fn java_test_port_tempest_power_curve() {
         let actual = optimal_power_advanced(&stages, alt, false, 300.0, true, 15.0);
         mil_max_err = mil_max_err.max((actual - expected).abs());
     }
-    assert!(mil_max_err < 5.0, "Military max error < 5 hp (was {mil_max_err})");
+    assert!(
+        mil_max_err < 5.0,
+        "Military max error < 5 hp (was {mil_max_err})"
+    );
 
     let mut wep_max_err = 0.0f64;
     for (alt, expected) in wtapc_wep {
         let actual = optimal_power_advanced(&stages, alt, true, 300.0, true, 15.0);
         wep_max_err = wep_max_err.max((actual - expected).abs());
     }
-    assert!(wep_max_err < 10.0, "WEP max error < 10 hp (was {wep_max_err})");
+    assert!(
+        wep_max_err < 10.0,
+        "WEP max error < 10 hp (was {wep_max_err})"
+    );
 
     // 峰值: Java `for (int alt = 0; alt <= 10000; alt += 50)` 同步进步进
     let mut wep_peak = 0.0f64;
@@ -942,6 +1396,12 @@ fn java_test_port_tempest_power_curve() {
             wep_peak_alt = alt as f64;
         }
     }
-    assert!((wep_peak - 2439.9).abs() <= 10.0, "WEP peak power vs wtapc 2439.9");
-    assert!((wep_peak_alt - 0.0).abs() <= 100.0, "WEP peak altitude vs wtapc 0");
+    assert!(
+        (wep_peak - 2439.9).abs() <= 10.0,
+        "WEP peak power vs wtapc 2439.9"
+    );
+    assert!(
+        (wep_peak_alt - 0.0).abs() <= 100.0,
+        "WEP peak altitude vs wtapc 0"
+    );
 }

@@ -218,51 +218,105 @@ fn sweep(l: &SweepLevel) -> f64 {
 fn interp_sweep_level_none_or_empty_returns_default() {
     assert_eq!(interp_sweep_level(0.5, None, vne, sweep, 999.0), 999.0);
     let empty: [SweepLevel; 0] = [];
-    assert_eq!(interp_sweep_level(0.5, Some(&empty), vne, sweep, 999.0), 999.0);
+    assert_eq!(
+        interp_sweep_level(0.5, Some(&empty), vne, sweep, 999.0),
+        999.0
+    );
 }
 
 #[test]
 fn interp_sweep_level_single_element() {
-    let levels = [SweepLevel { sweep: 0.3, vne: 700.0 }];
-    assert_eq!(interp_sweep_level(0.9, Some(&levels), vne, sweep, 999.0), 700.0);
+    let levels = [SweepLevel {
+        sweep: 0.3,
+        vne: 700.0,
+    }];
+    assert_eq!(
+        interp_sweep_level(0.9, Some(&levels), vne, sweep, 999.0),
+        700.0
+    );
 }
 
 #[test]
 fn interp_sweep_level_below_minimum() {
     let levels = [
-        SweepLevel { sweep: 0.2, vne: 800.0 },
-        SweepLevel { sweep: 1.0, vne: 600.0 },
+        SweepLevel {
+            sweep: 0.2,
+            vne: 800.0,
+        },
+        SweepLevel {
+            sweep: 1.0,
+            vne: 600.0,
+        },
     ];
     // vwing <= firstSweep → 首元素值
-    assert_eq!(interp_sweep_level(0.0, Some(&levels), vne, sweep, 999.0), 800.0);
-    assert_eq!(interp_sweep_level(0.2, Some(&levels), vne, sweep, 999.0), 800.0);
+    assert_eq!(
+        interp_sweep_level(0.0, Some(&levels), vne, sweep, 999.0),
+        800.0
+    );
+    assert_eq!(
+        interp_sweep_level(0.2, Some(&levels), vne, sweep, 999.0),
+        800.0
+    );
 }
 
 #[test]
 fn interp_sweep_level_middle_intervals() {
     let two = [
-        SweepLevel { sweep: 0.0, vne: 800.0 },
-        SweepLevel { sweep: 1.0, vne: 600.0 },
+        SweepLevel {
+            sweep: 0.0,
+            vne: 800.0,
+        },
+        SweepLevel {
+            sweep: 1.0,
+            vne: 600.0,
+        },
     ];
     // t = 0.25 → 800 + 0.25*(600-800) = 750
-    assert_eq!(interp_sweep_level(0.25, Some(&two), vne, sweep, 999.0), 750.0);
+    assert_eq!(
+        interp_sweep_level(0.25, Some(&two), vne, sweep, 999.0),
+        750.0
+    );
     // 区间边界 vwing == s1: 命中首个满足 s0<=v<=s1 的区间, t=1 → 700
-    assert_eq!(interp_sweep_level(0.5, Some(&two), vne, sweep, 999.0), 700.0);
+    assert_eq!(
+        interp_sweep_level(0.5, Some(&two), vne, sweep, 999.0),
+        700.0
+    );
 
     let three = [
-        SweepLevel { sweep: 0.0, vne: 800.0 },
-        SweepLevel { sweep: 0.5, vne: 700.0 },
-        SweepLevel { sweep: 1.0, vne: 600.0 },
+        SweepLevel {
+            sweep: 0.0,
+            vne: 800.0,
+        },
+        SweepLevel {
+            sweep: 0.5,
+            vne: 700.0,
+        },
+        SweepLevel {
+            sweep: 1.0,
+            vne: 600.0,
+        },
     ];
     // 0.75 落在 [0.5, 1.0]: t = 0.5 → 700 + 0.5*(600-700) = 650
-    assert_eq!(interp_sweep_level(0.75, Some(&three), vne, sweep, 999.0), 650.0);
+    assert_eq!(
+        interp_sweep_level(0.75, Some(&three), vne, sweep, 999.0),
+        650.0
+    );
 }
 
 #[test]
 fn interp_sweep_level_above_maximum() {
     let levels = [
-        SweepLevel { sweep: 0.0, vne: 800.0 },
-        SweepLevel { sweep: 1.0, vne: 600.0 },
+        SweepLevel {
+            sweep: 0.0,
+            vne: 800.0,
+        },
+        SweepLevel {
+            sweep: 1.0,
+            vne: 600.0,
+        },
     ];
-    assert_eq!(interp_sweep_level(1.2, Some(&levels), vne, sweep, 999.0), 600.0);
+    assert_eq!(
+        interp_sweep_level(1.2, Some(&levels), vne, sweep, 999.0),
+        600.0
+    );
 }

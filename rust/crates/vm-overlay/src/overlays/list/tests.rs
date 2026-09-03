@@ -24,16 +24,32 @@ fn zebra_row_colors_header_skips_index() {
     assert!(z.is_header("------fm器件: 机翼"));
     assert!(z.is_header("FM文件: spitfire"));
     assert!(!z.is_header("速度 600"));
-    assert_eq!(z.row_background("FM文件: x", 0, 255), [80, 60, 0, 255], "表头 #503C00");
-    assert_eq!(z.row_background("a", 0, 255), [25, 25, 25, 255], "偶行 #191919");
-    assert_eq!(z.row_background("b", 1, 255), [40, 40, 40, 255], "奇行 #282828");
+    assert_eq!(
+        z.row_background("FM文件: x", 0, 255),
+        [80, 60, 0, 255],
+        "表头 #503C00"
+    );
+    assert_eq!(
+        z.row_background("a", 0, 255),
+        [25, 25, 25, 255],
+        "偶行 #191919"
+    );
+    assert_eq!(
+        z.row_background("b", 1, 255),
+        [40, 40, 40, 255],
+        "奇行 #282828"
+    );
     // 表头行出现后斑马索引不自增: 表头前 idx0(偶), 表头(不增), 后续 idx1(奇)
     assert_eq!(
         z.row_background("------fm器件", 1, 255),
         [80, 60, 0, 255],
         "表头行无视斑马索引"
     );
-    assert_eq!(z.row_background("c", 2, 255), [25, 25, 25, 255], "idx2 回偶");
+    assert_eq!(
+        z.row_background("c", 2, 255),
+        [25, 25, 25, 255],
+        "idx2 回偶"
+    );
     // alpha 透传 (BaseOverlay.alpha, 默认 180)
     assert_eq!(z.row_background("a", 0, 180), [25, 25, 25, 180]);
 }
@@ -46,7 +62,9 @@ fn header_matcher_override() {
     // contains 默认: "FM文件" 命中
     assert!(ov.zebra.is_header("FM文件: x"));
     // 换 startsWith 谓词 (BaseOverlay.setHeaderMatcher 委托 renderer)
-    ov.set_header_matcher(Box::new(|l| l.starts_with("FM文件") || l.starts_with("------fm器件")));
+    ov.set_header_matcher(Box::new(|l| {
+        l.starts_with("FM文件") || l.starts_with("------fm器件")
+    }));
     assert!(ov.zebra.is_header("------fm器件: 机翼"));
     assert!(!ov.zebra.is_header("prefix FM文件")); // startsWith 不命中
 }
@@ -62,7 +80,11 @@ fn row_height_and_preferred_height() {
     assert_eq!(ZebraList::row_height(&f16), f16.metrics().height + 4);
     let ls = lines(&["a", "b", "c"]);
     assert_eq!(ZebraList::preferred_height(&ls, &f), 3 * (m + 4));
-    assert_eq!(ZebraList::preferred_height(&[], &f), 0, "空列表 preferred 0");
+    assert_eq!(
+        ZebraList::preferred_height(&[], &f),
+        0,
+        "空列表 preferred 0"
+    );
 }
 
 /// 像素: 表头/偶/奇满宽条 + 左缩进 6 处白字 + 底色兜底 (alpha=255 免预乘歧义)
@@ -97,7 +119,11 @@ fn draw_zebra_rows_pixels() {
     let text_zone = (MARGIN_LEFT..w)
         .map(|x| (x, baseline))
         .find(|&(x, y)| px(&cv, x, y) == TEXT_COLOR);
-    assert!(text_zone.is_some(), "基线上有白色字形像素 (x={:?})", text_zone);
+    assert!(
+        text_zone.is_some(),
+        "基线上有白色字形像素 (x={:?})",
+        text_zone
+    );
     // 左 margin 列 x<MARGIN_LEFT 在无字形负 bearing 侵入时为纯底色:
     // x=0..2 距文本起笔 4px+, 全列均为表头色
     for x in 0..MARGIN_LEFT {
@@ -119,7 +145,11 @@ fn draw_panel_bg_and_clipped_rows() {
     let preferred = ZebraList::preferred_height(&ls, &f);
     let mut cv = PixCanvas::new(w, preferred + 3).unwrap();
     z.draw(&mut cv, 0, 0, w, preferred + 3, &ls, &f, 255, false);
-    assert_eq!(px(&cv, 0, preferred), [20, 20, 20, 255], "行下方露 panel 底色");
+    assert_eq!(
+        px(&cv, 0, preferred),
+        [20, 20, 20, 255],
+        "行下方露 panel 底色"
+    );
     assert_eq!(px(&cv, w - 1, preferred + 2), [20, 20, 20, 255]);
     // 空列表 = 纯 panel 底色 (初始无数据窗口)
     let mut cv0 = PixCanvas::new(w, 10).unwrap();
@@ -134,12 +164,20 @@ fn draw_panel_bg_and_clipped_rows() {
     let cut = 2 * row_h + 4;
     let mut cv2 = PixCanvas::new(w, cut).unwrap();
     z.draw(&mut cv2, 0, 0, w, cut, &ls, &f, 255, false);
-    assert_eq!(px(&cv2, 0, 2 * row_h), [25, 25, 25, 255], "第 3 行顶部可见 (idx2 偶色)");
+    assert_eq!(
+        px(&cv2, 0, 2 * row_h),
+        [25, 25, 25, 255],
+        "第 3 行顶部可见 (idx2 偶色)"
+    );
     assert_eq!(px(&cv2, 0, cut - 1), [25, 25, 25, 255]);
     // 画布外不可见; panel_h 之外的行整体不画 (此处无第 3 行完整区)
     let mut cv3 = PixCanvas::new(w, 2 * row_h).unwrap();
     z.draw(&mut cv3, 0, 0, w, 2 * row_h, &ls, &f, 255, false);
-    assert_eq!(px(&cv3, 0, 2 * row_h - 1), [40, 40, 40, 255], "末行=第 2 行 (奇色)");
+    assert_eq!(
+        px(&cv3, 0, 2 * row_h - 1),
+        [40, 40, 40, 255],
+        "末行=第 2 行 (奇色)"
+    );
 }
 
 /// 默认 alpha=180 的三层合成 (Java 8 + WebLaF oracle): 间隙 = panel², 行 =
@@ -158,15 +196,40 @@ fn draw_default_alpha_premultiplied() {
     let panel = rgba(PANEL_BG_RGB, 180);
     let panel2 = java2d_src_over(panel, java2d_src_over(panel, [0, 0, 0, 0]));
     assert_eq!(panel2, [20, 20, 20, 233], "间隙 = panel² = 0xE9141414");
-    assert_eq!(java2d_src_over(rgba(HEADER_RGB, 180), panel2), [62, 48, 5, 249]);
-    assert_eq!(java2d_src_over(rgba(ZEBRA_EVEN_RGB, 180), panel2), [24, 24, 24, 249]);
-    assert_eq!(java2d_src_over(rgba(ZEBRA_ODD_RGB, 180), panel2), [34, 34, 34, 249]);
+    assert_eq!(
+        java2d_src_over(rgba(HEADER_RGB, 180), panel2),
+        [62, 48, 5, 249]
+    );
+    assert_eq!(
+        java2d_src_over(rgba(ZEBRA_EVEN_RGB, 180), panel2),
+        [24, 24, 24, 249]
+    );
+    assert_eq!(
+        java2d_src_over(rgba(ZEBRA_ODD_RGB, 180), panel2),
+        [34, 34, 34, 249]
+    );
     // 预乘: 62·249/255=60.5→61, 48·249/255=46.9→47, 5·249/255=4.9→5;
     // 24·249/255=23.4→23; 34·249/255=33.2→33; 20·233/255=18.3→18
-    assert_eq!(px(&cv, 0, 0), [61, 47, 5, 249], "表头 = oracle 0xF93E3005 预乘");
-    assert_eq!(px(&cv, 0, row_h), [23, 23, 23, 249], "偶行 = oracle 0xF9181818 预乘");
-    assert_eq!(px(&cv, 0, 2 * row_h), [33, 33, 33, 249], "奇行 = oracle 0xF9222222 预乘");
-    assert_eq!(px(&cv, 0, rows_h), [18, 18, 18, 233], "余量带 = oracle 0xE9141414 预乘");
+    assert_eq!(
+        px(&cv, 0, 0),
+        [61, 47, 5, 249],
+        "表头 = oracle 0xF93E3005 预乘"
+    );
+    assert_eq!(
+        px(&cv, 0, row_h),
+        [23, 23, 23, 249],
+        "偶行 = oracle 0xF9181818 预乘"
+    );
+    assert_eq!(
+        px(&cv, 0, 2 * row_h),
+        [33, 33, 33, 249],
+        "奇行 = oracle 0xF9222222 预乘"
+    );
+    assert_eq!(
+        px(&cv, 0, rows_h),
+        [18, 18, 18, 233],
+        "余量带 = oracle 0xE9141414 预乘"
+    );
     assert_eq!(px(&cv, 59, rows_h + 4), [18, 18, 18, 233], "余量带满宽");
 }
 
@@ -178,13 +241,32 @@ fn tick_dirty_check_lifecycle() {
     let mut ov = BaseListOverlay::new(1440, 1.0, 12);
     ov.setup_font(&f);
 
-    assert!(ov.tick(|| Some(lines(&["a", "b"]))), "首帧 (lastData=null → 必更新)");
-    assert_eq!(ov.height, 2 * ZebraList::row_height(&f), "高度自适应到 preferred");
-    assert!(!ov.tick(|| Some(lines(&["a", "b"]))), "同数据 equals → 不更新");
+    assert!(
+        ov.tick(|| Some(lines(&["a", "b"]))),
+        "首帧 (lastData=null → 必更新)"
+    );
+    assert_eq!(
+        ov.height,
+        2 * ZebraList::row_height(&f),
+        "高度自适应到 preferred"
+    );
+    assert!(
+        !ov.tick(|| Some(lines(&["a", "b"]))),
+        "同数据 equals → 不更新"
+    );
     assert!(ov.tick(|| Some(lines(&["a", "c"]))), "内容变化 → 更新");
-    assert!(!ov.tick(|| None), "null 数据 → 不更新 (Java :237 null 检查)");
-    assert!(!ov.tick(|| Some(lines(&["a", "c"]))), "null 未污染基准, 仍与 lastData 同");
-    assert!(ov.tick(|| Some(lines(&["a"]))), "行数变化 → 更新, 高度随之降");
+    assert!(
+        !ov.tick(|| None),
+        "null 数据 → 不更新 (Java :237 null 检查)"
+    );
+    assert!(
+        !ov.tick(|| Some(lines(&["a", "c"]))),
+        "null 未污染基准, 仍与 lastData 同"
+    );
+    assert!(
+        ov.tick(|| Some(lines(&["a"]))),
+        "行数变化 → 更新, 高度随之降"
+    );
     assert_eq!(ov.height, ZebraList::row_height(&f));
 }
 
@@ -205,7 +287,10 @@ fn tick_visibility_and_exit_gates() {
         called = true;
         Some(lines(&["y"]))
     }));
-    assert!(!called, "隐藏分支不调 dataSupplier (Java :236 在可见分支内)");
+    assert!(
+        !called,
+        "隐藏分支不调 dataSupplier (Java :236 在可见分支内)"
+    );
     assert!(!ov.window_visible, "setVisible(false)");
 
     // 重现: 同数据不重绘, 但窗口恢复显示 (Java :245-247 守卫置 true)
@@ -216,7 +301,10 @@ fn tick_visibility_and_exit_gates() {
     // preview 模式绕过 isVisibleNow (Java :235 isPreview ||)
     ov.visible_now = false;
     ov.is_preview = true;
-    assert!(ov.tick(|| Some(lines(&["z"]))), "preview 隐藏态仍取数且变更脏");
+    assert!(
+        ov.tick(|| Some(lines(&["z"]))),
+        "preview 隐藏态仍取数且变更脏"
+    );
     assert!(ov.window_visible);
     ov.is_preview = false;
 
@@ -244,7 +332,11 @@ fn height_adaptation_clamp_and_tolerance() {
     let row_h = ZebraList::row_height(&f);
     let mut ov = BaseListOverlay::new(1000, 1.0, 12);
     ov.setup_font(&f);
-    assert_eq!(ov.height, 12 * 72, "初始 height 字段 = defaultFontsize*72 (:95)");
+    assert_eq!(
+        ov.height,
+        12 * 72,
+        "初始 height 字段 = defaultFontsize*72 (:95)"
+    );
 
     // clamp: 行数超逻辑屏高 (1000-40=960)
     let n = (960 / row_h + 10) as usize;
@@ -306,7 +398,11 @@ fn render_to_canvas() {
     let row_h = ZebraList::row_height(&f);
     // 预合成直铺: 表头 oracle 0xF93E3005=(249,62,48,5) → 预乘 61/47/5;
     // 偶行 0xF9181818=(249,24,24,24) → 预乘 23 (render2d 头注预乘语义)
-    assert_eq!(px(&cv, 0, 0), [61, 47, 5, 249], "表头条 (三层合成, alpha=249)");
+    assert_eq!(
+        px(&cv, 0, 0),
+        [61, 47, 5, 249],
+        "表头条 (三层合成, alpha=249)"
+    );
     assert_eq!(px(&cv, 0, row_h), [23, 23, 23, 249], "数据条 = 偶行预乘");
 
     // 无数据: 只铺 panel² 底色 (初始窗口, 间隙色 0xE9141414)

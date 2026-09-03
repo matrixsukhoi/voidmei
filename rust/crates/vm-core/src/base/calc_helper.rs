@@ -10,7 +10,11 @@ pub struct SimpleMovingAverage {
 
 impl SimpleMovingAverage {
     pub fn new(num: usize) -> Self {
-        SimpleMovingAverage { data: vec![0.0; num], cnt: 0, avg: 0.0 }
+        SimpleMovingAverage {
+            data: vec![0.0; num],
+            cnt: 0,
+            avg: 0.0,
+        }
     }
 
     pub fn add_new_data(&mut self, ndata: f64) -> f64 {

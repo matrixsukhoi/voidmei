@@ -27,10 +27,18 @@ fn blink_ticks_formula() {
     assert_eq!(WarningBlinkHost::new(50).blink_ticks(), 2, "20>>3=2");
     assert_eq!(WarningBlinkHost::new(40).blink_ticks(), 3, "25>>3=3");
     assert_eq!(WarningBlinkHost::new(10).blink_ticks(), 12, "100>>3=12");
-    assert_eq!(WarningBlinkHost::new(16).blink_ticks(), 7, "1000/16=62 (截断)>>3=7");
+    assert_eq!(
+        WarningBlinkHost::new(16).blink_ticks(),
+        7,
+        "1000/16=62 (截断)>>3=7"
+    );
     assert_eq!(WarningBlinkHost::new(125).blink_ticks(), 1, "8>>3=1");
     assert_eq!(WarningBlinkHost::new(200).blink_ticks(), 1, "5>>3=0 → 钳 1");
-    assert_eq!(WarningBlinkHost::new(1000).blink_ticks(), 1, "1>>3=0 → 钳 1");
+    assert_eq!(
+        WarningBlinkHost::new(1000).blink_ticks(),
+        1,
+        "1>>3=0 → 钳 1"
+    );
 }
 
 /// interval=0: Java long 除零抛 ArithmeticException → Rust panic (同致命)
@@ -112,11 +120,19 @@ fn warning_x_geometry_layers() {
     // 预乘存储: shadowColor(0,0,0,42) → [0,0,0,42] 精确
     assert_eq!(px(&c, 17, 15), [0, 0, 0, 42], "纯影层轮廓 (主线垂距 2.23)");
     // 中心四层交叠 (srcOver 链: 42→77→244→254)
-    assert_px_close(px(&c, 30, 20), [27, 254, 128, 254], "中心交点 = 双影+双前景");
+    assert_px_close(
+        px(&c, 30, 20),
+        [27, 254, 128, 254],
+        "中心交点 = 双影+双前景",
+    );
     // 单线三层: colorNum(27,255,128,240) SrcOver 影(0,0,0,42):
     // out_a = 240+42·15/255 ≈ 242.5, 通道 ≈ c·out_a/255 → [25.4,240,120.5]
     assert_px_close(px(&c, 18, 27), [25, 240, 120, 242], "副对角线单线叠色");
-    assert_eq!(px(&c, 4, 4), [0, 0, 0, 0], "端点圆帽外 (距 (6,6) 帽缘 2.12 > 1.5)");
+    assert_eq!(
+        px(&c, 4, 4),
+        [0, 0, 0, 0],
+        "端点圆帽外 (距 (6,6) 帽缘 2.12 > 1.5)"
+    );
     assert_eq!(px(&c, 5, 20), [0, 0, 0, 0], "远离线身");
 }
 
@@ -128,5 +144,9 @@ fn warning_aa_smoke() {
     let mut c = PixCanvas::new(60, 40).unwrap();
     w.draw(&mut c, 5, 5, 50, 30, false, true);
     assert!(any_nonzero(&c), "AA 开启时 X 有输出");
-    assert_px_close(px(&c, 30, 20), [27, 254, 128, 254], "AA 中心与非 AA 同层叠色");
+    assert_px_close(
+        px(&c, 30, 20),
+        [27, 254, 128, 254],
+        "AA 中心与非 AA 同层叠色",
+    );
 }

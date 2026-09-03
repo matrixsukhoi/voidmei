@@ -94,7 +94,10 @@ fn voice_warning_游戏模式会话_启动tick写fatal_warn并停机() {
         std::thread::sleep(Duration::from_millis(50));
     }
     session.stop();
-    assert!(!session.doit.load(Ordering::SeqCst), "停机后 doit 应为 false");
+    assert!(
+        !session.doit.load(Ordering::SeqCst),
+        "停机后 doit 应为 false"
+    );
     session.stop(); // 幂等 (Drop 兜底同款)
 }
 
@@ -140,7 +143,10 @@ fn voice_warning_激活判定_配置开关与live门控() {
         "预览态 (overlay_ctx_preview=true) 不得激活 (Java gameModeOnly)"
     );
     // openpad: 会话窗口形态翻 false (forGameMode ctx) → 激活
-    shell.shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
+    shell
+        .shared
+        .overlay_ctx_preview
+        .store(false, Ordering::SeqCst);
     assert!(
         strategy_for("enableVoiceWarn").should_activate(&mk_ctx(&shell)),
         "cfg=true + 游戏模式应激活"
@@ -350,7 +356,11 @@ fn voice_warning_装配面_播放计数与订阅生命周期() {
     {
         let p = plays.lock().unwrap();
         assert_eq!(p.get("start1"), Some(&1), "启动音效应播一次: {p:?}");
-        assert_eq!(p.get("aoaCrit"), Some(&1), "AoA 告警键应触发 play 路径: {p:?}");
+        assert_eq!(
+            p.get("aoaCrit"),
+            Some(&1),
+            "AoA 告警键应触发 play 路径: {p:?}"
+        );
     }
 
     // 销毁: 停机 (join = VoiceWarning Drop) 后无僵尸订阅 (双总线注销)
@@ -420,7 +430,10 @@ fn refresh_previews_stop_voice_warn_session() {
     // 游戏稳态 (openpad 后 overlay_ctx_preview=false) + WYSIWYG 键控刷新
     // (State=Preview 是 Java 同名态, 防过期守卫放行)
     *shell.shared.state.write().unwrap() = ControllerState::Preview;
-    let gen = shell.shared.preview_generation.load(std::sync::atomic::Ordering::SeqCst);
+    let gen = shell
+        .shared
+        .preview_generation
+        .load(std::sync::atomic::Ordering::SeqCst);
     shell.send_ui(UiCommand::RefreshPreviews {
         changed_key: Some("enableVoiceWarn".to_string()),
         generation: gen,
@@ -431,7 +444,10 @@ fn refresh_previews_stop_voice_warn_session() {
         probe_deliveries(&shell.ui_bus)
     );
     // 开方向不重建 (Java preview-ctx 怪癖同形态): 再次键控刷新计数不动
-    let gen2 = shell.shared.preview_generation.load(std::sync::atomic::Ordering::SeqCst);
+    let gen2 = shell
+        .shared
+        .preview_generation
+        .load(std::sync::atomic::Ordering::SeqCst);
     shell.send_ui(UiCommand::RefreshPreviews {
         changed_key: Some("enableVoiceWarn".to_string()),
         generation: gen2,

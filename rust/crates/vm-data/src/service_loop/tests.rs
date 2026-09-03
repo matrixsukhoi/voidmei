@@ -106,8 +106,7 @@ fn process_polling_cycle_full_chain() {
     let _sub = bus.register(move |_| {
         h2.fetch_add(1, Ordering::SeqCst);
     });
-    let mut svc =
-        Service::new(ServiceConfig::default(), Arc::clone(&fm), Arc::clone(&bus));
+    let mut svc = Service::new(ServiceConfig::default(), Arc::clone(&fm), Arc::clone(&bus));
     install_factory_formulas(&svc);
     let base = hits.load(Ordering::SeqCst); // 构造期 1 次
 
@@ -134,11 +133,18 @@ fn process_polling_cycle_full_chain() {
         // Deriver 写回: vario(indicators 优先) / compass / an
         assert!((d.n_vy - (-7.342558f32 as f64)).abs() < 1e-6);
         assert!((d.compass_delta - 164.09729f32 as f64).abs() < 1e-4);
-        assert!(d.var_value("an").unwrap_or(0.0) > 0.0, "An = g*sqrt(Ny²+1-2Ny·cos(roll)·cos(pitch+AoA))");
+        assert!(
+            d.var_value("an").unwrap_or(0.0) > 0.0,
+            "An = g*sqrt(Ny²+1-2Ny·cos(roll)·cos(pitch+AoA))"
+        );
         // R2 hasFM 守卫 (Java updateSpeedRatio L1191-1199): 本轮 identify 的
         // 异步加载尚未完成 → blkx None → 整方法早退, mach 保持初值 0
         // (无 FM 机型不得进 hide-when-zero 显示; 无守卫时的 0.39 是越权计算)
-        assert_eq!(d.var_value("mach").unwrap_or(0.0), 0.0, "无 FM 公式 invalid → None → 0");
+        assert_eq!(
+            d.var_value("mach").unwrap_or(0.0),
+            0.0,
+            "无 FM 公式 invalid → None → 0"
+        );
         // updateAlt 写回: alt←H,m; mock 无 radio_altitude 键 → 哨兵 →
         // radioAlt=alt (radioAltValid 写入点已随 W-B 删除)
         assert_eq!(d.altm.alt, 46.0);
@@ -147,10 +153,7 @@ fn process_polling_cycle_full_chain() {
     }
     // identify 已建立目标 (规范化小写); loader 线程尝试磁盘加载 (data/ 缺失
     // → MISSING 落负缓存, 不影响本断言)
-    assert_eq!(
-        fm.current_target_name().as_deref(),
-        Some("p-51d-20_china")
-    );
+    assert_eq!(fm.current_target_name().as_deref(), Some("p-51d-20_china"));
     // 事件: 构造 1 次 + 本周期 1 次
     assert_eq!(hits.load(Ordering::SeqCst), base + 1);
     // calcPeriod 后缀自增
@@ -244,9 +247,17 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     svc.calculate();
     {
         let d = read_data(&svc.data);
-        assert_eq!(d.var_value("speed_limit_ratio").unwrap_or(0.0), 0.0, "无 FM 比值归零");
+        assert_eq!(
+            d.var_value("speed_limit_ratio").unwrap_or(0.0),
+            0.0,
+            "无 FM 比值归零"
+        );
         assert_eq!(d.var_value("aileron_lock_ratio").unwrap_or(0.0), 0.0);
-        assert_eq!(d.var_value("stall_speed").unwrap_or(0.0), 0.0, "无 FM 失速 invalid → None → 0");
+        assert_eq!(
+            d.var_value("stall_speed").unwrap_or(0.0),
+            0.0,
+            "无 FM 失速 invalid → None → 0"
+        );
     }
 
     // 有 FM: 真机 spitfire 全量装载 (getload 波次产物)
@@ -258,7 +269,13 @@ fn update_speed_ratio_and_stall_speed_oracle() {
         return; // data/ 未解包
     }
     let fmdata = vm_core::fm::data::FmData::parse_named_json(&phys, "fm/spitfire_f24.blk").unwrap();
-    let fm = FMHandle::ready(Some("spitfire_f24".to_string()), Some(fmdata), 0.0, 0.0, None);
+    let fm = FMHandle::ready(
+        Some("spitfire_f24".to_string()),
+        Some(fmdata),
+        0.0,
+        0.0,
+        None,
+    );
 
     // W3: 两方法消解 — 公式接管 (formula_step 驱动, oracle 数值不变);
     // d.fm 生产链由 calculate 开头注入 (R1 快照), 直调此处补注
@@ -267,11 +284,24 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     {
         let d = read_data(&svc.data);
         // python oracle (f32 拓宽域公式直算, 位级)
-        assert_eq!(d.var_value("speed_limit_ratio").unwrap_or(f64::NAN), 0.5417142857142857, "iasRatio = 474/875");
-        assert_eq!(d.var_value("aileron_lock_ratio").unwrap_or(f64::NAN), 0.5508571428571428, "482/875");
-        assert_eq!(d.var_value("rudder_lock_ratio").unwrap_or(f64::NAN), 0.45714285714285713, "400/875");
         assert_eq!(
-            d.var_value("unit_mach_limit_ratio").unwrap_or(f64::NAN), 1.3962520958006088,
+            d.var_value("speed_limit_ratio").unwrap_or(f64::NAN),
+            0.5417142857142857,
+            "iasRatio = 474/875"
+        );
+        assert_eq!(
+            d.var_value("aileron_lock_ratio").unwrap_or(f64::NAN),
+            0.5508571428571428,
+            "482/875"
+        );
+        assert_eq!(
+            d.var_value("rudder_lock_ratio").unwrap_or(f64::NAN),
+            0.45714285714285713,
+            "400/875"
+        );
+        assert_eq!(
+            d.var_value("unit_mach_limit_ratio").unwrap_or(f64::NAN),
+            1.3962520958006088,
             "iasPerMach/875 (ias 分支)"
         );
     }
@@ -279,7 +309,11 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     // 失速: flap=0 (STATE_MOCK "flaps, %": 0; mfuel=197)
     svc.formula_step(&fm);
     assert_eq!(
-        svc.data.read().unwrap().var_value("stall_speed").unwrap_or(f64::NAN),
+        svc.data
+            .read()
+            .unwrap()
+            .var_value("stall_speed")
+            .unwrap_or(f64::NAN),
         158.26201720161404,
         "flap=0 失速 (python oracle)"
     );
@@ -290,7 +324,11 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     }
     svc.formula_step(&fm);
     assert_eq!(
-        svc.data.read().unwrap().var_value("stall_speed").unwrap_or(f64::NAN),
+        svc.data
+            .read()
+            .unwrap()
+            .var_value("stall_speed")
+            .unwrap_or(f64::NAN),
         143.78318105378034,
         "flap=50 失速 (python oracle)"
     );
@@ -326,8 +364,15 @@ fn engine_state_and_fuel_full_chain() {
         // updateEngineState (活塞分支, python oracle)
         assert_eq!(d.engine.total_hp, 1597, "(int) 1597.8");
         assert_eq!(d.engine.total_thrust, 840, "thrust 1 = 840 kgs");
-        assert_eq!(d.engine.total_hp_eff, 1412, "840·g·speedv(126.111…)/735 截断");
-        assert!((d.engine.avgeff - 88.41577958672511).abs() < 1e-9, "avgeff (实际 {})", d.engine.avgeff);
+        assert_eq!(
+            d.engine.total_hp_eff, 1412,
+            "840·g·speedv(126.111…)/735 截断"
+        );
+        assert!(
+            (d.engine.avgeff - 88.41577958672511).abs() < 1e-9,
+            "avgeff (实际 {})",
+            d.engine.avgeff
+        );
         // thrust_percent: 无 FM (UNRESOLVED) → peak=0 且 maxTotalHp 已积累但
         // 首轮 pThurst 置换后分支不触发? — maxTotalHp 分支: peakPower=0 且
         // maxTotalHp=70 != 0 → thrustPercent = 100*1597/70 = 2281.4…
@@ -386,7 +431,10 @@ fn check_engine_jet_voting_state_machine() {
         let d = read_data(&svc.data);
         assert!(!d.engine.check_engine_flag, "99 票未收敛");
         assert_eq!(d.check_engine_type, 99);
-        assert_eq!(d.check_pitch, 99, "桨距有效 (非哨兵) 是正票 (Java: != -65535 → ++)");
+        assert_eq!(
+            d.check_pitch, 99,
+            "桨距有效 (非哨兵) 是正票 (Java: != -65535 → ++)"
+        );
     }
     svc.check_engine_jet(); // 第 100 票
     {
@@ -492,7 +540,10 @@ fn catch_unwind_keeps_thread_alive() {
     let t0 = std::time::Instant::now();
     // 线程每轮 publish 必 panic: 若 catch_unwind 缺位, 首轮 panic 即杀线程
     // → join 拿到 Err (stop 返回 false)
-    assert!(handle.stop(), "线程应经 Interrupted/恢复检查出口正常退出, 而非被 panic 杀死");
+    assert!(
+        handle.stop(),
+        "线程应经 Interrupted/恢复检查出口正常退出, 而非被 panic 杀死"
+    );
     // 恢复 sleep (1000ms) 因 stop 电平提前醒, 退出不应拖满 1s
     assert!(
         t0.elapsed() < Duration::from_millis(900),
@@ -520,8 +571,8 @@ fn mock_e2e_s2_preview_live() {
     }
 
     // 起 mock (失败也要清理 → KillOnDrop 兜底)
-    let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../script/mock_8111.py");
+    let script =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../script/mock_8111.py");
     let child = Command::new("python")
         .arg(&script)
         .arg("serve")
@@ -592,10 +643,7 @@ fn mock_e2e_s2_preview_live() {
         assert_eq!(s.valid.as_deref(), Some("true"));
     }
     // identify 链已建立 (mock 机型 p-51d-20_china)
-    assert_eq!(
-        fm.current_target_name().as_deref(),
-        Some("p-51d-20_china")
-    );
+    assert_eq!(fm.current_target_name().as_deref(), Some("p-51d-20_china"));
     // FM 加载终态: 项目 data/ 有 p51d 则 READY, 无则 MISSING (两者皆合法;
     // 只断言离开 UNRESOLVED)
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
@@ -688,7 +736,10 @@ fn flight_log_tick_writes_rows_and_close_flushes() {
         {
             let g = slot.lock().unwrap();
             let fl = g.as_ref().unwrap().lock().unwrap();
-            let fa = fl.f_a.as_ref().expect("checkAlt 过阈值应触发 FlightAnalyzer init");
+            let fa = fl
+                .f_a
+                .as_ref()
+                .expect("checkAlt 过阈值应触发 FlightAnalyzer init");
             assert_eq!(fa.curalt_stage, 15);
             assert_eq!(fa.initalt_stage, 15);
             assert_eq!(fa.thrust[15], 3400, "AnalyzerService 活读 totalThrust");
@@ -762,12 +813,15 @@ fn formula_step_evaluates_and_guards_mach() {
     let fm_ready = vm_core::fm::FMHandle::ready(Some("mock".into()), Some(fmdata), 0.0, 0.0, None);
     svc.formula_step(&fm_ready);
     let d = svc.data.read().unwrap();
-    let ias_per_mach = 3.6
-        * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * 46.0).powf(5.25588))
-            .sqrt();
+    let ias_per_mach =
+        3.6 * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * 46.0).powf(5.25588)).sqrt();
     let expect = 474.0 / ias_per_mach;
     let mach = d.var_value("mach").unwrap_or(f64::NAN);
-    assert!((mach - expect).abs() < 1e-12, "接管 mach {0} vs 手算 {expect}", mach);
+    assert!(
+        (mach - expect).abs() < 1e-12,
+        "接管 mach {0} vs 手算 {expect}",
+        mach
+    );
 }
 
 // ===== W1c: 帧回放对拍设施 (W2 Deriver 消解的安全网骨架) =====
@@ -814,9 +868,8 @@ fn frame_replay_formula_matches_oracle() {
         let h = 46.0 + i as f64 * 50.0;
         assert_eq!(d.altm.alt, h, "帧 {i}: altitude 直通");
         let ias = (474 + i * 2) as f64;
-        let ias_per_mach = 3.6
-            * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * h).powf(5.25588))
-                .sqrt();
+        let ias_per_mach =
+            3.6 * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * h).powf(5.25588)).sqrt();
         let expect = ias / ias_per_mach;
         let slot = d.formula_slots.get("mach_probe").copied().unwrap();
         let got = d.formula_values.get(slot);
@@ -826,7 +879,6 @@ fn frame_replay_formula_matches_oracle() {
         );
     }
 }
-
 
 /// W2 Deriver 消解的位级对拍: 出厂公式集接管 an/sep/turn_rate/turn_rds/
 /// acceleration 后, 20 帧字段值必须与删 Deriver 前的输出**逐位相等**
@@ -841,26 +893,146 @@ fn w2_deriver_takeover_bitexact_oracle() {
     );
     svc.formula.install(&defs);
     const ORACLE: [(f64, f64, f64, f64, f64); 20] = [
-(7.53209183003146, 16221.241468295968, 6.844076924919721, 527.8750148221635, 2522.222222222222),
-(7.282708013342137, 8124.832186990853, 4.197322284429346, 1357.04274869907, 1262.5),
-(7.058573983528785, 5426.042215755446, 3.738169538698215, 1658.2280126127207, 842.5925925925926),
-(6.862164055475022, 4076.6570720374657, 3.512125574825262, 1826.2754888979678, 632.6388888888889),
-(6.695918502829513, 3267.0338593264555, 3.3663367534095654, 1939.7256402222934, 506.66666666666674),
-(6.562130286560385, 2727.291612118931, 3.2621085317480425, 2024.3858888175364, 422.6851851851853),
-(6.462815538437047, 2341.7670594848264, 3.1853379003702953, 2091.0095061874767, 362.6984126984127),
-(6.399579194809071, 2052.628565959109, 3.1297580496772075, 2144.7424735239274, 317.70833333333337),
-(6.373495374312285, 1827.7474451723165, 3.0921345735355774, 2188.296503242731, 282.7160493827161),
-(6.3850194150922, 1647.8464853027722, 3.070513583502098, 2223.2353593145153, 254.72222222222226),
-(6.433949238594114, 1500.6583697366802, 3.063482912550724, 2250.5671238510276, 231.81818181818184),
-(6.51944256061084, 1378.004887398178, 3.069839319744817, 2271.0382000234285, 212.7314814814815),
-(6.640087428665138, 1274.2241998501293, 3.0884434097778417, 2285.2818285204785, 196.58119658119656),
-(6.794011410684177, 1185.2721367802944, 3.118168418976909, 2293.889003289691, 182.73809523809527),
-(6.979012676730488, 1108.1829732930303, 3.157896364627535, 2297.4364411253464, 170.74074074074076),
-(7.192694329096608, 1040.7324157166045, 3.206535185757458, 2296.491537592272, 160.24305555555557),
-(7.432582183759874, 981.2195335961636, 3.2630405040676296, 2291.606552573115, 150.98039215686276),
-(7.696227211500395, 928.321381022377, 3.3264362954007662, 2283.309187186382, 142.7469135802469),
-(7.981274259830538, 880.9935270141935, 3.3958275440815857, 2272.0937457067876, 135.38011695906434),
-(8.285515277538234, 838.4004267867731, 3.4704082022482896, 2258.4145598744262, 128.75),
+        (
+            7.53209183003146,
+            16221.241468295968,
+            6.844076924919721,
+            527.8750148221635,
+            2522.222222222222,
+        ),
+        (
+            7.282708013342137,
+            8124.832186990853,
+            4.197322284429346,
+            1357.04274869907,
+            1262.5,
+        ),
+        (
+            7.058573983528785,
+            5426.042215755446,
+            3.738169538698215,
+            1658.2280126127207,
+            842.5925925925926,
+        ),
+        (
+            6.862164055475022,
+            4076.6570720374657,
+            3.512125574825262,
+            1826.2754888979678,
+            632.6388888888889,
+        ),
+        (
+            6.695918502829513,
+            3267.0338593264555,
+            3.3663367534095654,
+            1939.7256402222934,
+            506.66666666666674,
+        ),
+        (
+            6.562130286560385,
+            2727.291612118931,
+            3.2621085317480425,
+            2024.3858888175364,
+            422.6851851851853,
+        ),
+        (
+            6.462815538437047,
+            2341.7670594848264,
+            3.1853379003702953,
+            2091.0095061874767,
+            362.6984126984127,
+        ),
+        (
+            6.399579194809071,
+            2052.628565959109,
+            3.1297580496772075,
+            2144.7424735239274,
+            317.70833333333337,
+        ),
+        (
+            6.373495374312285,
+            1827.7474451723165,
+            3.0921345735355774,
+            2188.296503242731,
+            282.7160493827161,
+        ),
+        (
+            6.3850194150922,
+            1647.8464853027722,
+            3.070513583502098,
+            2223.2353593145153,
+            254.72222222222226,
+        ),
+        (
+            6.433949238594114,
+            1500.6583697366802,
+            3.063482912550724,
+            2250.5671238510276,
+            231.81818181818184,
+        ),
+        (
+            6.51944256061084,
+            1378.004887398178,
+            3.069839319744817,
+            2271.0382000234285,
+            212.7314814814815,
+        ),
+        (
+            6.640087428665138,
+            1274.2241998501293,
+            3.0884434097778417,
+            2285.2818285204785,
+            196.58119658119656,
+        ),
+        (
+            6.794011410684177,
+            1185.2721367802944,
+            3.118168418976909,
+            2293.889003289691,
+            182.73809523809527,
+        ),
+        (
+            6.979012676730488,
+            1108.1829732930303,
+            3.157896364627535,
+            2297.4364411253464,
+            170.74074074074076,
+        ),
+        (
+            7.192694329096608,
+            1040.7324157166045,
+            3.206535185757458,
+            2296.491537592272,
+            160.24305555555557,
+        ),
+        (
+            7.432582183759874,
+            981.2195335961636,
+            3.2630405040676296,
+            2291.606552573115,
+            150.98039215686276,
+        ),
+        (
+            7.696227211500395,
+            928.321381022377,
+            3.3264362954007662,
+            2283.309187186382,
+            142.7469135802469,
+        ),
+        (
+            7.981274259830538,
+            880.9935270141935,
+            3.3958275440815857,
+            2272.0937457067876,
+            135.38011695906434,
+        ),
+        (
+            8.285515277538234,
+            838.4004267867731,
+            3.4704082022482896,
+            2258.4145598744262,
+            128.75,
+        ),
     ];
     for (i, (an, sep, tr, trds, acc)) in (0..20).zip(ORACLE.iter().copied()) {
         {
@@ -871,11 +1043,31 @@ fn w2_deriver_takeover_bitexact_oracle() {
         }
         svc.calculate();
         let d = svc.data.read().unwrap();
-        assert_eq!(d.var_value("an").unwrap_or(f64::NAN).to_bits(), an.to_bits(), "帧 {i} an");
-        assert_eq!(d.var_value("sep").unwrap_or(f64::NAN).to_bits(), sep.to_bits(), "帧 {i} sep");
-        assert_eq!(d.var_value("turn_rate").unwrap_or(f64::NAN).to_bits(), tr.to_bits(), "帧 {i} turn_rate");
-        assert_eq!(d.var_value("turn_rds").unwrap_or(f64::NAN).to_bits(), trds.to_bits(), "帧 {i} turn_rds");
-        assert_eq!(d.var_value("acceleration").unwrap_or(f64::NAN).to_bits(), acc.to_bits(), "帧 {i} acceleration");
+        assert_eq!(
+            d.var_value("an").unwrap_or(f64::NAN).to_bits(),
+            an.to_bits(),
+            "帧 {i} an"
+        );
+        assert_eq!(
+            d.var_value("sep").unwrap_or(f64::NAN).to_bits(),
+            sep.to_bits(),
+            "帧 {i} sep"
+        );
+        assert_eq!(
+            d.var_value("turn_rate").unwrap_or(f64::NAN).to_bits(),
+            tr.to_bits(),
+            "帧 {i} turn_rate"
+        );
+        assert_eq!(
+            d.var_value("turn_rds").unwrap_or(f64::NAN).to_bits(),
+            trds.to_bits(),
+            "帧 {i} turn_rds"
+        );
+        assert_eq!(
+            d.var_value("acceleration").unwrap_or(f64::NAN).to_bits(),
+            acc.to_bits(),
+            "帧 {i} acceleration"
+        );
     }
 }
 
@@ -898,7 +1090,14 @@ fn panel_targets_via_short_names() {
     }
     let d = svc.data.read().unwrap();
     // 6 个公式接管量: 公式槽直达真值, 非 None
-    for g in ["vario", "ny", "sep", "acceleration", "turn_rate", "turn_rds"] {
+    for g in [
+        "vario",
+        "ny",
+        "sep",
+        "acceleration",
+        "turn_rate",
+        "turn_rds",
+    ] {
         assert!(d.var_value(g).is_some(), "{g} 应取到公式真值 (断链回归)");
     }
     // (W-C 起槽值即唯一真相, 原与副本字段的一致性断言随字段删除)
@@ -909,8 +1108,3 @@ fn panel_targets_via_short_names() {
     assert!(d.var_value("fuel_percent").is_some());
     assert!(d.var_value("booster_fuel_kg").is_some());
 }
-
-
-
-
-

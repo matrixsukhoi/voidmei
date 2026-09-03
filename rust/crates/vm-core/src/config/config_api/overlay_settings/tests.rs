@@ -36,7 +36,9 @@ impl FakeOverlay {
                 ("int_max".to_string(), i32::MAX),
             ],
             strings: vec![("name".to_string(), "MiniHUD".to_string())],
-            group: Some(GroupStub { title: "MiniHUD".to_string() }),
+            group: Some(GroupStub {
+                title: "MiniHUD".to_string(),
+            }),
             auto_hide: true,
         }
     }
@@ -145,7 +147,10 @@ fn test_generic_property_getters() {
 #[test]
 fn test_group_config_some_and_none() {
     let s = FakeOverlay::new();
-    assert_eq!(s.get_group_config().map(|g| g.title.as_str()), Some("MiniHUD"));
+    assert_eq!(
+        s.get_group_config().map(|g| g.title.as_str()),
+        Some("MiniHUD")
+    );
 
     let mut empty = FakeOverlay::new();
     empty.group = None;

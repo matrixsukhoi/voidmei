@@ -107,7 +107,17 @@ fn fill_circle_geometry() {
 fn stroke_arc_lower_semicircle() {
     let mut c = PixCanvas::new(64, 64).unwrap();
     let col = [0xFF, 0xFF, 0xFF, 0xFF];
-    c.stroke_arc(32, 32, 20, -180.0, 0.0, 3.0, col, LineCapStyle::Round, false);
+    c.stroke_arc(
+        32,
+        32,
+        20,
+        -180.0,
+        0.0,
+        3.0,
+        col,
+        LineCapStyle::Round,
+        false,
+    );
     // 断言取径向距离 ≥1px 离内外描边界 [18.5,21.5] 的稳态点 (贝塞尔压平误差 ~0.05px)
     assert_eq!(px(&c, 32, 51), col, "弧底 (径向 19.5)");
     assert_eq!(px(&c, 12, 32), col, "弧左端 (径向 19.5)");
@@ -127,10 +137,18 @@ fn stroke_arc_direction_quadrants() {
     assert_eq!(px(&c, 46, 18), col, "正 sweep 45° 中点 = 右上象限");
     assert_eq!(px(&c, 32, 12), col, "12 点端点");
     assert_eq!(px(&c, 18, 46), [0, 0, 0, 0], "左下象限无弧");
-    assert_eq!(px(&c, 46, 46), [0, 0, 0, 0], "右下象限无弧 (正 sweep 不经 6 点)");
+    assert_eq!(
+        px(&c, 46, 46),
+        [0, 0, 0, 0],
+        "右下象限无弧 (正 sweep 不经 6 点)"
+    );
     let mut c2 = PixCanvas::new(64, 64).unwrap();
     c2.stroke_arc(32, 32, 20, 0.0, -90.0, 3.0, col, LineCapStyle::Round, false);
-    assert_eq!(px(&c2, 46, 46), col, "负 sweep -45° 中点 = 右下象限 (顺时针)");
+    assert_eq!(
+        px(&c2, 46, 46),
+        col,
+        "负 sweep -45° 中点 = 右下象限 (顺时针)"
+    );
     assert_eq!(px(&c2, 32, 51), col, "6 点端点");
     assert_eq!(px(&c2, 46, 18), [0, 0, 0, 0], "右上象限无弧");
     assert_eq!(px(&c2, 32, 12), [0, 0, 0, 0], "12 点无弧");
@@ -144,12 +162,52 @@ fn stroke_arc_zero_nonfinite_and_full_circle() {
     let mut c = PixCanvas::new(64, 64).unwrap();
     let col = [0xFF, 0xFF, 0xFF, 0xFF];
     c.stroke_arc(32, 32, 20, 45.0, 45.0, 3.0, col, LineCapStyle::Round, false);
-    c.stroke_arc(32, 32, 20, f32::NAN, 90.0, 3.0, col, LineCapStyle::Round, false);
-    c.stroke_arc(32, 32, 20, 0.0, f32::NAN, 3.0, col, LineCapStyle::Round, false);
-    c.stroke_arc(32, 32, 20, f32::NEG_INFINITY, f32::INFINITY, 3.0, col, LineCapStyle::Round, false);
+    c.stroke_arc(
+        32,
+        32,
+        20,
+        f32::NAN,
+        90.0,
+        3.0,
+        col,
+        LineCapStyle::Round,
+        false,
+    );
+    c.stroke_arc(
+        32,
+        32,
+        20,
+        0.0,
+        f32::NAN,
+        3.0,
+        col,
+        LineCapStyle::Round,
+        false,
+    );
+    c.stroke_arc(
+        32,
+        32,
+        20,
+        f32::NEG_INFINITY,
+        f32::INFINITY,
+        3.0,
+        col,
+        LineCapStyle::Round,
+        false,
+    );
     assert!(c.pm.data().iter().all(|&b| b == 0), "零/非有限角度均无输出");
     let mut c2 = PixCanvas::new(64, 64).unwrap();
-    c2.stroke_arc(32, 32, 20, 90.0, -270.0, 3.0, col, LineCapStyle::Round, false);
+    c2.stroke_arc(
+        32,
+        32,
+        20,
+        90.0,
+        -270.0,
+        3.0,
+        col,
+        LineCapStyle::Round,
+        false,
+    );
     assert_eq!(px(&c2, 32, 12), col, "负向 360 整圆: 12 点");
     assert_eq!(px(&c2, 32, 51), col, "6 点");
     assert_eq!(px(&c2, 12, 32), col, "9 点");
@@ -249,7 +307,9 @@ fn text_over_shape_rebuild() {
     c.draw_text(&font, 10, 40, "7", [255, 255, 255, 255], true);
     // 不透明底上 fa=1 的笔画核心像素应为纯白 (预乘=直通)
     assert!(
-        c.pm.data().chunks_exact(4).any(|p| p[0] == 255 && p[1] == 255 && p[2] == 255 && p[3] == 255),
+        c.pm.data()
+            .chunks_exact(4)
+            .any(|p| p[0] == 255 && p[1] == 255 && p[2] == 255 && p[3] == 255),
         "文本笔画核心像素存在"
     );
     // 底色仍在 (字形外区域未被动过)

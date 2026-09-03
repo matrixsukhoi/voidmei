@@ -35,7 +35,8 @@ impl FmData {
             let no_flaps = self.no_flaps_wing.as_ref().unwrap();
             let full_flaps = self.full_flaps_wing.as_ref().unwrap();
             return no_flaps.aoa_crit_high
-                + (full_flaps.aoa_crit_high - no_flaps.aoa_crit_high) * flaps_percent as f64 / 100.0;
+                + (full_flaps.aoa_crit_high - no_flaps.aoa_crit_high) * flaps_percent as f64
+                    / 100.0;
         }
         if self.sweep_levels.as_ref().is_none_or(|l| l.len() <= 1) {
             return self.no_flaps_wing.as_ref().unwrap().aoa_crit_high;

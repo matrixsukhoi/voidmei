@@ -4,9 +4,9 @@ use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
-use vm_core::config::configuration_service::ControllerIntervals;
 use crate::controller_state::ControllerState;
 use vm_core::base::logger;
+use vm_core::config::configuration_service::ControllerIntervals;
 
 /// FlightDataBus 事件流静默判定阈值 (审查 B1 补偿, 见
 /// [`ControllerShared::last_flight_event_ms`] 注): player_live 轮每 ~50ms 发布
@@ -62,8 +62,7 @@ pub struct ControllerShared {
 }
 
 /// Controller 低频杂项字段 (Java Controller 实例字段的收敛)
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ControllerFlags {
     /// `private boolean showStatus` (loadFromConfig 同步; StatusBar 未移植, 仅保位)
     pub show_status: bool,
@@ -72,7 +71,6 @@ pub struct ControllerFlags {
     /// `private int currentFmHotkeyCode` (热键重绑定跟踪)
     pub current_fm_hotkey_code: i32,
 }
-
 
 impl ControllerShared {
     pub fn new() -> Self {

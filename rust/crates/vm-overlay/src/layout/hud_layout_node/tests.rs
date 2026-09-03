@@ -159,7 +159,11 @@ fn solve_anchor_math_matches_java() {
             .set_relative_position(ux, uy)
             .set_anchors(parent_anchor, self_anchor);
         n.solve(20.0, &Rectangle::with_bounds(100, 200, 50, 40));
-        assert_eq!(n.get_pixel_rect(), expect, "{parent_anchor:?}/{self_anchor:?}");
+        assert_eq!(
+            n.get_pixel_rect(),
+            expect,
+            "{parent_anchor:?}/{self_anchor:?}"
+        );
         assert!(!n.borrow().dirty); // solve 尾部置 false
     }
 }
@@ -184,8 +188,7 @@ fn solve_truncates_unit_offset_toward_zero() {
 /// 零尺寸父矩形 + Center 自锚 → 原点减半宽/半高 (负坐标)。
 #[test]
 fn solve_odd_size_integer_division() {
-    let n = HUDLayoutNode::new("t", fixed(31, 11))
-        .set_anchors(Anchor::TopLeft, Anchor::Center);
+    let n = HUDLayoutNode::new("t", fixed(31, 11)).set_anchors(Anchor::TopLeft, Anchor::Center);
     n.solve(20.0, &Rectangle::with_bounds(0, 0, 0, 0));
     // selfX = 0 - 31/2 = -15; selfY = 0 - 11/2 = -5
     assert_eq!(n.get_pixel_rect(), Rectangle::with_bounds(-15, -5, 31, 11));

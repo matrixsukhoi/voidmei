@@ -16,9 +16,8 @@
 //! blinkActing; blinkX=false 时完全不推进 (计数/相位冻结)。
 //! blinkTicks = (1000/intervalMs)>>3 (long 整除), 0 钳 1。
 
-
-use crate::render::palette::colors;
 use crate::render::canvas::PixCanvas;
+use crate::render::palette::colors;
 
 /// 影层线宽 (常量 — Java 按 width 重建缓存但值与 width 无关,
 /// 纯 GC 优化, 无视觉分支)
@@ -55,13 +54,45 @@ impl WarningOverlay {
 
         // 影层 X: colorShadeShape (全局静态色),
         // 两端各内缩 2px
-        cv.draw_line(x + 2, y + 2, x + width - 2, y + height - 2, OUTER_STROKE, colors().shade_shape, aa);
-        cv.draw_line(x + width - 2, y + 2, x + 2, y + height - 2, OUTER_STROKE, colors().shade_shape, aa);
+        cv.draw_line(
+            x + 2,
+            y + 2,
+            x + width - 2,
+            y + height - 2,
+            OUTER_STROKE,
+            colors().shade_shape,
+            aa,
+        );
+        cv.draw_line(
+            x + width - 2,
+            y + 2,
+            x + 2,
+            y + height - 2,
+            OUTER_STROKE,
+            colors().shade_shape,
+            aa,
+        );
 
         // 前景层 X: colorNum (全局静态色),
         // 两端各内缩 1px
-        cv.draw_line(x + 1, y + 1, x + width - 1, y + height - 1, INNER_STROKE, colors().num, aa);
-        cv.draw_line(x + width - 1, y + 1, x + 1, y + height - 1, INNER_STROKE, colors().num, aa);
+        cv.draw_line(
+            x + 1,
+            y + 1,
+            x + width - 1,
+            y + height - 1,
+            INNER_STROKE,
+            colors().num,
+            aa,
+        );
+        cv.draw_line(
+            x + width - 1,
+            y + 1,
+            x + 1,
+            y + height - 1,
+            INNER_STROKE,
+            colors().num,
+            aa,
+        );
     }
 }
 
@@ -127,7 +158,8 @@ impl WarningBlinkHost {
     /// Java 原样, 保真不改)。
     pub fn draw_blink_x(&mut self, cv: &mut PixCanvas, width: i32, height: i32, aa: bool) {
         if self.blink_x {
-            self.warning.draw(cv, 0, 0, width, height, self.blink_acting, aa);
+            self.warning
+                .draw(cv, 0, 0, width, height, self.blink_acting, aa);
             // PORT: Java 静默回绕 (§2.2) — ~10Hz 下 i32 计 ~6.8 年回绕,
             // wrapping_add + % (两语言同为向零取余) 精确对齐 Java 溢出后行为
             self.blink_check_ticks = self.blink_check_ticks.wrapping_add(1);

@@ -16,13 +16,22 @@ fn predicates_truth_table_matches_java() {
         // CENTER        false false false false true  true
         (Anchor::Center, [false, false, false, false, true, true]),
         // MIDDLE_RIGHT  false true  false false false true
-        (Anchor::MiddleRight, [false, true, false, false, false, true]),
+        (
+            Anchor::MiddleRight,
+            [false, true, false, false, false, true],
+        ),
         // BOTTOM_LEFT   true  false false true  false false
         (Anchor::BottomLeft, [true, false, false, true, false, false]),
         // BOTTOM_CENTER false false false true  true  false
-        (Anchor::BottomCenter, [false, false, false, true, true, false]),
+        (
+            Anchor::BottomCenter,
+            [false, false, false, true, true, false],
+        ),
         // BOTTOM_RIGHT  false true  false true  false false
-        (Anchor::BottomRight, [false, true, false, true, false, false]),
+        (
+            Anchor::BottomRight,
+            [false, true, false, true, false, false],
+        ),
     ];
     for (a, [left, right, top, bottom, ch, cv]) in &table {
         assert_eq!(a.is_left(), *left, "{a:?}.is_left");

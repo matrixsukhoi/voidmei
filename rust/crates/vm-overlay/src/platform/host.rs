@@ -74,7 +74,8 @@ pub struct OverlaySpec {
     /// 唯一实例键 (Java entries LinkedHashMap 的 key; 亦为位置存档键)。
     /// PORT: Java 三个 register 重载均以 configKey 作 LinkedHashMap 键 — 同 configKey
     /// 后注册者整体替换前者 (只余一个 entry); Rust 以 id 为键, 同 config_key 不同 id
-    /// 的两个 spec 可并存双窗。接 Controller 批次时保持 id==config_key 或显式核对此分叉
+    /// 的两个 spec 可并存双窗。当前全库恒等 id==config_key (keyed_spec 唯一生产
+    /// 构造点, spec_common.rs), 分叉语义未被使用
     pub id: String,
     /// 激活探测引用的配置键
     pub config_key: String,
@@ -136,13 +137,20 @@ impl OverlayEntry {
         if k == self.config_key {
             return true;
         }
-        self.interested_prefixes.iter().any(|p| k.starts_with(p.as_str()))
+        self.interested_prefixes
+            .iter()
+            .any(|p| k.starts_with(p.as_str()))
     }
 }
 
 /// 全局配置键/前缀: 命中则所有条目都刷新 (与条目兴趣无关)
-const GLOBAL_CONFIG_KEYS: [&str; 5] =
-    ["AAEnable", "simpleFont", "Interval", "voiceVolume", "ui_layout.cfg"];
+const GLOBAL_CONFIG_KEYS: [&str; 5] = [
+    "AAEnable",
+    "simpleFont",
+    "Interval",
+    "voiceVolume",
+    "ui_layout.cfg",
+];
 const GLOBAL_CONFIG_PREFIXES: [&str; 2] = ["Global", "font"];
 
 /// 全局配置判定: None 恒真; 全局键集合或前缀命中。
@@ -568,15 +576,18 @@ impl OverlayHost {
             return Ok(());
         }
         // visible=true: 窗口以 WS_VISIBLE 建立 (win.rs create)
-        self.entries[idx].slot = Some(OverlaySlot { window, drag: None, last_frame: None, visible: true });
+        self.entries[idx].slot = Some(OverlaySlot {
+            window,
+            drag: None,
+            last_frame: None,
+            visible: true,
+        });
         Ok(())
     }
 
     /// 是否激活 (条目存在且窗口已建)
     pub fn is_active(&self, id: &str) -> bool {
-        self.entries
-            .iter()
-            .any(|e| e.id == id && e.slot.is_some())
+        self.entries.iter().any(|e| e.id == id && e.slot.is_some())
     }
 
     /// 全部活跃 id, 按注册序
@@ -716,7 +727,11 @@ impl OverlayHost {
                             sl.drag = Some((root_x - wx, root_y - wy));
                         }
                     }
-                    OverlayEvent::MouseMove { root_x, root_y, left_down } => {
+                    OverlayEvent::MouseMove {
+                        root_x,
+                        root_y,
+                        left_down,
+                    } => {
                         if let Some((off_x, off_y)) = sl.drag {
                             if left_down {
                                 sl.window.set_position(root_x - off_x, root_y - off_y);
@@ -820,10 +835,7 @@ impl OverlayHost {
     }
 
     fn active_count(&self) -> usize {
-        self.entries
-            .iter()
-            .filter(|e| e.slot.is_some())
-            .count()
+        self.entries.iter().filter(|e| e.slot.is_some()).count()
     }
 }
 

@@ -23,15 +23,17 @@ pub use overlay_settings::GenericOverlaySettingsImpl;
 
 use std::sync::{Arc, RwLock};
 
-use crate::config::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
-use crate::config::config_loader::{self, config_value_to_string, ConfigValue, GroupConfig, RowConfig};
-use crate::config::config_manager;
-use crate::base::event::ui_state_events;
-use crate::base::ports::bkp_port;
-use crate::lang::Lang;
-use crate::base::logger;
 use crate::base::bus::ui_state_bus::UIStateBus;
+use crate::base::event::ui_state_events;
 use crate::base::java_compat::{java_parse_boolean, java_trim};
+use crate::base::logger;
+use crate::base::ports::bkp_port;
+use crate::config::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
+use crate::config::config_loader::{
+    self, config_value_to_string, ConfigValue, GroupConfig, RowConfig,
+};
+use crate::config::config_manager;
+use crate::lang::Lang;
 use crate::ui_support::color::parse_color;
 
 /// RwLock 中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
@@ -205,8 +207,7 @@ impl ConfigurationService {
         let success = config_manager::import_config(source_path);
         if success {
             // Reload configuration
-            let reloaded =
-                config_loader::load_config(config_manager::get_user_config_path());
+            let reloaded = config_loader::load_config(config_manager::get_user_config_path());
             *self.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(reloaded);
             // Notify all subscribers about the change
             self.inner
@@ -224,8 +225,7 @@ impl ConfigurationService {
         let success = config_manager::reset_to_factory();
         if success {
             // Reload configuration
-            let reloaded =
-                config_loader::load_config(config_manager::get_user_config_path());
+            let reloaded = config_loader::load_config(config_manager::get_user_config_path());
             *self.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(reloaded);
             // Notify all subscribers about the change
             self.inner
@@ -238,11 +238,7 @@ impl ConfigurationService {
     /// PORT: Java 返回活 List 引用 (可 null) — RwLock 内存储无法经 &self 长期
     /// 借出, 返回快照副本 (Option 对应 null 形态); 当前无跨期持有消费方。
     pub fn get_layout_configs(&self) -> Option<Vec<GroupConfig>> {
-        self.inner
-            .layout_configs
-            .read()
-            .expect(LC_LOCK_MSG)
-            .clone()
+        self.inner.layout_configs.read().expect(LC_LOCK_MSG).clone()
     }
 
     /// 根据 groupTitle 查找最新的 GroupConfig
@@ -256,9 +252,9 @@ impl ConfigurationService {
     /// equals 与下方视图的 equalsIgnoreCase 是两条不同查找 (Java 原状)。
     pub fn find_group_by_title(&self, group_title: &str) -> Option<GroupConfig> {
         let configs = self.inner.layout_configs.read().expect(LC_LOCK_MSG);
-        configs
-            .as_ref()
-            .and_then(|list| group_index_by_title(list, group_title, false).map(|i| list[i].clone()))
+        configs.as_ref().and_then(|list| {
+            group_index_by_title(list, group_title, false).map(|i| list[i].clone())
+        })
     }
 
     /// Java: `public void loadAppCheck(Controller c)` — 解析并应用配置到应用与
@@ -348,8 +344,7 @@ impl ConfigurationService {
                         ip = lang_ip.to_string();
                     }
                     app.request_dest = Some(InetSocketAddress::new(&ip, app.app_port));
-                    app.request_dest_bkp =
-                        Some(InetSocketAddress::new(&ip, app.app_port_bkp));
+                    app.request_dest_bkp = Some(InetSocketAddress::new(&ip, app.app_port_bkp));
                     logger::info(
                         "ConfigurationService",
                         &format!("HTTP Port synchronized: {port}"),
@@ -383,8 +378,6 @@ impl ConfigurationService {
         // TODO(port): init_font + update_weblaf_fonts 接线 (get_font_name 的
         // defaultFont 回退分支届时生效)。
     }
-
-    // (被移除的原代码注释, 原样保留)
 
     // --- Helpers ---
 
@@ -586,9 +579,11 @@ impl ServiceInner {
                                 "Resetting {} ({}) to default: {}",
                                 row.label,
                                 row.property.as_deref().unwrap_or("no-key"),
-                                config_value_to_string(row.default_value.as_ref().expect(
-                                    "Phase 1 已保证 defaultValue 非 null"
-                                ))
+                                config_value_to_string(
+                                    row.default_value
+                                        .as_ref()
+                                        .expect("Phase 1 已保证 defaultValue 非 null")
+                                )
                             ),
                         );
                         row.value = row.default_value.clone();
@@ -643,9 +638,9 @@ impl ServiceInner {
     /// eq_ignore_ascii_case 等价 (CJK 无大小写)
     fn find_group_ignore_case(&self, section_name: &str) -> Option<GroupConfig> {
         let configs = self.layout_configs.read().expect(LC_LOCK_MSG);
-        configs
-            .as_ref()
-            .and_then(|list| group_index_by_title(list, section_name, true).map(|i| list[i].clone()))
+        configs.as_ref().and_then(|list| {
+            group_index_by_title(list, section_name, true).map(|i| list[i].clone())
+        })
     }
 
     /// 就地写回分组 x/y (saveWindowPosition 的写面), 返回新值供日志
@@ -669,7 +664,11 @@ impl ServiceInner {
     }
 
     fn app_default_numfont_name(&self) -> String {
-        self.app.read().expect(APP_LOCK_MSG).default_numfont_name.clone()
+        self.app
+            .read()
+            .expect(APP_LOCK_MSG)
+            .default_numfont_name
+            .clone()
     }
 
     /// Java: `Application.defaultFont.getFontName()` — initFont() 前为 null → NPE
@@ -709,16 +708,9 @@ fn find_row_recursive<'a>(rows: &'a [RowConfig], key: &str) -> Option<&'a RowCon
 
 /// Java: `private void updateRowsRecursive(List<RowConfig> rows, String key, String value)`
 /// PORT: 事件 publish 由调用方放锁后补发 (events 收集, §2.8)
-fn update_rows_recursive(
-    rows: &mut [RowConfig],
-    key: &str,
-    value: &str,
-    events: &mut Vec<String>,
-) {
+fn update_rows_recursive(rows: &mut [RowConfig], key: &str, value: &str, events: &mut Vec<String>) {
     for row in rows.iter_mut() {
-        if row.property.as_deref() == Some(key)
-            || (row.property.is_none() && key == row.label)
-        {
+        if row.property.as_deref() == Some(key) || (row.property.is_none() && key == row.label) {
             // Update typed value based on existing type to maintain consistency
             // Handle inversion for SWITCH_INV
             let val_to_store = if row.r#type == "SWITCH_INV" {
@@ -776,7 +768,10 @@ fn collect_reset_candidates_recursive(
         // Check self
         // (value 为 null 时 equals 返回 false → 仍收集)
         if let Some(dv) = &r.default_value {
-            let equal = r.value.as_ref().is_some_and(|v| config_value_java_equals(dv, v));
+            let equal = r
+                .value
+                .as_ref()
+                .is_some_and(|v| config_value_java_equals(dv, v));
             if !equal {
                 let mut p = path.clone();
                 p.push(i);
@@ -829,7 +824,6 @@ fn group_index_by_title(list: &[GroupConfig], title: &str, ignore_case: bool) ->
     })
 }
 
-
 // =====================================================================
 // Java 语义本地辅助 (私有) — 通用件已收敛到 base::java_compat
 // =====================================================================
@@ -842,7 +836,9 @@ fn group_index_by_title(list: &[GroupConfig], title: &str, ignore_case: bool) ->
 ///   → 调用方回退默认 (cfg 域不可达, PORT §6 以 Java 8 oracle 为准的域内等价)。
 fn java_parse_double(s: &str) -> Result<f64, ()> {
     let t = java_trim(s);
-    let core = t.strip_suffix(|c: char| matches!(c, 'd' | 'D' | 'f' | 'F')).unwrap_or(t);
+    let core = t
+        .strip_suffix(|c: char| matches!(c, 'd' | 'D' | 'f' | 'F'))
+        .unwrap_or(t);
     core.parse::<f64>().map_err(|_| ())
 }
 

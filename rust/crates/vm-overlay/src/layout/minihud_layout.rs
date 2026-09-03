@@ -36,7 +36,7 @@
 use std::collections::HashSet;
 
 use crate::layout::hud_layout_node::{
-    HasPreferredSize, HUDLayoutNode, HUDLayoutNodeExt, Rectangle, SharedNode,
+    HUDLayoutNode, HUDLayoutNodeExt, HasPreferredSize, Rectangle, SharedNode,
 };
 use crate::layout::Anchor;
 
@@ -165,7 +165,12 @@ impl<T> ModernHUDLayoutEngine<T> {
 
         for (_, node) in &self.nodes {
             if node.get_parent().is_none() {
-                Self::visit_node(node, &mut visited, &mut recursion_stack, &mut self.sorted_nodes);
+                Self::visit_node(
+                    node,
+                    &mut visited,
+                    &mut recursion_stack,
+                    &mut self.sorted_nodes,
+                );
             }
         }
     }
@@ -229,10 +234,8 @@ impl<T> ModernHUDLayoutEngine<T> {
     /// 每个可见节点依次回调: `None` = component.draw(g, x+offX, y+offY);
     /// debug 开启时紧随一次 `Some(调试框色)` = drawDebug 的 1px 线框
     /// (rect 同为 x+offX, y+offY, w, h — 颜色由 id hash 生成, 见 [`debug_frame_color`])。
-    pub fn render(
-        &self,
-        mut draw: impl FnMut(&SharedNode<T>, i32, i32, Option<[u8; 4]>),
-    ) where
+    pub fn render(&self, mut draw: impl FnMut(&SharedNode<T>, i32, i32, Option<[u8; 4]>))
+    where
         T: HasVisibility,
     {
         // ... (existing render logic)
@@ -526,24 +529,112 @@ pub struct MiniHudNodeSpec {
 /// 退化为根 (setParent(row4) 可空); crosshair 仅 displayCrosshair。
 pub const MINIHUD_NODE_SPECS: &[MiniHudNodeSpec] = &[
     // 3. Row 0 (New Anchor for Left Block) — Position: 2.1, 3.5 units
-    MiniHudNodeSpec { id: "row0", component: MiniHudComp::Row(0), parent: None, unit_x: 2.1, unit_y: 3.5, parent_anchor: Anchor::TopLeft, self_anchor: Anchor::TopLeft },
+    MiniHudNodeSpec {
+        id: "row0",
+        component: MiniHudComp::Row(0),
+        parent: None,
+        unit_x: 2.1,
+        unit_y: 3.5,
+        parent_anchor: Anchor::TopLeft,
+        self_anchor: Anchor::TopLeft,
+    },
     // 4. Flap Bar (Child of Row 0) — Pos: 0, -0.1 (Above Row 0)
-    MiniHudNodeSpec { id: "flap", component: MiniHudComp::FlapBar, parent: Some("row0"), unit_x: 0.0, unit_y: -0.1, parent_anchor: Anchor::TopLeft, self_anchor: Anchor::BottomLeft },
+    MiniHudNodeSpec {
+        id: "flap",
+        component: MiniHudComp::FlapBar,
+        parent: Some("row0"),
+        unit_x: 0.0,
+        unit_y: -0.1,
+        parent_anchor: Anchor::TopLeft,
+        self_anchor: Anchor::BottomLeft,
+    },
     // 5. Rows Chain — Standard Line Spacing: 1.4 units (down from previous row top)
-    MiniHudNodeSpec { id: "row1", component: MiniHudComp::Row(1), parent: Some("row0"), unit_x: 0.0, unit_y: 0.1, parent_anchor: Anchor::BottomLeft, self_anchor: Anchor::TopLeft },
-    MiniHudNodeSpec { id: "row2", component: MiniHudComp::Row(2), parent: Some("row1"), unit_x: 0.0, unit_y: 0.1, parent_anchor: Anchor::BottomLeft, self_anchor: Anchor::TopLeft },
-    MiniHudNodeSpec { id: "row3", component: MiniHudComp::Row(3), parent: Some("row2"), unit_x: 0.0, unit_y: 0.1, parent_anchor: Anchor::BottomLeft, self_anchor: Anchor::TopLeft },
-    MiniHudNodeSpec { id: "row4", component: MiniHudComp::Row(4), parent: Some("row3"), unit_x: 0.0, unit_y: 0.1, parent_anchor: Anchor::BottomLeft, self_anchor: Anchor::TopLeft },
+    MiniHudNodeSpec {
+        id: "row1",
+        component: MiniHudComp::Row(1),
+        parent: Some("row0"),
+        unit_x: 0.0,
+        unit_y: 0.1,
+        parent_anchor: Anchor::BottomLeft,
+        self_anchor: Anchor::TopLeft,
+    },
+    MiniHudNodeSpec {
+        id: "row2",
+        component: MiniHudComp::Row(2),
+        parent: Some("row1"),
+        unit_x: 0.0,
+        unit_y: 0.1,
+        parent_anchor: Anchor::BottomLeft,
+        self_anchor: Anchor::TopLeft,
+    },
+    MiniHudNodeSpec {
+        id: "row3",
+        component: MiniHudComp::Row(3),
+        parent: Some("row2"),
+        unit_x: 0.0,
+        unit_y: 0.1,
+        parent_anchor: Anchor::BottomLeft,
+        self_anchor: Anchor::TopLeft,
+    },
+    MiniHudNodeSpec {
+        id: "row4",
+        component: MiniHudComp::Row(4),
+        parent: Some("row3"),
+        unit_x: 0.0,
+        unit_y: 0.1,
+        parent_anchor: Anchor::BottomLeft,
+        self_anchor: Anchor::TopLeft,
+    },
     // 6. Right Side Instruments (Attached to Row 2) — Attitude: Pos 0, 0.5
-    MiniHudNodeSpec { id: "attitude", component: MiniHudComp::AttitudeGauge, parent: Some("row2"), unit_x: 0.0, unit_y: 0.5, parent_anchor: Anchor::BottomRight, self_anchor: Anchor::TopRight },
+    MiniHudNodeSpec {
+        id: "attitude",
+        component: MiniHudComp::AttitudeGauge,
+        parent: Some("row2"),
+        unit_x: 0.0,
+        unit_y: 0.5,
+        parent_anchor: Anchor::BottomRight,
+        self_anchor: Anchor::TopRight,
+    },
     // Compass (Child of Row 2) — Pos: 0, 0.1
-    MiniHudNodeSpec { id: "compass", component: MiniHudComp::CompassGauge, parent: Some("row2"), unit_x: 0.0, unit_y: 0.1, parent_anchor: Anchor::BottomRight, self_anchor: Anchor::TopRight },
+    MiniHudNodeSpec {
+        id: "compass",
+        component: MiniHudComp::CompassGauge,
+        parent: Some("row2"),
+        unit_x: 0.0,
+        unit_y: 0.1,
+        parent_anchor: Anchor::BottomRight,
+        self_anchor: Anchor::TopRight,
+    },
     // Rate Bar (SpeedRatioBar) — Pos: -0.3, 0
-    MiniHudNodeSpec { id: "speedBar", component: MiniHudComp::SpeedRatioBar, parent: Some("row4"), unit_x: -0.3, unit_y: 0.0, parent_anchor: Anchor::BottomLeft, self_anchor: Anchor::BottomRight },
+    MiniHudNodeSpec {
+        id: "speedBar",
+        component: MiniHudComp::SpeedRatioBar,
+        parent: Some("row4"),
+        unit_x: -0.3,
+        unit_y: 0.0,
+        parent_anchor: Anchor::BottomLeft,
+        self_anchor: Anchor::BottomRight,
+    },
     // Throttle Bar — Pos: -0.3, 0
-    MiniHudNodeSpec { id: "throttle", component: MiniHudComp::ThrottleBar, parent: Some("row4"), unit_x: -0.3, unit_y: 0.0, parent_anchor: Anchor::BottomLeft, self_anchor: Anchor::BottomRight },
+    MiniHudNodeSpec {
+        id: "throttle",
+        component: MiniHudComp::ThrottleBar,
+        parent: Some("row4"),
+        unit_x: -0.3,
+        unit_y: 0.0,
+        parent_anchor: Anchor::BottomLeft,
+        self_anchor: Anchor::BottomRight,
+    },
     // Crosshair (Independent, Center of Attention) — Pos: 0, 0
-    MiniHudNodeSpec { id: "crosshair", component: MiniHudComp::Crosshair, parent: None, unit_x: 0.0, unit_y: 0.0, parent_anchor: Anchor::MiddleRight, self_anchor: Anchor::MiddleRight },
+    MiniHudNodeSpec {
+        id: "crosshair",
+        component: MiniHudComp::Crosshair,
+        parent: None,
+        unit_x: 0.0,
+        unit_y: 0.0,
+        parent_anchor: Anchor::MiddleRight,
+        self_anchor: Anchor::MiddleRight,
+    },
 ];
 
 /// build 输入的组件槽位 (MiniHUDOverlay.initComponentsLayout 组件清单,
@@ -597,12 +688,14 @@ where
 {
     // Apply Global Debug Setting
     let show_crosshair = cfg.display_crosshair;
-    let layout_width = if show_crosshair { base_width * 2 } else { base_width };
+    let layout_width = if show_crosshair {
+        base_width * 2
+    } else {
+        base_width
+    };
     vm_core::base::logger::info(
         "MinimalHUD",
-        &format!(
-            "initModernLayout: showCrosshair={show_crosshair}, layoutWidth={layout_width}"
-        ),
+        &format!("initModernLayout: showCrosshair={show_crosshair}, layoutWidth={layout_width}"),
     );
 
     let mut engine = ModernHUDLayoutEngine::new(layout_width, canvas_height);
@@ -623,7 +716,10 @@ where
     // 日志); sizing=None 由宿主解释为"不自动尺寸" (审查 A1/B1)。
     let mut rows: Vec<Option<T>> = parts.rows.into_iter().map(Some).collect();
     if rows.is_empty() {
-        return BuiltMiniHudLayout { engine, sizing: None };
+        return BuiltMiniHudLayout {
+            engine,
+            sizing: None,
+        };
     }
     let mut flap = Some(parts.flap_angle_bar);
     let mut speed = Some(parts.speed_ratio_bar);
@@ -663,8 +759,10 @@ where
         // 缺席则整个节点不建; speedBar/throttle 的 "row4" 缺席时退化为根
         // (Java setParent(row4) 传 null); row 链父 = 前一行 (循环 prevRow)。
         let parent = spec.parent.and_then(|pid| engine.get_node(pid));
-        if matches!(spec.component, MiniHudComp::AttitudeGauge | MiniHudComp::CompassGauge)
-            && spec.parent.is_some()
+        if matches!(
+            spec.component,
+            MiniHudComp::AttitudeGauge | MiniHudComp::CompassGauge
+        ) && spec.parent.is_some()
             && parent.is_none()
         {
             continue;
@@ -685,7 +783,10 @@ where
 
     engine.log_topology();
 
-    BuiltMiniHudLayout { engine, sizing: Some(sizing) }
+    BuiltMiniHudLayout {
+        engine,
+        sizing: Some(sizing),
+    }
 }
 
 #[cfg(test)]

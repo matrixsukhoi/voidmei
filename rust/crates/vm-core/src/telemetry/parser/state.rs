@@ -200,7 +200,8 @@ impl State {
                 self.pitch[i] = get_data_float(get_string(buf, &format!("pitch {}", i + 1)));
 
                 // PORT: Java `efficiency[i] = getDataInt(...)` — int 拓宽进 double 数组元素
-                self.efficiency[i] = get_data_int(get_string(buf, &format!("efficiency {}", i + 1))) as f64;
+                self.efficiency[i] =
+                    get_data_int(get_string(buf, &format!("efficiency {}", i + 1))) as f64;
 
                 if self.thrust[i] == I_INVALID {
                     break;

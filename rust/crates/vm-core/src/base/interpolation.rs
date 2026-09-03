@@ -159,10 +159,21 @@ pub fn interp2d(x: f64, y: f64, xs: &[f64], ys: &[f64], zz: Option<&[&[f64]]>) -
 
     // Bilinear interpolation
     let z00 = zz[ix as usize][iy as usize];
-    let z01 = if iy + 1 < ny as isize { zz[ix as usize][(iy + 1) as usize] } else { z00 };
-    let z10 = if ix + 1 < nx as isize { zz[(ix + 1) as usize][iy as usize] } else { z00 };
-    let z11 =
-        if ix + 1 < nx as isize && iy + 1 < ny as isize { zz[(ix + 1) as usize][(iy + 1) as usize] } else { z00 };
+    let z01 = if iy + 1 < ny as isize {
+        zz[ix as usize][(iy + 1) as usize]
+    } else {
+        z00
+    };
+    let z10 = if ix + 1 < nx as isize {
+        zz[(ix + 1) as usize][iy as usize]
+    } else {
+        z00
+    };
+    let z11 = if ix + 1 < nx as isize && iy + 1 < ny as isize {
+        zz[(ix + 1) as usize][(iy + 1) as usize]
+    } else {
+        z00
+    };
 
     let z0 = z00 + ty * (z01 - z00);
     let z1 = z10 + ty * (z11 - z10);

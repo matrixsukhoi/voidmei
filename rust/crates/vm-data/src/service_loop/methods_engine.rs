@@ -10,28 +10,28 @@
 //! 本文件按 Java Service 版逐行直译。
 
 use super::Service;
-use vm_core::fm::FMHandle;
 use vm_core::fm::piston_model::find_optimal_stage_index;
+use vm_core::fm::FMHandle;
 
 impl Service {
     /// 获取最大转速（优先 FM, 无 FM 时自适应学习）。
     ///
     /// PORT(命名避让, service_fields.rs 字段区备注): Java 字段 getMaximumRPM
-    /// (boolean) 与本方法构成同名重载; Rust 字段已占 get_maximum_rpm → 方法按
-    /// 备案命名 get_maximum_rpm_learn。
+    /// (boolean) 与本方法构成 Java 同名重载; 字段已更名 maximum_rpm_learned
+    /// (波19), 方法名 get_maximum_rpm_learn 不再撞名。
     /// @param fm 本周期 FM 句柄快照（R1 下传）
     pub(super) fn get_maximum_rpm_learn(&mut self, fm: &FMHandle) {
         // 简单状态推进 → 单写锁临界区 (无 IO/回调; s_state 不可变借用拆局部,
         // 对齐 check_engine_jet 形态)
         self.apply(|d| {
-            if !d.engine.get_maximum_rpm {
+            if !d.engine.maximum_rpm_learned {
                 // R2 守卫: blkx 非 null 即 READY（等价旧版 null+valid 双判）
                 if let Some(fmdata) = fm.fmdata.as_ref() {
                     // FM合法直接取FM
                     d.engine.maximum_thr_rpm = fmdata.max_rpm;
                     // 使用最大允许RPM
                     // maximumThrRPM = fm.blkx.maxAllowedRPM;
-                    d.engine.get_maximum_rpm = true;
+                    d.engine.maximum_rpm_learned = true;
                 } else {
                     // 自适应获得(无FM)
 
@@ -51,7 +51,7 @@ impl Service {
                             d.check_maxium_rpm += 1;
                         }
                     } else {
-                        d.engine.get_maximum_rpm = true;
+                        d.engine.maximum_rpm_learned = true;
                     }
                 }
             }
@@ -69,7 +69,11 @@ impl Service {
     pub(super) fn update_optimal_compressor_stage(&mut self, fm: &FMHandle) {
         // R1: 从周期句柄直接取增压器参数（不再经 @Deprecated 桥接方法）;
         // 非 READY/喷气机/单级句柄为 null → 走下方无效分支归位
-        let stages = if fm.has_fm() { fm.compressor_stages.as_ref() } else { None };
+        let stages = if fm.has_fm() {
+            fm.compressor_stages.as_ref()
+        } else {
+            None
+        };
 
         // Invalid cases: jet, single-stage, or no FM loaded
         let stages = match stages {
@@ -87,7 +91,16 @@ impl Service {
 
         // 读快照→锁外计算→短写锁写回 (§2.8): findOptimalStageIndex 逐档
         // powerAtAltitudeAdvanced 较重, 全程锁外
-        let (engine_num, throttles, alt, ias, compressorstage, mismatch_prev, prev_actual, prev_optimal) = self.with_snapshot(|d| {
+        let (
+            engine_num,
+            throttles,
+            alt,
+            ias,
+            compressorstage,
+            mismatch_prev,
+            prev_actual,
+            prev_optimal,
+        ) = self.with_snapshot(|d| {
             let s = d.s_state.as_ref().unwrap();
             (
                 d.engine.engine_num,
@@ -150,8 +163,7 @@ impl Service {
         }
 
         // State-change driven: only re-evaluate mismatch when actual or optimal changes
-        let has_change =
-            (actual_stage != prev_actual) || (new_optimal != prev_optimal);
+        let has_change = (actual_stage != prev_actual) || (new_optimal != prev_optimal);
 
         // If no change, preserve previous compressorStageMismatch value
         let mismatch = if has_change {
@@ -183,16 +195,16 @@ impl Service {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::borrow_interior_mutable_const)] // UNRESOLVED 含 Mutex (见 handle.rs 注)
-    use super::*;
     use super::super::{write_data, ServiceConfig};
+    use super::*;
     use std::path::Path;
     use std::sync::Arc;
-    use vm_core::fm::data::FmData;
-    use vm_core::base::bus::EventBus;
     use vm_core::base::bus::flight_data_bus::FlightDataBus;
-    use vm_core::formula::registry::FormulaView as _; // var_value 取数
-    use vm_core::fm::FMManager;
+    use vm_core::base::bus::EventBus;
+    use vm_core::fm::data::FmData;
     use vm_core::fm::piston_model::CompressorStageParams;
+    use vm_core::fm::FMManager;
+    use vm_core::formula::registry::FormulaView as _; // var_value 取数
 
     fn new_service() -> Service {
         let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
@@ -255,14 +267,15 @@ mod tests {
 
     // ---------------- checkFlap ----------------
 
-
     /// W8: check_flap 状态机公式化 — is_downing_flap 接管公式位级锚定
     /// (变化方向 latch + 1 秒稳定归零, 语义见 formulas.cfg 的 is_downing_flap)
     #[test]
     fn flap_takeover_state_machine() {
         let mut svc = new_service();
         let defs = vm_core::formula::persistence::load_merged(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg"), "");
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg"),
+            "",
+        );
         svc.formula.install(&defs);
         // 放下襟翼 (0→50): 变化方向为增 → is_downing = true
         {
@@ -271,22 +284,46 @@ mod tests {
             d.actual_interval_ms = 50; // 稳定计时步进 (meta.interval_ms 来源)
         }
         svc.calculate();
-        assert!(svc.data.read().unwrap().var_value("is_downing_flap").unwrap_or(0.0) != 0.0, "放下中");
+        assert!(
+            svc.data
+                .read()
+                .unwrap()
+                .var_value("is_downing_flap")
+                .unwrap_or(0.0)
+                != 0.0,
+            "放下中"
+        );
         // 持续稳定 1 秒后归 false
         for _ in 0..21 {
             svc.calculate();
         }
-        assert!(svc.data.read().unwrap().var_value("is_downing_flap").unwrap_or(0.0) == 0.0, "稳定 1s 后归零");
+        assert!(
+            svc.data
+                .read()
+                .unwrap()
+                .var_value("is_downing_flap")
+                .unwrap_or(0.0)
+                == 0.0,
+            "稳定 1s 后归零"
+        );
         // 收起 (50→0): 方向为减 → false
         {
             let mut d = write_data(&svc.data);
             d.s_state.as_mut().unwrap().flaps = 0;
         }
         svc.calculate();
-        assert!(svc.data.read().unwrap().var_value("is_downing_flap").unwrap_or(0.0) == 0.0, "收起");
+        assert!(
+            svc.data
+                .read()
+                .unwrap()
+                .var_value("is_downing_flap")
+                .unwrap_or(0.0)
+                == 0.0,
+            "收起"
+        );
     }
 
-// ---------------- getFlapAllowSpeed / getFlapAllowAngle ----------------
+    // ---------------- getFlapAllowSpeed / getFlapAllowAngle ----------------
 
     /// 襟翼允许速度/角度的公式族 (python 位精确 oracle + 分支覆盖)
     #[test]
@@ -299,33 +336,72 @@ mod tests {
             None,
         );
         // 60%: 档间插值 → 284.0
-        assert_eq!(vm_core::fm::data::get_flap_allow_speed(60, true, fm.fmdata.as_ref()), 284.0);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_speed(60, true, fm.fmdata.as_ref()),
+            284.0
+        );
         // 50%: 相等档位 (50 == 0.5*100) → 直接返回首档速度 290.0
-        assert_eq!(vm_core::fm::data::get_flap_allow_speed(50, false, fm.fmdata.as_ref()), 290.0);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_speed(50, false, fm.fmdata.as_ref()),
+            290.0
+        );
         // 30% (i=-1): 下襟翼越级 → 首档速度 290.0; 非下襟翼 → Double.MAX_VALUE
-        assert_eq!(vm_core::fm::data::get_flap_allow_speed(30, true, fm.fmdata.as_ref()), 290.0);
-        assert_eq!(vm_core::fm::data::get_flap_allow_speed(30, false, fm.fmdata.as_ref()), f64::MAX);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_speed(30, true, fm.fmdata.as_ref()),
+            290.0
+        );
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_speed(30, false, fm.fmdata.as_ref()),
+            f64::MAX
+        );
         // 120%: 超表外插 (Java 无 clamp): 290 + 70*(-0.6) = 248.0
-        assert_eq!(vm_core::fm::data::get_flap_allow_speed(120, false, fm.fmdata.as_ref()), 248.0);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_speed(120, false, fm.fmdata.as_ref()),
+            248.0
+        );
         // flapPercent=0 早退 (先于 blkx 判定)
-        assert_eq!(vm_core::fm::data::get_flap_allow_speed(0, true, fm.fmdata.as_ref()), f64::MAX);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_speed(0, true, fm.fmdata.as_ref()),
+            f64::MAX
+        );
 
         // 角度 (x/y 与速度版互换: 按速度查允许 flap 角度)
         // 270: 档间插值 → 83.33333333333334
-        assert_eq!(vm_core::fm::data::get_flap_allow_angle(270.0, false, fm.fmdata.as_ref()), 83.33333333333334);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_angle(270.0, false, fm.fmdata.as_ref()),
+            83.33333333333334
+        );
         // 290: 相等 → 首档角 0.5*100 = 50.0
-        assert_eq!(vm_core::fm::data::get_flap_allow_angle(290.0, false, fm.fmdata.as_ref()), 50.0);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_angle(290.0, false, fm.fmdata.as_ref()),
+            50.0
+        );
         // 350 (i=0 分支): 50 + 60*(-5/3) = -50 → normFlapAngle → 0
-        assert_eq!(vm_core::fm::data::get_flap_allow_angle(350.0, false, fm.fmdata.as_ref()), 0.0);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_angle(350.0, false, fm.fmdata.as_ref()),
+            0.0
+        );
         // 100 (低速外插): 50 + (100-290)*(-5/3) = 366.6.. → 封顶 125
-        assert_eq!(vm_core::fm::data::get_flap_allow_angle(100.0, false, fm.fmdata.as_ref()), 125.0);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_angle(100.0, false, fm.fmdata.as_ref()),
+            125.0
+        );
         // ias=0 早退
-        assert_eq!(vm_core::fm::data::get_flap_allow_angle(0.0, true, fm.fmdata.as_ref()), 125.0);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_angle(0.0, true, fm.fmdata.as_ref()),
+            125.0
+        );
 
         // 无 FM (UNRESOLVED)
         let unr = FMHandle::UNRESOLVED;
-        assert_eq!(vm_core::fm::data::get_flap_allow_speed(50, false, unr.fmdata.as_ref()), f64::MAX);
-        assert_eq!(vm_core::fm::data::get_flap_allow_angle(300.0, false, unr.fmdata.as_ref()), 125.0);
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_speed(50, false, unr.fmdata.as_ref()),
+            f64::MAX
+        );
+        assert_eq!(
+            vm_core::fm::data::get_flap_allow_angle(300.0, false, unr.fmdata.as_ref()),
+            125.0
+        );
     }
 
     // ---------------- getMaximumRPM ----------------
@@ -349,11 +425,14 @@ mod tests {
             // python: 0.9499999992549419*1.0 + 0.05000000074505806*3001
             assert_eq!(d.engine.maximum_thr_rpm, 151.00000223517418);
             assert_eq!(d.check_maxium_rpm, 1);
-            assert!(!d.engine.get_maximum_rpm);
+            assert!(!d.engine.maximum_rpm_learned);
         }
         svc.get_maximum_rpm_learn(&unr);
         // python: 0.9499999992549419*151.00000223517418 + 0.05000000074505806*3001
-        assert_eq!(svc.data.read().unwrap().engine.maximum_thr_rpm, 293.50000424683094);
+        assert_eq!(
+            svc.data.read().unwrap().engine.maximum_thr_rpm,
+            293.50000424683094
+        );
         assert_eq!(svc.data.read().unwrap().check_maxium_rpm, 2);
 
         // IAS <= 50: 不学习不进位 (Java int 比较无浮点提升)
@@ -366,7 +445,7 @@ mod tests {
         {
             let d = svc.data.read().unwrap();
             assert_eq!(d.check_maxium_rpm, 399);
-            assert!(!d.engine.get_maximum_rpm);
+            assert!(!d.engine.maximum_rpm_learned);
         }
 
         // 计满 (20000/freq = 400): 与 IAS 无关直接置完成
@@ -376,7 +455,7 @@ mod tests {
             d.check_maxium_rpm = 400;
         }
         svc.get_maximum_rpm_learn(&unr);
-        assert!(svc.data.read().unwrap().engine.get_maximum_rpm);
+        assert!(svc.data.read().unwrap().engine.maximum_rpm_learned);
 
         // 置位守卫 (Java `if (!getMaximumRPM)`): 计满置位后方法整体短路 —
         // 即使 FM 到位也不再覆盖学习值 (Java 同语义)
@@ -397,7 +476,7 @@ mod tests {
         svc.get_maximum_rpm_learn(&fm);
         let d = svc.data.read().unwrap();
         assert_eq!(d.engine.maximum_thr_rpm, 3000.0, "fmdata.maxRPM 直取");
-        assert!(d.engine.get_maximum_rpm, "同轮置位");
+        assert!(d.engine.maximum_rpm_learned, "同轮置位");
     }
 
     // ---------------- updateOptimalCompressorStage ----------------
@@ -424,7 +503,9 @@ mod tests {
             assert_eq!(d.prev_optimal_compressor_stage, -1);
         }
         // 单级 (hasFM 但 stages.len() <= 1): 同归位
-        svc.update_optimal_compressor_stage(&stage_fm(Some(vec![CompressorStageParams::default()])));
+        svc.update_optimal_compressor_stage(&stage_fm(Some(
+            vec![CompressorStageParams::default()],
+        )));
         assert_eq!(svc.data.read().unwrap().engine.optimal_compressor_stage, -1);
         // blkx 在而 stages 缺席 (喷气/未提取形态): 同归位
         svc.update_optimal_compressor_stage(&stage_fm(None));
@@ -507,8 +588,9 @@ mod tests {
         // DATA_ROOT 注入 (fm_data_paths 测试钩子)。原注"进程内并行安全"不成立
         // (workspace 全量并行复现 flake): format_strings 的 nitro 场景并行注入
         // tmp 根/复位会覆盖本注入 — 持串行锁互斥 (见 lib.rs DATA_ROOT_TEST_LOCK)
-        let _root_guard =
-            crate::DATA_ROOT_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _root_guard = crate::DATA_ROOT_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         vm_core::fm::data_paths::set_data_root(&root);
         let fm = vm_core::fm::loader::load(Some("spitfire_f24"));
         let Some(fmdata) = fm.fmdata.as_ref() else {
@@ -536,8 +618,11 @@ mod tests {
 
         // getMaximumRPM 的 FM 直取: maximumThrRPM = blkx.maxRPM
         svc.get_maximum_rpm_learn(&fm);
-        assert_eq!(svc.data.read().unwrap().engine.maximum_thr_rpm, fmdata.max_rpm);
-        assert!(svc.data.read().unwrap().engine.get_maximum_rpm);
+        assert_eq!(
+            svc.data.read().unwrap().engine.maximum_thr_rpm,
+            fmdata.max_rpm
+        );
+        assert!(svc.data.read().unwrap().engine.maximum_rpm_learned);
 
         // updateOptimal: 真机 stages 与协作者 find_optimal_stage_index 对拍
         // (锁参数组装 alt/isWep/getIAS()/true/15.0 与写回; 档位功率公式属
@@ -555,4 +640,3 @@ mod tests {
         }
     }
 }
-

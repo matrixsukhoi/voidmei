@@ -21,11 +21,17 @@ pub enum Anchor {
 
 impl Anchor {
     pub fn is_left(&self) -> bool {
-        matches!(self, Anchor::TopLeft | Anchor::MiddleLeft | Anchor::BottomLeft)
+        matches!(
+            self,
+            Anchor::TopLeft | Anchor::MiddleLeft | Anchor::BottomLeft
+        )
     }
 
     pub fn is_right(&self) -> bool {
-        matches!(self, Anchor::TopRight | Anchor::MiddleRight | Anchor::BottomRight)
+        matches!(
+            self,
+            Anchor::TopRight | Anchor::MiddleRight | Anchor::BottomRight
+        )
     }
 
     pub fn is_top(&self) -> bool {
@@ -33,15 +39,24 @@ impl Anchor {
     }
 
     pub fn is_bottom(&self) -> bool {
-        matches!(self, Anchor::BottomLeft | Anchor::BottomCenter | Anchor::BottomRight)
+        matches!(
+            self,
+            Anchor::BottomLeft | Anchor::BottomCenter | Anchor::BottomRight
+        )
     }
 
     pub fn is_center_horizontal(&self) -> bool {
-        matches!(self, Anchor::TopCenter | Anchor::Center | Anchor::BottomCenter)
+        matches!(
+            self,
+            Anchor::TopCenter | Anchor::Center | Anchor::BottomCenter
+        )
     }
 
     pub fn is_center_vertical(&self) -> bool {
-        matches!(self, Anchor::MiddleLeft | Anchor::Center | Anchor::MiddleRight)
+        matches!(
+            self,
+            Anchor::MiddleLeft | Anchor::Center | Anchor::MiddleRight
+        )
     }
 }
 

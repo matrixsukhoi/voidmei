@@ -16,9 +16,13 @@ pub fn parse_formulas(src: &str) -> Vec<FormulaDef> {
     let roots = SExpParser::new().parse(src);
     let mut defs = Vec::new();
     for root in &roots {
-        let SExp::List(list) = root.as_ref() else { continue };
+        let SExp::List(list) = root.as_ref() else {
+            continue;
+        };
         for child in &list.children {
-            let SExp::List(item) = child.as_ref() else { continue };
+            let SExp::List(item) = child.as_ref() else {
+                continue;
+            };
             let Some(def) = parse_one(item) else { continue };
             defs.push(def);
         }
@@ -31,14 +35,24 @@ pub fn parse_rules(src: &str) -> Vec<super::rules::RuleDef> {
     let roots = SExpParser::new().parse(src);
     let mut defs = Vec::new();
     for root in &roots {
-        let SExp::List(list) = root.as_ref() else { continue };
+        let SExp::List(list) = root.as_ref() else {
+            continue;
+        };
         for child in &list.children {
-            let SExp::List(item) = child.as_ref() else { continue };
-            let head = item.children.first().map(|c| c.as_atom().value.clone()).unwrap_or_default();
+            let SExp::List(item) = child.as_ref() else {
+                continue;
+            };
+            let head = item
+                .children
+                .first()
+                .map(|c| c.as_atom().value.clone())
+                .unwrap_or_default();
             if head != "rule" {
                 continue;
             }
-            let Some(name) = positional_string(item, 1) else { continue };
+            let Some(name) = positional_string(item, 1) else {
+                continue;
+            };
             let actions = keyword_actions(item);
             defs.push(super::rules::RuleDef {
                 name,
@@ -64,9 +78,19 @@ fn keyword_actions(list: &crate::config::sexp_parser::SList) -> Vec<super::rules
         if k.r#type == AtomType::Keyword && k.value == ":actions" {
             if let SExp::List(inner) = list.children[i + 1].as_ref() {
                 for a in &inner.children {
-                    let SExp::List(pair) = a.as_ref() else { continue };
-                    let kind = pair.children.first().map(|c| c.as_atom().value.clone()).unwrap_or_default();
-                    let arg = pair.children.get(1).map(|c| c.as_atom().value.clone()).unwrap_or_default();
+                    let SExp::List(pair) = a.as_ref() else {
+                        continue;
+                    };
+                    let kind = pair
+                        .children
+                        .first()
+                        .map(|c| c.as_atom().value.clone())
+                        .unwrap_or_default();
+                    let arg = pair
+                        .children
+                        .get(1)
+                        .map(|c| c.as_atom().value.clone())
+                        .unwrap_or_default();
                     match kind.as_str() {
                         "voice" if !arg.is_empty() => out.push(RuleAction::Voice(arg)),
                         "toast" if !arg.is_empty() => out.push(RuleAction::Toast(arg)),
@@ -83,7 +107,9 @@ fn keyword_actions(list: &crate::config::sexp_parser::SList) -> Vec<super::rules
 }
 
 fn keyword_f64(list: &crate::config::sexp_parser::SList, kw: &str, def: f64) -> f64 {
-    keyword_string(list, kw).and_then(|v| v.trim().parse().ok()).unwrap_or(def)
+    keyword_string(list, kw)
+        .and_then(|v| v.trim().parse().ok())
+        .unwrap_or(def)
 }
 
 fn parse_one(list: &crate::config::sexp_parser::SList) -> Option<FormulaDef> {
@@ -119,8 +145,11 @@ fn read_file_lossy(path: &str) -> String {
 
 fn merge_defs(builtin: &[FormulaDef], user: &[FormulaDef]) -> Vec<FormulaDef> {
     let mut out: Vec<FormulaDef> = builtin.to_vec();
-    let mut index: HashMap<String, usize> =
-        out.iter().enumerate().map(|(i, d)| (d.name.clone(), i)).collect();
+    let mut index: HashMap<String, usize> = out
+        .iter()
+        .enumerate()
+        .map(|(i, d)| (d.name.clone(), i))
+        .collect();
     for u in user {
         match index.get(&u.name) {
             Some(&i) => {
@@ -137,7 +166,10 @@ fn merge_defs(builtin: &[FormulaDef], user: &[FormulaDef]) -> Vec<FormulaDef> {
             }
             None => {
                 index.insert(u.name.clone(), out.len());
-                out.push(FormulaDef { builtin: false, ..u.clone() });
+                out.push(FormulaDef {
+                    builtin: false,
+                    ..u.clone()
+                });
             }
         }
     }
@@ -146,7 +178,8 @@ fn merge_defs(builtin: &[FormulaDef], user: &[FormulaDef]) -> Vec<FormulaDef> {
 
 /// 序列化用户文件 (调用方决定写哪些 — 用户自定义 + 被改内置)
 pub fn serialize_user(defs: &[FormulaDef]) -> String {
-    let mut s = String::from(";; VoidMei 用户公式 (自动生成; 内置出厂定义见 formulas.cfg)\n(formulas\n");
+    let mut s =
+        String::from(";; VoidMei 用户公式 (自动生成; 内置出厂定义见 formulas.cfg)\n(formulas\n");
     for d in defs {
         s.push_str(&format!(
             "  (formula \"{}\" :expr \"{}\" :unit \"{}\" :precision {} :desc \"{}\"{}{})\n",
@@ -178,7 +211,10 @@ fn escape(s: &str) -> String {
 
 fn positional_string(list: &crate::config::sexp_parser::SList, idx: usize) -> Option<String> {
     let a = list.children.get(idx)?.as_atom();
-    if matches!(a.r#type, AtomType::String | AtomType::Symbol | AtomType::Keyword) {
+    if matches!(
+        a.r#type,
+        AtomType::String | AtomType::Symbol | AtomType::Keyword
+    ) {
         Some(a.value.clone())
     } else {
         None
@@ -198,7 +234,9 @@ fn keyword_string(list: &crate::config::sexp_parser::SList, kw: &str) -> Option<
 }
 
 fn keyword_int(list: &crate::config::sexp_parser::SList, kw: &str, def: i32) -> i32 {
-    keyword_string(list, kw).and_then(|v| v.trim().parse().ok()).unwrap_or(def)
+    keyword_string(list, kw)
+        .and_then(|v| v.trim().parse().ok())
+        .unwrap_or(def)
 }
 
 #[cfg(test)]

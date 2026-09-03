@@ -63,9 +63,9 @@ impl EngineType {
 /// 帧拷贝整组搬; 状态机私有量 (投票计数/EMA 峰值/prev 档位) 不入组不入帧。
 #[derive(Clone, Debug)]
 pub struct EngineScalars {
-    pub total_hp: i32,           // 总马力
-    pub total_hp_eff: i32,       // 有效马力
-    pub total_thrust: i32,       // 总推力
+    pub total_hp: i32,     // 总马力
+    pub total_hp_eff: i32, // 有效马力
+    pub total_thrust: i32, // 总推力
     pub avgeff: f64,
     /// 推力/功率百分比 (G8: 原 thurst_percent 拼写更正)
     pub thrust_percent: f64,
@@ -91,9 +91,10 @@ pub struct EngineScalars {
     pub compressor_stage_mismatch: bool,
     /// C 级保留: get_maximum_rpm_learn 状态机的存储 (W-C 唯一存留的写回字段)
     pub maximum_thr_rpm: f64,
-    /// Java `public boolean getMaximumRPM` (字段) — 与同名方法 getMaximumRPM(FMHandle)
-    /// 构成重载; 方法归 service_loop 波次, 届时命名避让 (如 get_maximum_rpm_learn)
-    pub get_maximum_rpm: bool,
+    /// Java `public boolean getMaximumRPM` (字段) — "最大 RPM 已学习到" 旗标;
+    /// 原名 get_maximum_rpm 是 Java 方法名形态, 波19 更名为语义名
+    /// (同名重载方法在 service_loop 侧即 get_maximum_rpm_learn)
+    pub maximum_rpm_learned: bool,
 }
 
 impl Default for EngineScalars {
@@ -121,8 +122,34 @@ impl Default for EngineScalars {
             optimal_compressor_stage: -1,
             compressor_stage_mismatch: false,
             maximum_thr_rpm: 0.0,
-            get_maximum_rpm: false,
+            maximum_rpm_learned: false,
         }
+    }
+}
+
+impl EngineScalars {
+    /// 引擎类型判定 (带收敛守卫): 投票状态机已收敛且为喷气。
+    /// 守卫语义: check_engine_flag 未收敛 (磁电机/桨距投票 ~5 秒窗口内) 时
+    /// 全部 live 判定为 false, 对位 Java isJetEngine 族与 isEngineCheckDone
+    /// 的组合守卫 — 未收敛期引擎类型不可信, 消费面按"非该类型"降级。
+    pub fn is_jet_live(&self) -> bool {
+        self.check_engine_flag && self.engine_type.is_jet()
+    }
+
+    /// 引擎类型判定 (带收敛守卫): 已收敛且为螺旋桨域 (PROP 或 TURBOPROP,
+    /// 语义随 [`EngineType::is_prop`] — 涡桨也算 prop)。
+    pub fn is_prop_live(&self) -> bool {
+        self.check_engine_flag && self.engine_type.is_prop()
+    }
+
+    /// 引擎类型判定 (带收敛守卫): 已收敛且仅活塞 (PROP)。
+    pub fn is_piston_live(&self) -> bool {
+        self.check_engine_flag && self.engine_type.is_piston()
+    }
+
+    /// 引擎类型判定 (带收敛守卫): 已收敛且仅涡桨 (TURBOPROP)。
+    pub fn is_turboprop_live(&self) -> bool {
+        self.check_engine_flag && self.engine_type.is_turboprop()
     }
 }
 
@@ -130,8 +157,8 @@ impl Default for EngineScalars {
 /// 差分输入 totalFuelPrev 与变化率状态量不入组 (Service 私有)。
 #[derive(Clone, Debug, Default)]
 pub struct FuelScalars {
-    pub total_fuel: f64,      // 总油量
-    pub low_acc_fuel: bool,   // 低精度燃油警告
+    pub total_fuel: f64,    // 总油量
+    pub low_acc_fuel: bool, // 低精度燃油警告
     pub fuel_percent: i32,
     /// 剩余油量时间 (fuelTimeSMA 平滑产物)
     pub fueltime: i64,
@@ -173,7 +200,7 @@ pub struct ServiceData {
     pub freq: i64,
 
     // === API 对象（对应 War Thunder HTTP 端点）===
-    pub s_state: Option<State>,     // /state 端点数据
+    pub s_state: Option<State>,      // /state 端点数据
     pub s_indic: Option<Indicators>, // /indicators 端点数据
 
     // === 派生标量组 (波17 F14; 组定义与分组语义见各 struct doc) ===
@@ -189,11 +216,11 @@ pub struct ServiceData {
     pub actual_interval_ms: i64,
     pub current_time_ms: i64,
     pub poll_cycle_duration_ms: i64,
-        pub(crate) last_main_loop_time_ms: i64,
-        pub(crate) last_map_poll_time_ms: i64,
+    pub(crate) last_main_loop_time_ms: i64,
+    pub(crate) last_map_poll_time_ms: i64,
     pub fuel_change: f64,
-        pub(crate) fuel_lastchange_mili: i64,
-        pub(crate) fuelchange_time: i64,
+    pub(crate) fuel_lastchange_mili: i64,
+    pub(crate) fuelchange_time: i64,
     // (start_time 已归 FrameStore 原子 — Controller openpad 写, 波4)
     pub elapsed_time: i64,
     pub compass_delta: f64,
@@ -201,26 +228,26 @@ pub struct ServiceData {
     pub ratio: f64,
     pub ratio_1: f64,
     /// Java `private double nVy` — 私有但 getVario() 读
-        pub(crate) n_vy: f64,
+    pub(crate) n_vy: f64,
     /// checkEngineJet 投票状态机: 磁电机正负票计数 (收敛后冻结)
-        pub(crate) check_engine_type: i32,
+    pub(crate) check_engine_type: i32,
     /// checkEngineJet 投票状态机: 桨距有效性正负票计数
-        pub(crate) check_pitch: i32,
+    pub(crate) check_pitch: i32,
     /// Java 包私有 `Boolean portOcupied = false` (装箱 → Option, 初始化器 false)
-        pub(crate) port_ocupied: bool,
+    pub(crate) port_ocupied: bool,
     // EMA 峰值缓存 (updateEngineState 的 thrust_percent 回退分母)
-        pub(crate) max_total_thr: i32,
-        pub(crate) max_total_hp: i32,
+    pub(crate) max_total_thr: i32,
+    pub(crate) max_total_hp: i32,
     /// thrust_percent 的上轮值 (t_eng_response 差分输入)
-        pub(crate) p_thrust_percent: f64,
+    pub(crate) p_thrust_percent: f64,
     /// getMaximumRPM 学习状态机计数
-        pub(crate) check_maxium_rpm: i64,
+    pub(crate) check_maxium_rpm: i64,
     /// Previous actual compressor stage for change detection (0-based, -1 = invalid)
     /// Java 初始化器 `= -1`
-        pub(crate) prev_actual_compressor_stage: i32,
+    pub(crate) prev_actual_compressor_stage: i32,
     /// Previous optimal compressor stage for change detection
     /// Java 初始化器 `= -1`
-        pub(crate) prev_optimal_compressor_stage: i32,
+    pub(crate) prev_optimal_compressor_stage: i32,
     pub mapinfo: Option<MapInfo>,
 
     pub player_live: bool,
@@ -232,7 +259,6 @@ pub struct ServiceData {
     // 轮询驱动的组件 (tick 由 run() 调), 归 service_loop 线程持有, 非数据快照成员。
 
     // (fatal_warn 已归 FrameStore 原子 — VoiceWarning set_fatal_warn 写, 波4)
-
     /// R1 周期 FM 句柄快照 (无 Java 对应字段, 见 struct 级 PORT 注):
     /// service_loop 每周期 `FMManager.current()` 写入; getter 经它读
     /// blkx.nofuelweight (getTotalWeight) / blkx.nitro (hasWep)。
@@ -351,19 +377,31 @@ impl vm_core::formula::registry::FormulaView for ServiceData {
             VarSrc::Session(f) => f(&crate::service_loop::session_inputs(self)),
             VarSrc::Const(c) => *c,
             VarSrc::Meta(m) => match m {
-                vm_core::formula::registry::MetaVar::IntervalMs => self.actual_interval_ms.max(1) as f64,
+                vm_core::formula::registry::MetaVar::IntervalMs => {
+                    self.actual_interval_ms.max(1) as f64
+                }
                 vm_core::formula::registry::MetaVar::Freq => self.freq as f64,
-                vm_core::formula::registry::MetaVar::FmLoaded => (self.fm.fmdata.is_some()) as u8 as f64,
+                vm_core::formula::registry::MetaVar::FmLoaded => {
+                    (self.fm.fmdata.is_some()) as u8 as f64
+                }
                 _ => 0.0,
             },
         };
-        if v.is_nan() { None } else { Some(v) }
+        if v.is_nan() {
+            None
+        } else {
+            Some(v)
+        }
     }
 
     fn get_formula_value(&self, name: &str) -> Option<f64> {
         let slot = self.formula_slots.get(name)?;
         let v = self.formula_values.get(*slot);
-        if v.is_nan() { None } else { Some(v) }
+        if v.is_nan() {
+            None
+        } else {
+            Some(v)
+        }
     }
 }
 

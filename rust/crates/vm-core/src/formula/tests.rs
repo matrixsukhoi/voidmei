@@ -22,12 +22,22 @@ struct TestTel {
 
 impl Default for TestTel {
     fn default() -> Self {
-        TestTel { ias: 400.0, tas: 450.0, alt: 5000.0, ny: 0.35, mass_fuel: 300.0 }
+        TestTel {
+            ias: 400.0,
+            tas: 450.0,
+            alt: 5000.0,
+            ny: 0.35,
+            mass_fuel: 300.0,
+        }
     }
 }
 
 fn snap_of(tel: &TestTel) -> super::registry::VarSnapshot {
-    let meta = MetaInputs { interval_ms: 50.0, freq: 20.0, ..Default::default() };
+    let meta = MetaInputs {
+        interval_ms: 50.0,
+        freq: 20.0,
+        ..Default::default()
+    };
     let mut st = crate::telemetry::parser::State::default();
     st.ias = tel.ias as i32;
     st.tas = tel.tas as i32;
@@ -35,7 +45,11 @@ fn snap_of(tel: &TestTel) -> super::registry::VarSnapshot {
     st.ny = tel.ny;
     st.mfuel = tel.mass_fuel;
     let ind = crate::telemetry::parser::Indicators::default();
-    let raw = super::registry::RawInputs { state: Some(&st), indic: Some(&ind), fmdata: None };
+    let raw = super::registry::RawInputs {
+        state: Some(&st),
+        indic: Some(&ind),
+        fmdata: None,
+    };
     let sess = super::registry::SessionInputs::default();
     assemble_snapshot(&raw, &sess, &meta)
 }
@@ -135,13 +149,16 @@ fn eval_functions() {
 #[test]
 fn eval_mach_formula_matches_manual() {
     // mach 公式外置形态: ias / ias_per_mach(alt) 必须与 derive.rs L116-120 手写式一致
-    let t = TestTel { ias: 400.0, alt: 5000.0, ..Default::default() };
+    let t = TestTel {
+        ias: 400.0,
+        alt: 5000.0,
+        ..Default::default()
+    };
     let via_fn = try_eval("ias / ias_per_mach(altitude)", &t);
     // manual 与 derive.rs L116-120 逐项同构: mach = ias / (3.6*sqrt(...))
     let manual: f64 = 400.0
         / (3.6
-            * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * 5000.0).powf(5.25588))
-                .sqrt());
+            * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * 5000.0).powf(5.25588)).sqrt());
     assert!((via_fn - manual).abs() < 1e-9, "{via_fn} vs {manual}");
 }
 
@@ -156,7 +173,9 @@ fn stateful_sma_aligns_simple_moving_average() {
     let mut store = StateStore::new();
     let mut formula_sma = Vec::new();
     for &x in &series {
-        let mut s2 = super::registry::VarSnapshot { values: vec![f64::NAN; reg.len()] };
+        let mut s2 = super::registry::VarSnapshot {
+            values: vec![f64::NAN; reg.len()],
+        };
         s2.values[ias as usize] = x;
         let v = try_eval_single("sma(ias, 3)", reg, &s2, &mut store, 0, 50.0, None).unwrap();
         formula_sma.push(v);
@@ -178,9 +197,27 @@ fn stateful_prev_and_blend() {
     assert_eq!(b, 400.0);
     // blend(x, 0.1): 首帧 (1-0.1)*0 + 0.1*400 = 40
     let mut store2 = StateStore::new();
-    let c = try_eval_single("blend(ias, 0.1)", registry(), &snap, &mut store2, 0, 50.0, None).unwrap();
+    let c = try_eval_single(
+        "blend(ias, 0.1)",
+        registry(),
+        &snap,
+        &mut store2,
+        0,
+        50.0,
+        None,
+    )
+    .unwrap();
     assert!((c - 40.0).abs() < 1e-12, "{c}");
-    let d = try_eval_single("blend(ias, 0.1)", registry(), &snap, &mut store2, 50, 50.0, None).unwrap();
+    let d = try_eval_single(
+        "blend(ias, 0.1)",
+        registry(),
+        &snap,
+        &mut store2,
+        50,
+        50.0,
+        None,
+    )
+    .unwrap();
     assert!((d - (0.9 * 40.0 + 0.1 * 400.0)).abs() < 1e-12, "{d}");
 }
 
@@ -192,16 +229,32 @@ fn stateful_vote_converges_like_engine_check() {
     let mut store = StateStore::new();
     let mut last = 0.0;
     for i in 0..100 {
-        last = try_eval_single("vote(1, 0, 100)", registry(), &snap, &mut store, i * 50, 50.0, None)
-            .unwrap();
+        last = try_eval_single(
+            "vote(1, 0, 100)",
+            registry(),
+            &snap,
+            &mut store,
+            i * 50,
+            50.0,
+            None,
+        )
+        .unwrap();
         if i < 99 {
             assert_eq!(last, 0.0, "冻结前应恒 0");
         }
     }
     assert_eq!(last, 1.0, "第 100 帧计数达 100 → 冻结");
     // 冻结后 up 消失仍输出冻结值
-    let after =
-        try_eval_single("vote(0, 1, 100)", registry(), &snap, &mut store, 6000, 50.0, None).unwrap();
+    let after = try_eval_single(
+        "vote(0, 1, 100)",
+        registry(),
+        &snap,
+        &mut store,
+        6000,
+        50.0,
+        None,
+    )
+    .unwrap();
     assert_eq!(after, 1.0);
 }
 
@@ -213,14 +266,40 @@ fn stateful_stable_requires_unchanged_ms() {
     // 值恒 7, 300ms 阈值: 第 5 帧后 (250ms) 仍 0, 第 6 帧 (300ms) 起 1
     let mut v = 0.0;
     for i in 0..6 {
-        v = try_eval_single("stable(7, 300)", registry(), &snap, &mut store, i * 50, 50.0, None)
-            .unwrap();
+        v = try_eval_single(
+            "stable(7, 300)",
+            registry(),
+            &snap,
+            &mut store,
+            i * 50,
+            50.0,
+            None,
+        )
+        .unwrap();
     }
     assert_eq!(v, 0.0, "250ms 未达 300ms 阈值");
-    v = try_eval_single("stable(7, 300)", registry(), &snap, &mut store, 300, 50.0, None).unwrap();
+    v = try_eval_single(
+        "stable(7, 300)",
+        registry(),
+        &snap,
+        &mut store,
+        300,
+        50.0,
+        None,
+    )
+    .unwrap();
     assert_eq!(v, 1.0, "300ms 达阈值");
     // 值变化 → 立即清零
-    v = try_eval_single("stable(8, 300)", registry(), &snap, &mut store, 350, 50.0, None).unwrap();
+    v = try_eval_single(
+        "stable(8, 300)",
+        registry(),
+        &snap,
+        &mut store,
+        350,
+        50.0,
+        None,
+    )
+    .unwrap();
     assert_eq!(v, 0.0, "变化后清零");
 }
 
@@ -232,16 +311,31 @@ fn stateful_learn_max_converges() {
     // gate 恒 1, x 恒 2400: blend 逼近; 1000ms 后锁定
     let mut v = 0.0;
     for i in 0..25 {
-        v = try_eval_single("learn_max(2400, 1, 1000)", registry(), &snap, &mut store, i * 50, 50.0, None)
-            .unwrap();
+        v = try_eval_single(
+            "learn_max(2400, 1, 1000)",
+            registry(),
+            &snap,
+            &mut store,
+            i * 50,
+            50.0,
+            None,
+        )
+        .unwrap();
     }
     // 20 帧×50ms=1000ms → 已锁定; ratio=0.05 软逼近 2400*(1-0.95^20) ≈ 1540
     assert!(v > 1500.0 && v < 2400.0, "learn_max 逼近值 {v}");
     let locked = v;
     // 锁定后输入变大也不再更新
-    let v2 =
-        try_eval_single("learn_max(99999, 1, 1000)", registry(), &snap, &mut store, 2000, 50.0, None)
-            .unwrap();
+    let v2 = try_eval_single(
+        "learn_max(99999, 1, 1000)",
+        registry(),
+        &snap,
+        &mut store,
+        2000,
+        50.0,
+        None,
+    )
+    .unwrap();
     assert_eq!(v2, locked);
 }
 
@@ -262,9 +356,16 @@ fn compile_topo_order_correct() {
     let set = CompiledFormulaSet::compile(&defs, registry());
     assert!(set.formulas.iter().all(|f| f.err.is_none()));
     let _tel = TestTel::default();
-    let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
+    let meta = MetaInputs {
+        interval_ms: 50.0,
+        ..Default::default()
+    };
     let ind0 = crate::telemetry::parser::Indicators::default();
-    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
+    let raw0 = super::registry::RawInputs {
+        state: None,
+        indic: Some(&ind0),
+        fmdata: None,
+    };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let mut store = StateStore::new();
     let r = set.eval_frame(&snap, &mut store, 0, 50.0, None);
@@ -298,7 +399,11 @@ fn compile_cycle_chain_names() {
     let set = CompiledFormulaSet::compile(&defs, registry());
     if let Some(CompileError::Cycle(chain)) = &set.formulas[set.slots["x"] as usize].err {
         // 环链包含全部三个名字
-        assert!(chain.contains(&"x".to_string()) && chain.contains(&"y".to_string()) && chain.contains(&"z".to_string()));
+        assert!(
+            chain.contains(&"x".to_string())
+                && chain.contains(&"y".to_string())
+                && chain.contains(&"z".to_string())
+        );
     } else {
         panic!("x 应在环上");
     }
@@ -316,7 +421,11 @@ fn compile_invalid_dep_propagates_nan() {
     let _tel = TestTel::default();
     let meta = MetaInputs::default();
     let ind0 = crate::telemetry::parser::Indicators::default();
-    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
+    let raw0 = super::registry::RawInputs {
+        state: None,
+        indic: Some(&ind0),
+        fmdata: None,
+    };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let mut store = StateStore::new();
     let r = set.eval_frame(&snap, &mut store, 0, 50.0, None);
@@ -334,7 +443,10 @@ fn compile_duplicate_and_disabled() {
     let mut d = def("b", "1");
     d.disabled = true;
     let set2 = CompiledFormulaSet::compile(&[d], registry());
-    assert!(matches!(set2.formulas[0].err, Some(CompileError::DisabledByUser)));
+    assert!(matches!(
+        set2.formulas[0].err,
+        Some(CompileError::DisabledByUser)
+    ));
 }
 
 #[test]
@@ -369,8 +481,17 @@ fn registry_single_name_no_getter_aliases() {
     // W10 单名制: Java getter 名不得进内核索引 (对拍文件边界专用;
     // 双名制曾致 live 显示断链 — 别名回归即刻发现)
     let reg = registry();
-    for g in ["getIAS", "getTAS", "getNyRaw", "getIndicSpeed", "getWingSweep",
-        "getManifoldPressureDisplay", "getRadioAltitude", "getRPM", "getMach"] {
+    for g in [
+        "getIAS",
+        "getTAS",
+        "getNyRaw",
+        "getIndicSpeed",
+        "getWingSweep",
+        "getManifoldPressureDisplay",
+        "getRadioAltitude",
+        "getRPM",
+        "getMach",
+    ] {
         assert!(reg.lookup(g).is_none(), "getter 名 {g} 不应可达 (单名制)");
     }
 }
@@ -378,11 +499,20 @@ fn registry_single_name_no_getter_aliases() {
 #[test]
 fn registry_snapshot_assemble() {
     let _tel = TestTel::default();
-    let meta = MetaInputs { interval_ms: 50.0, freq: 20.0, fm_loaded: false, ..Default::default() };
+    let meta = MetaInputs {
+        interval_ms: 50.0,
+        freq: 20.0,
+        fm_loaded: false,
+        ..Default::default()
+    };
     let mut st0 = crate::telemetry::parser::State::default();
     st0.ias = 400;
     let ind0 = crate::telemetry::parser::Indicators::default();
-    let raw0 = super::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
+    let raw0 = super::registry::RawInputs {
+        state: Some(&st0),
+        indic: Some(&ind0),
+        fmdata: None,
+    };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let reg = registry();
     let ias = reg.lookup("ias").unwrap();
@@ -411,7 +541,11 @@ fn registry_origin_complete() {
     for (i, &c) in counts.iter().enumerate() {
         assert!(c > 0, "origin 类别 {} 数量为 0 (有变量漏标)", names[i]);
     }
-    assert!(counts[1] >= 5, "indicators 类应至少 5 个, 实际 {}", counts[1]);
+    assert!(
+        counts[1] >= 5,
+        "indicators 类应至少 5 个, 实际 {}",
+        counts[1]
+    );
     // 总量与注册表规模一致 (catalog 未丢行)
     assert_eq!(counts.iter().sum::<usize>(), reg.len());
 }
@@ -423,18 +557,32 @@ fn manager_install_and_eval() {
     let mgr = FormulaManager::new();
     // 内置公式形状预演: energy_jkg→energy_m 公式链与 maneuver_index
     // (energy_jkg 已公式化: (sum_speedv)²/8 的简化形态用 tas 直代)
-    mgr.install(
-        &[def("energy_jkg", "tas * tas / 2"), def("energy_m", "energy_jkg / g"), def("maneuver_index", "1.0 - (fm.empty_weight / (fm.empty_weight + mass_fuel))")],
-    );
+    mgr.install(&[
+        def("energy_jkg", "tas * tas / 2"),
+        def("energy_m", "energy_jkg / g"),
+        def(
+            "maneuver_index",
+            "1.0 - (fm.empty_weight / (fm.empty_weight + mass_fuel))",
+        ),
+    ]);
     let tel = TestTel::default();
-    let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let (r, _snap) = { let mut st0 = crate::telemetry::parser::State::default();
+    let meta = MetaInputs {
+        interval_ms: 50.0,
+        ..Default::default()
+    };
+    let (r, _snap) = {
+        let mut st0 = crate::telemetry::parser::State::default();
         st0.ias = tel.ias as i32;
         st0.tas = tel.tas as i32;
         let ind0 = crate::telemetry::parser::Indicators::default();
-        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
+        let raw0 = crate::formula::registry::RawInputs {
+            state: Some(&st0),
+            indic: Some(&ind0),
+            fmdata: None,
+        };
         let sess0 = crate::formula::registry::SessionInputs::default();
-        mgr.eval_frame(&raw0, &sess0, &meta, 0) };
+        mgr.eval_frame(&raw0, &sess0, &meta, 0)
+    };
     let set = mgr.current();
     assert!((r.get(set.slots["energy_m"]) - 101250.0 / 9.80).abs() < 1e-9);
     // fm.empty_weight 无 FM → NaN 传播
@@ -448,21 +596,36 @@ fn manager_hot_update_retains_states() {
     let mgr = FormulaManager::new();
     mgr.install(&[def("p", "prev(ias)")]);
     let tel = TestTel::default();
-    let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let _ = { let mut st0 = crate::telemetry::parser::State::default();
+    let meta = MetaInputs {
+        interval_ms: 50.0,
+        ..Default::default()
+    };
+    let _ = {
+        let mut st0 = crate::telemetry::parser::State::default();
         st0.ias = tel.ias as i32;
         let ind0 = crate::telemetry::parser::Indicators::default();
-        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
+        let raw0 = crate::formula::registry::RawInputs {
+            state: Some(&st0),
+            indic: Some(&ind0),
+            fmdata: None,
+        };
         let sess0 = crate::formula::registry::SessionInputs::default();
-        mgr.eval_frame(&raw0, &sess0, &meta, 0) };
+        mgr.eval_frame(&raw0, &sess0, &meta, 0)
+    };
     // 热更新: 加一个公式, 原 p 的状态保留
     mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")]);
-    let (r, _snap) = { let mut st0 = crate::telemetry::parser::State::default();
+    let (r, _snap) = {
+        let mut st0 = crate::telemetry::parser::State::default();
         st0.ias = tel.ias as i32;
         let ind0 = crate::telemetry::parser::Indicators::default();
-        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
+        let raw0 = crate::formula::registry::RawInputs {
+            state: Some(&st0),
+            indic: Some(&ind0),
+            fmdata: None,
+        };
         let sess0 = crate::formula::registry::SessionInputs::default();
-        mgr.eval_frame(&raw0, &sess0, &meta, 50) };
+        mgr.eval_frame(&raw0, &sess0, &meta, 50)
+    };
     let set = mgr.current();
     // p 第二帧 = 上帧 ias = 400 (状态跨热更新保留)
     assert_eq!(r.get(set.slots["p"]), 400.0);
@@ -474,7 +637,10 @@ fn manager_try_eval_isolated() {
     let mgr = FormulaManager::new();
     let tel = TestTel::default();
     let snap = snap_of(&tel);
-    assert_eq!(mgr.try_eval("ias * 3.6", &snap, 0, 50.0, None).unwrap(), 1440.0);
+    assert_eq!(
+        mgr.try_eval("ias * 3.6", &snap, 0, 50.0, None).unwrap(),
+        1440.0
+    );
     assert!(mgr.try_eval("unknown_var", &snap, 0, 50.0, None).is_err());
 }
 
@@ -486,7 +652,11 @@ impl crate::formula::registry::FormulaView for TargetView {
     fn var_value(&self, name: &str) -> Option<f64> {
         let vid = registry().lookup(name)?;
         let v = self.0.values.get(vid as usize).copied()?;
-        if v.is_nan() { None } else { Some(v) }
+        if v.is_nan() {
+            None
+        } else {
+            Some(v)
+        }
     }
 }
 
@@ -538,24 +708,38 @@ fn bench_eval_frame_50_formulas() {
             0 => format!("ias * {} + tas / {} // 纯算术", i + 1, i + 2),
             1 => format!("ias_per_mach(altitude + {}) * sqrt(ias + {})", i, i),
             2 => format!("sma(ias + {}, 20) + prev(tas) * {}", i, i + 1),
-            _ => format!("lerp({}, 0, ias, 100, tas) + clamp(mach, 0, {})", i as f64, (i + 1) as f64),
+            _ => format!(
+                "lerp({}, 0, ias, 100, tas) + clamp(mach, 0, {})",
+                i as f64,
+                (i + 1) as f64
+            ),
         };
         defs.push(def(&format!("f{i}"), &expr));
     }
     let set = CompiledFormulaSet::compile(&defs, registry());
     let _tel = TestTel::default();
-    let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
+    let meta = MetaInputs {
+        interval_ms: 50.0,
+        ..Default::default()
+    };
     let mut store = StateStore::new();
     let n = 10_000;
     let t0 = std::time::Instant::now();
     for k in 0..n {
         let ind0 = crate::telemetry::parser::Indicators::default();
-    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
-    let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
+        let raw0 = super::registry::RawInputs {
+            state: None,
+            indic: Some(&ind0),
+            fmdata: None,
+        };
+        let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
         let _ = set.eval_frame(&snap, &mut store, k, 50.0, None);
     }
     let us = t0.elapsed().as_micros() as f64 / n as f64;
-    println!("50 公式/帧: {us:.1} µs/帧 (快照组装+求值); 20Hz 轮询预算 50000µs, 占用 {:.3}%", us / 500.0);
+    println!(
+        "50 公式/帧: {us:.1} µs/帧 (快照组装+求值); 20Hz 轮询预算 50000µs, 占用 {:.3}%",
+        us / 500.0
+    );
 }
 
 // ===== FM 查表函数族 (W1a; 与 vm-data methods_engine 测试同 oracle) =====
@@ -595,11 +779,17 @@ fn fm_table_functions_match_shared_impl() {
         v
     );
     // 速度: 60% 开度档间插值 → 284.0 (同 oracle)
-    assert_eq!(eval_with("fm_flap_allow_speed(60, 1)", Some(&fmdata)), 284.0);
+    assert_eq!(
+        eval_with("fm_flap_allow_speed(60, 1)", Some(&fmdata)),
+        284.0
+    );
     // vne: 无 sweep 表 → 直通 vne
     assert_eq!(eval_with("fm_vne(0)", Some(&fmdata)), 800.0);
     // flap=0 → MAX (业务默认与被替代代码一致, 不 NaN 化)
-    assert_eq!(eval_with("fm_flap_allow_speed(0, 1)", Some(&fmdata)), f64::MAX);
+    assert_eq!(
+        eval_with("fm_flap_allow_speed(0, 1)", Some(&fmdata)),
+        f64::MAX
+    );
     // 无 FM → 查表族 NaN 隔离 (flap 两函数除外: 业务默认 125/MAX)
     assert!(eval_with("fm_vne(0)", None).is_nan());
     assert_eq!(eval_with("fm_flap_allow_angle(270, 0)", None), 125.0);
@@ -611,9 +801,13 @@ fn fn_id_codec_roundtrip() {
     // 编译期守卫: 枚举声明序与宏映射序漂移 → 分派错乱 (曾两次真实事故)
     use crate::formula::functions::{fid_from_u16, fid_to_u16, FnId};
     let all = [
-        (FnId::Invalid, "invalid"), (FnId::Clamp, "clamp"), (FnId::IasPerMach, "ias_per_mach"),
-        (FnId::FmVne, "fm_vne"), (FnId::FmFlapAllowAngle, "fm_flap_allow_angle"),
-        (FnId::Sma, "sma"), (FnId::LearnMax, "learn_max"),
+        (FnId::Invalid, "invalid"),
+        (FnId::Clamp, "clamp"),
+        (FnId::IasPerMach, "ias_per_mach"),
+        (FnId::FmVne, "fm_vne"),
+        (FnId::FmFlapAllowAngle, "fm_flap_allow_angle"),
+        (FnId::Sma, "sma"),
+        (FnId::LearnMax, "learn_max"),
     ];
     for (fid, _) in all {
         assert_eq!(fid_from_u16(fid_to_u16(fid)), Some(fid), "{fid:?} 往返失败");
@@ -648,7 +842,9 @@ fn const_folding_at_compile_time() {
 fn latch_lazy_semantics() {
     let reg = registry();
     let mut store = StateStore::new();
-    let snap = VarSnapshot { values: vec![f64::NAN; reg.len()] };
+    let snap = VarSnapshot {
+        values: vec![f64::NAN; reg.len()],
+    };
     // cond 真: 输出 x 并记忆
     let v = try_eval_single("latch(1, 42)", reg, &snap, &mut store, 0, 50.0, None).unwrap();
     assert_eq!(v, 42.0);
@@ -662,12 +858,39 @@ fn latch_lazy_semantics() {
     assert_eq!(v, 42.0);
     // 惰性验证: cond 假时 x 内的 sma 状态不推进
     let mut store2 = StateStore::new();
-    let _ = try_eval_single("latch(1, sma(10, 3))", reg, &snap, &mut store2, 0, 50.0, None).unwrap();
-    let _ = try_eval_single("latch(0, sma(20, 3))", reg, &snap, &mut store2, 50, 50.0, None).unwrap(); // 不执行
+    let _ = try_eval_single(
+        "latch(1, sma(10, 3))",
+        reg,
+        &snap,
+        &mut store2,
+        0,
+        50.0,
+        None,
+    )
+    .unwrap();
+    let _ = try_eval_single(
+        "latch(0, sma(20, 3))",
+        reg,
+        &snap,
+        &mut store2,
+        50,
+        50.0,
+        None,
+    )
+    .unwrap(); // 不执行
     let v = try_eval_single("sma(30, 3)", reg, &snap, &mut store2, 100, 50.0, None).unwrap();
     // 同一 site? 不同调用点 — sma 在 latch 内是独立 site; 外部 sma(30,3) 是新 site 从零:
     // 验证意图改由 latch 输出表达: cond 假两帧后仍记忆首帧值
-    let v2 = try_eval_single("latch(0, sma(99, 3))", reg, &snap, &mut store2, 150, 50.0, None).unwrap();
+    let v2 = try_eval_single(
+        "latch(0, sma(99, 3))",
+        reg,
+        &snap,
+        &mut store2,
+        150,
+        50.0,
+        None,
+    )
+    .unwrap();
     assert_eq!(v2, 10.0, "latch 内 sma 未被假帧推进");
     let _ = v;
 }

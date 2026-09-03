@@ -34,10 +34,10 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex};
 
+use crate::base::java_compat::java_trim;
+use crate::base::logger;
 use crate::config::config_loader::{load_config, save_config, GroupConfig, RowConfig};
 use crate::lang::Lang;
-use crate::base::logger;
-use crate::base::java_compat::java_trim;
 
 const TEMPLATE_PATH: &str = "./ui_layout.cfg";
 const USER_PATH: &str = "./ui_layout.user.cfg";
@@ -56,7 +56,9 @@ pub struct MergeReport {
 impl MergeReport {
     /// Java: `public boolean hasChanges()`
     pub fn has_changes(&self) -> bool {
-        !self.added_panels.is_empty() || !self.added_items.is_empty() || !self.updated_items.is_empty()
+        !self.added_panels.is_empty()
+            || !self.added_items.is_empty()
+            || !self.updated_items.is_empty()
     }
 }
 
@@ -69,7 +71,10 @@ pub fn initialize() -> Vec<GroupConfig> {
 
     // Scenario: Template doesn't exist (shouldn't happen in normal distribution)
     if !template_file.exists() {
-        logger::warn("ConfigManager", &format!("Template file not found: {TEMPLATE_PATH}"));
+        logger::warn(
+            "ConfigManager",
+            &format!("Template file not found: {TEMPLATE_PATH}"),
+        );
         return Vec::new();
     }
 
@@ -78,7 +83,10 @@ pub fn initialize() -> Vec<GroupConfig> {
 
     // Scenario: First run - user config doesn't exist
     if !user_file.exists() {
-        logger::info("ConfigManager", "First run detected, copying template to user config");
+        logger::info(
+            "ConfigManager",
+            "First run detected, copying template to user config",
+        );
         let configs = load_config(TEMPLATE_PATH);
         save_config(USER_PATH, &configs);
         ui_state_save_template_hash(current_template_hash.as_deref());
@@ -140,7 +148,10 @@ fn calculate_file_hash(file_path: &str) -> Option<String> {
             Some(sb)
         }
         Err(e) => {
-            logger::error("ConfigManager", &format!("Failed to calculate file hash: {e}"));
+            logger::error(
+                "ConfigManager",
+                &format!("Failed to calculate file hash: {e}"),
+            );
             None
         }
     }
@@ -177,7 +188,10 @@ pub fn merge_configs(
         if user_panel.is_none() {
             // New panel in template - use template as-is
             merged.push(template_panel.clone());
-            logger::info("ConfigManager", &format!("Added new panel: {}", template_panel.title));
+            logger::info(
+                "ConfigManager",
+                &format!("Added new panel: {}", template_panel.title),
+            );
             if let Some(r) = report.as_deref_mut() {
                 r.added_panels.push(template_panel.title.clone());
             }
@@ -185,7 +199,8 @@ pub fn merge_configs(
             // Merge existing panel
             // PORT: Java 保真 — `userPanel == null` 判空 + else 分支直接用引用的直译
             #[allow(clippy::unnecessary_unwrap)]
-            let merged_panel = merge_panel(template_panel, user_panel.unwrap(), report.as_deref_mut());
+            let merged_panel =
+                merge_panel(template_panel, user_panel.unwrap(), report.as_deref_mut());
             merged.push(merged_panel);
         }
     }
@@ -200,7 +215,11 @@ pub fn merge_configs_no_report(template: &[GroupConfig], user: &[GroupConfig]) -
 }
 
 /// Merges a single panel from template and user.
-fn merge_panel(template: &GroupConfig, user: &GroupConfig, report: Option<&mut MergeReport>) -> GroupConfig {
+fn merge_panel(
+    template: &GroupConfig,
+    user: &GroupConfig,
+    report: Option<&mut MergeReport>,
+) -> GroupConfig {
     let mut merged = GroupConfig::new(template.title.clone());
 
     // User-preserved fields
@@ -274,7 +293,12 @@ fn merge_rows(
             // Merge existing row
             // PORT: Java 保真 — `userRow == null` 判空 + else 分支直接用引用的直译
             #[allow(clippy::unnecessary_unwrap)]
-            let merged_row = merge_row(template_row, user_row.unwrap(), panel_title, report.as_deref_mut());
+            let merged_row = merge_row(
+                template_row,
+                user_row.unwrap(),
+                panel_title,
+                report.as_deref_mut(),
+            );
             merged.push(merged_row);
         }
     }
@@ -388,7 +412,10 @@ pub fn create_backup() {
 /// @return true if import was successful
 pub fn import_config(source_path: &str) -> bool {
     if !Path::new(source_path).exists() {
-        logger::error("ConfigManager", &format!("Import source not found: {source_path}"));
+        logger::error(
+            "ConfigManager",
+            &format!("Import source not found: {source_path}"),
+        );
         return false;
     }
 
@@ -413,7 +440,10 @@ pub fn import_config(source_path: &str) -> bool {
 
     // Save merged config
     save_config(USER_PATH, &merged);
-    logger::info("ConfigManager", &format!("Config imported successfully from: {source_path}"));
+    logger::info(
+        "ConfigManager",
+        &format!("Config imported successfully from: {source_path}"),
+    );
     true
 }
 
@@ -542,7 +572,10 @@ fn dispatch_config_dialog(dialog: ConfigDialog) {
             match &dialog {
                 ConfigDialog::ParseError => logger::warn(
                     "ConfigManager",
-                    &format!("[弹窗兜底] {}: {}", lang.m_config_error_title, lang.m_config_error_content),
+                    &format!(
+                        "[弹窗兜底] {}: {}",
+                        lang.m_config_error_title, lang.m_config_error_content
+                    ),
                 ),
                 ConfigDialog::MergeReport(message) => logger::info(
                     "ConfigManager",
@@ -551,9 +584,7 @@ fn dispatch_config_dialog(dialog: ConfigDialog) {
             }
             // 缓存待 web 就绪后补发 (审查 W2; 覆盖式留最后一条 — Java 首启
             // 模板升级的合并报告单发, 无连弹队列面)
-            *PENDING_CONFIG_DIALOG
-                .lock()
-                .expect("config 待发弹窗锁中毒") = Some(dialog);
+            *PENDING_CONFIG_DIALOG.lock().expect("config 待发弹窗锁中毒") = Some(dialog);
         }
     }
 }

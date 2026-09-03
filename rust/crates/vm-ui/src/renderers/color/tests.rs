@@ -19,7 +19,7 @@ fn parse_hex_formats() {
     assert_eq!(try_parse_color("#FF5500"), Some([255, 85, 0, 255]));
     assert_eq!(try_parse_color("#ff5500aa"), Some([255, 85, 0, 170])); // 小写
     assert_eq!(parse_color(" #FF5500 ", DEF), [255, 85, 0, 255]); // trim
-    // oracle: 非法数字/长度 → 默认
+                                                                  // oracle: 非法数字/长度 → 默认
     assert_eq!(parse_color("#FFGG00", DEF), DEF);
     assert_eq!(parse_color("#FFF", DEF), DEF);
     assert_eq!(parse_color("#", DEF), DEF);
@@ -35,7 +35,10 @@ fn parse_hex_formats() {
 fn parse_decimal_formats() {
     assert_eq!(try_parse_color("255, 85, 0, 170"), Some([255, 85, 0, 170]));
     assert_eq!(try_parse_color("255,85,0"), Some([255, 85, 0, 255])); // 3 段 → a=255
-    assert_eq!(try_parse_color(" 255 , 85 , 0 , 170 "), Some([255, 85, 0, 170]));
+    assert_eq!(
+        try_parse_color(" 255 , 85 , 0 , 170 "),
+        Some([255, 85, 0, 170])
+    );
     // oracle: 尾逗号 → Java split 丢弃尾部空串 → 3 段
     assert_eq!(try_parse_color("255, 85, 0,"), Some([255, 85, 0, 255]));
     // oracle: 越界钳位 [0,255]
@@ -56,9 +59,15 @@ fn java_trim_and_whitespace_semantics() {
     // nbsp 前缀: Java trim 不去 (>0x20) → 十进制路径解析失败 → 默认
     assert_eq!(parse_color("\u{00A0}#FF5500", DEF), DEF);
     // VT 内部: Java \s 含 \x0B → 剔除后解析成功
-    assert_eq!(try_parse_color("255,\u{000B}85,\u{000B}0"), Some([255, 85, 0, 255]));
+    assert_eq!(
+        try_parse_color("255,\u{000B}85,\u{000B}0"),
+        Some([255, 85, 0, 255])
+    );
     // 控制符 (<=0x20) 前后缀: trim 剔除 → hex 路径成功
-    assert_eq!(try_parse_color("\u{001F}#FF5500\u{0001}"), Some([255, 85, 0, 255]));
+    assert_eq!(
+        try_parse_color("\u{001F}#FF5500\u{0001}"),
+        Some([255, 85, 0, 255])
+    );
     // nbsp 内部: \s 不含 nbsp → parseInt 失败 → 默认
     assert_eq!(parse_color("255,\u{00A0}85, 0", DEF), DEF);
     // 全角空格: 同 nbsp → 默认
@@ -70,8 +79,13 @@ fn java_trim_and_whitespace_semantics() {
 fn format_and_round_trip() {
     let c = [255, 85, 0, 170];
     assert_eq!(to_decimal_string(&c), "255, 85, 0, 170"); // oracle 格式
-    // 存储串解析恒等 (双格式互通的根据; hex 域见 parse_hex_formats)
-    for c in [[0, 0, 0, 0], [255, 255, 255, 255], [232, 147, 50, 128], [1, 2, 3, 4]] {
+                                                          // 存储串解析恒等 (双格式互通的根据; hex 域见 parse_hex_formats)
+    for c in [
+        [0, 0, 0, 0],
+        [255, 255, 255, 255],
+        [232, 147, 50, 128],
+        [1, 2, 3, 4],
+    ] {
         assert_eq!(parse_color(&to_decimal_string(&c), DEF), c);
     }
 }
@@ -80,7 +94,9 @@ fn format_and_round_trip() {
 #[test]
 fn apply_writes_decimal_split_keys_and_saves() {
     let mut panel = GroupConfig::new("p".into());
-    panel.rows.push(color_row(Some("fontWarn"), Some("#FF2400FF")));
+    panel
+        .rows
+        .push(color_row(Some("fontWarn"), Some("#FF2400FF")));
     let ctx = MapCtx::default();
 
     apply(&mut panel, "fontWarn", [255, 36, 0, 128], &ctx);
@@ -110,7 +126,10 @@ fn apply_label_key_skips_service_sync() {
     let ctx = MapCtx::default();
 
     apply(&mut panel, "颜色", [0, 0, 0, 255], &ctx);
-    assert_eq!(panel.rows[0].value, Some(ConfigValue::Str("0, 0, 0, 255".into())));
+    assert_eq!(
+        panel.rows[0].value,
+        Some(ConfigValue::Str("0, 0, 0, 255".into()))
+    );
     assert_eq!(*ctx.calls.borrow(), vec!["on_save".to_string()]);
 }
 
@@ -121,7 +140,10 @@ fn apply_unknown_key_is_noop() {
     panel.rows.push(color_row(Some("k"), Some("#FFFFFFFF")));
     let ctx = MapCtx::default();
     apply(&mut panel, "absent", [0, 0, 0, 0], &ctx);
-    assert_eq!(panel.rows[0].value, Some(ConfigValue::Str("#FFFFFFFF".into())));
+    assert_eq!(
+        panel.rows[0].value,
+        Some(ConfigValue::Str("#FFFFFFFF".into()))
+    );
     assert!(ctx.calls.borrow().is_empty());
 }
 

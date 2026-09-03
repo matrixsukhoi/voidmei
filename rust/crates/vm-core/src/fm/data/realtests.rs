@@ -60,25 +60,41 @@ mod spitfire {
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
     use crate::fm::data::FuelType;
-    use crate::fm::power_extractor::{extract_stages, extract_stages_with_fuel};
     use crate::fm::piston_model::optimal_power_advanced;
+    use crate::fm::power_extractor::{extract_stages, extract_stages_with_fuel};
     use std::path::Path;
 
     // wtapc reference values at 300 km/h IAS, 15°C
     // Command: python wtapc.py --fm ... --central ... --ias 300
     const WTAPC_MIL: [[f64; 2]; 13] = [
-        [0.0, 1347.4], [1000.0, 1389.7], [2000.0, 1428.2], [3000.0, 1462.9],
-        [4000.0, 1494.3], [4100.0, 1510.0],  // Peak at critical alt
-        [5000.0, 1419.6], [6000.0, 1281.1], [7000.0, 1304.3],
-        [8000.0, 1325.0], [8100.0, 1340.0],  // Stage 2 peak
-        [9000.0, 1309.1], [10000.0, 1170.6],
+        [0.0, 1347.4],
+        [1000.0, 1389.7],
+        [2000.0, 1428.2],
+        [3000.0, 1462.9],
+        [4000.0, 1494.3],
+        [4100.0, 1510.0], // Peak at critical alt
+        [5000.0, 1419.6],
+        [6000.0, 1281.1],
+        [7000.0, 1304.3],
+        [8000.0, 1325.0],
+        [8100.0, 1340.0], // Stage 2 peak
+        [9000.0, 1309.1],
+        [10000.0, 1170.6],
     ];
 
     const WTAPC_WEP: [[f64; 2]; 12] = [
-        [0.0, 2172.0], [1000.0, 2240.3], [1830.0, 2292.5],  // WEP peak
-        [2000.0, 2252.5], [3000.0, 2021.5], [4000.0, 1917.4],
-        [5000.0, 1963.1], [6000.0, 2003.8], [7000.0, 1884.3],
-        [8000.0, 1719.0], [9000.0, 1564.8], [10000.0, 1408.8],
+        [0.0, 2172.0],
+        [1000.0, 2240.3],
+        [1830.0, 2292.5], // WEP peak
+        [2000.0, 2252.5],
+        [3000.0, 2021.5],
+        [4000.0, 1917.4],
+        [5000.0, 1963.1],
+        [6000.0, 2003.8],
+        [7000.0, 1884.3],
+        [8000.0, 1719.0],
+        [9000.0, 1564.8],
+        [10000.0, 1408.8],
     ];
 
     /// Java static passed/failed 计数器 (软断言, 全部执行完才判失败 — Java main
@@ -90,7 +106,10 @@ mod spitfire {
 
     impl Tally {
         fn new() -> Self {
-            Tally { passed: 0, failed: 0 }
+            Tally {
+                passed: 0,
+                failed: 0,
+            }
         }
 
         /// Java main 尾: Summary 打印 + `if (failed > 0) System.exit(1);`
@@ -139,7 +158,12 @@ mod spitfire {
         );
 
         // Verify fuel modification multipliers
-        t.assert_close("afterburnerMult", fuel_mod.british_afterburner_mult, 1.42, 0.01);
+        t.assert_close(
+            "afterburnerMult",
+            fuel_mod.british_afterburner_mult,
+            1.42,
+            0.01,
+        );
         t.assert_close(
             "afterburnerCompressorMult",
             fuel_mod.british_afterburner_compressor_mult,
@@ -149,8 +173,14 @@ mod spitfire {
 
         println!("  Fuel type: {}", fuel_mod.r#type);
         println!("  invertEnableLogic: {}", fuel_mod.british_invert_logic);
-        println!("  afterburnerMult: {:.3}", fuel_mod.british_afterburner_mult);
-        println!("  afterburnerCompressorMult: {:.3}", fuel_mod.british_afterburner_compressor_mult);
+        println!(
+            "  afterburnerMult: {:.3}",
+            fuel_mod.british_afterburner_mult
+        );
+        println!(
+            "  afterburnerCompressorMult: {:.3}",
+            fuel_mod.british_afterburner_compressor_mult
+        );
         t.finish();
     }
 
@@ -172,7 +202,6 @@ mod spitfire {
             }
         };
 
-
         // Extract WITHOUT fuel modification
         let stages_no_fuel = extract_stages(Some(&fmdata));
         t.assert_not_null("extracted stages without fuel", &stages_no_fuel);
@@ -185,9 +214,15 @@ mod spitfire {
             println!("\n  === Without Fuel Modification ===");
             for (i, s) in stages.iter().enumerate() {
                 println!("  Stage {i}:");
-                println!("    critAlt: {:.0}m, critPower: {:.1}hp", s.crit_alt, s.crit_power);
+                println!(
+                    "    critAlt: {:.0}m, critPower: {:.1}hp",
+                    s.crit_alt, s.crit_power
+                );
                 println!("    deckPower: {:.1}hp", s.deck_power);
-                println!("    wepCritAlt: {:.0}m, wepPowerMult: {:.4}", s.wep_crit_alt, s.wep_power_mult);
+                println!(
+                    "    wepCritAlt: {:.0}m, wepPowerMult: {:.4}",
+                    s.wep_crit_alt, s.wep_power_mult
+                );
             }
         }
 
@@ -199,22 +234,43 @@ mod spitfire {
             println!("\n  === With Fuel Modification ===");
             for (i, s) in stages.iter().enumerate() {
                 println!("  Stage {i}:");
-                println!("    critAlt: {:.0}m, critPower: {:.1}hp", s.crit_alt, s.crit_power);
+                println!(
+                    "    critAlt: {:.0}m, critPower: {:.1}hp",
+                    s.crit_alt, s.crit_power
+                );
                 println!("    deckPower: {:.1}hp", s.deck_power);
-                println!("    wepCritAlt: {:.0}m, wepPowerMult: {:.4}", s.wep_crit_alt, s.wep_power_mult);
+                println!(
+                    "    wepCritAlt: {:.0}m, wepPowerMult: {:.4}",
+                    s.wep_crit_alt, s.wep_power_mult
+                );
             }
         }
 
         // Verify expected FM parameters
         let comp = fmdata.compressor.as_ref().unwrap();
-        t.assert_close("compressor NumSteps", fmdata.comp_num_steps as f64, 2.0, 0.0);
+        t.assert_close(
+            "compressor NumSteps",
+            fmdata.comp_num_steps as f64,
+            2.0,
+            0.0,
+        );
         t.assert_close("Stage 0 altitude", comp.alt[0], 4100.0, 0.0);
         t.assert_close("Stage 1 altitude", comp.alt[1], 8100.0, 0.0);
         t.assert_close("Stage 0 power", comp.power[0], 1510.0, 0.0);
         t.assert_close("Stage 1 power", comp.power[1], 1340.0, 0.0);
         t.assert_close("AfterburnerBoost", fmdata.aftb_coff, 1.41, 0.01);
-        t.assert_close("AfterburnerManifoldPressure", fmdata.wep_manifold_pressure, 2.22, 0.01);
-        t.assert_close("SpeedManifoldMultiplier", fmdata.speed_to_manifold_multiplier, 0.8, 0.01);
+        t.assert_close(
+            "AfterburnerManifoldPressure",
+            fmdata.wep_manifold_pressure,
+            2.22,
+            0.01,
+        );
+        t.assert_close(
+            "SpeedManifoldMultiplier",
+            fmdata.speed_to_manifold_multiplier,
+            0.8,
+            0.01,
+        );
         t.finish();
     }
 
@@ -239,7 +295,6 @@ mod spitfire {
         // L63 起), 该 null 检查在 Java 本就是死代码; Rust 端同样无此冗余检查,
         // 行为一致
 
-
         // Since invertEnableLogic is FALSE for Spitfire F24:
         // - The modification represents ADDING 150 octane fuel
         // - WEP parameters SHOULD be boosted when fuel is applied
@@ -247,7 +302,9 @@ mod spitfire {
         let stages_no_fuel = extract_stages(Some(&fmdata));
         let stages_with_fuel = extract_stages_with_fuel(Some(&fmdata), Some(&fuel_mod));
 
-        if let (Some(no_fuel), Some(with_fuel)) = (stages_no_fuel.as_ref(), stages_with_fuel.as_ref()) {
+        if let (Some(no_fuel), Some(with_fuel)) =
+            (stages_no_fuel.as_ref(), stages_with_fuel.as_ref())
+        {
             // With invertEnableLogic=false, fuel mod SHOULD change WEP params
             let mut wep_changed = false;
             for i in 0..no_fuel.len() {
@@ -294,7 +351,6 @@ mod spitfire {
         };
         let fuel_mod = fuel_mod_from_json(&central_path);
 
-
         // Use stages WITH fuel modification (since wtapc uses full upgrades)
         let stages = match extract_stages_with_fuel(Some(&fmdata), Some(&fuel_mod)) {
             Some(s) => s,
@@ -318,11 +374,18 @@ mod spitfire {
         for r#ref in &WTAPC_MIL {
             let alt = r#ref[0];
             let expected = r#ref[1];
-            let actual = optimal_power_advanced(&stages, alt, false, speed_kmh, is_ias, sea_level_temp);
+            let actual =
+                optimal_power_advanced(&stages, alt, false, speed_kmh, is_ias, sea_level_temp);
             let diff = actual - expected;
             let abs_diff = diff.abs();
 
-            let status = if abs_diff < 5.0 { "✓" } else if abs_diff < 20.0 { "~" } else { "✗" };
+            let status = if abs_diff < 5.0 {
+                "✓"
+            } else if abs_diff < 20.0 {
+                "~"
+            } else {
+                "✗"
+            };
             println!("  {alt:5.0}    {actual:7.1}    {expected:5.1}    {diff:+.1} {status}");
 
             if abs_diff > 1.0 {
@@ -343,11 +406,18 @@ mod spitfire {
         for r#ref in &WTAPC_WEP {
             let alt = r#ref[0];
             let expected = r#ref[1];
-            let actual = optimal_power_advanced(&stages, alt, true, speed_kmh, is_ias, sea_level_temp);
+            let actual =
+                optimal_power_advanced(&stages, alt, true, speed_kmh, is_ias, sea_level_temp);
             let diff = actual - expected;
             let abs_diff = diff.abs();
 
-            let status = if abs_diff < 5.0 { "✓" } else if abs_diff < 50.0 { "~" } else { "✗" };
+            let status = if abs_diff < 5.0 {
+                "✓"
+            } else if abs_diff < 50.0 {
+                "~"
+            } else {
+                "✗"
+            };
             println!("  {alt:5.0}    {actual:7.1}    {expected:5.1}    {diff:+.1} {status}");
 
             if abs_diff > 1.0 {
@@ -379,8 +449,22 @@ mod spitfire {
         let mut wep_peak_power = 0.0f64;
         let mut wep_peak_alt = 0.0f64;
         for alt in (0..=10000i32).step_by(50) {
-            let mil_power = optimal_power_advanced(&stages, alt as f64, false, speed_kmh, is_ias, sea_level_temp);
-            let wep_power = optimal_power_advanced(&stages, alt as f64, true, speed_kmh, is_ias, sea_level_temp);
+            let mil_power = optimal_power_advanced(
+                &stages,
+                alt as f64,
+                false,
+                speed_kmh,
+                is_ias,
+                sea_level_temp,
+            );
+            let wep_power = optimal_power_advanced(
+                &stages,
+                alt as f64,
+                true,
+                speed_kmh,
+                is_ias,
+                sea_level_temp,
+            );
             if mil_power > mil_peak_power {
                 mil_peak_power = mil_power;
                 mil_peak_alt = alt as f64;
@@ -392,8 +476,14 @@ mod spitfire {
         }
 
         println!("\n  === Peak Values ===");
-        println!("  Military: {:.1} hp @ {:.0}m (wtapc: 1510.0 hp @ 4100m)", mil_peak_power, mil_peak_alt);
-        println!("  WEP: {:.1} hp @ {:.0}m (wtapc: 2292.5 hp @ 1830m)", wep_peak_power, wep_peak_alt);
+        println!(
+            "  Military: {:.1} hp @ {:.0}m (wtapc: 1510.0 hp @ 4100m)",
+            mil_peak_power, mil_peak_alt
+        );
+        println!(
+            "  WEP: {:.1} hp @ {:.0}m (wtapc: 2292.5 hp @ 1830m)",
+            wep_peak_power, wep_peak_alt
+        );
 
         // Acceptance criteria (relaxed for now - need debugging)
         t.assert_close("Military peak power", mil_peak_power, 1510.0, 50.0);
@@ -434,7 +524,6 @@ mod spitfire {
             self.assert_true(&format!("{name} not null"), obj.is_some());
         }
     }
-
 }
 
 // ==================== tempest ← test/TestTempestMk5Power.java ====================
@@ -455,24 +544,38 @@ mod tempest {
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
     use crate::fm::data::FuelType;
-    use crate::fm::power_extractor::extract_stages;
     use crate::fm::piston_model::optimal_power_advanced;
+    use crate::fm::power_extractor::extract_stages;
     use std::path::Path;
 
     // wtapc reference values at 300 km/h IAS, 15C
     // Command: python wtapc.py --fm ... --central ... --ias 300
     const WTAPC_MIL: [[f64; 2]; 12] = [
-        [0.0, 1982.4], [1000.0, 2031.5], [1730.0, 2064.7],  // Peak at ~1730m
-        [2000.0, 2001.8], [3000.0, 1773.7], [4000.0, 1704.3],
-        [5000.0, 1726.7], [6000.0, 1615.6], [7000.0, 1432.2],
-        [8000.0, 1269.0], [9000.0, 1124.1], [10000.0, 994.2],
+        [0.0, 1982.4],
+        [1000.0, 2031.5],
+        [1730.0, 2064.7], // Peak at ~1730m
+        [2000.0, 2001.8],
+        [3000.0, 1773.7],
+        [4000.0, 1704.3],
+        [5000.0, 1726.7],
+        [6000.0, 1615.6],
+        [7000.0, 1432.2],
+        [8000.0, 1269.0],
+        [9000.0, 1124.1],
+        [10000.0, 994.2],
     ];
 
     const WTAPC_WEP: [[f64; 2]; 11] = [
-        [0.0, 2439.9],  // Peak at sea level
-        [1000.0, 2223.0], [2000.0, 2041.6], [3000.0, 2075.9],
-        [4000.0, 2045.9], [5000.0, 1844.6], [6000.0, 1650.3],
-        [7000.0, 1466.0], [8000.0, 1302.0], [9000.0, 1156.3],
+        [0.0, 2439.9], // Peak at sea level
+        [1000.0, 2223.0],
+        [2000.0, 2041.6],
+        [3000.0, 2075.9],
+        [4000.0, 2045.9],
+        [5000.0, 1844.6],
+        [6000.0, 1650.3],
+        [7000.0, 1466.0],
+        [8000.0, 1302.0],
+        [9000.0, 1156.3],
         [10000.0, 1025.8],
     ];
 
@@ -483,7 +586,10 @@ mod tempest {
 
     impl Tally {
         fn new() -> Self {
-            Tally { passed: 0, failed: 0 }
+            Tally {
+                passed: 0,
+                failed: 0,
+            }
         }
 
         fn finish(&self) {
@@ -556,15 +662,14 @@ mod tempest {
         };
         let fuel_mod = fuel_mod_from_json(&central_path);
 
-
         // Extract stages with and without fuel modification
         let stages_no_fuel = extract_stages(Some(&fmdata));
-        let stages_with_fuel = crate::fm::power_extractor::extract_stages_with_fuel(
-            Some(&fmdata),
-            Some(&fuel_mod),
-        );
+        let stages_with_fuel =
+            crate::fm::power_extractor::extract_stages_with_fuel(Some(&fmdata), Some(&fuel_mod));
 
-        if let (Some(no_fuel), Some(with_fuel)) = (stages_no_fuel.as_ref(), stages_with_fuel.as_ref()) {
+        if let (Some(no_fuel), Some(with_fuel)) =
+            (stages_no_fuel.as_ref(), stages_with_fuel.as_ref())
+        {
             // With invertEnableLogic=true, fuel mod should NOT change WEP params
             let mut wep_unchanged = true;
             for i in 0..no_fuel.len() {
@@ -611,7 +716,6 @@ mod tempest {
             }
         };
 
-
         // Since invertEnableLogic=true, we can extract with or without fuel mod - same result
         let stages = extract_stages(Some(&fmdata));
         t.assert_not_null("extracted stages", &stages);
@@ -624,15 +728,26 @@ mod tempest {
             println!("\n  === Extracted Stage Parameters ===");
             for (i, s) in stages.iter().enumerate() {
                 println!("  Stage {i}:");
-                println!("    critAlt: {:.0}m, critPower: {:.1}hp", s.crit_alt, s.crit_power);
+                println!(
+                    "    critAlt: {:.0}m, critPower: {:.1}hp",
+                    s.crit_alt, s.crit_power
+                );
                 println!("    deckPower: {:.1}hp", s.deck_power);
-                println!("    wepCritAlt: {:.0}m, wepPowerMult: {:.4}", s.wep_crit_alt, s.wep_power_mult);
+                println!(
+                    "    wepCritAlt: {:.0}m, wepPowerMult: {:.4}",
+                    s.wep_crit_alt, s.wep_power_mult
+                );
             }
         }
 
         // Verify expected FM parameters (specific to Tempest Mk V)
         let comp = fmdata.compressor.as_ref().unwrap();
-        t.assert_close("compressor NumSteps", fmdata.comp_num_steps as f64, 2.0, 0.0);
+        t.assert_close(
+            "compressor NumSteps",
+            fmdata.comp_num_steps as f64,
+            2.0,
+            0.0,
+        );
         // Stage 0 critical altitude: 期望值须跟随游戏 FM 数据版本更新
         // (WT 2.57.1.103 中 tempest_mkv 的 Altitude0 已从 1730 调整为 1447;
         //  fmdata 更新后若此处 FAIL, 先 grep blkx 原始值区分数据变更与程序回归)
@@ -659,7 +774,6 @@ mod tempest {
             }
         };
 
-
         // For Tempest Mk V, since invertEnableLogic=true, fuel mod doesn't change anything
         // Use stages directly without fuel modification (or with - same result)
         let stages = match extract_stages(Some(&fmdata)) {
@@ -683,11 +797,18 @@ mod tempest {
         for r#ref in &WTAPC_MIL {
             let alt = r#ref[0];
             let expected = r#ref[1];
-            let actual = optimal_power_advanced(&stages, alt, false, speed_kmh, is_ias, sea_level_temp);
+            let actual =
+                optimal_power_advanced(&stages, alt, false, speed_kmh, is_ias, sea_level_temp);
             let diff = actual - expected;
             let abs_diff = diff.abs();
 
-            let status = if abs_diff < 5.0 { "OK" } else if abs_diff < 20.0 { "~" } else { "X" };
+            let status = if abs_diff < 5.0 {
+                "OK"
+            } else if abs_diff < 20.0 {
+                "~"
+            } else {
+                "X"
+            };
             println!("  {alt:5.0}    {actual:7.1}    {expected:5.1}    {diff:+.1} {status}");
 
             if abs_diff > 5.0 {
@@ -721,7 +842,6 @@ mod tempest {
             }
         };
 
-
         let stages = match extract_stages(Some(&fmdata)) {
             Some(s) => s,
             None => {
@@ -743,11 +863,18 @@ mod tempest {
         for r#ref in &WTAPC_WEP {
             let alt = r#ref[0];
             let expected = r#ref[1];
-            let actual = optimal_power_advanced(&stages, alt, true, speed_kmh, is_ias, sea_level_temp);
+            let actual =
+                optimal_power_advanced(&stages, alt, true, speed_kmh, is_ias, sea_level_temp);
             let diff = actual - expected;
             let abs_diff = diff.abs();
 
-            let status = if abs_diff < 10.0 { "OK" } else if abs_diff < 50.0 { "~" } else { "X" };
+            let status = if abs_diff < 10.0 {
+                "OK"
+            } else if abs_diff < 50.0 {
+                "~"
+            } else {
+                "X"
+            };
             println!("  {alt:5.0}    {actual:7.1}    {expected:5.1}    {diff:+.1} {status}");
 
             if abs_diff > 10.0 {
@@ -763,7 +890,14 @@ mod tempest {
         let mut wep_peak_power = 0.0f64;
         let mut wep_peak_alt = 0.0f64;
         for alt in (0..=10000i32).step_by(50) {
-            let wep_power = optimal_power_advanced(&stages, alt as f64, true, speed_kmh, is_ias, sea_level_temp);
+            let wep_power = optimal_power_advanced(
+                &stages,
+                alt as f64,
+                true,
+                speed_kmh,
+                is_ias,
+                sea_level_temp,
+            );
             if wep_power > wep_peak_power {
                 wep_peak_power = wep_power;
                 wep_peak_alt = alt as f64;
@@ -771,7 +905,10 @@ mod tempest {
         }
 
         println!("\n  Max error: {:.1} hp", max_error);
-        println!("  VoidMei WEP peak: {:.1} hp @ {:.0}m (wtapc: 2439.9 hp @ 0m)", wep_peak_power, wep_peak_alt);
+        println!(
+            "  VoidMei WEP peak: {:.1} hp @ {:.0}m (wtapc: 2439.9 hp @ 0m)",
+            wep_peak_power, wep_peak_alt
+        );
 
         // Acceptance criteria
         t.assert_true("WEP max error < 10 hp", max_error < 10.0);
@@ -785,7 +922,9 @@ mod tempest {
     impl Tally {
         fn assert_close(&mut self, name: &str, actual: f64, expected: f64, tolerance: f64) {
             if (actual - expected).abs() <= tolerance {
-                println!("  PASS: {name} = {actual:.2} (expected {expected:.2} +/- {tolerance:.2})");
+                println!(
+                    "  PASS: {name} = {actual:.2} (expected {expected:.2} +/- {tolerance:.2})"
+                );
                 self.passed += 1;
             } else {
                 println!(
@@ -809,7 +948,6 @@ mod tempest {
             self.assert_true(&format!("{name} not null"), obj.is_some());
         }
     }
-
 }
 
 // ==================== fuzzer ← test/FMParserFuzzer.java ====================
@@ -880,9 +1018,19 @@ mod fuzzer {
 
     // 变异策略名 (下标即策略编号, 输出统计用)
     const STRATEGY_NAMES: [&str; 13] = [
-        "truncate", "charReplace", "chunkPaste", "deleteLine", "shuffleLines",
-        "commentLine", "stripIndent", "dropBrace", "killEquals", "injectNest",
-        "numberMutate", "unquote", "jsonInject",
+        "truncate",
+        "charReplace",
+        "chunkPaste",
+        "deleteLine",
+        "shuffleLines",
+        "commentLine",
+        "stripIndent",
+        "dropBrace",
+        "killEquals",
+        "injectNest",
+        "numberMutate",
+        "unquote",
+        "jsonInject",
     ];
 
     /// 逃逸异常计数等 (Java static 计数器, 单测试线程内持有)
@@ -923,11 +1071,7 @@ mod fuzzer {
         /// `return (int)(seed >>> (48 - bits));`
         fn next(&mut self, bits: u32) -> i32 {
             // PORT: Java long 乘加静默回绕 ↔ wrapping_mul/wrapping_add (§2.2)
-            self.seed = self
-                .seed
-                .wrapping_mul(0x5DEECE66D)
-                .wrapping_add(0xB)
-                & ((1 << 48) - 1);
+            self.seed = self.seed.wrapping_mul(0x5DEECE66D).wrapping_add(0xB) & ((1 << 48) - 1);
             (self.seed >> (48 - bits)) as i32
         }
 
@@ -974,7 +1118,7 @@ mod fuzzer {
         fn next_double(&mut self) -> f64 {
             let hi = self.next(26) as u64; // 0..2^26-1, 非负
             let lo = self.next(27) as u64; // 0..2^27-1, 非负
-            // PORT: Rust 无十六进制浮点字面量, 2^-53 以除法表达 (精确幂次, 逐位一致)
+                                           // PORT: Rust 无十六进制浮点字面量, 2^-53 以除法表达 (精确幂次, 逐位一致)
             (((hi << 27) + lo) as f64) / ((1u64 << 53) as f64)
         }
     }
@@ -983,19 +1127,19 @@ mod fuzzer {
 
     fn mutate(s: &str, kind: i32, rnd: &mut JavaRandom) -> String {
         match kind {
-            0 => truncate(s, rnd),        // 字节级: 头/中/尾截断
-            1 => char_replace(s, rnd),    // 字节级: 随机字符替换 (ASCII 全谱)
-            2 => chunk_paste(s, rnd),     // 字节级: 段落复制粘贴
-            3 => delete_lines(s, rnd),    // 行级: 随机删行
-            4 => shuffle_lines(s, rnd),   // 行级: 行乱序
-            5 => comment_lines(s, rnd),   // 行级: 前插 // 注释化
-            6 => strip_indent(s, rnd),    // 行级: 缩进清空
-            7 => drop_brace(s, rnd),      // 结构级: 删一个 { 或 } (括号失配)
-            8 => kill_equals(s, rnd),     // 结构级: 某个 = 换成空格
-            9 => inject_nest(s, rnd),     // 结构级: 注入额外嵌套 "{\n" 块
-            10 => number_mutate(s, rnd),  // 语义级: 数值字面量换 NaN/1e999/长数字等
-            11 => unquote(s, rnd),        // 语义级: 去掉某个字符串的引号
-            12 => json_inject(s, rnd),    // 语义级: 注入 JSON 片段替换随机区间
+            0 => truncate(s, rnd),       // 字节级: 头/中/尾截断
+            1 => char_replace(s, rnd),   // 字节级: 随机字符替换 (ASCII 全谱)
+            2 => chunk_paste(s, rnd),    // 字节级: 段落复制粘贴
+            3 => delete_lines(s, rnd),   // 行级: 随机删行
+            4 => shuffle_lines(s, rnd),  // 行级: 行乱序
+            5 => comment_lines(s, rnd),  // 行级: 前插 // 注释化
+            6 => strip_indent(s, rnd),   // 行级: 缩进清空
+            7 => drop_brace(s, rnd),     // 结构级: 删一个 { 或 } (括号失配)
+            8 => kill_equals(s, rnd),    // 结构级: 某个 = 换成空格
+            9 => inject_nest(s, rnd),    // 结构级: 注入额外嵌套 "{\n" 块
+            10 => number_mutate(s, rnd), // 语义级: 数值字面量换 NaN/1e999/长数字等
+            11 => unquote(s, rnd),       // 语义级: 去掉某个字符串的引号
+            12 => json_inject(s, rnd),   // 语义级: 注入 JSON 片段替换随机区间
             _ => char_replace(s, rnd),
         }
     }
@@ -1205,7 +1349,12 @@ mod fuzzer {
             return s.to_string();
         }
         let pick = matches[rnd.next_int_bound(matches.len())];
-        format!("{}{}{}", &s[..pick.0], &s[pick.0 + 1..pick.1 - 1], &s[pick.1..])
+        format!(
+            "{}{}{}",
+            &s[..pick.0],
+            &s[pick.0 + 1..pick.1 - 1],
+            &s[pick.1..]
+        )
     }
 
     /// 语义级-JSON 注入: 随机区间 (≤5%) 整段替换为 JSON 片段
@@ -1351,7 +1500,10 @@ mod fuzzer {
                 }
             };
             // 同 run_direct_pipeline: Ok ⇒ valid==true 契约钉死
-            assert!(b.valid, "基线 parse 返回 Ok 但 valid=false (违反 json.rs 契约)");
+            assert!(
+                b.valid,
+                "基线 parse 返回 Ok 但 valid=false (违反 json.rs 契约)"
+            );
             println!("  [通过] 基线: 原始种子全管线解析成功");
             c.passed += 1;
             true
@@ -1396,7 +1548,11 @@ mod fuzzer {
             }
             Ok(Ok(b)) => {
                 // 契约钉死 (json.rs 不变式 "Ok 恒 valid==true")
-                assert!(b.valid, "#{} parse 返回 Ok 但 valid=false (违反 json.rs 契约)", index);
+                assert!(
+                    b.valid,
+                    "#{} parse 返回 Ok 但 valid=false (违反 json.rs 契约)",
+                    index
+                );
                 c.valid_true += 1;
             }
         }
@@ -1447,10 +1603,8 @@ mod fuzzer {
         // PORT: 平台字符集 (中文 Windows=GBK) ↔ UTF-8; 种子域纯 ASCII (od 实测,
         // reader.rs 先例), 等价。域假设被打破 (未来数据版本混入非 ASCII 字节) 时
         // 显式炸明原因 — Java 平台字符集解码不失败, 不以 io 错误面目误导排查
-        let seed_text =
-            String::from_utf8(std::fs::read(&fm_path).expect("种子文件读取")).unwrap_or_else(
-                |e| panic!("种子文件非 UTF-8, §2.1 纯 ASCII 域假设被打破: {e}"),
-            );
+        let seed_text = String::from_utf8(std::fs::read(&fm_path).expect("种子文件读取"))
+            .unwrap_or_else(|e| panic!("种子文件非 UTF-8, §2.1 纯 ASCII 域假设被打破: {e}"));
         let seed_name = {
             let n = Path::new(&fm_path)
                 .file_name()
@@ -1573,7 +1727,11 @@ mod fuzzer {
 
         let mut r3 = JavaRandom::new(20260825);
         let rb: Vec<bool> = (0..10).map(|_| r3.next_boolean()).collect();
-        assert_eq!(rb, vec![false, true, false, false, false, true, false, false, true, false], "RB");
+        assert_eq!(
+            rb,
+            vec![false, true, false, false, false, true, false, false, true, false],
+            "RB"
+        );
 
         // 各 bound 域 (seed 42, 12 抽样): (bound, 期望序列)
         let rib: &[(usize, &[usize])] = &[
@@ -1588,7 +1746,12 @@ mod fuzzer {
             (64, &[46, 3, 43, 3, 19, 60, 17, 45, 42, 5, 57, 28]),
             (100, &[30, 63, 48, 84, 70, 25, 5, 18, 19, 93, 82, 2]),
             (500, &[130, 263, 248, 384, 470, 25, 5, 418, 19, 93, 182, 2]),
-            (2000, &[1130, 763, 1248, 884, 1970, 1525, 1505, 918, 1519, 93, 1182, 1502]),
+            (
+                2000,
+                &[
+                    1130, 763, 1248, 884, 1970, 1525, 1505, 918, 1519, 93, 1182, 1502,
+                ],
+            ),
         ];
         for &(bound, expected) in rib {
             let mut rb = JavaRandom::new(42);
@@ -1599,14 +1762,30 @@ mod fuzzer {
         // Random(0) 裸 nextInt() (32 位带符号) — LCG 经典已知值首项 -1155484576
         let mut r0 = JavaRandom::new(0);
         let ri: Vec<i32> = (0..5).map(|_| r0.next_int()).collect();
-        assert_eq!(ri, vec![-1155484576, -723955400, 1033096058, -1690734402, -1557280266], "RI");
+        assert_eq!(
+            ri,
+            vec![
+                -1155484576,
+                -723955400,
+                1033096058,
+                -1690734402,
+                -1557280266
+            ],
+            "RI"
+        );
 
         // Random(-1) nextLong 序列 (48-bit mask + 符号扩展路径)
         let mut rm1 = JavaRandom::new(u64::MAX);
         let rl: Vec<i64> = (0..5).map(|_| rm1.next_long()).collect();
         assert_eq!(
             rl,
-            vec![4961115982468162243, 226341162490527646, -6233441030884181172, 7681931065131779340, -3206673117535979274],
+            vec![
+                4961115982468162243,
+                226341162490527646,
+                -6233441030884181172,
+                7681931065131779340,
+                -3206673117535979274
+            ],
             "RL"
         );
     }
@@ -1682,7 +1861,11 @@ mod fuzzer {
         }
         let seed_text = std::fs::read_to_string(&fm_path).unwrap();
         // 种子身份指纹 (防 data 被静默更换; 换游戏版本重跑 fmdatajson 后需同步更新)
-        assert_eq!((seed_text.len(), fnv1a64(&seed_text)), (26387, 15339736856552207565), "FMSEED");
+        assert_eq!(
+            (seed_text.len(), fnv1a64(&seed_text)),
+            (26387, 15339736856552207565),
+            "FMSEED"
+        );
 
         let mut rnd = JavaRandom::new(20260825);
         for i in 0..13 {
@@ -1699,8 +1882,16 @@ mod fuzzer {
     #[test]
     fn num_and_quoted_scanner_boundaries() {
         // ---- RE_NUM: \d+\.?\d*(?:[eE][-+]?\d+)? ----
-        assert_eq!(find_num_matches("a1.2e5b"), &[(1, 6)], "常规数值 (end 开区间)");
-        assert_eq!(find_num_matches("1..2"), &[(0, 2), (3, 4)], "点后无数字仍消费 '.'");
+        assert_eq!(
+            find_num_matches("a1.2e5b"),
+            &[(1, 6)],
+            "常规数值 (end 开区间)"
+        );
+        assert_eq!(
+            find_num_matches("1..2"),
+            &[(0, 2), (3, 4)],
+            "点后无数字仍消费 '.'"
+        );
         assert_eq!(find_num_matches("5e"), &[(0, 1)], "指数无数字不消费 e");
         assert_eq!(find_num_matches("5e+"), &[(0, 1)], "符号后无数字不消费");
         assert_eq!(find_num_matches("1.2e+3x"), &[(0, 6)], "带符号指数");
@@ -1708,12 +1899,20 @@ mod fuzzer {
         assert_eq!(find_num_matches("007 42"), &[(0, 3), (4, 6)], "多匹配");
         assert_eq!(find_num_matches("-0.75"), &[(1, 5)], "负号不属于数值字面量");
         assert_eq!(find_num_matches("no digits"), &[], "无匹配");
-        assert_eq!(find_num_matches("12e34.5"), &[(0, 5), (6, 7)], "指数后不再吃 '.'");
+        assert_eq!(
+            find_num_matches("12e34.5"),
+            &[(0, 5), (6, 7)],
+            "指数后不再吃 '.'"
+        );
 
         // ---- RE_QUOTED: "([^"\n\r]{1,60})" ----
         assert_eq!(find_quoted_matches("\"abc\""), &[(0, 5)]);
         assert_eq!(find_quoted_matches("\"unterminated"), &[], "无闭合引号");
-        assert_eq!(find_quoted_matches("a\"b\"c\"d\""), &[(1, 4), (5, 8)], "多匹配");
+        assert_eq!(
+            find_quoted_matches("a\"b\"c\"d\""),
+            &[(1, 4), (5, 8)],
+            "多匹配"
+        );
         assert_eq!(find_quoted_matches("\"a\nb\""), &[], "换行中断不可回溯命中");
         // {1,60} 上界: 内容 61 字符 → 超界无匹配; 恰 60 字符 → 命中
         let inner61 = format!("\"{}\"", "x".repeat(61));
@@ -1755,4 +1954,3 @@ mod fuzzer {
         }
     }
 }
-

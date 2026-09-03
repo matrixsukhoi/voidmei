@@ -12,22 +12,24 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
 
-use vm_core::base::java_compat::current_time_millis;
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
 use vm_core::base::calc_helper::SimpleMovingAverage;
 use vm_core::base::event::event_payload::EventPayload;
 use vm_core::base::event::flight_data_event::FlightDataEvent;
-use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
+use vm_core::base::java_compat::current_time_millis;
 use vm_core::derived::flight_analyzer::AnalyzerService;
-use vm_core::base::bus::flight_data_bus::FlightDataBus;
 use vm_core::derived::flight_log::{FlightLogSlot, FlightLogSnapshot};
 use vm_core::fm::{FMHandle, FMManager};
+use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
 use vm_core::telemetry::http::HttpHelper;
 use vm_core::telemetry::parser::{Indicators, MapInfo, MapObj, State};
 // format 别名避开 tests.rs 的 format! 宏歧义 (overlay_control_surfaces 同款先例)
-use vm_core::base::{exception_helper, format as jfmt, logger, physics_constants::G, ports::bkp_port};
+use vm_core::base::{
+    exception_helper, format as jfmt, logger, physics_constants::G, ports::bkp_port,
+};
 
-use vm_core::base::string_helper::F_INVALID;
 use crate::service_fields::{EngineType, ServiceData, NASTRING};
+use vm_core::base::string_helper::F_INVALID;
 
 /// 温度族无效哨兵 (波17 F3 具名化, 原 updateTemp 的 `-65534f` 字面量):
 /// 比 F_INVALID 宽一档 — 缺数据判定用 `<= 本值`, 同时兜住 -65534 与 -65535
@@ -84,12 +86,12 @@ pub(crate) fn session_inputs(d: &ServiceData) -> vm_core::formula::registry::Ses
         // is_imperial 统一面见 ServiceData::is_imperial — 波17 F2)
         manifold_display: manifold_display(d.s_state.as_ref(), d.is_imperial()),
         is_imperial: d.is_imperial(),
-        // 四判定 = EngineType 同名方法 (PROP||TURBOPROP 的 is_prop 语义随方法走;
-        // 守卫 flag = 投票状态机未收敛时判定全 false, 对位 Java isEngineCheckDone)
-        is_jet: d.engine.check_engine_flag && d.engine.engine_type.is_jet(),
-        is_prop: d.engine.check_engine_flag && d.engine.engine_type.is_prop(),
-        is_piston: d.engine.check_engine_flag && d.engine.engine_type.is_piston(),
-        is_turboprop: d.engine.check_engine_flag && d.engine.engine_type.is_turboprop(),
+        // 四判定 = EngineScalars 的 *_live 方法 (flag 守卫语义见其 doc;
+        // PROP||TURBOPROP 的 is_prop 语义随方法走)
+        is_jet: d.engine.is_jet_live(),
+        is_prop: d.engine.is_prop_live(),
+        is_piston: d.engine.is_piston_live(),
+        is_turboprop: d.engine.is_turboprop_live(),
         engine_check_done: d.engine.check_engine_flag,
     }
 }
@@ -249,13 +251,15 @@ impl Service {
         };
         // 规则装载 (formulas.cfg/user 的 (rule ...) 段)
         {
-            let builtin = std::fs::read_to_string(vm_core::formula::persistence::BUILTIN_FORMULAS_PATH)
-                .unwrap_or_default();
+            let builtin =
+                std::fs::read_to_string(vm_core::formula::persistence::BUILTIN_FORMULAS_PATH)
+                    .unwrap_or_default();
             let user = std::fs::read_to_string(vm_core::formula::persistence::USER_FORMULAS_PATH)
                 .unwrap_or_default();
             let mut rules = vm_core::formula::persistence::parse_rules(&builtin);
             rules.extend(vm_core::formula::persistence::parse_rules(&user));
-            svc.rule_engine.install(&rules, vm_core::formula::registry());
+            svc.rule_engine
+                .install(&rules, vm_core::formula::registry());
         }
         svc.apply(|d| d.freq = svc.config.service_loop_interval_ms);
         svc.clear_varia();
@@ -296,7 +300,10 @@ impl Service {
             .clone();
         let Some(temp_log) = temp_log else { return };
         let snap = self.with_snapshot(flight_log_snapshot);
-        temp_log.lock().unwrap_or_else(|e| e.into_inner()).log_tick(&snap);
+        temp_log
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .log_tick(&snap);
     }
 
     // ------------------------------------------------------------------
@@ -326,7 +333,7 @@ impl Service {
             d.engine.engine_type = EngineType::Unknown;
             d.check_maxium_rpm = 0;
             d.compass_delta = 0.0;
-            d.engine.get_maximum_rpm = false;
+            d.engine.maximum_rpm_learned = false;
             d.altm.d_radio_alt = 0.0;
             d.engine.wep_time = 0;
             d.elapsed_time = 0;
@@ -438,11 +445,10 @@ impl Service {
     /// 返回值: Java 的 InterruptedException 出口 → [`Flow::Interrupted`]。
     fn poll_once(&mut self) -> Flow {
         let now = current_time_millis();
-        let (freq, port_ocupied, last_main_loop_time_ms) =
-            self.apply(|d| {
-                d.current_time_ms = now;
-                (d.freq, d.port_ocupied, d.last_main_loop_time_ms)
-            });
+        let (freq, port_ocupied, last_main_loop_time_ms) = self.apply(|d| {
+            d.current_time_ms = now;
+            (d.freq, d.port_ocupied, d.last_main_loop_time_ms)
+        });
         // long diffTime = currentTimeMs - lastMainLoopTimeMs;
         let diff_time = now - last_main_loop_time_ms;
         if diff_time >= freq {
@@ -450,9 +456,11 @@ impl Service {
             // (HTTP IO 在锁外, §2.8; portOcupied 拆箱 None → panic 复刻 Java NPE,
             //  由 run 的 catch_unwind 兜住——字段初始化器 false 使 None 不可达)
             if !port_ocupied {
-                self.http_client.get_req_result(request_dest(&self.config), &self.stop);
+                self.http_client
+                    .get_req_result(request_dest(&self.config), &self.stop);
             } else {
-                self.http_client.get_req_result(request_dest_bkp(&self.config), &self.stop);
+                self.http_client
+                    .get_req_result(request_dest_bkp(&self.config), &self.stop);
             }
             let actual_interval_ms = (diff_time / freq) * freq;
             self.apply(|d| {
@@ -480,9 +488,11 @@ impl Service {
         if diff_time1 >= 10 * freq {
             self.apply(|d| d.last_map_poll_time_ms = now);
             if !port_ocupied {
-                self.http_client.get_req_map_obj_result(request_dest(&self.config));
+                self.http_client
+                    .get_req_map_obj_result(request_dest(&self.config));
             } else {
-                self.http_client.get_req_map_obj_result(request_dest_bkp(&self.config));
+                self.http_client
+                    .get_req_map_obj_result(request_dest_bkp(&self.config));
             }
             let str_map_obj = self.http_client.str_map_obj.clone();
             // (MapObj 解析为纯内存计算, 临界区内无 IO)
@@ -522,7 +532,6 @@ impl Service {
         // int conState;
         // Application.debugPrint("s:"+httpClient.strState+"s1:"+httpClient.strIndic);
         // 更新state
-
 
         // (strState 为跨线程 Arc<Mutex>——getReqResult 的子线程写, 读侧短锁克隆;
         //  锁中毒穿透与 read_data/write_data 同一 §6 策略——该 Mutex 与子线程共享,
@@ -619,9 +628,7 @@ impl Service {
         });
         // toUpperCase; Rust 侧 Indicators::update 恒产 Some (缺失→""),
         // None 不可达, Option 域内比较 (vm-core indicators.rs 既有防御)
-        if i_type.as_deref() != Some("DUMMY_PLANE")
-            && ((total_thr != 0.0) || (s_rpm != 0))
-        {
+        if i_type.as_deref() != Some("DUMMY_PLANE") && ((total_thr != 0.0) || (s_rpm != 0)) {
             if !player_live {
                 // else getReqMapInfoResult(requestDestBkp);
                 let dest = if !port_ocupied {
@@ -822,7 +829,7 @@ impl Service {
             // radioAlt = iIndic.radio_altitude;
             if radio_alt_raw == F_INVALID {
                 d.altm.radio_alt = d.altm.alt;
-                } else {
+            } else {
                 // 英制 → 英尺转米 (判定统一面 is_imperial, 波17 F2)
                 if d.is_imperial() {
                     d.altm.radio_alt = radio_alt_raw * 0.3048;
@@ -832,7 +839,8 @@ impl Service {
             }
             // dRadioAlt = (ratio_1 * dRadioAlt) + ratio * 1000.0f * (radioAlt - pRadioAlt) / actualIntervalMs;
             d.altm.d_radio_alt = (d.ratio_1 * d.altm.d_radio_alt)
-                + d.ratio * 1000.0 * (d.altm.radio_alt - d.altm.p_radio_alt) / actual_interval_ms as f64;
+                + d.ratio * 1000.0 * (d.altm.radio_alt - d.altm.p_radio_alt)
+                    / actual_interval_ms as f64;
 
             // PORT(speedv/speedvp 不写回): 状态主在 Deriver 内部且 FlightValues
             // 未外泄——加油检测分支本波次恒死 (见 process_polling_cycle 注),
@@ -885,12 +893,19 @@ impl Service {
             let session = session_inputs(d);
             // 重构波4: 快照随 eval_frame 返回 (原二次 assemble 已消)
             let (results, snap) =
-                self.formula.eval_frame(&raw, &session, &meta, current_time_millis() as u64);
-            (results, self.formula.current().slots_arc(), snap, meta.interval_ms)
+                self.formula
+                    .eval_frame(&raw, &session, &meta, current_time_millis() as u64);
+            (
+                results,
+                self.formula.current().slots_arc(),
+                snap,
+                meta.interval_ms,
+            )
         });
         // L2 规则求值 (公式之后同快照; 触发事件写 ServiceData, 消费面 vm-app 接)
         let triggers =
-            self.rule_engine.eval(&snap, &results, current_time_millis() as u64, interval_ms);
+            self.rule_engine
+                .eval(&snap, &results, current_time_millis() as u64, interval_ms);
         self.apply(|d| {
             d.formula_values = results;
             d.formula_slots = slots.clone();
@@ -903,13 +918,14 @@ impl Service {
                 if f.err.is_some() {
                     continue;
                 }
-                let Some(&slot) = set.slots.get(&f.def.name) else { continue };
+                let Some(&slot) = set.slots.get(&f.def.name) else {
+                    continue;
+                };
                 let v = d.formula_values.get(slot);
                 write_back(d, &f.def.name, v);
             }
         });
     }
-
 
     /// 0.5 秒一次慢计算
     /// 慢计算: 油量变化率/剩余油量时间 + **totalFuelPrev 追赶** (加油检测分支的
@@ -938,7 +954,11 @@ impl Service {
                         .add_new_data(d.fuel.total_fuel * d.fuelchange_time as f64 / d.fuel_change)
                         as i64;
                     if d.fuel.fueltime > 0 {
-                        d.fuel.fueltime = if d.fuel.fueltime < tmpft { d.fuel.fueltime } else { tmpft };
+                        d.fuel.fueltime = if d.fuel.fueltime < tmpft {
+                            d.fuel.fueltime
+                        } else {
+                            tmpft
+                        };
                     } else {
                         d.fuel.fueltime = tmpft;
                     }
@@ -994,7 +1014,11 @@ impl Service {
             // R2 守卫: 无 FM 时 blkx=null, nitrokg 归 0（显示 "-"）
             d.engine.nitrokg = if let Some(fmdata) = fm.fmdata.as_ref() {
                 let v = fmdata.nitro - (d.engine.wep_time as f64 * d.engine.nitro_consump) / 1000.0;
-                if v < 0.0 { 0.0 } else { v }
+                if v < 0.0 {
+                    0.0
+                } else {
+                    v
+                }
             } else {
                 0.0
             };
@@ -1005,9 +1029,9 @@ impl Service {
             // —— wepTime/1000 是 long 整除后才并入 double
             if let Some(fmdata) = fm.fmdata.as_ref() {
                 if fmdata.nitro != 0.0 && nitro_eng_nr != 0 {
-                    d.engine.s_wep_time_val = ((fmdata.nitro / fmdata.nitro_decr
-                        - (wep_time / 1000) as f64)
-                        / nitro_eng_nr as f64) as i32 as i64;
+                    d.engine.s_wep_time_val =
+                        ((fmdata.nitro / fmdata.nitro_decr - (wep_time / 1000) as f64)
+                            / nitro_eng_nr as f64) as i32 as i64;
                 }
             }
         });
@@ -1084,41 +1108,40 @@ impl Service {
         let speedv = self.with_snapshot(|d| d.var_value("speedv").unwrap_or(0.0));
 
         // 输入快照 + 引擎循环 (锁外算, §2.8)
-        let (is_jet, total_hp, total_hp_eff, total_thrust, avgeff) =
-            self.with_snapshot(|d| {
-                let is_jet = d.engine.engine_type.is_jet();
-                let s = d.s_state.as_ref().unwrap();
-                let engine_num = d.engine.engine_num as usize;
-                if !is_jet {
-                    // 活塞机或者涡浆机
-                    let mut ttotalhp = 0.0f64;
-                    let mut ttotalhpeff = 0.0f64;
-                    let mut ttotalthr = 0.0f64;
-                    for i in 0..engine_num {
-                        ttotalthr += s.thrust[i] as f64;
-                        ttotalhp += s.power[i];
-                        ttotalhpeff += s.thrust[i] as f64 * G * speedv / 735.0;
-                    }
-                    let total_hp = ttotalhp as i32;
-                    let total_hp_eff = ttotalhpeff as i32;
-                    let total_thrust = ttotalthr as i32;
-                    let avgeff = if total_hp != 0 {
-                        100.0 * total_hp_eff as f64 / total_hp as f64
-                    } else {
-                        0.0
-                    };
-                    (is_jet, total_hp, total_hp_eff, total_thrust, avgeff)
-                } else {
-                    // 喷气机
-                    let mut ttotalthr = 0.0f64;
-                    for i in 0..engine_num {
-                        ttotalthr += s.thrust[i] as f64;
-                    }
-                    let ttotalhpeff = (ttotalthr * G * speedv) / 735.0;
-                    // 元组槽位: (is_jet, total_hp, total_hp_eff, total_thrust, avgeff)
-                    (is_jet, 0, ttotalhpeff as i32, ttotalthr as i32, 0.0)
+        let (is_jet, total_hp, total_hp_eff, total_thrust, avgeff) = self.with_snapshot(|d| {
+            let is_jet = d.engine.engine_type.is_jet();
+            let s = d.s_state.as_ref().unwrap();
+            let engine_num = d.engine.engine_num as usize;
+            if !is_jet {
+                // 活塞机或者涡浆机
+                let mut ttotalhp = 0.0f64;
+                let mut ttotalhpeff = 0.0f64;
+                let mut ttotalthr = 0.0f64;
+                for i in 0..engine_num {
+                    ttotalthr += s.thrust[i] as f64;
+                    ttotalhp += s.power[i];
+                    ttotalhpeff += s.thrust[i] as f64 * G * speedv / 735.0;
                 }
-            });
+                let total_hp = ttotalhp as i32;
+                let total_hp_eff = ttotalhpeff as i32;
+                let total_thrust = ttotalthr as i32;
+                let avgeff = if total_hp != 0 {
+                    100.0 * total_hp_eff as f64 / total_hp as f64
+                } else {
+                    0.0
+                };
+                (is_jet, total_hp, total_hp_eff, total_thrust, avgeff)
+            } else {
+                // 喷气机
+                let mut ttotalthr = 0.0f64;
+                for i in 0..engine_num {
+                    ttotalthr += s.thrust[i] as f64;
+                }
+                let ttotalhpeff = (ttotalthr * G * speedv) / 735.0;
+                // 元组槽位: (is_jet, total_hp, total_hp_eff, total_thrust, avgeff)
+                (is_jet, 0, ttotalhpeff as i32, ttotalthr as i32, 0.0)
+            }
+        });
 
         self.apply(|d| {
             d.engine.total_hp = total_hp;
@@ -1140,8 +1163,16 @@ impl Service {
             d.p_thrust_percent = d.engine.thrust_percent;
 
             // R1: 峰值缓存直取句柄 (非 READY 两者 0 → 走 maxTotal 回退)
-            let peak_power = if fm.fmdata.is_some() { fm.peak_wep_power } else { 0.0 };
-            let peak = if fm.fmdata.is_some() { fm.peak_thrust } else { 0.0 };
+            let peak_power = if fm.fmdata.is_some() {
+                fm.peak_wep_power
+            } else {
+                0.0
+            };
+            let peak = if fm.fmdata.is_some() {
+                fm.peak_thrust
+            } else {
+                0.0
+            };
 
             if is_jet {
                 // Jet: current thrust / peak afterburner thrust
@@ -1163,7 +1194,7 @@ impl Service {
             let interval = d.actual_interval_ms;
             d.engine.t_eng_response = (d.ratio_1 * d.engine.t_eng_response)
                 + d.ratio * (d.engine.thrust_percent - d.p_thrust_percent) * 1000.0
-                / interval as f64;
+                    / interval as f64;
         });
     }
 
@@ -1243,8 +1274,6 @@ enum Flow {
 // 快照/适配 helpers (无 Java 对应——服务于 §2.3 不可变快照与 Deriver 接口)
 // ------------------------------------------------------------------
 
-
-
 // ------------------------------------------------------------------
 // FlightLog 接线面 (D6 边界的 vm-data 侧落地, 见 flight_log.rs 模块头 PORT)
 // ------------------------------------------------------------------
@@ -1264,12 +1293,20 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
     let col = |f: &dyn Fn(&State) -> String| st.map_or_else(|| "null".to_string(), f);
     let na = NASTRING;
     // %d 列 (负值 → "-"): rpmThrottle/radiator/mixture/throttle
-    let int_na = |v: i32| if v >= 0 { v.to_string() } else { na.to_string() };
+    let int_na = |v: i32| {
+        if v >= 0 {
+            v.to_string()
+        } else {
+            na.to_string()
+        }
+    };
     // SEP 取整 (可读性): (long)SEP/50*2.5, 0 → 1 (W-C: 直读公式槽, None→0)
     let sep = d.var_value("sep").unwrap_or(0.0);
     let mut sep_acc = ((sep as i64) / 50) as f64;
     sep_acc *= 2.5;
-    if sep_acc == 0.0 { sep_acc = 1.0; }
+    if sep_acc == 0.0 {
+        sep_acc = 1.0;
+    }
     let sep_rounded = jfmt::java_round(sep / sep_acc) as f64 * sep_acc;
     FlightLogSnapshot {
         elapsed_time: d.elapsed_time,
@@ -1288,12 +1325,20 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         s_sep: jfmt::java_f(sep_rounded, 0),
         ny: st.map(|s| s.ny).unwrap_or(0.0),
         wx: col(&|s| jfmt::java_f(s.wx.abs(), 0)),
-        total_hp_str: if d.engine.total_hp == 0 { na.to_string() } else { d.engine.total_hp.to_string() },
+        total_hp_str: if d.engine.total_hp == 0 {
+            na.to_string()
+        } else {
+            d.engine.total_hp.to_string()
+        },
         efficiency_0: st.map_or_else(
             || "null".to_string(),
             |s| {
                 let e0 = s.efficiency.first().copied().unwrap_or(0.0);
-                if e0 == 0.0 { na.to_string() } else { jfmt::java_f(e0, 0) }
+                if e0 == 0.0 {
+                    na.to_string()
+                } else {
+                    jfmt::java_f(e0, 0)
+                }
             },
         ),
         total_hp_eff_str: if d.engine.total_hp_eff >= 100000 {
@@ -1310,7 +1355,11 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
             || "null".to_string(),
             |s| {
                 let p0 = s.pitch.first().copied().unwrap_or(F_INVALID);
-                if p0 != F_INVALID { jfmt::java_f(p0, 1) } else { na.to_string() }
+                if p0 != F_INVALID {
+                    jfmt::java_f(p0, 1)
+                } else {
+                    na.to_string()
+                }
             },
         ),
         radiator: col(&|s| int_na(s.radiator)),
@@ -1337,8 +1386,20 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         elevator: st.map(|s| s.elevator).unwrap_or(0),
         aileron: st.map(|s| s.aileron).unwrap_or(0),
         rudder: st.map(|s| s.rudder).unwrap_or(0),
-        aoa: col(&|s| if s.aoa != F_INVALID { jfmt::java_f(s.aoa, 1) } else { na.to_string() }),
-        aos: col(&|s| if s.aos != F_INVALID { jfmt::java_f(s.aos, 1) } else { na.to_string() }),
+        aoa: col(&|s| {
+            if s.aoa != F_INVALID {
+                jfmt::java_f(s.aoa, 1)
+            } else {
+                na.to_string()
+            }
+        }),
+        aos: col(&|s| {
+            if s.aos != F_INVALID {
+                jfmt::java_f(s.aos, 1)
+            } else {
+                na.to_string()
+            }
+        }),
         alt: d.altm.alt,
         check_alt: d.altm.check_alt,
         // EM 图速度分档 (原 IASv 平滑值未移植, 用 State 直读 IAS, 显示 0-3 位不敏感)

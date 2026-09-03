@@ -16,7 +16,7 @@ fn render_thread_shutdown_joins_cleanly() {
         generation: gen,
     });
     std::thread::sleep(Duration::from_millis(150)); // 泵消费 + 渲染一拍
-    // 过期命令: 世代号 +1 → 消费侧丢弃 (守卫路径)
+                                                    // 过期命令: 世代号 +1 → 消费侧丢弃 (守卫路径)
     shell.send_ui(UiCommand::RefreshPreviews {
         changed_key: None,
         generation: gen + 1,
@@ -94,7 +94,10 @@ fn render_overlay_present_counts_per_registered_overlay() {
         "enableAttitudeIndicator",
     ] {
         let c = counts.get(id).copied().unwrap_or(0);
-        assert!(c > 0, "overlay {id} present 应 >0 (实测 {c}, 全量 {counts:?})");
+        assert!(
+            c > 0,
+            "overlay {id} present 应 >0 (实测 {c}, 全量 {counts:?})"
+        );
     }
 }
 
@@ -120,7 +123,9 @@ fn register_live_overlays_nine_window_entries() {
     let shell = fixture();
     let lang = Rc::new(Lang::init_lang());
     let inputs = test_overlay_inputs();
-    let params = Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&inputs)));
+    let params = Rc::new(RefCell::new(
+        vm_overlay::platform::reinit::ReinitParams::from(&inputs),
+    ));
     register_live_overlays(
         &mut host,
         &mut handles,
@@ -158,13 +163,20 @@ fn register_live_overlays_nine_window_entries() {
     {
         let fm = handles.fm_unpacked.as_ref().unwrap().borrow();
         assert!(fm.visible && fm.base.is_preview, "preview 形态起步");
-        assert_eq!((fm.base.width, fm.base.height), (spec_fm_size(&shell)), "init 几何");
+        assert_eq!(
+            (fm.base.width, fm.base.height),
+            (spec_fm_size(&shell)),
+            "init 几何"
+        );
     }
     // 推力曲线: initPreview 形态恒可见 (setBounds 900×500 几何在 vm-overlay
     // draw_frame_simpl/tests.rs 锁定, 此处锁注册面)
     {
         let d = handles.draw_frame_simpl.as_ref().unwrap().borrow();
-        assert!(d.is_preview && d.visible && d.should_show(), "preview 形态恒可见");
+        assert!(
+            d.is_preview && d.visible && d.should_show(),
+            "preview 形态恒可见"
+        );
     }
     host.open_all().expect("全激活 open_all");
     let mut ids: Vec<String> = host.active_ids();
@@ -200,12 +212,16 @@ fn feed_overlays_live_updates_all_handles() {
         &inputs.hud,
         1.0,
         &fonts.join("sarasa-mono-sc-bold.ttf"),
-        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::default())),
+        &Rc::new(RefCell::new(
+            vm_overlay::platform::reinit::ReinitParams::default(),
+        )),
     )
     .unwrap();
     let (h_power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&inputs))),
+        &Rc::new(RefCell::new(
+            vm_overlay::platform::reinit::ReinitParams::from(&inputs),
+        )),
     )
     .unwrap();
     let (h_engine, _) = vm_overlay::overlays::engine_control::engine_control_overlay_spec(
@@ -219,7 +235,9 @@ fn feed_overlays_live_updates_all_handles() {
     .unwrap();
     let (h_gear, _) = vm_overlay::overlays::gear_flaps::gear_flaps_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::default())),
+        &Rc::new(RefCell::new(
+            vm_overlay::platform::reinit::ReinitParams::default(),
+        )),
     )
     .unwrap();
     let (h_att, _) = vm_overlay::overlays::attitude::attitude_overlay_spec(&Rc::new(RefCell::new(
@@ -228,12 +246,16 @@ fn feed_overlays_live_updates_all_handles() {
     .unwrap();
     let (h_cs, _) = vm_overlay::overlays::control_surfaces::control_surfaces_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::default())),
+        &Rc::new(RefCell::new(
+            vm_overlay::platform::reinit::ReinitParams::default(),
+        )),
     )
     .unwrap();
     let (h_fi, _) = vm_overlay::overlays::flight_info::flight_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&inputs))),
+        &Rc::new(RefCell::new(
+            vm_overlay::platform::reinit::ReinitParams::from(&inputs),
+        )),
     )
     .unwrap();
     let handles = OverlayHandles {
@@ -244,8 +266,8 @@ fn feed_overlays_live_updates_all_handles() {
         attitude: Some(h_att),
         control_surfaces: Some(h_cs),
         flight_info: Some(h_fi),
-    fm_unpacked: None,
-    draw_frame_simpl: None,
+        fm_unpacked: None,
+        draw_frame_simpl: None,
     };
 
     // live 快照: throttle 55 / flaps 25 / gear 100 / aileron 100 / aoa 10 /
@@ -282,9 +304,20 @@ fn feed_overlays_live_updates_all_handles() {
     let fm = FMManager::new(Arc::new(EventBus::new()));
     let settings = inputs.hud.clone();
     let payload = EventPayload::builder().build();
-    let mut attitude_feed = AttitudeFeedState { freq_ms: 40, last_ms: 0 };
+    let mut attitude_feed = AttitudeFeedState {
+        freq_ms: 40,
+        last_ms: 0,
+    };
 
-    feed_overlays_live(&handles, &payload, &shared, &fm, &settings, &lang, &mut attitude_feed);
+    feed_overlays_live(
+        &handles,
+        &payload,
+        &shared,
+        &fm,
+        &settings,
+        &lang,
+        &mut attitude_feed,
+    );
 
     // 动力信息: 功率 1200 → 首字段 buffer (50ms 节流: now-0 恒放行)
     let p = handles.power_info.as_ref().unwrap().borrow();
@@ -292,7 +325,10 @@ fn feed_overlays_live_updates_all_handles() {
     drop(p);
     // 引擎控制: throttle 55 (refreshInterval=100, 首帧放行)
     let e = handles.engine_control.as_ref().unwrap().borrow();
-    assert_eq!(e.gauge_by_key("throttle").unwrap().gauge.gauge.cur_value, 55);
+    assert_eq!(
+        e.gauge_by_key("throttle").unwrap().gauge.gauge.cur_value,
+        55
+    );
     drop(e);
     // 起落襟翼: gear=100 + airbrake=100 → "起落架 减速板" 告警; flaps=25 → flap_pix
     let g = handles.gear_flaps.as_ref().unwrap().borrow();
@@ -324,7 +360,15 @@ fn feed_overlays_live_updates_all_handles() {
             update_live_frame(store, &d);
         }
     }
-    feed_overlays_live(&handles, &payload, &shared, &fm, &settings, &lang, &mut attitude_feed);
+    feed_overlays_live(
+        &handles,
+        &payload,
+        &shared,
+        &fm,
+        &settings,
+        &lang,
+        &mut attitude_feed,
+    );
     let e = handles.engine_control.as_ref().unwrap().borrow();
     assert_eq!(
         e.gauge_by_key("throttle").unwrap().gauge.gauge.cur_value,
@@ -341,7 +385,9 @@ fn feed_overlays_live_swallows_malformed_frame() {
     // 只接 PowerInfo (get_pitch 空 Vec panic 点; 其余 handle 缺省 None)
     let (h_power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&test_overlay_inputs()))),
+        &Rc::new(RefCell::new(
+            vm_overlay::platform::reinit::ReinitParams::from(&test_overlay_inputs()),
+        )),
     )
     .unwrap();
     let handles = OverlayHandles {
@@ -351,9 +397,9 @@ fn feed_overlays_live_swallows_malformed_frame() {
         gear_flaps: None,
         attitude: None,
         control_surfaces: None,
-    flight_info: None,
-    fm_unpacked: None,
-    draw_frame_simpl: None,
+        flight_info: None,
+        fm_unpacked: None,
+        draw_frame_simpl: None,
     };
     let shared = ControllerShared::new();
     shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
@@ -362,9 +408,20 @@ fn feed_overlays_live_swallows_malformed_frame() {
     let fm = FMManager::new(Arc::new(EventBus::new()));
     let settings = test_overlay_inputs().hud;
     let payload = EventPayload::builder().build();
-    let mut attitude_feed = AttitudeFeedState { freq_ms: 40, last_ms: 0 };
+    let mut attitude_feed = AttitudeFeedState {
+        freq_ms: 40,
+        last_ms: 0,
+    };
     // 不 panic 即通过 (吞帧 + ERROR 留痕; Java NPE 由 EDT 吞的同位形态)
-    feed_overlays_live(&handles, &payload, &shared, &fm, &settings, &lang, &mut attitude_feed);
+    feed_overlays_live(
+        &handles,
+        &payload,
+        &shared,
+        &fm,
+        &settings,
+        &lang,
+        &mut attitude_feed,
+    );
 }
 
 /// 注册键 ↔ ui_layout.cfg 核对: 9 个激活键 (ACTIVATION_KEYS) 全部以 panel switch
@@ -372,8 +429,7 @@ fn feed_overlays_live_swallows_malformed_frame() {
 /// DrawFrameSimpl 无独立开关, Java 同形态)
 #[test]
 fn activation_keys_match_ui_layout_cfg() {
-    let cfg_path =
-        locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
+    let cfg_path = locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
     let text = std::fs::read_to_string(&cfg_path).unwrap();
     for key in ACTIVATION_KEYS {
         let target = format!(":target \"{}\"", key);
@@ -395,7 +451,10 @@ fn activation_keys_match_ui_layout_cfg() {
         "enableFMPrint",
         "enableVoiceWarn",
     ] {
-        assert!(text.contains(&format!(":target \"{}\"", key)), "键 {key} 缺失");
+        assert!(
+            text.contains(&format!(":target \"{}\"", key)),
+            "键 {key} 缺失"
+        );
     }
 }
 
@@ -406,8 +465,7 @@ fn activation_keys_match_ui_layout_cfg() {
 /// 注: "S." (PowerInfo) 为 Java 原样搬移的死前缀, cfg 无此键族 — 不在本测试面。
 #[test]
 fn minihud_interest_keys_hit_ui_layout_cfg() {
-    let cfg_path =
-        locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
+    let cfg_path = locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
     let text = std::fs::read_to_string(&cfg_path).unwrap();
     let keys = cfg_target_keys(&text);
     assert!(!keys.is_empty(), "cfg 键空间非空 (解析自检)");
@@ -425,20 +483,28 @@ fn focus_bridge_sends_commands_and_mirrors_hidden() {
     use vm_core::platform::focus_monitor::AlwaysOnTopCoordinatorApi as _;
     let (tx, rx) = std::sync::mpsc::channel::<UiCommand>();
     let shared = ControllerShared::default();
-    let bridge = ChannelFocusBridge { tx, shared: Arc::new(shared) };
+    let bridge = ChannelFocusBridge {
+        tx,
+        shared: Arc::new(shared),
+    };
     assert!(!bridge.is_overlays_hidden(), "初始未隐藏");
     bridge.hide_all_overlays();
-    assert_eq!(rx.recv_timeout(Duration::from_millis(200)).unwrap(), UiCommand::HideAllOverlays);
+    assert_eq!(
+        rx.recv_timeout(Duration::from_millis(200)).unwrap(),
+        UiCommand::HideAllOverlays
+    );
     bridge.show_all_overlays();
-    assert_eq!(rx.recv_timeout(Duration::from_millis(200)).unwrap(), UiCommand::ShowAllOverlays);
+    assert_eq!(
+        rx.recv_timeout(Duration::from_millis(200)).unwrap(),
+        UiCommand::ShowAllOverlays
+    );
 }
 
 /// 位置映射 ↔ ui_layout.cfg panel 标题核对: OVERLAY_SECTIONS 的 section 查不到
 /// GroupConfig → group_position 返回 None → 该 overlay 恒居中, 位置持久化静默失效
 #[test]
 fn overlay_sections_hit_ui_layout_cfg() {
-    let cfg_path =
-        locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
+    let cfg_path = locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
     let text = std::fs::read_to_string(&cfg_path).unwrap();
     // 顶层 panel 标题集 (行首 `(panel "标题"`; GroupConfig.x/y 挂在顶层标题上)
     let mut titles: Vec<&str> = Vec::new();
@@ -450,7 +516,11 @@ fn overlay_sections_hit_ui_layout_cfg() {
             }
         }
     }
-    assert!(titles.len() >= 6, "cfg 顶层 panel 数量自检 (实得 {})", titles.len());
+    assert!(
+        titles.len() >= 6,
+        "cfg 顶层 panel 数量自检 (实得 {})",
+        titles.len()
+    );
     for (id, section) in OVERLAY_SECTIONS {
         assert!(
             titles.contains(&section),
@@ -467,10 +537,16 @@ fn overlay_sections_hit_ui_layout_cfg() {
 #[test]
 fn reset_handles_preview_values_clears_live_residue() {
     let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
-    let cell = Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::default()));
-    let (power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(&fonts, &cell).unwrap();
-    let (flight, _) = vm_overlay::overlays::flight_info::flight_info_overlay_spec(&fonts, &cell).unwrap();
-    let (axis, _) = vm_overlay::overlays::control_surfaces::control_surfaces_overlay_spec(&fonts, &cell).unwrap();
+    let cell = Rc::new(RefCell::new(
+        vm_overlay::platform::reinit::ReinitParams::default(),
+    ));
+    let (power, _) =
+        vm_overlay::overlays::power_info::power_info_overlay_spec(&fonts, &cell).unwrap();
+    let (flight, _) =
+        vm_overlay::overlays::flight_info::flight_info_overlay_spec(&fonts, &cell).unwrap();
+    let (axis, _) =
+        vm_overlay::overlays::control_surfaces::control_surfaces_overlay_spec(&fonts, &cell)
+            .unwrap();
     let (att, _) = vm_overlay::overlays::attitude::attitude_overlay_spec(&cell).unwrap();
     let (fm_unpacked, _) = vm_overlay::overlays::fm_unpacked::fm_unpacked_data_overlay_spec(
         &fonts,
@@ -518,20 +594,23 @@ fn reset_handles_preview_values_clears_live_residue() {
         v.formula_values = vm_core::formula::FormulaResults { values: vec![0.72] };
     }
     let v = &v as &dyn vm_core::formula::registry::FormulaView;
+    handles.flight_info.as_ref().unwrap().borrow_mut().update(v);
     handles
-        .flight_info
+        .power_info
         .as_ref()
         .unwrap()
         .borrow_mut()
-        .update(v);
-    handles.power_info.as_ref().unwrap().borrow_mut().last_refresh_time = 999;
+        .last_refresh_time = 999;
     // 重置 (渲染线程 CloseAllOverlays 处理点同款)
     reset_handles_preview_values(&handles);
     // 四路断言: 全部回 preview 态
     {
         let p = handles.power_info.as_ref().unwrap().borrow();
         assert_eq!(p.last_refresh_time, 0, "动力信息节流基准复位");
-        assert!(p.fields().iter().all(|f| f.length == 0), "动力信息 buffer 清空");
+        assert!(
+            p.fields().iter().all(|f| f.length == 0),
+            "动力信息 buffer 清空"
+        );
     }
     {
         let cs = handles.control_surfaces.as_ref().unwrap().borrow();
@@ -542,20 +621,34 @@ fn reset_handles_preview_values_clears_live_residue() {
         );
     }
     assert_eq!(
-        handles.attitude.as_ref().unwrap().borrow().pitch_y, 0,
+        handles.attitude.as_ref().unwrap().borrow().pitch_y,
+        0,
         "地平仪姿态点集复位"
     );
     {
-        let rows = handles.flight_info.as_ref().unwrap().borrow().rows().to_vec();
+        let rows = handles
+            .flight_info
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .rows()
+            .to_vec();
         let defs = handles.flight_info.as_ref().unwrap().borrow().defs.clone();
         assert_eq!(rows.len(), defs.len(), "飞行信息回全量行");
         for (row, f) in rows.iter().zip(defs.iter()) {
-            assert_eq!(row.2, f.preview_value, "飞行信息值列回 preview 静态: {}", f.label);
+            assert_eq!(
+                row.2, f.preview_value,
+                "飞行信息值列回 preview 静态: {}",
+                f.label
+            );
         }
     }
     {
         let fm = handles.fm_unpacked.as_ref().unwrap().borrow();
-        assert!(fm.visible && fm.base.is_preview, "FM拆包数据回 preview 形态 (恒可见)");
+        assert!(
+            fm.visible && fm.base.is_preview,
+            "FM拆包数据回 preview 形态 (恒可见)"
+        );
     }
 }
 

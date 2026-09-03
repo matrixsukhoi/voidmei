@@ -7,30 +7,67 @@ use super::*;
 fn vk_to_vc_letters_digits_fnkeys() {
     // 字母 A..Z (VK 0x41..0x5A): jar VC_A=30 .. VC_Z=44 (非连续, 逐个钉)
     let expect: [(u32, u16); 26] = [
-        (0x41, 30), (0x42, 48), (0x43, 46), (0x44, 32), (0x45, 18),
-        (0x46, 33), (0x47, 34), (0x48, 35), (0x49, 23), (0x4A, 36),
-        (0x4B, 37), (0x4C, 38), (0x4D, 50), (0x4E, 49), (0x4F, 24),
-        (0x50, 25), (0x51, 16), (0x52, 19), (0x53, 31), (0x54, 20),
-        (0x55, 22), (0x56, 47), (0x57, 17), (0x58, 45), (0x59, 21),
+        (0x41, 30),
+        (0x42, 48),
+        (0x43, 46),
+        (0x44, 32),
+        (0x45, 18),
+        (0x46, 33),
+        (0x47, 34),
+        (0x48, 35),
+        (0x49, 23),
+        (0x4A, 36),
+        (0x4B, 37),
+        (0x4C, 38),
+        (0x4D, 50),
+        (0x4E, 49),
+        (0x4F, 24),
+        (0x50, 25),
+        (0x51, 16),
+        (0x52, 19),
+        (0x53, 31),
+        (0x54, 20),
+        (0x55, 22),
+        (0x56, 47),
+        (0x57, 17),
+        (0x58, 45),
+        (0x59, 21),
         (0x5A, 44),
     ];
     for (vk, vc) in expect {
         assert_eq!(vk_to_vc(vk, false), vc, "vk {:#x}", vk);
     }
     // 数字排 0..9 (VK 0x30..0x39 → VC_0=11 顺序错位: 0 在 0x30, 1 在 0x31..)
-    let digits = [(0x30u32, 11u16), (0x31, 2), (0x32, 3), (0x33, 4), (0x34, 5), (0x35, 6), (0x36, 7), (0x37, 8), (0x38, 9), (0x39, 10)];
+    let digits = [
+        (0x30u32, 11u16),
+        (0x31, 2),
+        (0x32, 3),
+        (0x33, 4),
+        (0x34, 5),
+        (0x35, 6),
+        (0x36, 7),
+        (0x37, 8),
+        (0x38, 9),
+        (0x39, 10),
+    ];
     for (vk, vc) in digits {
         assert_eq!(vk_to_vc(vk, false), vc);
     }
     // F1..F12 (VK_F1=0x70..VK_F10=0x79, VK_F11=0x7A, VK_F12=0x7B;
     // jar VC_F1=59..VC_F10=68, VC_F11=87, VC_F12=88)
-    let fkeys = [(0x70u32, 59u16), (0x71, 60), (0x79, 68), (0x7A, 87), (0x7B, 88)];
+    let fkeys = [
+        (0x70u32, 59u16),
+        (0x71, 60),
+        (0x79, 68),
+        (0x7A, 87),
+        (0x7B, 88),
+    ];
     for (vk, vc) in fkeys {
         assert_eq!(vk_to_vc(vk, false), vc);
     }
     // 常用编辑/控制键
-    assert_eq!(vk_to_vc(0x1B, false), 1, "ESC");      // VC_ESCAPE
-    assert_eq!(vk_to_vc(0x0D, false), 28, "ENTER");   // VC_ENTER
+    assert_eq!(vk_to_vc(0x1B, false), 1, "ESC"); // VC_ESCAPE
+    assert_eq!(vk_to_vc(0x0D, false), 28, "ENTER"); // VC_ENTER
     assert_eq!(vk_to_vc(0x08, false), 14, "BACKSPACE");
     assert_eq!(vk_to_vc(0x09, false), 15, "TAB");
     assert_eq!(vk_to_vc(0x20, false), 57, "SPACE");
@@ -205,8 +242,13 @@ mod win {
 
     /// 测试线程上直接装填回调上下文并调 keyboard_proc —
     /// 完整覆盖 转换→过滤→查表→sink 派发 链 (无 OS 键盘注入, 确定性)
-    fn dispatch(bindings: Arc<Mutex<HashMap<i32, String>>>, sink: Arc<dyn HotkeyEventSink>,
-                vk: u32, flags: u32, msg: u32) -> LRESULT {
+    fn dispatch(
+        bindings: Arc<Mutex<HashMap<i32, String>>>,
+        sink: Arc<dyn HotkeyEventSink>,
+        vk: u32,
+        flags: u32,
+        msg: u32,
+    ) -> LRESULT {
         HOOK_CTX.with(|c| {
             *c.borrow_mut() = Some(HookCtx { bindings, sink });
         });
@@ -217,9 +259,7 @@ mod win {
             time: 0,
             dwExtraInfo: 0,
         };
-        let r = unsafe {
-            keyboard_proc(0, WPARAM(msg as usize), LPARAM(&kb as *const _ as isize))
-        };
+        let r = unsafe { keyboard_proc(0, WPARAM(msg as usize), LPARAM(&kb as *const _ as isize)) };
         HOOK_CTX.with(|c| *c.borrow_mut() = None);
         r
     }
@@ -237,23 +277,38 @@ mod win {
     #[test]
     fn dispatch_bound_key_sends_vc_domain_event() {
         let map = empty_map();
-        map.lock().unwrap().insert(VC_P, "fmOverlayToggle".to_string());
+        map.lock()
+            .unwrap()
+            .insert(VC_P, "fmOverlayToggle".to_string());
         let (sink, rx) = chan_sink();
         // VK_P = 0x50, 无扩展标志 → VC 25
         dispatch(map, sink, 0x50, 0, WM_KEYDOWN);
-        let ev = rx.recv_timeout(std::time::Duration::from_secs(2)).expect("绑定键必须派发");
-        assert_eq!(ev, HotkeyEvent { event_type: "fmOverlayToggle".into(), key_code: VC_P });
+        let ev = rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("绑定键必须派发");
+        assert_eq!(
+            ev,
+            HotkeyEvent {
+                event_type: "fmOverlayToggle".into(),
+                key_code: VC_P
+            }
+        );
     }
 
     /// NumLock 伪事件过滤 (HotkeyManager.java:63-66): 硬件 NumLock 带 E0
     #[test]
     fn dispatch_numlock_filtered() {
         let map = empty_map();
-        map.lock().unwrap().insert(VC_NUM_LOCK, "shouldNotFire".into());
+        map.lock()
+            .unwrap()
+            .insert(VC_NUM_LOCK, "shouldNotFire".into());
         let (sink, rx) = chan_sink();
         dispatch(map, sink, 0x90, LLKHF_EXTENDED.0, WM_KEYDOWN);
-        assert!(rx.recv_timeout(std::time::Duration::from_millis(150)).is_err(),
-            "NumLock 即使已绑定也不得派发");
+        assert!(
+            rx.recv_timeout(std::time::Duration::from_millis(150))
+                .is_err(),
+            "NumLock 即使已绑定也不得派发"
+        );
     }
 
     /// 未绑定键按下 → 静默 (keyBindings.get == null 路径)
@@ -261,7 +316,9 @@ mod win {
     fn dispatch_unbound_key_silent() {
         let (sink, rx) = chan_sink();
         dispatch(empty_map(), sink, 0x51 /* Q */, 0, WM_KEYDOWN);
-        assert!(rx.recv_timeout(std::time::Duration::from_millis(150)).is_err());
+        assert!(rx
+            .recv_timeout(std::time::Duration::from_millis(150))
+            .is_err());
     }
 
     /// 自动重复: 同键持续按住逐次 WM_KEYDOWN → 逐次派发 (jnativehook 同形)
@@ -274,8 +331,11 @@ mod win {
             dispatch(map.clone(), sink.clone(), 0x50, 0, WM_KEYDOWN);
         }
         for i in 0..3 {
-            assert!(rx.recv_timeout(std::time::Duration::from_secs(2)).is_ok(),
-                "第 {} 次重复未派发", i + 1);
+            assert!(
+                rx.recv_timeout(std::time::Duration::from_secs(2)).is_ok(),
+                "第 {} 次重复未派发",
+                i + 1
+            );
         }
     }
 
@@ -301,12 +361,18 @@ mod win {
             dwExtraInfo: 0,
         };
         let r = unsafe {
-            keyboard_proc(-1, WPARAM(WM_KEYDOWN as usize), LPARAM(&kb as *const _ as isize))
+            keyboard_proc(
+                -1,
+                WPARAM(WM_KEYDOWN as usize),
+                LPARAM(&kb as *const _ as isize),
+            )
         };
         // CallNextHookEx(None, ...) 的返回值取决于进程内其他 LL 键盘钩子
         // (输入法/录屏工具), 非本回调契约 — 只断言不派发、不 panic
         let _ = r;
-        assert!(rx.recv_timeout(std::time::Duration::from_millis(150)).is_err());
+        assert!(rx
+            .recv_timeout(std::time::Duration::from_millis(150))
+            .is_err());
     }
 
     /// sink 回调 panic 不得 abort 进程 (panic 跨 extern "system" 边界
@@ -322,7 +388,9 @@ mod win {
     #[test]
     fn dispatch_sink_panic_is_contained() {
         let map = empty_map();
-        map.lock().unwrap().insert(VC_P, "fmOverlayToggle".to_string());
+        map.lock()
+            .unwrap()
+            .insert(VC_P, "fmOverlayToggle".to_string());
         // 正常返回即证明 panic 被捕获且派发后代码路径继续
         let _ = dispatch(map, Arc::new(PanickingSink), 0x50, 0, WM_KEYDOWN);
     }
@@ -334,6 +402,8 @@ mod win {
         map.lock().unwrap().insert(VC_P, "fmOverlayToggle".into());
         let (sink, rx) = chan_sink();
         dispatch(map, sink, 0x50, 0, 0x0101 /* WM_KEYUP */);
-        assert!(rx.recv_timeout(std::time::Duration::from_millis(150)).is_err());
+        assert!(rx
+            .recv_timeout(std::time::Duration::from_millis(150))
+            .is_err());
     }
 }

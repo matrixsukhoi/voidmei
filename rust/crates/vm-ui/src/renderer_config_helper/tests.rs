@@ -32,7 +32,9 @@ impl RenderContext for MockCtx {
     fn on_save(&self) {}
     fn sync_to_config_service(&self, key: &str, value: bool) {
         // DynamicDataPage: setConfig(key, Boolean.toString(value))
-        self.synced.borrow_mut().push((key.to_string(), value.to_string()));
+        self.synced
+            .borrow_mut()
+            .push((key.to_string(), value.to_string()));
     }
     fn get_from_config_service(&self, key: &str, default_val: bool) -> bool {
         self.reads.borrow_mut().push(key.to_string());
@@ -43,7 +45,9 @@ impl RenderContext for MockCtx {
         }
     }
     fn sync_string_to_config_service(&self, key: &str, value: &str) {
-        self.synced.borrow_mut().push((key.to_string(), value.to_string()));
+        self.synced
+            .borrow_mut()
+            .push((key.to_string(), value.to_string()));
     }
     fn get_string_from_config_service(&self, key: &str, default_val: &str) -> String {
         self.reads.borrow_mut().push(key.to_string());
@@ -182,7 +186,12 @@ fn read_bool_unbound_service_boolean() {
     let group = GroupConfig::new("g".to_string());
     let mut ctx = MockCtx::new();
     ctx.set("showSpeedBar", "true");
-    assert!(read_bool(&ctx, &group, &row_with(Some("showSpeedBar")), false));
+    assert!(read_bool(
+        &ctx,
+        &group,
+        &row_with(Some("showSpeedBar")),
+        false
+    ));
     // parseBoolean 非 "true" 一律 false (含大小写不敏感匹配失败)
     ctx.set("weird", "TRUE "); // 尾随空格不等于 "true"
     assert!(!read_bool(&ctx, &group, &row_with(Some("weird")), false));
@@ -215,7 +224,12 @@ fn write_int_bound_mutates_group_and_syncs() {
 fn write_string_bound_mutates_group_and_syncs() {
     let mut group = GroupConfig::new("g".to_string());
     let ctx = MockCtx::new();
-    assert!(write_string(&ctx, &mut group, Some("fontName"), "DIN Pro 400"));
+    assert!(write_string(
+        &ctx,
+        &mut group,
+        Some("fontName"),
+        "DIN Pro 400"
+    ));
     assert_eq!(group.font_name.as_deref(), Some("DIN Pro 400"));
     assert_eq!(
         ctx.synced(),
@@ -229,7 +243,10 @@ fn write_bool_bound_mutates_group_and_syncs() {
     let ctx = MockCtx::new();
     assert!(write_bool(&ctx, &mut group, Some("visible"), true));
     assert!(group.visible);
-    assert_eq!(ctx.synced(), vec![("visible".to_string(), "true".to_string())]);
+    assert_eq!(
+        ctx.synced(),
+        vec![("visible".to_string(), "true".to_string())]
+    );
 }
 
 // 未注册属性: 绑定失败返回 false, 但仍同步服务端 ("总是同步" 注释)
@@ -264,8 +281,15 @@ fn write_type_mismatch_is_ignored_not_panic() {
     group.font_name = Some("旧".to_string());
     let ctx = MockCtx::new();
     assert!(!write_int(&ctx, &mut group, Some("fontName"), 1)); // String 字段 ← Integer
-    assert_eq!(group.font_name.as_deref(), Some("旧"), "组字段不受越型绑定影响");
-    assert_eq!(ctx.synced(), vec![("fontName".to_string(), "1".to_string())]);
+    assert_eq!(
+        group.font_name.as_deref(),
+        Some("旧"),
+        "组字段不受越型绑定影响"
+    );
+    assert_eq!(
+        ctx.synced(),
+        vec![("fontName".to_string(), "1".to_string())]
+    );
 }
 
 // Java 反射拓宽 (JLS 5.1.2): field.set(double 字段, Integer) 成功写入
@@ -306,10 +330,23 @@ fn write_bool_into_double_field_is_ignored() {
 fn has_field_registry_covers_all_java_public_fields() {
     let group = GroupConfig::new("g".to_string());
     for name in [
-        "title", "x", "y", "alpha", "hotkey", "visible", "fontName", "fontSize", "columns",
-        "panelColumns", "switchKey", "rows",
+        "title",
+        "x",
+        "y",
+        "alpha",
+        "hotkey",
+        "visible",
+        "fontName",
+        "fontSize",
+        "columns",
+        "panelColumns",
+        "switchKey",
+        "rows",
     ] {
-        assert!(property_binder::has_field(&group, name), "{name} 应在注册表");
+        assert!(
+            property_binder::has_field(&group, name),
+            "{name} 应在注册表"
+        );
     }
     assert!(!property_binder::has_field(&group, "FontSize"));
     assert!(!property_binder::has_field(&group, "fontsize"));

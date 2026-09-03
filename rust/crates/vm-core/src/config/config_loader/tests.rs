@@ -7,7 +7,7 @@ use std::path::Path;
 /// String.format("%.4f") — Formatter HALF_UP on 精确十进制展开。
 /// 0.03125/0.09375 是精确半点 (dyadic 奇分母 32), Rust {:.4} 半偶会给 0.0312/0.0937。
 #[test]
-fn java_format_f4_matches_java8_oracle() {
+fn java_f_prec4_matches_java8_oracle() {
     let cases = [
         (0.5, "0.5000"),
         (0.3891, "0.3891"),
@@ -42,22 +42,22 @@ fn java_format_f4_matches_java8_oracle() {
         (0.0100, "0.0100"),
     ];
     for (d, want) in cases {
-        assert_eq!(java_format_f4(d), want, "{d} → 期望 {want}");
+        assert_eq!(java_f(d, 4), want, "{d} → 期望 {want}");
     }
     // NaN/Infinity 分支 (Formatter 原样输出)
-    assert_eq!(java_format_f4(f64::NAN), "NaN");
-    assert_eq!(java_format_f4(f64::INFINITY), "Infinity");
-    assert_eq!(java_format_f4(f64::NEG_INFINITY), "-Infinity");
+    assert_eq!(java_f(f64::NAN, 4), "NaN");
+    assert_eq!(java_f(f64::INFINITY, 4), "Infinity");
+    assert_eq!(java_f(f64::NEG_INFINITY, 4), "-Infinity");
 }
 
-/// f4 侧的 JDK-4511638 已知分歧面固化 (Java 8 oracle 实测):
+/// %.4f 的 JDK-4511638 已知分歧面固化 (Java 8 oracle 实测):
 /// Double.toString(1e23)="9.999999999999999E22" (17 位非最短) → Formatter 展开
 /// "%.4f" → "99999999999999990000000.0000"; 本实现取最短 "1E23" →
 /// "100000000000000000000000.0000"。对照: 6.02214e23 双方一致 (已在上方 battery)。
-/// saveConfig :x/:y 域 (0..1/像素坐标) 该量级不可达 — 见 java_format_f4 PORT 注释。
+/// saveConfig :x/:y 域 (0..1/像素坐标) 该量级不可达 — 见 base::format::java_f 的 JDK-4511638 注记。
 #[test]
-fn java_format_f4_jdk_4511638_domain_divergence() {
-    assert_eq!(java_format_f4(1.0e23), "100000000000000000000000.0000");
+fn java_f_prec4_jdk_4511638_domain_divergence() {
+    assert_eq!(java_f(1.0e23, 4), "100000000000000000000000.0000");
 }
 
 /// Double.toString — 最短区分 + [1e-3, 1e7) 平原式 / 恒一位小数 / E 计数。
@@ -209,7 +209,7 @@ fn row_config_typed_value_accessors() {
     assert_eq!(r.get_int(), 42);
     assert_eq!(r.get_str(), "42");
     assert!(!r.get_bool()); // parseBoolean("42") = false
-    // Number.intValue() 饱和 (JLS 5.1.3)
+                            // Number.intValue() 饱和 (JLS 5.1.3)
     let r = mk(Some(ConfigValue::Double(2.5e9)));
     assert_eq!(r.get_int(), 2147483647);
     assert_eq!(r.get_str(), "2.5E9");
@@ -290,7 +290,10 @@ fn tmp(name: &str) -> String {
     // 解析组数断言假失败 — 实测于双 cargo test 并行场景, 同 vm_core_vrm
     // 残留缺陷的姊妹面)
     std::env::temp_dir()
-        .join(format!("vm_core_config_loader_{}_{name}", std::process::id()))
+        .join(format!(
+            "vm_core_config_loader_{}_{name}",
+            std::process::id()
+        ))
         .to_str()
         .unwrap()
         .to_string()
@@ -338,7 +341,11 @@ fn malformed_value_list_aborts_load_with_partial_groups() {
     let p = tmp("malformed.cfg");
     fs::write(&p, cfg).unwrap();
     let groups = load_config(&p);
-    assert_eq!(groups.len(), 1, "异常后应保留首个 panel (Java 部分返回语义)");
+    assert_eq!(
+        groups.len(),
+        1,
+        "异常后应保留首个 panel (Java 部分返回语义)"
+    );
     assert_eq!(groups[0].title, "A");
 }
 
@@ -399,7 +406,11 @@ fn keyword_non_numeric_atom_aborts_load_like_java() {
     let p = tmp("kwnonnum.cfg");
     fs::write(&p, cfg).unwrap();
     let groups = load_config(&p);
-    assert_eq!(groups.len(), 1, "非数值关键字值应中止后续加载 (NumberFormatException)");
+    assert_eq!(
+        groups.len(),
+        1,
+        "非数值关键字值应中止后续加载 (NumberFormatException)"
+    );
     assert_eq!(groups[0].title, "A");
 }
 

@@ -25,29 +25,29 @@ pub use marker_type::MarkerType;
 #[derive(Debug, Clone, PartialEq)]
 pub struct HUDData {
     // Flight Dynamics
-    pub ias: f64, // Indicated Airspeed (km/h)
-    pub mach: f64, // Mach number
-    pub altitude: f64, // Barometric altitude (m)
+    pub ias: f64,            // Indicated Airspeed (km/h)
+    pub mach: f64,           // Mach number
+    pub altitude: f64,       // Barometric altitude (m)
     pub radio_altitude: f64, // Radio altitude (m)
     pub vertical_speed: f64, // SEP (m/s)
-    pub heading: f64, // Heading (degrees, 0-360)
-    pub pitch: f64, // Pitch (degrees)
-    pub roll: f64, // Roll (degrees)
-    pub slip: f64, // Side slip (deg or relative)
-    pub aoa: f64, // Angle of Attack
-    pub pitch_valid: bool, // True if pitch data available from API
+    pub heading: f64,        // Heading (degrees, 0-360)
+    pub pitch: f64,          // Pitch (degrees)
+    pub roll: f64,           // Roll (degrees)
+    pub slip: f64,           // Side slip (deg or relative)
+    pub aoa: f64,            // Angle of Attack
+    pub pitch_valid: bool,   // True if pitch data available from API
 
     // System State
-    pub throttle: i32, // 0-110%
-    pub flaps: f64, // 0-100%
-    pub gear: f64, // 0-100%
-    pub airbrake: f64, // 0-100%
+    pub throttle: i32,         // 0-110%
+    pub flaps: f64,            // 0-100%
+    pub gear: f64,             // 0-100%
+    pub airbrake: f64,         // 0-100%
     pub flap_allow_angle: f64, // Max safe angle based on speed
 
     // Calculated/Derived Metrics
-    pub energy_m: f64, // Energy/Mass
-    pub g_load: f64, // Ny
-    pub turn_rate: f64, // Degrees/sec
+    pub energy_m: f64,       // Energy/Mass
+    pub g_load: f64,         // Ny
+    pub turn_rate: f64,      // Degrees/sec
     pub maneuver_index: f64, // 0.0 - 1.0 (Energy Maneuverability)
     pub is_mach_mode: bool,
     pub is_gear_down: bool,
@@ -55,13 +55,13 @@ pub struct HUDData {
     pub is_airbrake_active: bool,
 
     // Warnings & Limits
-    pub warn_vne: bool, // Velocity Not Exceed
-    pub warn_stall: bool, // AoA Limit
-    pub warn_gear: bool, // Gear speed warning
-    pub warn_altitude: bool, // Ground proximity
-    pub aoa_color: [u8; 4], // Color for AoA indicator
-    pub aoa_bar_color: [u8; 4], // Color for AoA Bar
-    pub throttle_color: [u8; 4], // Color for Throttle
+    pub warn_vne: bool,           // Velocity Not Exceed
+    pub warn_stall: bool,         // AoA Limit
+    pub warn_gear: bool,          // Gear speed warning
+    pub warn_altitude: bool,      // Ground proximity
+    pub aoa_color: [u8; 4],       // Color for AoA indicator
+    pub aoa_bar_color: [u8; 4],   // Color for AoA Bar
+    pub throttle_color: [u8; 4],  // Color for Throttle
     pub warn_configuration: bool, // Flaps/Gear/Airbrake transition or speed warning
 
     // Context Info
@@ -242,8 +242,8 @@ impl Default for Builder {
             warn_stall: false,
             warn_gear: false,
             warn_altitude: false,
-            aoa_color: [0, 255, 0, 255], // Color.GREEN
-            aoa_bar_color: [0, 255, 0, 255], // Color.GREEN
+            aoa_color: [0, 255, 0, 255],      // Color.GREEN
+            aoa_bar_color: [0, 255, 0, 255],  // Color.GREEN
             throttle_color: [0, 255, 0, 255], // Color.GREEN
             map_grid: String::new(),
             time_str: String::new(),

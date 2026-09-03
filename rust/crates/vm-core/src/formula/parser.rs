@@ -27,7 +27,11 @@ struct Parser {
 /// 解析入口: 返回 (AST, 状态原语调用点总数)
 pub fn parse(src: &str) -> Result<(Expr, u32), String> {
     let toks = super::lexer::lex(src).map_err(|e| e.to_string())?;
-    let mut p = Parser { toks, pos: 0, next_site: 0 };
+    let mut p = Parser {
+        toks,
+        pos: 0,
+        next_site: 0,
+    };
     let expr = p.parse_ternary().map_err(|e| e.to_string())?;
     if p.pos < p.toks.len() {
         return Err(format!("表达式末尾有多余内容: {:?}", p.toks[p.pos]));
@@ -106,7 +110,11 @@ impl Parser {
             }
             self.bump(); // 消费 || 或 or
             let rhs = self.parse_and()?;
-            lhs = Expr::Binary { op: BinOp::Or, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+            lhs = Expr::Binary {
+                op: BinOp::Or,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            };
         }
         Ok(lhs)
     }
@@ -120,7 +128,11 @@ impl Parser {
             }
             self.bump();
             let rhs = self.parse_cmp()?;
-            lhs = Expr::Binary { op: BinOp::And, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+            lhs = Expr::Binary {
+                op: BinOp::And,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            };
         }
         Ok(lhs)
     }
@@ -139,7 +151,11 @@ impl Parser {
         if let Some(op) = op {
             self.bump();
             let rhs = self.parse_add()?;
-            return Ok(Expr::Binary { op, lhs: Box::new(lhs), rhs: Box::new(rhs) });
+            return Ok(Expr::Binary {
+                op,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            });
         }
         Ok(lhs)
     }
@@ -154,7 +170,11 @@ impl Parser {
             };
             self.bump();
             let rhs = self.parse_mul()?;
-            lhs = Expr::Binary { op, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+            lhs = Expr::Binary {
+                op,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            };
         }
         Ok(lhs)
     }
@@ -170,7 +190,11 @@ impl Parser {
             };
             self.bump();
             let rhs = self.parse_unary()?;
-            lhs = Expr::Binary { op, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+            lhs = Expr::Binary {
+                op,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            };
         }
         Ok(lhs)
     }
@@ -180,17 +204,26 @@ impl Parser {
             Some(Tok::Minus) => {
                 self.bump();
                 let expr = self.parse_unary()?;
-                Ok(Expr::Unary { op: UnOp::Neg, expr: Box::new(expr) })
+                Ok(Expr::Unary {
+                    op: UnOp::Neg,
+                    expr: Box::new(expr),
+                })
             }
             Some(Tok::Not) => {
                 self.bump();
                 let expr = self.parse_unary()?;
-                Ok(Expr::Unary { op: UnOp::Not, expr: Box::new(expr) })
+                Ok(Expr::Unary {
+                    op: UnOp::Not,
+                    expr: Box::new(expr),
+                })
             }
             Some(Tok::Ident(s)) if s == "not" => {
                 self.bump();
                 let expr = self.parse_unary()?;
-                Ok(Expr::Unary { op: UnOp::Not, expr: Box::new(expr) })
+                Ok(Expr::Unary {
+                    op: UnOp::Not,
+                    expr: Box::new(expr),
+                })
             }
             _ => self.parse_pow(),
         }

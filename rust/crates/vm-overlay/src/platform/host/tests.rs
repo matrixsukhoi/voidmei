@@ -20,32 +20,46 @@ impl OverlayWindow for MockWindow {
         if self.fail.get() {
             return Err("注入的 present 失败".into());
         }
-        self.log.borrow_mut().push(format!("{}:present:{}", self.label, buf.len()));
+        self.log
+            .borrow_mut()
+            .push(format!("{}:present:{}", self.label, buf.len()));
         Ok(())
     }
     fn set_position(&mut self, x: i32, y: i32) {
         self.pos = (x, y);
-        self.log.borrow_mut().push(format!("{}:set_position:{},{}", self.label, x, y));
+        self.log
+            .borrow_mut()
+            .push(format!("{}:set_position:{},{}", self.label, x, y));
     }
     fn position(&self) -> (i32, i32) {
-        self.log.borrow_mut().push(format!("{}:position", self.label));
+        self.log
+            .borrow_mut()
+            .push(format!("{}:position", self.label));
         self.pos
     }
     fn set_click_through(&mut self, _on: bool) {}
     fn set_topmost(&mut self, on: bool) {
-        self.log.borrow_mut().push(format!("{}:set_topmost:{}", self.label, on));
+        self.log
+            .borrow_mut()
+            .push(format!("{}:set_topmost:{}", self.label, on));
     }
     fn set_visible(&mut self, visible: bool) {
-        self.log.borrow_mut().push(format!("{}:set_visible:{}", self.label, visible));
+        self.log
+            .borrow_mut()
+            .push(format!("{}:set_visible:{}", self.label, visible));
     }
     fn set_size(&mut self, w: i32, h: i32) {
-        self.log.borrow_mut().push(format!("{}:set_size:{},{}", self.label, w, h));
+        self.log
+            .borrow_mut()
+            .push(format!("{}:set_size:{},{}", self.label, w, h));
     }
     fn poll_event(&mut self) -> Option<OverlayEvent> {
         self.events.borrow_mut().pop_front()
     }
     fn screen_size(&self) -> (i32, i32) {
-        self.log.borrow_mut().push(format!("{}:screen_size", self.label));
+        self.log
+            .borrow_mut()
+            .push(format!("{}:screen_size", self.label));
         self.screen
     }
 }
@@ -86,8 +100,10 @@ impl MockHandle {
             counter.set(n + 1);
             let events = Rc::new(RefCell::new(VecDeque::new()));
             channels.borrow_mut().push(Rc::clone(&events));
-            log.borrow_mut()
-                .push(format!("win{}:create:click_through={}", n, cfg.click_through));
+            log.borrow_mut().push(format!(
+                "win{}:create:click_through={}",
+                n, cfg.click_through
+            ));
             Ok(Box::new(MockWindow {
                 label: format!("win{}", n),
                 log: Rc::clone(&log),
@@ -169,7 +185,7 @@ fn reregister_active_overlay_runs_close_chain() {
     host.open("a").unwrap(); // 居中于 (810, 440)
     mock.log.borrow_mut().clear();
     host.register(spec("a", 60, 30, [0, 255, 0, 255])); // 重注册 (窗口活跃)
-    // 旧实例完整销毁链: position → screen_size (归一化) → drop
+                                                        // 旧实例完整销毁链: position → screen_size (归一化) → drop
     assert_eq!(
         mock.log(),
         vec!["win0:position", "win0:screen_size", "win0:drop"]
@@ -177,13 +193,15 @@ fn reregister_active_overlay_runs_close_chain() {
     assert!(host.saved_position("a").is_some()); // 位置已存档 (非静默 Drop)
     assert!(!host.is_active("a")); // 替换后回到未开状态
     assert_eq!(host.entries[0].width, 60); // 新条目内容生效
-    // 位置存档跨替换保留: 重开 (win1) 从存档恢复而非居中
+                                           // 位置存档跨替换保留: 重开 (win1) 从存档恢复而非居中
     assert!(host.open("a").unwrap());
     let (nx, ny) = host.saved_position("a").unwrap();
     // PORT: Java Math.round = floor(x+0.5) 复刻 (PORTING §2.3)
     let rx = (nx * 1920.0 + 0.5).floor() as i32;
     let ry = (ny * 1080.0 + 0.5).floor() as i32;
-    assert!(mock.log().contains(&format!("win1:set_position:{},{}", rx, ry)));
+    assert!(mock
+        .log()
+        .contains(&format!("win1:set_position:{},{}", rx, ry)));
 }
 
 // ===== open / open_all =====
@@ -256,9 +274,11 @@ fn close_inactive_is_noop() {
 fn close_all_destroys_in_registration_order() {
     let mock = MockHandle::new();
     let mut host = OverlayHost::with_factory(mock.factory());
-    for (id, color) in
-        [("a", [255u8, 0, 0, 255]), ("b", [0, 255, 0, 255]), ("c", [0, 0, 255, 255])]
-    {
+    for (id, color) in [
+        ("a", [255u8, 0, 0, 255]),
+        ("b", [0, 255, 0, 255]),
+        ("c", [0, 0, 255, 255]),
+    ] {
         host.register(spec(id, 40, 30, color));
     }
     host.open_all().unwrap();
@@ -269,9 +289,15 @@ fn close_all_destroys_in_registration_order() {
     assert_eq!(
         mock.log(),
         vec![
-            "win0:position", "win0:screen_size", "win0:drop",
-            "win1:position", "win1:screen_size", "win1:drop",
-            "win2:position", "win2:screen_size", "win2:drop",
+            "win0:position",
+            "win0:screen_size",
+            "win0:drop",
+            "win1:position",
+            "win1:screen_size",
+            "win1:drop",
+            "win2:position",
+            "win2:screen_size",
+            "win2:drop",
         ]
     );
 }
@@ -333,7 +359,11 @@ fn zombie_entry_blocks_rematerialize_until_cleared() {
     // refreshPreview 只跑 reinitializer, 不建窗 (Java :332-336)
     host.refresh_preview().unwrap();
     assert!(!host.is_active("a"));
-    assert_eq!(mock.count(":create:"), creates_before, "僵尸期零 materialize");
+    assert_eq!(
+        mock.count(":create:"),
+        creates_before,
+        "僵尸期零 materialize"
+    );
     // 策略失活: instance != null 即 close → 僵尸清除 (Java :337-340 + :370)
     enabled.set(false);
     host.refresh_preview().unwrap();
@@ -456,7 +486,11 @@ fn refresh_preview_runs_reinit_closure_and_resizes() {
         render: Box::new(|_c: &mut PixCanvas| {}),
         reinit: Some(Box::new(move || {
             calls_c.set(calls_c.get() + 1);
-            if grown_c.get() { Some((80, 60)) } else { None }
+            if grown_c.get() {
+                Some((80, 60))
+            } else {
+                None
+            }
         })),
     });
     host.register(spec("b", 40, 30, [0, 255, 0, 255])); // 无 reinit 对照
@@ -467,7 +501,11 @@ fn refresh_preview_runs_reinit_closure_and_resizes() {
     grown.set(true); // 模拟 fontadd 配置变更 → 新 preferred_size
     host.refresh_preview().unwrap(); // 已开: 原位 reinit + resize
     assert_eq!(calls.get(), 2);
-    assert_eq!(mock.count(":create:"), 0, "已开实例不重建窗口 (Java 实例保留)");
+    assert_eq!(
+        mock.count(":create:"),
+        0,
+        "已开实例不重建窗口 (Java 实例保留)"
+    );
     assert!(mock.log().contains(&"win0:set_size:80,60".to_string()));
     // 无 reinit 闭包的 b: 无 set_size 调用
     assert!(!mock.log().iter().any(|l| l.starts_with("win1:set_size")));
@@ -493,11 +531,18 @@ fn reinit_active_overlays_runs_closures_for_active_only() {
     });
     host.register(spec("b", 40, 30, [0, 255, 0, 255]));
     host.reinit_active_overlays();
-    assert_eq!(calls.get(), 0, "全未开: 不跑闭包 (Java reinitActiveOverlays 只动在场实例)");
+    assert_eq!(
+        calls.get(),
+        0,
+        "全未开: 不跑闭包 (Java reinitActiveOverlays 只动在场实例)"
+    );
     assert!(host.open("a").unwrap());
     host.reinit_active_overlays();
     assert_eq!(calls.get(), 1, "活跃条目跑闭包");
-    assert!(!mock.log().iter().any(|l| l.contains("set_size")), "None = 不动尺寸");
+    assert!(
+        !mock.log().iter().any(|l| l.contains("set_size")),
+        "None = 不动尺寸"
+    );
 }
 
 /// refresh_preview_key: 自身键/兴趣前缀/全局键过滤 (Java refreshPreviews(changedKey))
@@ -543,11 +588,26 @@ fn drag_moves_window_and_saves_position() {
     host.register(spec("a", 300, 200, [255, 0, 0, 255]));
     host.refresh_preview().unwrap();
     // 窗口创建后居中于 (810, 440)
-    mock.push(0, OverlayEvent::MousePress { root_x: 860, root_y: 480 });
-    mock.push(0, OverlayEvent::MouseMove { root_x: 900, root_y: 520, left_down: true });
+    mock.push(
+        0,
+        OverlayEvent::MousePress {
+            root_x: 860,
+            root_y: 480,
+        },
+    );
+    mock.push(
+        0,
+        OverlayEvent::MouseMove {
+            root_x: 900,
+            root_y: 520,
+            left_down: true,
+        },
+    );
     mock.push(0, OverlayEvent::MouseRelease);
     host.pump_events();
-    assert!(mock.log().contains(&"win0:set_position:850,480".to_string())); // 900-50, 520-40
+    assert!(mock
+        .log()
+        .contains(&"win0:set_position:850,480".to_string())); // 900-50, 520-40
     let (nx, ny) = host.saved_position("a").unwrap();
     assert!((nx - 850.0 / 1920.0).abs() < 1e-9);
     assert!((ny - 480.0 / 1080.0).abs() < 1e-9);
@@ -564,7 +624,10 @@ fn fixed_pos_overrides_saved_and_center_on_materialize() {
     let mut host = OverlayHost::with_factory(mock.factory());
     host.register(spec("thrustdFS", 900, 500, [255, 0, 0, 255]));
     assert!(host.set_entry_fixed_pos("thrustdFS", 0, 580));
-    assert!(!host.set_entry_fixed_pos("missing", 0, 0), "未注册条目报 false");
+    assert!(
+        !host.set_entry_fixed_pos("missing", 0, 0),
+        "未注册条目报 false"
+    );
     host.open("thrustdFS").unwrap();
     assert!(
         mock.log().contains(&"win0:set_position:0,580".to_string()),
@@ -577,11 +640,27 @@ fn fixed_pos_overrides_saved_and_center_on_materialize() {
     // preview 形态拖拽存档 (Java initPreview setupDragListeners — 游戏模式不可拖)
     host.close("thrustdFS");
     host.refresh_preview().unwrap(); // win1 回固定几何
-    mock.push(1, OverlayEvent::MousePress { root_x: 500, root_y: 700 });
-    mock.push(1, OverlayEvent::MouseMove { root_x: 900, root_y: 900, left_down: true });
+    mock.push(
+        1,
+        OverlayEvent::MousePress {
+            root_x: 500,
+            root_y: 700,
+        },
+    );
+    mock.push(
+        1,
+        OverlayEvent::MouseMove {
+            root_x: 900,
+            root_y: 900,
+            left_down: true,
+        },
+    );
     mock.push(1, OverlayEvent::MouseRelease);
     host.pump_events();
-    assert!(host.saved_position("thrustdFS").is_some(), "拖拽存档照常写入");
+    assert!(
+        host.saved_position("thrustdFS").is_some(),
+        "拖拽存档照常写入"
+    );
     // 销毁重开: 恒回固定几何 (Java 工厂每实例 setBounds 的等价面)
     host.close("thrustdFS");
     host.refresh_preview().unwrap(); // win2
@@ -621,9 +700,22 @@ fn multi_window_events_routed_independently() {
     host.register(spec("a", 300, 200, [255, 0, 0, 255]));
     host.register(spec("b", 300, 200, [0, 255, 0, 255]));
     host.refresh_preview().unwrap(); // win0=a, win1=b, 均居中 (810, 440)
-    // 各自通道互不串扰: a 拖到 (900,520) 偏移处, b 收到 Close
-    mock.push(0, OverlayEvent::MousePress { root_x: 860, root_y: 480 });
-    mock.push(0, OverlayEvent::MouseMove { root_x: 900, root_y: 520, left_down: true });
+                                     // 各自通道互不串扰: a 拖到 (900,520) 偏移处, b 收到 Close
+    mock.push(
+        0,
+        OverlayEvent::MousePress {
+            root_x: 860,
+            root_y: 480,
+        },
+    );
+    mock.push(
+        0,
+        OverlayEvent::MouseMove {
+            root_x: 900,
+            root_y: 520,
+            left_down: true,
+        },
+    );
     mock.push(0, OverlayEvent::MouseRelease);
     mock.push(1, OverlayEvent::Close);
     let closed = host.pump_events();
@@ -631,8 +723,12 @@ fn multi_window_events_routed_independently() {
     // a 只被拖动未销毁, 位置存档只属于 a; b 走销毁链
     assert!(host.is_active("a"));
     assert!(!host.is_active("b"));
-    assert!(mock.log().contains(&"win0:set_position:850,480".to_string()));
-    assert!(!mock.log().contains(&"win1:set_position:850,480".to_string()));
+    assert!(mock
+        .log()
+        .contains(&"win0:set_position:850,480".to_string()));
+    assert!(!mock
+        .log()
+        .contains(&"win1:set_position:850,480".to_string()));
     assert_eq!(mock.count(":drop"), 1);
     assert!(host.saved_position("a").is_some());
     assert!(host.saved_position("b").is_some()); // b 的居中位置在销毁前存档
@@ -666,7 +762,10 @@ fn render_tick_dirty_check_per_window() {
     assert_eq!(mock.count("win0:present:"), 1);
     assert_eq!(mock.count("win1:present:"), 2);
     // present 的缓冲尺寸 = w*h*4 (预乘 BGRA)
-    assert!(mock.log().iter().all(|l| !l.contains("present") || l.ends_with(":4800")));
+    assert!(mock
+        .log()
+        .iter()
+        .all(|l| !l.contains("present") || l.ends_with(":4800")));
 }
 
 /// render_tick present 失败: 槽位必须放回 (实例不因渲染失败丢失, 销毁归上层决定),
@@ -693,7 +792,7 @@ fn render_tick_present_failure_keeps_slot() {
     mock.fail.set(true); // 注入失败
     assert!(host.render_tick().is_err());
     assert!(host.is_active("a")); // 槽位已放回, 实例存活
-    // 失败帧恢复: 同内容不再重试 (指纹已存), 新内容正常提交
+                                  // 失败帧恢复: 同内容不再重试 (指纹已存), 新内容正常提交
     mock.fail.set(false);
     host.render_tick().unwrap();
     assert_eq!(mock.count(":present:"), 1); // 仅首帧
@@ -880,7 +979,10 @@ impl PositionStore for RecordingStore {
 
 fn store_with(map: &[(&str, f64, f64)]) -> (Box<RecordingStore>, StoreHandle) {
     let h = StoreHandle::default();
-    let mut s = RecordingStore { h: h.clone(), map: HashMap::new() };
+    let mut s = RecordingStore {
+        h: h.clone(),
+        map: HashMap::new(),
+    };
     for (id, x, y) in map {
         s.map.insert(id.to_string(), (*x, *y));
     }
@@ -897,7 +999,9 @@ fn open_uses_position_store_when_no_memory_archive() {
     host.register(spec("a", 300, 200, [255, 0, 0, 255]));
     host.refresh_preview().unwrap();
     // round(0.25*1920)=480, round(0.5*1080)=540 — 不再居中 (810,440)
-    assert!(mock.log().contains(&"win0:set_position:480,540".to_string()));
+    assert!(mock
+        .log()
+        .contains(&"win0:set_position:480,540".to_string()));
     assert_eq!(host.saved_position("a"), Some((0.25, 0.5))); // 后端命中填内存档
 }
 
@@ -912,7 +1016,9 @@ fn memory_archive_takes_priority_over_store() {
     // 预置内存档 (模拟本会话已拖拽; 子模块直摸私有字段): round(0.1*1920)=192
     host.saved_positions.insert("a".to_string(), (0.1, 0.2));
     host.refresh_preview().unwrap();
-    assert!(mock.log().contains(&"win0:set_position:192,216".to_string()));
+    assert!(mock
+        .log()
+        .contains(&"win0:set_position:192,216".to_string()));
     assert!(h.loads.borrow().is_empty(), "内存档命中不应查后端");
 }
 
@@ -925,8 +1031,21 @@ fn drag_release_persists_to_store() {
     host.with_position_store(store);
     host.register(spec("a", 300, 200, [255, 0, 0, 255]));
     host.refresh_preview().unwrap(); // 居中 (810,440)
-    mock.push(0, OverlayEvent::MousePress { root_x: 860, root_y: 480 });
-    mock.push(0, OverlayEvent::MouseMove { root_x: 900, root_y: 520, left_down: true });
+    mock.push(
+        0,
+        OverlayEvent::MousePress {
+            root_x: 860,
+            root_y: 480,
+        },
+    );
+    mock.push(
+        0,
+        OverlayEvent::MouseMove {
+            root_x: 900,
+            root_y: 520,
+            left_down: true,
+        },
+    );
     mock.push(0, OverlayEvent::MouseRelease);
     host.pump_events();
     let saves = h.saves.borrow();

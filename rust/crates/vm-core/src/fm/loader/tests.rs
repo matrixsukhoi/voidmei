@@ -133,7 +133,10 @@ fn run_cases() {
 
     // -- 空名守卫: null / "" → UNRESOLVED 且不计入 loadCount --
     let h = load(None);
-    check(h.status == FMStatus::Unresolved && h.name.is_none(), "null → UNRESOLVED");
+    check(
+        h.status == FMStatus::Unresolved && h.name.is_none(),
+        "null → UNRESOLVED",
+    );
     let h = load(Some(""));
     check(h.status == FMStatus::Unresolved, "空串 → UNRESOLVED");
     check(get_load_count() == 0, "空名不进入加载流程 (loadCount 不增)");
@@ -141,7 +144,10 @@ fn run_cases() {
     // -- READY: central + physical 齐全 (大小写规范化) --
     let h = load(Some("ZZFMLOAD_PLANE1"));
     check(h.status == FMStatus::Ready, "合成齐全机型应 READY");
-    check(h.name.as_deref() == Some("zzfmload_plane1"), "机型名规范化为小写");
+    check(
+        h.name.as_deref() == Some("zzfmload_plane1"),
+        "机型名规范化为小写",
+    );
     check(h.has_fm() && h.fmdata.is_some(), "READY 句柄应携带 fmdata");
     // readFileName 传参链锁死 (物理侧; 消费者 ui_model/fm_data_adapter.rs
     // get_fm_version —— 中央侧 name+".blk" 进 getload 版本串, 波次未落地
@@ -152,20 +158,32 @@ fn run_cases() {
     );
     // PORT: getload 未落地 (try_load 步骤5 TODO) — 数值字段暂为 0,
     // getload 波次落地后此断言需更新为真实喷气/活塞口径
-    check(h.peak_wep_power == 0.0 && h.peak_thrust == 0.0, "getload 未落地: 功率/推力暂为 0");
-    check(h.compressor_stages.is_none(), "无 Compressor 块 → stages 为 None");
+    check(
+        h.peak_wep_power == 0.0 && h.peak_thrust == 0.0,
+        "getload 未落地: 功率/推力暂为 0",
+    );
+    check(
+        h.compressor_stages.is_none(),
+        "无 Compressor 块 → stages 为 None",
+    );
     check(get_load_count() == 1, "READY 路径 loadCount=1");
 
     // -- CORRUPT: central 在库但物理文件缺失 (TestFMStore badplane) --
     let h = load(Some("zzfmload_badplane"));
     check(h.status == FMStatus::Corrupt, "物理文件缺失应为 CORRUPT");
-    check(h.is_missing_like() && !h.has_fm(), "CORRUPT 属 missing-like 且无 FM");
+    check(
+        h.is_missing_like() && !h.has_fm(),
+        "CORRUPT 属 missing-like 且无 FM",
+    );
 
     // -- MISSING: 什么都不放 (TestFMStore ghost) --
     let h = load(Some("zzfmload_ghost"));
     check(h.status == FMStatus::Missing, "不在库机型应为 MISSING");
     check(h.is_missing_like(), "MISSING 属 missing-like");
-    check(h.name.as_deref() == Some("zzfmload_ghost"), "MISSING 保留机型名");
+    check(
+        h.name.as_deref() == Some("zzfmload_ghost"),
+        "MISSING 保留机型名",
+    );
 
     // -- fmFile 回退: central 未写 fmFile → fm/<name>.blk 约定 --
     let h = load(Some("zzfmload_fb"));
@@ -173,13 +191,22 @@ fn run_cases() {
 
     // -- fmFile 无 .blk 后缀 → 剥引号后补 ".blk" --
     let h = load(Some("zzfmload_nb"));
-    check(h.status == FMStatus::Ready, "无后缀 fmFile 补 .blk 后应命中");
+    check(
+        h.status == FMStatus::Ready,
+        "无后缀 fmFile 补 .blk 后应命中",
+    );
 
     // -- 燃油改装分支: soviet b-100 检出 (info 日志) 且不阻断加载 --
     let h = load(Some("zzfmload_fuel"));
-    check(h.status == FMStatus::Ready, "带燃油改装的中央文件仍应 READY");
+    check(
+        h.status == FMStatus::Ready,
+        "带燃油改装的中央文件仍应 READY",
+    );
 
-    check(get_load_count() == 6, "六次有效加载 (READY x4 + CORRUPT + MISSING)");
+    check(
+        get_load_count() == 6,
+        "六次有效加载 (READY x4 + CORRUPT + MISSING)",
+    );
 }
 
 #[test]

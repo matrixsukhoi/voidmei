@@ -35,8 +35,8 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, RwLock};
 
 use crate::base::bus::{EventBus, Subscription};
-use crate::base::logger;
 use crate::base::exception_helper::panic_message_box;
+use crate::base::logger;
 
 /// 路由表锁中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const MAP_LOCK_MSG: &str = "UIStateBus 路由表锁中毒";

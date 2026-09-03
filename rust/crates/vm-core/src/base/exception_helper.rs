@@ -97,12 +97,11 @@ pub fn sleep_quietly(stop: &AtomicBool, millis: u64) {
 /// 运行极性辅助: 睡眠至 deadline 或运行标志翻 false (提前返回)。
 ///
 /// PORT: [`sleep_quietly`] 的标志是 **true=停** 语义; OtherService.is_run /
-/// FlightLog.logon 这类 while 循环条件标志是 **true=运行**, 极性相反且
-/// AtomicBool 无反视图可复用。Java 原义 `while(run) { sleepQuietly(N); ... }`
+/// FlightLog.logon / VoiceWarning.doit 这类 while 循环条件标志是 **true=运行**,
+/// 极性相反且 AtomicBool 无反视图可复用。Java 原义 `while(run) { sleepQuietly(N); ... }`
 /// — sleep 被 interrupt 打断提前返回后重查循环条件退出, Rust 对位 = 睡眠中
 /// 标志翻 false 即提前返回 (循环重查退出)。极性接反 (直接传给 sleep_quietly)
-/// 会立即返回 → 运行期热自旋 (备案收口修复, voice_warning.rs 的私有
-/// sleep_while_run 是同语义先行实现, 回收归其批次)。
+/// 会立即返回 → 运行期热自旋。
 /// 进入时标志已 false 则立即返回 (等价 Java 中断位已置位时 sleep 立抛)。
 pub fn sleep_while_run(run: &AtomicBool, millis: u64) {
     let deadline = Instant::now() + Duration::from_millis(millis);

@@ -7,11 +7,11 @@
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Wry};
+use vm_core::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
 use vm_core::base::bus::Subscription;
 use vm_core::base::event::ui_state_events;
-use vm_core::fm::FmChangedBus;
 use vm_core::base::logger;
-use vm_core::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
+use vm_core::fm::FmChangedBus;
 
 /// CONFIG_CHANGED → 前端 `config-changed` 事件 (data = 变更键, 如 "ui_layout.cfg")
 /// 前端收到后重拉 get_layout_tree (reset/import 后的整树刷新对位 Java rebuild)。
@@ -32,7 +32,10 @@ pub struct FmChangedPayload {
 }
 
 /// FM_CHANGED → 前端 `fm-changed` (MISSING/CORRUPT toast, 对位 NotificationService)
-pub fn bridge_fm_changed(app: AppHandle<Wry>, bus: &FmChangedBus) -> Subscription<vm_core::fm::FMHandle> {
+pub fn bridge_fm_changed(
+    app: AppHandle<Wry>,
+    bus: &FmChangedBus,
+) -> Subscription<vm_core::fm::FMHandle> {
     bus.subscribe(move |h: &vm_core::fm::FMHandle| {
         let payload = FmChangedPayload {
             name: h.name.clone(),

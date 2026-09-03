@@ -28,7 +28,11 @@ fn stroke_width_formula() {
     assert_eq!(CrosshairGauge::stroke_width(150), 5);
     assert_eq!(CrosshairGauge::stroke_width(600), 20);
     assert_eq!(CrosshairGauge::stroke_width(0), 2, "宽度 0 仍钳 2");
-    assert_eq!(CrosshairGauge::stroke_width(-30), 2, "负宽 Java max(-1,2)=2");
+    assert_eq!(
+        CrosshairGauge::stroke_width(-30),
+        2,
+        "负宽 Java max(-1,2)=2"
+    );
 }
 
 /// preferred_size = width×width (:38-44 软件分支)

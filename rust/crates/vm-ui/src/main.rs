@@ -15,6 +15,8 @@ fn main() {
         std::process::exit(vm_ui::main_form::headless::run_headless(persist));
     }
     eprintln!("用法: vm-ui --headless [--persist <path>]");
-    eprintln!("D9: 设置窗 (MainForm) 渲染已归 vm-webui web 壳 (vm-app 组装), 本 bin 仅作无窗口状态机验证");
+    eprintln!(
+        "D9: 设置窗 (MainForm) 渲染已归 vm-webui web 壳 (vm-app 组装), 本 bin 仅作无窗口状态机验证"
+    );
     std::process::exit(1);
 }

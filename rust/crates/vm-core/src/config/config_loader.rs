@@ -21,6 +21,7 @@ use std::sync::RwLock;
 use crate::config::sexp_parser::{AtomType, SExp, SExpParser, SList};
 // 键码↔文本映射 (波16 E6 抽出至 key_text.rs; :hotkey 装载/写回消费)
 use super::key_text::{get_key_code_from_text, get_key_text};
+use crate::base::format::java_f;
 use crate::base::java_compat::{java_double_to_string, java_parse_boolean, java_parse_int};
 
 // --- Java `Object value` 的类型域 (extractValue 实际产出) ---
@@ -40,28 +41,28 @@ pub enum ConfigValue {
 pub struct RowConfig {
     pub label: String,
     pub target_name: Option<String>, // Display name for overlay if different from label
-    pub formula: Option<String>, // Kept for reflection paths (e.g. S.rpm)
+    pub formula: Option<String>,     // Kept for reflection paths (e.g. S.rpm)
     pub format: String,
-    pub unit: String, // Unit string (e.g. "Hp")
-    pub value: Option<ConfigValue>, // Typed value (Boolean, Integer, String)
+    pub unit: String,                       // Unit string (e.g. "Hp")
+    pub value: Option<ConfigValue>,         // Typed value (Boolean, Integer, String)
     pub default_value: Option<ConfigValue>, // Default value for reset
-    pub fg_color: Option<String>, // Foreground color (e.g. for buttons)
-    pub desc: Option<String>, // Help description tooltip
-    pub desc_img: Option<String>, // Help image path (relative to project root)
-    pub preview_value: Option<String>, // Default value for UI preview/placeholder
-    pub hide_when_zero: bool, // Hide if value is zero
-    pub precision: i32, // Number of decimal places
+    pub fg_color: Option<String>,           // Foreground color (e.g. for buttons)
+    pub desc: Option<String>,               // Help description tooltip
+    pub desc_img: Option<String>,           // Help image path (relative to project root)
+    pub preview_value: Option<String>,      // Default value for UI preview/placeholder
+    pub hide_when_zero: bool,               // Hide if value is zero
+    pub precision: i32,                     // Number of decimal places
     pub unit_source: Option<String>, // Method name for dynamic unit (e.g., "getManifoldPressureDisplayUnit")
     pub precision_source: Option<String>, // Method name for dynamic precision (e.g., "getManifoldPressureDisplayPrecision")
-    pub visible_when: Option<Rc<SExp>>, // 显示条件表达式（S-expression），用于控制字段可见性
+    pub visible_when: Option<Rc<SExp>>,   // 显示条件表达式（S-expression），用于控制字段可见性
     pub na_when: Option<Rc<SExp>>, // NA显示条件表达式（S-expression），满足条件时显示 "-" 而非数值
 
     // Extended fields for control-type rows
-    pub r#type: String, // DATA, HEADER, SLIDER, COMBO, SWITCH, BUTTON
+    pub r#type: String,           // DATA, HEADER, SLIDER, COMBO, SWITCH, BUTTON
     pub property: Option<String>, // Bound GroupConfig property (e.g., "fontSize")
-    pub min_val: i32, // For SLIDER
-    pub max_val: i32, // For SLIDER
-    pub group_columns: i32, // For HEADER: specify columns for this group
+    pub min_val: i32,             // For SLIDER
+    pub max_val: i32,             // For SLIDER
+    pub group_columns: i32,       // For HEADER: specify columns for this group
     pub children: Vec<RowConfig>,
 }
 
@@ -137,12 +138,12 @@ pub struct GroupConfig {
     pub x: f64,
     pub y: f64,
     pub alpha: i32,
-    pub hotkey: i32, // 0 means no hotkey
+    pub hotkey: i32,   // 0 means no hotkey
     pub visible: bool, // Default to false (hidden)
     pub font_name: Option<String>,
-    pub font_size: i32, // Font size adjustment (-6 to +20)
-    pub columns: i32, // Number of columns for layout
-    pub panel_columns: i32, // Number of columns for SETTINGS PANEL layout
+    pub font_size: i32,             // Font size adjustment (-6 to +20)
+    pub columns: i32,               // Number of columns for layout
+    pub panel_columns: i32,         // Number of columns for SETTINGS PANEL layout
     pub switch_key: Option<String>, // Config key for visibility switch (e.g., "flightInfoSwitch")
     pub rows: Vec<RowConfig>,
 }
@@ -207,80 +208,6 @@ fn java_line_separator() -> &'static str {
     } else {
         "\n"
     }
-}
-
-/// Java `String.format("%.4f", d)` 一比一复刻 (saveConfig 的 :x/:y 写回)。
-/// 语义模型 (Java 8 oracle fuzz 200k 例实证): 等价
-/// `new BigDecimal(Double.toString(d)).setScale(4, HALF_UP)` — 即对**最短往返十进制
-/// 表示**做 HALF_UP, 而非 double 精确二进制值的展开 (0.00015: 精确值 0.0001499…
-/// 但 Java 输出 "0.0002"; Rust `{:.4}` 是对精确值的半偶舍入, 双重分歧)。
-/// 整数也带 4 位小数; NaN/Infinity 原样输出; -0.0 → "-0.0000"。
-/// PORT: 数字串取 Rust `{:e}` 最短往返表示 — 语义模型依赖 `Double.toString(d)`
-/// 的输出, 而 JDK-4511638 域 (如 1e23) Java 给的不是最短表示
-/// ("9.999999999999999E22" 17 位), Formatter 据此展开:
-/// %.4f → "99999999999999990000000.0000"
-/// vs 本实现按最短 "1E23" → "100000000000000000000000.0000" (Java 8 oracle 实测,
-/// 见 java_double_to_string 的 JDK-4511638 域注记与分歧固化测试)。
-/// saveConfig 的 :x/:y 域 (0..1 比例坐标 / 像素坐标) 该量级不可达, 分歧无实际面。
-/// exp10 > 25 的巨值全为整数, 无舍入, 走零填充字符串路径。
-fn java_format_f4(d: f64) -> String {
-    if d.is_nan() {
-        return "NaN".to_string();
-    }
-    if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
-    }
-    let neg = d.is_sign_negative(); // 含 -0.0 → "-0.0000" (Java 亦然)
-    let a = d.abs();
-    // "{:e}" → "D.DDDe±n" (a ≥ 0; 0.0 → "0e0" 走通用路径)
-    let sci = format!("{:e}", a);
-    let epos = sci.find('e').unwrap();
-    let mant = &sci[..epos];
-    let exp10: i32 = sci[epos + 1..].parse().unwrap();
-    let digits = mant.replace('.', "");
-    let digits = digits.as_bytes();
-    let n = digits.len() as i32;
-
-    let mut out = String::new();
-    if exp10 > 25 {
-        // 巨整数域 (≥ 10^21 → double 间距 ≥ 1, 恒无小数): digits + 隐含尾零 + ".0000"
-        out.push_str(&sci[..epos].replace('.', ""));
-        out.push_str(&"0".repeat((exp10 - n + 1) as usize));
-        out.push_str(".0000");
-    } else {
-        // 最短表示的 i 号数字 (1-based, place = 10^(exp10-i+1)); 越界补 0
-        let digit_at = |i: i32| -> u128 {
-            if i < 1 {
-                0
-            } else {
-                let idx = (i - 1) as usize;
-                if idx < digits.len() {
-                    u128::from(digits[idx] - b'0')
-                } else {
-                    0
-                }
-            }
-        };
-        // 保留到 10^-4 位: i ≤ exp10+5; 判定位 = 其后一位 (HALF_UP: ≥5 进位,
-        // 再后的剩余数字 < 1 单位不影响判定)
-        let keep = exp10 + 5;
-        let mut scaled: u128 = 0; // = (整数 + 前 4 位小数) 的 10^4 倍
-        if keep > 0 {
-            for i in 1..=keep {
-                scaled = scaled * 10 + digit_at(i);
-            }
-        }
-        if digit_at(keep + 1) >= 5 {
-            scaled += 1; // HALF_UP (含精确 .5 进位; 进位可级联到整数部分)
-        }
-        let int_part = scaled / 10_000;
-        let frac4 = scaled % 10_000;
-        out.push_str(&format!("{int_part}.{frac4:04}"));
-    }
-    if neg {
-        out.insert(0, '-');
-    }
-    out
 }
 
 // --- S-Expression Parsing Helpers ---
@@ -615,7 +542,9 @@ fn extract_value(list: &SList, keyword: &str) -> Option<ConfigValue> {
 
 /// Java: `private static boolean isSymbol(SExp exp, String name)`
 fn is_symbol(exp: &SExp, name: &str) -> bool {
-    exp.is_atom() && exp.as_atom().is_symbol() && exp.as_atom().get_string().eq_ignore_ascii_case(name)
+    exp.is_atom()
+        && exp.as_atom().is_symbol()
+        && exp.as_atom().get_string().eq_ignore_ascii_case(name)
 }
 
 // --- Serialization ---
@@ -640,8 +569,8 @@ pub fn save_config(path: &str, groups: &[GroupConfig]) {
         pw.push_str(jls);
 
         let indent = "  "; // 2 spaces base indent for panel attributes as per sample
-        let x_s = java_format_f4(group.x);
-        let y_s = java_format_f4(group.y);
+        let x_s = java_f(group.x, 4);
+        let y_s = java_f(group.y, 4);
         write_attr_line(&mut pw, indent, ":x", AttrVal::Str(Some(&x_s)));
         write_attr_line(&mut pw, indent, ":y", AttrVal::Str(Some(&y_s)));
         write_attr_line(&mut pw, indent, ":alpha", AttrVal::Int(group.alpha));
@@ -649,7 +578,12 @@ pub fn save_config(path: &str, groups: &[GroupConfig]) {
         if let Some(sk) = &group.switch_key {
             write_attr_line(&mut pw, indent, ":switch-key", AttrVal::Str(Some(sk)));
         }
-        write_attr_line(&mut pw, indent, ":font", AttrVal::Str(group.font_name.as_deref()));
+        write_attr_line(
+            &mut pw,
+            indent,
+            ":font",
+            AttrVal::Str(group.font_name.as_deref()),
+        );
         if group.hotkey != 0 {
             let t = get_key_text(group.hotkey);
             write_attr_line(&mut pw, indent, ":hotkey", AttrVal::Str(Some(&t)));
@@ -661,7 +595,12 @@ pub fn save_config(path: &str, groups: &[GroupConfig]) {
             write_attr_line(&mut pw, indent, ":columns", AttrVal::Int(group.columns));
         }
         if group.panel_columns != 0 {
-            write_attr_line(&mut pw, indent, ":panel-columns", AttrVal::Int(group.panel_columns));
+            write_attr_line(
+                &mut pw,
+                indent,
+                ":panel-columns",
+                AttrVal::Int(group.panel_columns),
+            );
         }
 
         pw.push_str(jls);
@@ -737,7 +676,10 @@ fn write_children(pw: &mut String, rows: &[RowConfig], indent: &str) {
                 pw.push_str(&format!(" :value {}", serialize_atom(row.value.as_ref())));
             }
             if row.default_value.is_some() && lisp_type != "button" {
-                pw.push_str(&format!(" :default {}", serialize_atom(row.default_value.as_ref())));
+                pw.push_str(&format!(
+                    " :default {}",
+                    serialize_atom(row.default_value.as_ref())
+                ));
             }
             if let Some(desc) = &row.desc {
                 pw.push_str(&format!(" :desc {}", quote(Some(desc))));
@@ -758,7 +700,10 @@ fn write_children(pw: &mut String, rows: &[RowConfig], indent: &str) {
                 pw.push_str(&format!(" :unit-source {}", quote(Some(unit_source))));
             }
             if let Some(precision_source) = &row.precision_source {
-                pw.push_str(&format!(" :precision-source {}", quote(Some(precision_source))));
+                pw.push_str(&format!(
+                    " :precision-source {}",
+                    quote(Some(precision_source))
+                ));
             }
             if let Some(target_name) = &row.target_name {
                 pw.push_str(&format!(" :target-name {}", quote(Some(target_name))));
@@ -795,8 +740,8 @@ fn write_attr_line(pw: &mut String, indent: &str, key: &str, val: AttrVal<'_>) {
     pw.push(' ');
     match val {
         AttrVal::Str(s) => pw.push_str(&serialize_atom_str(s)),
-        AttrVal::Int(i) => pw.push_str(&i.to_string()),      // String.valueOf(Integer)
-        AttrVal::Bool(b) => pw.push_str(&b.to_string()),     // String.valueOf(Boolean)
+        AttrVal::Int(i) => pw.push_str(&i.to_string()), // String.valueOf(Integer)
+        AttrVal::Bool(b) => pw.push_str(&b.to_string()), // String.valueOf(Boolean)
     }
     pw.push_str(java_line_separator()); // pw.println(serializeAtom(val))
 }

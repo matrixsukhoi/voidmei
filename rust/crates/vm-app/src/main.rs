@@ -1,6 +1,6 @@
 //! voidmei 主程序组装 (P5 批十四最终组装): 对齐 Java `Launcher → Application.main`
 //! 启动序, GPU 兼容段按 D5 消亡 (Java2D sun.java2d.* 属性专属, Rust 无对应物 —
-//! iced 走 tiny-skia 纯 CPU 软渲染, D1 决策本身即 GPU 兼容哲学)。
+//! overlay 渲染走 tiny-skia 纯 CPU 软渲染, D1 决策本身即 GPU 兼容哲学)。
 //!
 //! Java Application.main 启动序对位:
 //! 1. Logger 级别 (debugLog||debug → DEBUG) → `--debug` 参数 +
@@ -40,10 +40,9 @@ use vm_app::form_dispatch;
 use vm_app::{AppShell, SupervisorOutcome, OVERLAY_SECTIONS};
 
 use tauri::Emitter;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
 use vm_core::base::event::ui_state_events;
 use vm_core::base::logger;
-use vm_core::base::bus::ui_state_bus::UIStateBus;
-
 
 /// 冒烟默认时长 (任务验收单: live 模式跑 8 秒)
 const MOCK_SMOKE_RUN_MS: u64 = 8_000;
@@ -173,29 +172,30 @@ fn desktop_main(debug: bool) -> i32 {
     // 走 config_manager 内的日志兜底 — 语义不丢; 托盘重建核的后续装载经此达前端
     if let Some(f) = form.as_ref() {
         let handle = f.app_handle();
-        let sink: std::sync::Arc<dyn Fn(&vm_core::config::config_manager::ConfigDialog) + Send + Sync> =
-            std::sync::Arc::new(move |d: &vm_core::config::config_manager::ConfigDialog| {
-                let lang = vm_core::lang::Lang::init_lang();
-                let payload = match d {
-                    vm_core::config::config_manager::ConfigDialog::ParseError => {
-                        vm_webui::bridge::ConfigDialogPayload {
-                            kind: "parse-error",
-                            title: lang.m_config_error_title.to_string(),
-                            message: lang.m_config_error_content.to_string(),
-                        }
+        let sink: std::sync::Arc<
+            dyn Fn(&vm_core::config::config_manager::ConfigDialog) + Send + Sync,
+        > = std::sync::Arc::new(move |d: &vm_core::config::config_manager::ConfigDialog| {
+            let lang = vm_core::lang::Lang::init_lang();
+            let payload = match d {
+                vm_core::config::config_manager::ConfigDialog::ParseError => {
+                    vm_webui::bridge::ConfigDialogPayload {
+                        kind: "parse-error",
+                        title: lang.m_config_error_title.to_string(),
+                        message: lang.m_config_error_content.to_string(),
                     }
-                    vm_core::config::config_manager::ConfigDialog::MergeReport(message) => {
-                        vm_webui::bridge::ConfigDialogPayload {
-                            kind: "merge-report",
-                            title: lang.m_config_merged_title.to_string(),
-                            message: message.clone(),
-                        }
-                    }
-                };
-                if let Err(e) = tauri::Emitter::emit(&handle, "config-dialog", payload) {
-                    logger::warn("ConfigManager", &format!("弹窗事件发送失败: {e}"));
                 }
-            });
+                vm_core::config::config_manager::ConfigDialog::MergeReport(message) => {
+                    vm_webui::bridge::ConfigDialogPayload {
+                        kind: "merge-report",
+                        title: lang.m_config_merged_title.to_string(),
+                        message: message.clone(),
+                    }
+                }
+            };
+            if let Err(e) = tauri::Emitter::emit(&handle, "config-dialog", payload) {
+                logger::warn("ConfigManager", &format!("弹窗事件发送失败: {e}"));
+            }
+        });
         vm_core::config::config_manager::set_config_dialog_sink(sink);
     }
 
@@ -226,10 +226,9 @@ fn desktop_main(debug: bool) -> i32 {
         let Some(form) = form.as_mut() else {
             match shell.borrow_mut().run_supervisor_phase() {
                 SupervisorOutcome::Exit => break,
-                SupervisorOutcome::MainFormRequested => logger::info(
-                    "App",
-                    "托盘请求设置窗 — web 壳不可用, 已重建核继续监督",
-                ),
+                SupervisorOutcome::MainFormRequested => {
+                    logger::info("App", "托盘请求设置窗 — web 壳不可用, 已重建核继续监督")
+                }
             }
             continue;
         };
@@ -474,7 +473,13 @@ fn mock_smoke_main(debug: bool) -> i32 {
     // 起 mock (s2_preview_live: 正常 p-51d 快照持续供应)
     let mut mock = match std::process::Command::new("python")
         .arg("script/mock_8111.py")
-        .args(["serve", "--port", &SMOKE_PORT.to_string(), "--scenario", "s2_preview_live"])
+        .args([
+            "serve",
+            "--port",
+            &SMOKE_PORT.to_string(),
+            "--scenario",
+            "s2_preview_live",
+        ])
         .current_dir(&repo_root)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -537,7 +542,10 @@ fn mock_smoke_main(debug: bool) -> i32 {
             && f.player_live;
     }
     // 断言 2: overlay present 帧数 > 0 (渲染线程节拍计数, 见 ControllerShared 注)
-    let frames = shell.shared.render_frames.load(std::sync::atomic::Ordering::SeqCst);
+    let frames = shell
+        .shared
+        .render_frames
+        .load(std::sync::atomic::Ordering::SeqCst);
     // 断言 3: 全部注册 overlay 逐窗 present>0 (QA 冒烟判据; drop 前取走快照)
     let overlay_counts = shell
         .shared
@@ -607,7 +615,7 @@ fn stop_mock(mock: &mut std::process::Child, port: u16) {
         match mock.try_wait() {
             Ok(Some(_)) => return, // 已优雅退出
             Ok(None) => std::thread::sleep(Duration::from_millis(50)),
-            Err(_) => break,       // wait 系统调用异常, 直接走强杀
+            Err(_) => break, // wait 系统调用异常, 直接走强杀
         }
     }
     let _ = mock.kill();

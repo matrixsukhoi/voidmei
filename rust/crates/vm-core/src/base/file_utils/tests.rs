@@ -18,8 +18,14 @@ fn get_file_name_no_ex_boundaries() {
     // 尾部点
     assert_eq!(get_file_name_no_ex(Some("abc.")), Some("abc"));
     // 不处理路径分隔符, 只认最后一个 '.'
-    assert_eq!(get_file_name_no_ex(Some("dir/file.name.ext")), Some("dir/file.name"));
-    assert_eq!(get_file_name_no_ex(Some("my.file.v1.bin")), Some("my.file.v1"));
+    assert_eq!(
+        get_file_name_no_ex(Some("dir/file.name.ext")),
+        Some("dir/file.name")
+    );
+    assert_eq!(
+        get_file_name_no_ex(Some("my.file.v1.bin")),
+        Some("my.file.v1")
+    );
     // CJK: Java 按码元切 / Rust 按字节切, 落在同一字符边界 (§2.1, oracle 对拍)
     assert_eq!(get_file_name_no_ex(Some("文件.tar")), Some("文件"));
     assert_eq!(get_file_name_no_ex(Some("文件名")), Some("文件名"));

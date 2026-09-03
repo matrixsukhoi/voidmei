@@ -10,18 +10,26 @@ struct RecordingListener {
 impl FlightDataListener for RecordingListener {
     fn on_flight_data(&self, event: &FlightDataEvent) {
         // 订阅方经 getPayload() 读载荷 (Java 唯一主路径)
-        self.seen.borrow_mut().push(event.get_payload().map_grid.clone());
+        self.seen
+            .borrow_mut()
+            .push(event.get_payload().map_grid.clone());
     }
 }
 
 fn mk_event(map_grid: &str) -> FlightDataEvent {
-    FlightDataEvent::new(EventPayload::builder().map_grid(map_grid.to_string()).build())
+    FlightDataEvent::new(
+        EventPayload::builder()
+            .map_grid(map_grid.to_string())
+            .build(),
+    )
 }
 
 // 单个监听者按发布顺序收到每次事件的载荷
 #[test]
 fn test_listener_receives_events_in_order() {
-    let l = RecordingListener { seen: RefCell::new(vec![]) };
+    let l = RecordingListener {
+        seen: RefCell::new(vec![]),
+    };
     for g in ["F1", "F2", "F3"] {
         l.on_flight_data(&mk_event(g));
     }
@@ -31,8 +39,12 @@ fn test_listener_receives_events_in_order() {
 // 同一 &FlightDataEvent 引用可发布给多个订阅者 (Java 对象引用语义)
 #[test]
 fn test_multiple_listeners_share_one_event() {
-    let a = RecordingListener { seen: RefCell::new(vec![]) };
-    let b = RecordingListener { seen: RefCell::new(vec![]) };
+    let a = RecordingListener {
+        seen: RefCell::new(vec![]),
+    };
+    let b = RecordingListener {
+        seen: RefCell::new(vec![]),
+    };
     let event = mk_event("G7");
     a.on_flight_data(&event);
     b.on_flight_data(&event);

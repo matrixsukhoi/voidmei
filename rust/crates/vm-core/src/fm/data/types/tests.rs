@@ -9,7 +9,10 @@ fn java8_oracle_fuel_type_display() {
     assert_eq!(FuelType::SovietB95.to_string(), "SOVIET_B95");
     assert_eq!(FuelType::SovietB100.to_string(), "SOVIET_B100");
     assert_eq!(FuelType::British150Octane.to_string(), "BRITISH_150_OCTANE");
-    assert_eq!(FuelType::British100Spitfire.to_string(), "BRITISH_100_SPITFIRE");
+    assert_eq!(
+        FuelType::British100Spitfire.to_string(),
+        "BRITISH_100_SPITFIRE"
+    );
 }
 
 /// Java 字段初始化器保真: new FuelModification() 的五字段初值

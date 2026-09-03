@@ -51,9 +51,17 @@ fn sleep_quietly_returns_early_when_flag_set_midway() {
     let t0 = Instant::now();
     sleep_quietly(&stop, 60_000);
     let elapsed = t0.elapsed();
-    assert!(elapsed.as_millis() >= 35, "不应在标志置位前返回, 实际 {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() >= 35,
+        "不应在标志置位前返回, 实际 {:?}",
+        elapsed
+    );
     // 响应延迟上界 = 一个轮询片 (10ms) + 调度误差, 放宽到 2s 防重载机器抖动
-    assert!(elapsed.as_millis() < 2_000, "置位后应及时返回, 实际 {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() < 2_000,
+        "置位后应及时返回, 实际 {:?}",
+        elapsed
+    );
     // 标志保持置位 = 恢复中断状态 (上游可观察)
     assert!(stop.load(Ordering::SeqCst));
     setter.join().unwrap();
@@ -97,9 +105,17 @@ fn sleep_while_run_returns_early_when_run_cleared_midway() {
     let t0 = Instant::now();
     sleep_while_run(&run, 60_000);
     let elapsed = t0.elapsed();
-    assert!(elapsed.as_millis() >= 35, "不应在标志清零前返回, 实际 {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() >= 35,
+        "不应在标志清零前返回, 实际 {:?}",
+        elapsed
+    );
     // 响应延迟上界 = 一个轮询片 (10ms) + 调度误差 (防重载机器抖动)
-    assert!(elapsed.as_millis() < 2_000, "清零后应及时返回, 实际 {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() < 2_000,
+        "清零后应及时返回, 实际 {:?}",
+        elapsed
+    );
     clearer.join().unwrap();
 }
 
@@ -141,7 +157,10 @@ fn close_quietly_some_drops_resource() {
     let res = Res(Arc::clone(&closed));
     assert!(!closed.load(Ordering::SeqCst), "关闭前不应触发 Drop");
     close_quietly(Some(res));
-    assert!(closed.load(Ordering::SeqCst), "close_quietly 应触发 Drop (= close)");
+    assert!(
+        closed.load(Ordering::SeqCst),
+        "close_quietly 应触发 Drop (= close)"
+    );
 }
 
 // ---- log_and_continue: 接 crate::base::logger, 控制流不变 ----
@@ -244,7 +263,12 @@ fn log_and_continue_debug_gate() {
 
     // DEBUG 级一次: 首行 + Caused by 链各一
     assert_eq!(stderr.matches("java.io.IOException: chained").count(), 1);
-    assert_eq!(stderr.matches("Caused by: java.io.IOException: root").count(), 1);
+    assert_eq!(
+        stderr
+            .matches("Caused by: java.io.IOException: root")
+            .count(),
+        1
+    );
     // INFO 级 (默认) 一次: 闸门关, printStackTrace 通道静默
     assert_eq!(stderr.matches("java.io.IOException: quiet").count(), 0);
     // WARN 行两次都在 (闸门只管 stderr 通道, WARN 由级别过滤放行)

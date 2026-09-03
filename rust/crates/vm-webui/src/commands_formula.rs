@@ -137,8 +137,16 @@ pub async fn formula_validate(
     // fm_blkx=None: 编辑器试算暂无 FM 句柄 (W3 补桥), 查表函数得 NaN
     let r = mgr.try_eval(&expr, &snap, TRY_EVAL_NOW_MS, TRY_EVAL_INTERVAL_MS, None);
     Ok(match r {
-        Ok(_) => FormulaEvalDto { ok: true, value: None, error: None },
-        Err(e) => FormulaEvalDto { ok: false, value: None, error: Some(e) },
+        Ok(_) => FormulaEvalDto {
+            ok: true,
+            value: None,
+            error: None,
+        },
+        Err(e) => FormulaEvalDto {
+            ok: false,
+            value: None,
+            error: Some(e),
+        },
     })
 }
 
@@ -153,8 +161,16 @@ pub async fn formula_try_eval(
     // fm_blkx=None: 编辑器试算暂无 FM 句柄 (W3 补桥), 查表函数得 NaN
     let r = mgr.try_eval(&expr, &snap, TRY_EVAL_NOW_MS, TRY_EVAL_INTERVAL_MS, None);
     Ok(match r {
-        Ok(v) => FormulaEvalDto { ok: true, value: Some(v), error: None },
-        Err(e) => FormulaEvalDto { ok: false, value: None, error: Some(e) },
+        Ok(v) => FormulaEvalDto {
+            ok: true,
+            value: Some(v),
+            error: None,
+        },
+        Err(e) => FormulaEvalDto {
+            ok: false,
+            value: None,
+            error: Some(e),
+        },
     })
 }
 
@@ -189,7 +205,13 @@ pub async fn get_var_catalog(
             }
             // 最近帧值: 试算路径 (独立状态仓+无 FM 句柄, 编辑期近似)
             let value = mgr
-                .try_eval(&f.def.expr, &snap, TRY_EVAL_NOW_MS, TRY_EVAL_INTERVAL_MS, None)
+                .try_eval(
+                    &f.def.expr,
+                    &snap,
+                    TRY_EVAL_NOW_MS,
+                    TRY_EVAL_INTERVAL_MS,
+                    None,
+                )
                 .unwrap_or(f64::NAN);
             out.push(VarCatalogEntryDto {
                 name: f.def.name.clone(),
@@ -221,13 +243,11 @@ pub async fn get_last_var_snapshot(
     let reg = vm_core::formula::registry();
     let names: Vec<String> = reg.vars.iter().map(|v| v.name.to_string()).collect();
     // values 是 f64 — NaN/inf JSON 不合法, 序列化为 null
-    let values: Vec<Option<f64>> = snap.values.iter().map(|v| {
-        if v.is_finite() {
-            Some(*v)
-        } else {
-            None
-        }
-    }).collect();
+    let values: Vec<Option<f64>> = snap
+        .values
+        .iter()
+        .map(|v| if v.is_finite() { Some(*v) } else { None })
+        .collect();
     Ok(serde_json::json!({ "names": names, "values": values }))
 }
 
@@ -240,8 +260,16 @@ pub async fn save_formulas(
     let mgr = manager(&state);
     let defs: Vec<FormulaDef> = items.iter().map(def_of).collect();
     match mgr.save_all(&defs) {
-        Ok(()) => Ok(FormulaEvalDto { ok: true, value: None, error: None }),
-        Err(e) => Ok(FormulaEvalDto { ok: false, value: None, error: Some(e) }),
+        Ok(()) => Ok(FormulaEvalDto {
+            ok: true,
+            value: None,
+            error: None,
+        }),
+        Err(e) => Ok(FormulaEvalDto {
+            ok: false,
+            value: None,
+            error: Some(e),
+        }),
     }
 }
 
@@ -252,7 +280,15 @@ pub async fn reset_formulas(
 ) -> Result<FormulaEvalDto, String> {
     let mgr = manager(&state);
     match mgr.reset_to_builtin() {
-        Ok(()) => Ok(FormulaEvalDto { ok: true, value: None, error: None }),
-        Err(e) => Ok(FormulaEvalDto { ok: false, value: None, error: Some(e) }),
+        Ok(()) => Ok(FormulaEvalDto {
+            ok: true,
+            value: None,
+            error: None,
+        }),
+        Err(e) => Ok(FormulaEvalDto {
+            ok: false,
+            value: None,
+            error: Some(e),
+        }),
     }
 }

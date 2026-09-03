@@ -149,10 +149,13 @@ fn keyword_atoms() {
     let types = atom_types(":x :type :cols");
     assert!(types.iter().all(|(_, t)| *t == AtomType::Keyword));
     // ':' 前缀优先于布尔/数字判定 — :true 是 KEYWORD 不是 BOOLEAN
-    assert_eq!(atom_types(":true :5"), vec![
-        (":true".into(), AtomType::Keyword),
-        (":5".into(), AtomType::Keyword),
-    ]);
+    assert_eq!(
+        atom_types(":true :5"),
+        vec![
+            (":true".into(), AtomType::Keyword),
+            (":5".into(), AtomType::Keyword),
+        ]
+    );
 }
 
 #[test]
@@ -177,13 +180,17 @@ fn boolean_atoms_exact_case() {
 #[test]
 fn number_atom_classification() {
     // oracle 实测 parseDouble 均收 (含 NaN/Infinity/十六进制/后缀)
-    assert!(atom_types("123 12.34 -5 +5 1e5 1E-5 .5 5. 5f 5d 1e5f NaN -NaN Infinity -Infinity 0x1p1 0X1.8P1")
-        .iter()
-        .all(|(_, t)| *t == AtomType::Number));
+    assert!(atom_types(
+        "123 12.34 -5 +5 1e5 1E-5 .5 5. 5f 5d 1e5f NaN -NaN Infinity -Infinity 0x1p1 0X1.8P1"
+    )
+    .iter()
+    .all(|(_, t)| *t == AtomType::Number));
     // oracle 实测 parseDouble 均拒 → SYMBOL
-    assert!(atom_types("5,5 abc 12.34.56 1_000 nan infinity INF 0x8 e5 5-")
-        .iter()
-        .all(|(_, t)| *t == AtomType::Symbol));
+    assert!(
+        atom_types("5,5 abc 12.34.56 1_000 nan infinity INF 0x8 e5 5-")
+            .iter()
+            .all(|(_, t)| *t == AtomType::Symbol)
+    );
 }
 
 #[test]
@@ -238,7 +245,9 @@ fn java_is_whitespace_matches_jdk8_oracle() {
     ] {
         assert!(java_is_whitespace(c), "U+{:04X} 应为空白", c as u32);
     }
-    for c in ['\u{85}', '\u{a0}', '\u{2007}', '\u{202f}', '\u{feff}', '\u{1b}', 'a', '0'] {
+    for c in [
+        '\u{85}', '\u{a0}', '\u{2007}', '\u{202f}', '\u{feff}', '\u{1b}', 'a', '0',
+    ] {
         assert!(!java_is_whitespace(c), "U+{:04X} 不应为空白", c as u32);
     }
 }
@@ -273,7 +282,7 @@ fn get_double_oracle_table() {
     let cases = [
         ("123", 123.0),
         ("12.34", 12.34),
-        (" 42 ", 42.0),        // parseDouble 隐含 trim
+        (" 42 ", 42.0), // parseDouble 隐含 trim
         ("\t+5\n", 5.0),
         (".5", 0.5),
         ("5.", 5.0),
@@ -312,11 +321,24 @@ fn get_double_oracle_table() {
         );
     }
     // 特殊值
-    assert!(SAtom::new("NaN".into(), AtomType::Number).get_double().is_nan());
-    assert!(SAtom::new("-NaN".into(), AtomType::Number).get_double().is_nan());
-    assert_eq!(SAtom::new("Infinity".into(), AtomType::Number).get_double(), f64::INFINITY);
-    assert_eq!(SAtom::new("-Infinity".into(), AtomType::Number).get_double(), f64::NEG_INFINITY);
-    assert_eq!(SAtom::new("1e310".into(), AtomType::Number).get_double(), f64::INFINITY);
+    assert!(SAtom::new("NaN".into(), AtomType::Number)
+        .get_double()
+        .is_nan());
+    assert!(SAtom::new("-NaN".into(), AtomType::Number)
+        .get_double()
+        .is_nan());
+    assert_eq!(
+        SAtom::new("Infinity".into(), AtomType::Number).get_double(),
+        f64::INFINITY
+    );
+    assert_eq!(
+        SAtom::new("-Infinity".into(), AtomType::Number).get_double(),
+        f64::NEG_INFINITY
+    );
+    assert_eq!(
+        SAtom::new("1e310".into(), AtomType::Number).get_double(),
+        f64::INFINITY
+    );
     // 次正规数: 0 < 1e-310 < 最小正规数
     let sub = SAtom::new("1e-310".into(), AtomType::Number).get_double();
     assert!(sub > 0.0 && sub < f64::MIN_POSITIVE);
@@ -325,11 +347,15 @@ fn get_double_oracle_table() {
 #[test]
 fn get_double_rejects_like_java() {
     for s in [
-        "", "-", "+", "1e", "1e+", "1_000", "5,5", "nan", "infinity", "INF", "0x8", "0x8f",
-        "0x1p", "0x.p1", "5-", "..5", "5..", "e5", "E5", "+.e5", ".e2", "00x1p1", "0 x1",
-        "0x1p 2", "1e 5", "--5", "true", "5.5.5",
+        "", "-", "+", "1e", "1e+", "1_000", "5,5", "nan", "infinity", "INF", "0x8", "0x8f", "0x1p",
+        "0x.p1", "5-", "..5", "5..", "e5", "E5", "+.e5", ".e2", "00x1p1", "0 x1", "0x1p 2", "1e 5",
+        "--5", "true", "5.5.5",
     ] {
-        assert!(java_parse_double(s).is_err(), "[{}] 应抛 NumberFormatException", s);
+        assert!(
+            java_parse_double(s).is_err(),
+            "[{}] 应抛 NumberFormatException",
+            s
+        );
     }
 }
 
@@ -360,21 +386,28 @@ fn hex_extreme_exponent_bit_exact() {
     // 直接 `m as f64 * 2f64.powi(shift)` 整体求幂会提前下溢: 前三例旧实现
     // 分别得 0.0/0.0/2.2250738585072014e-308 (2 倍偏差)
     let cases = [
-        ("0x40p-1080", 0x1u64),                      // 4.9E-324 最小次正规
+        ("0x40p-1080", 0x1u64),                        // 4.9E-324 最小次正规
         ("0x1fffffffffffff8p-1077", 0x30000000000000), // 8.900295434028806E-308
-        ("0x10000000000000p-1075", 0x8000000000000),  // 1.1125369292536007E-308
-        ("0x3p-1075", 0x2),                           // 1.0E-323 half-even 舍入
-        ("0x1p-1074", 0x1),                           // 4.9E-324
-        ("0x1p-1075", 0x0),                           // 半 ulp 舍入到 0 (偶)
-        ("0x1p1023", 0x7fe0000000000000),             // 最大正规指数
-        ("0x1p1024", 0x7ff0000000000000),             // Infinity
-        ("0x1p-2000", 0x0),                           // 深度下溢
-        ("0x7fp1", 0x406fc00000000000),               // 254.0 常规域回归
-        ("0x1.0000000000001p0", 0x3ff0000000000001),  // 1.0000000000000002
+        ("0x10000000000000p-1075", 0x8000000000000),   // 1.1125369292536007E-308
+        ("0x3p-1075", 0x2),                            // 1.0E-323 half-even 舍入
+        ("0x1p-1074", 0x1),                            // 4.9E-324
+        ("0x1p-1075", 0x0),                            // 半 ulp 舍入到 0 (偶)
+        ("0x1p1023", 0x7fe0000000000000),              // 最大正规指数
+        ("0x1p1024", 0x7ff0000000000000),              // Infinity
+        ("0x1p-2000", 0x0),                            // 深度下溢
+        ("0x7fp1", 0x406fc00000000000),                // 254.0 常规域回归
+        ("0x1.0000000000001p0", 0x3ff0000000000001),   // 1.0000000000000002
     ];
     for (s, bits) in cases {
         let got = java_parse_double(s).unwrap();
-        assert_eq!(got.to_bits(), bits, "{} → {:x} != {:x}", s, got.to_bits(), bits);
+        assert_eq!(
+            got.to_bits(),
+            bits,
+            "{} → {:x} != {:x}",
+            s,
+            got.to_bits(),
+            bits
+        );
     }
 }
 
@@ -408,7 +441,15 @@ fn get_bool_matches_java_parse_boolean() {
     for s in ["true", "TRUE", "True"] {
         assert!(SAtom::new(s.into(), AtomType::Boolean).get_bool(), "{}", s);
     }
-    for s in [" false", "false ", "yes", "", "truetrue", "ｔｒｕｅ", "false"] {
+    for s in [
+        " false",
+        "false ",
+        "yes",
+        "",
+        "truetrue",
+        "ｔｒｕｅ",
+        "false",
+    ] {
         assert!(!SAtom::new(s.into(), AtomType::Boolean).get_bool(), "{}", s);
     }
 }
@@ -442,9 +483,18 @@ fn as_atom_on_list_panics() {
 #[test]
 fn display_list_joins_with_single_space() {
     let mut l = SList::new();
-    l.add(Rc::new(SExp::Atom(SAtom::new("a".into(), AtomType::Symbol))));
-    l.add(Rc::new(SExp::Atom(SAtom::new("b".into(), AtomType::Symbol))));
-    l.add(Rc::new(SExp::Atom(SAtom::new("c".into(), AtomType::Symbol))));
+    l.add(Rc::new(SExp::Atom(SAtom::new(
+        "a".into(),
+        AtomType::Symbol,
+    ))));
+    l.add(Rc::new(SExp::Atom(SAtom::new(
+        "b".into(),
+        AtomType::Symbol,
+    ))));
+    l.add(Rc::new(SExp::Atom(SAtom::new(
+        "c".into(),
+        AtomType::Symbol,
+    ))));
     assert_eq!(l.to_string(), "(a b c)");
 }
 
@@ -470,7 +520,10 @@ fn display_is_virtual_dispatch() {
     let inner = Rc::new(SExp::List(SList::new()));
     let mut outer = SList::new();
     outer.add(inner.clone());
-    outer.add(Rc::new(SExp::Atom(SAtom::new("x".into(), AtomType::Symbol))));
+    outer.add(Rc::new(SExp::Atom(SAtom::new(
+        "x".into(),
+        AtomType::Symbol,
+    ))));
     assert_eq!(outer.to_string(), "(() x)");
     assert_eq!(Rc::new(SExp::List(outer)).to_string(), "(() x)");
 }
@@ -499,10 +552,7 @@ fn na_when_expression_structure() {
     assert_eq!(l.children[1].to_string(), "(not (isJetEngine))");
     assert_eq!(l.children[2].to_string(), "(> value 0)");
     // 与 Java toString 一致 — ConfigLoader.saveConfig 按此回写 cfg
-    assert_eq!(
-        e.to_string(),
-        "(and (not (isJetEngine)) (> value 0))"
-    );
+    assert_eq!(e.to_string(), "(and (not (isJetEngine)) (> value 0))");
 }
 
 /// 模拟 ConfigLoader.getKeywordSExp: 递归收集 keyword 后一个兄弟节点
@@ -537,11 +587,7 @@ fn ui_layout_cfg_na_when_expressions_parsed() {
     for keyword in [":na-when", ":visible-when"] {
         let mut values = Vec::new();
         collect_keyword_values(&panels, keyword, &mut values);
-        assert!(
-            !values.is_empty(),
-            "{} 在 ui_layout.cfg 中应存在",
-            keyword
-        );
+        assert!(!values.is_empty(), "{} 在 ui_layout.cfg 中应存在", keyword);
         for v in &values {
             assert!(v.is_list(), "{} 的值应为表达式列表", keyword);
             assert!(

@@ -16,7 +16,10 @@ impl ListIndexRule {
     /// @param index the 0-based index to extract from the list
     /// @param lower_is_better true if lower values are better
     pub fn new(index: i32, lower_is_better: bool) -> Self {
-        Self { index, lower_is_better }
+        Self {
+            index,
+            lower_is_better,
+        }
     }
 }
 

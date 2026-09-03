@@ -39,9 +39,24 @@ fn test_altitude_at_pressure() {
     // Testing altitudeAtPressure()...
 
     // Round-trip tests (using actual ISA formula values)
-    assert_close("altitudeAtPressure(1.0)", altitude_at_pressure(1.0), 0.0, 1.0);
-    assert_close("altitudeAtPressure(0.5)", altitude_at_pressure(0.5), 5477.0, 50.0); // ISA formula result
-    assert_close("altitudeAtPressure(0.25)", altitude_at_pressure(0.25), 10278.0, 50.0); // ISA formula result
+    assert_close(
+        "altitudeAtPressure(1.0)",
+        altitude_at_pressure(1.0),
+        0.0,
+        1.0,
+    );
+    assert_close(
+        "altitudeAtPressure(0.5)",
+        altitude_at_pressure(0.5),
+        5477.0,
+        50.0,
+    ); // ISA formula result
+    assert_close(
+        "altitudeAtPressure(0.25)",
+        altitude_at_pressure(0.25),
+        10278.0,
+        50.0,
+    ); // ISA formula result
 
     // Inverse function property
     // PORT: Java `for (int alt = 0; alt <= 15000; alt += 1000)` int 循环
@@ -208,8 +223,16 @@ fn java8_oracle_parity() {
     check("pressure(11000)", pressure(11000.0), 0.22336078269487092);
     check("pressure(-1000)", pressure(-1000.0), 1.1243927510716922);
     check("pressure(-4000)", pressure(-4000.0), 1.574_680_522_330_881);
-    check("pressure(20000)", pressure(20000.0), 0.042_715_265_672_239_31);
-    check("pressure(12345.67)", pressure(12345.67), 0.17986185984783923);
+    check(
+        "pressure(20000)",
+        pressure(20000.0),
+        0.042_715_265_672_239_31,
+    );
+    check(
+        "pressure(12345.67)",
+        pressure(12345.67),
+        0.17986185984783923,
+    );
 
     // altitudeAtPressure
     check("altitudeAtPressure(1.0)", altitude_at_pressure(1.0), 0.0);
@@ -255,13 +278,21 @@ fn java8_oracle_parity() {
     );
 
     // density
-    check("density(1,15,0)", density(1.0, 15.0, 0.0), 1.2250119775015476);
+    check(
+        "density(1,15,0)",
+        density(1.0, 15.0, 0.0),
+        1.2250119775015476,
+    );
     check(
         "density(p5000,15,5000)",
         density(0.533_134_764_455_741_2, 15.0, 5000.0),
         0.736_122_622_452_837_3,
     );
-    check("density(1,30,0)", density(1.0, 30.0, 0.0), 1.1643978272045883);
+    check(
+        "density(1,30,0)",
+        density(1.0, 30.0, 0.0),
+        1.1643978272045883,
+    );
     check("density(1,0,0)", density(1.0, 0.0, 0.0), 1.2922833656125605);
     check(
         "density(0.5,20,7000)",
@@ -362,11 +393,7 @@ fn java8_oracle_parity() {
     );
 
     // temperatureAtAltitude
-    check(
-        "tempAtAlt(15,0)",
-        temperature_at_altitude(15.0, 0.0),
-        15.0,
-    );
+    check("tempAtAlt(15,0)", temperature_at_altitude(15.0, 0.0), 15.0);
     check(
         "tempAtAlt(15,1000)",
         temperature_at_altitude(15.0, 1000.0),

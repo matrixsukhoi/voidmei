@@ -39,7 +39,7 @@ pub fn get_string_builder(r: &str, s: &str, buf: &mut [u8], buflen: usize) {
     let mut eix;
     match r.rfind(s) {
         Some(i) => bix = i,
-        None => return,    
+        None => return,
     }
     eix = bix;
     // while (eix < R.length() && R.charAt(eix) != ':') eix++;
@@ -49,7 +49,11 @@ pub fn get_string_builder(r: &str, s: &str, buf: &mut [u8], buflen: usize) {
     // 扫不到 ':' 时会越过串尾, 后续取子串 Java 抛异常 ↔ Rust panic
     eix += 1;
     // PORT: 越界分支的 eix + 1 对齐 Java 的越界量, 保持 panic 路径
-    bix = if eix < r.len() { eix + char_len_at(r, eix) } else { eix + 1 };
+    bix = if eix < r.len() {
+        eix + char_len_at(r, eix)
+    } else {
+        eix + 1
+    };
     // while (eix < R.length() && R.charAt(eix) != ',' && R.charAt(eix) != '}') eix++;
     while eix < r.len() && r.as_bytes()[eix] != b',' && r.as_bytes()[eix] != b'}' {
         eix += char_len_at(r, eix);
@@ -75,7 +79,11 @@ pub fn get_string<'a>(r: &'a str, s: &str) -> Option<&'a str> {
     eix += 1;
     // PORT: 值首字符为代理对时 Java 只跳高半码元 (得含孤立代理的坏串),
     // Rust 跳整字符 — 域内 (JSON 值首字符为 '"' 或数字) 不出现
-    bix = if eix < r.len() { eix + char_len_at(r, eix) } else { eix + 1 };
+    bix = if eix < r.len() {
+        eix + char_len_at(r, eix)
+    } else {
+        eix + 1
+    };
     // while (eix < R.length() && R.charAt(eix) != ',' && R.charAt(eix) != '}') eix++;
     while eix < r.len() && r.as_bytes()[eix] != b',' && r.as_bytes()[eix] != b'}' {
         eix += char_len_at(r, eix);

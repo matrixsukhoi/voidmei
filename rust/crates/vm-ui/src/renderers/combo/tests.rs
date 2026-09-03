@@ -26,7 +26,10 @@ fn resolve_literal_options() {
 // _FONTS_: 当前值单选占位 (AWT 枚举无对应物, 见模块文档)
 #[test]
 fn resolve_fonts_placeholder() {
-    assert_eq!(resolve_options("_FONTS_", "Sarasa Mono SC"), vec!["Sarasa Mono SC".to_string()]);
+    assert_eq!(
+        resolve_options("_FONTS_", "Sarasa Mono SC"),
+        vec!["Sarasa Mono SC".to_string()]
+    );
 }
 
 // _CROSSHAIRS_ 分发: 头部恒为软件渲染准星 (与 CWD 是否有目录无关)
@@ -60,7 +63,10 @@ fn crosshair_options_dir_and_missing_dir() {
     assert_eq!(opts.len(), 4, "alpha/beta/文件.tar.gz: {opts:?}");
     assert!(opts.contains(&"alpha".to_string()), "去扩展名: {opts:?}");
     assert!(opts.contains(&"beta".to_string()), "无扩展名原样: {opts:?}");
-    assert!(opts.contains(&"文件.tar".to_string()), "多点截最后: {opts:?}");
+    assert!(
+        opts.contains(&"文件.tar".to_string()),
+        "多点截最后: {opts:?}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -71,15 +77,23 @@ fn crosshair_options_dir_and_missing_dir() {
 #[test]
 fn apply_writes_row_group_field_and_service() {
     let mut panel = GroupConfig::new("引擎信息".into());
-    panel.rows.push(combo_row(Some("fontName"), "_FONTS_", Some("旧字体")));
+    panel
+        .rows
+        .push(combo_row(Some("fontName"), "_FONTS_", Some("旧字体")));
     let ctx = MapCtx::default();
 
     apply(&mut panel, "fontName", "DIN Pro 400", &ctx);
-    assert_eq!(panel.rows[0].value, Some(ConfigValue::Str("DIN Pro 400".into())));
+    assert_eq!(
+        panel.rows[0].value,
+        Some(ConfigValue::Str("DIN Pro 400".into()))
+    );
     assert_eq!(panel.font_name.as_deref(), Some("DIN Pro 400"));
     assert_eq!(
         *ctx.calls.borrow(),
-        vec!["syncStr:fontName=DIN Pro 400".to_string(), "on_save".to_string()]
+        vec![
+            "syncStr:fontName=DIN Pro 400".to_string(),
+            "on_save".to_string()
+        ]
     );
 }
 
@@ -107,11 +121,18 @@ fn combo_message_routes_text_write_chain() {
     );
     update(
         &mut state,
-        Message::Combo { panel: "连接".into(), key: "httpPort".into(), value: "9222".into() },
+        Message::Combo {
+            panel: "连接".into(),
+            key: "httpPort".into(),
+            value: "9222".into(),
+        },
     );
     assert_eq!(state.service_string("httpPort"), "9222");
     // Int 行经 setConfig 保持 Int 形态 (Java instanceof Integer 分支)
-    assert_eq!(state.snapshot_row("连接", "httpPort").unwrap().get_int(), 9222);
+    assert_eq!(
+        state.snapshot_row("连接", "httpPort").unwrap().get_int(),
+        9222
+    );
 }
 
 // 真实链: 无 :target 文本行 — row.value 落快照 + onSave 即落盘 (persist 收敛
@@ -127,7 +148,11 @@ fn combo_message_unkeyed_row_writes_row_value_only() {
     );
     update(
         &mut state,
-        Message::Combo { panel: "P".into(), key: "备注".into(), value: "新".into() },
+        Message::Combo {
+            panel: "P".into(),
+            key: "备注".into(),
+            value: "新".into(),
+        },
     );
     let row = state.snapshot_row("P", "备注").unwrap();
     assert_eq!(row.value, Some(ConfigValue::Str("新".into())));

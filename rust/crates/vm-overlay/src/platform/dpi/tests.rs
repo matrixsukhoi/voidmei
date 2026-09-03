@@ -51,9 +51,15 @@ fn dpi_zero_scale_guard() {
 #[test]
 fn dpi_is_high_dpi_boundary() {
     assert!(!DpiHelper::from_detection(100, 100, 1.0, 1.0).is_high_dpi());
-    assert!(!DpiHelper::from_detection(100, 100, 1.01, 1.01).is_high_dpi(), "严格 > 1.01");
+    assert!(
+        !DpiHelper::from_detection(100, 100, 1.01, 1.01).is_high_dpi(),
+        "严格 > 1.01"
+    );
     assert!(DpiHelper::from_detection(100, 100, 1.011, 1.0).is_high_dpi());
-    assert!(DpiHelper::from_detection(100, 100, 1.0, 1.02).is_high_dpi(), "y 单独超标即高 DPI");
+    assert!(
+        DpiHelper::from_detection(100, 100, 1.0, 1.02).is_high_dpi(),
+        "y 单独超标即高 DPI"
+    );
 }
 
 #[test]
@@ -75,13 +81,27 @@ mod win_tests {
     #[test]
     fn dpi_init_real_detection() {
         let d = DpiHelper::init();
-        let (pw, ph) = (d.get_physical_screen_width(), d.get_physical_screen_height());
-        assert!(pw > 0 && ph > 0, "桌面会话主屏物理尺寸应为正, got {}x{}", pw, ph);
+        let (pw, ph) = (
+            d.get_physical_screen_width(),
+            d.get_physical_screen_height(),
+        );
+        assert!(
+            pw > 0 && ph > 0,
+            "桌面会话主屏物理尺寸应为正, got {}x{}",
+            pw,
+            ph
+        );
         let (sx, sy) = (d.get_scale_x(), d.get_scale_y());
         assert!(sx > 0.0 && sy > 0.0);
         // logical 语义钉子: Java (int) Math.round(physical / scale) (scale>0 分支)
-        assert_eq!(d.get_logical_screen_width(), ((pw as f64 / sx) + 0.5).floor() as i32);
-        assert_eq!(d.get_logical_screen_height(), ((ph as f64 / sy) + 0.5).floor() as i32);
+        assert_eq!(
+            d.get_logical_screen_width(),
+            ((pw as f64 / sx) + 0.5).floor() as i32
+        );
+        assert_eq!(
+            d.get_logical_screen_height(),
+            ((ph as f64 / sy) + 0.5).floor() as i32
+        );
         assert_eq!(d.is_high_dpi(), sx > 1.01 || sy > 1.01);
     }
 

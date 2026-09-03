@@ -24,15 +24,15 @@
 //! 对拍备案 (审查 W3): rustcmp 套件现覆盖 FlightInfo/gauges/MiniHUD, 本组件渲染
 //! 证据 = 单测级几何 oracle + 像素墨迹断言 (Java 语义逐式复算); FMUnpacked 同款。
 
-use vm_core::base::format::{java_format_f, java_round_f32};
+use crate::overlays::spec_common::{keyed_spec, FontSlot};
+use crate::platform::host::{OverlayHost, OverlaySpec};
+use crate::render::canvas::{LineCapStyle, PixCanvas};
 use crate::render::font::LoadedFont;
 use crate::render::palette::aa;
-use crate::platform::host::{OverlayHost, OverlaySpec};
-use crate::overlays::spec_common::{keyed_spec, FontSlot};
-use crate::render::canvas::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
+use vm_core::base::format::{java_format_f, java_round_f32};
 use vm_core::fm::data::FmData;
 use vm_core::fm::FMManager;
 
@@ -205,7 +205,16 @@ fn draw_xy(
     let y = y + 10; // 往下推10
 
     // x轴与箭头 (BasicStroke(3))
-    cv.draw_line_cap(x, y + dheight, x + dwidth, y + dheight, 3.0, axis, LineCapStyle::Square, aa);
+    cv.draw_line_cap(
+        x,
+        y + dheight,
+        x + dwidth,
+        y + dheight,
+        3.0,
+        axis,
+        LineCapStyle::Square,
+        aa,
+    );
     let mut ii = (pxmax - pxmin) / interval_x;
     while ii >= 0 {
         // 坐标轴刻度 (BasicStroke(1))
@@ -265,7 +274,7 @@ fn draw_point(
     aa: bool,
 ) {
     let y = y + 10; // 往下推10
-    // 绘点
+                    // 绘点
     for ii in 0..ix.len() {
         let px = (x as f64 + (ix[ii] - pxmin as f64) * ggx) as i32 - 1;
         let py = ((y + dheight) as f64 - (iy[ii] - pymin as f64) * ggy) as i32 - 1;
@@ -296,7 +305,16 @@ fn draw_example(
     name: &str,
     aa: bool,
 ) {
-    cv.draw_line_cap(x, y + dheight + 40, x + 20, y + dheight + 40, 1.0, c, LineCapStyle::Square, aa);
+    cv.draw_line_cap(
+        x,
+        y + dheight + 40,
+        x + 20,
+        y + dheight + 40,
+        1.0,
+        c,
+        LineCapStyle::Square,
+        aa,
+    );
     cv.draw_text(f12, x + 25, y + dheight + 45, name, [0, 0, 0, 250], aa);
 }
 
@@ -385,8 +403,25 @@ impl DrawFrameSimpl {
         };
         let g = chart_geometry(b);
         draw_xy(
-            cv, fonts, 50, 50, g.dwidth, g.dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf",
-            g.xmin, g.xmax, g.ymin, g.ymax, g.xgap, g.ygap, 12, aa,
+            cv,
+            fonts,
+            50,
+            50,
+            g.dwidth,
+            g.dheight,
+            "推力-真空速曲线",
+            "真空速",
+            "推力",
+            "km/h",
+            "kgf",
+            g.xmin,
+            g.xmax,
+            g.ymin,
+            g.ymax,
+            g.xgap,
+            g.ygap,
+            12,
+            aa,
         );
         let vt = b.velocity_thr.as_ref().unwrap();
         let xn = &vt[..b.vel_thr_num as usize];
@@ -398,12 +433,32 @@ impl DrawFrameSimpl {
             let v = ((i + 1) * g.rgbx) as u8;
             let c = [v, v, v, 250];
             draw_point(
-                cv, 50, 50, g.dwidth, g.dheight, g.ggx4, g.ggy4, xn, &rows[i as usize],
-                g.pxmin, g.pymin, c, aa,
+                cv,
+                50,
+                50,
+                g.dwidth,
+                g.dheight,
+                g.ggx4,
+                g.ggy4,
+                xn,
+                &rows[i as usize],
+                g.pxmin,
+                g.pymin,
+                c,
+                aa,
             );
             // String.format("高度%.0fm", altitudeThr[i])
             let name = format!("高度{}m", java_format_f(alt[i as usize], 0));
-            draw_example(cv, fonts.text12, g.dwidth - 40, 60 + i * fontsize - g.dheight, g.dheight, c, &name, aa);
+            draw_example(
+                cv,
+                fonts.text12,
+                g.dwidth - 40,
+                60 + i * fontsize - g.dheight,
+                g.dheight,
+                c,
+                &name,
+                aa,
+            );
         }
         // 绘制点 / 连接点 (Java 尾注 — 已在 drawPoint 内完成)
     }
@@ -537,8 +592,8 @@ impl DrawFrameSimplFeed {
             if now_ms.saturating_sub(start) >= 10_000 {
                 vm_core::base::logger::info("DrawFrameSimpl", "Exiting run loop, disposing");
                 host.close(id); // 销毁链 (Java dispose: 注销 + 窗口销毁)
-                // openAll 跳过 / refreshPreviews 只跑 reinit, 死窗口不复活; 直到
-                // closeAll (entry.close → instance=null) 才允许重建
+                                // openAll 跳过 / refreshPreviews 只跑 reinit, 死窗口不复活; 直到
+                                // closeAll (entry.close → instance=null) 才允许重建
                 host.set_entry_zombie(id, true);
                 self.exited = true;
             }

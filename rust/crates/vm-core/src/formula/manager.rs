@@ -7,9 +7,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use super::definition::{CompiledFormulaSet, FormulaDef, FormulaResults};
 use super::eval::StateStore;
 use super::persistence;
-use super::registry::{
-    assemble_snapshot, registry, MetaInputs, VarSnapshot,
-};
+use super::registry::{assemble_snapshot, registry, MetaInputs, VarSnapshot};
 
 // ---------------------------------------------------------------------------
 // :target 统一解析 (设计 §8): getter 名 | 短名 | 公式名 | "X * N" 乘数语法
@@ -139,8 +137,16 @@ impl FormulaManager {
         fm_data: Option<&crate::fm::data::FmData>,
     ) -> Result<f64, String> {
         let mut store = StateStore::new();
-        super::definition::try_eval_single(expr, registry(), snap, &mut store, now_ms, interval_ms, fm_data)
-            .map_err(|e| e.to_string())
+        super::definition::try_eval_single(
+            expr,
+            registry(),
+            snap,
+            &mut store,
+            now_ms,
+            interval_ms,
+            fm_data,
+        )
+        .map_err(|e| e.to_string())
     }
 
     /// 当前公式定义列表 (编辑器载入)

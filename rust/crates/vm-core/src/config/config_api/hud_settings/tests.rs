@@ -10,7 +10,9 @@ struct FakeHud {
 
 impl FakeHud {
     fn new() -> Self {
-        FakeHud { saved: RefCell::new((0.0, 0.0)) }
+        FakeHud {
+            saved: RefCell::new((0.0, 0.0)),
+        }
     }
 }
 

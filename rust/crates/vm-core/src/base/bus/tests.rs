@@ -41,7 +41,10 @@ fn multiple_listeners_in_order() {
     let o2 = Arc::clone(&order);
     let _b = bus.subscribe(move |m| o2.lock().unwrap().push(format!("b:{}", m)));
     bus.publish(&"x");
-    assert_eq!(*order.lock().unwrap(), vec!["a:x".to_string(), "b:x".to_string()]);
+    assert_eq!(
+        *order.lock().unwrap(),
+        vec!["a:x".to_string(), "b:x".to_string()]
+    );
 }
 
 #[test]

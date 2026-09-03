@@ -68,7 +68,7 @@ impl Frame {
             dir: d.dir,
             fm: Arc::clone(&d.fm),
             session: crate::service_loop::session_inputs(d),
-            frame_seq: 0, // FrameStore::publish 覆写
+            frame_seq: 0,      // FrameStore::publish 覆写
             fatal_warn: false, // FrameStore::publish 镜像真值
             start_time: 0,     // FrameStore::publish 镜像真值
             // 派生标量三组整组搬 (波17 F14)
@@ -115,13 +115,21 @@ impl FormulaView for Frame {
                 _ => 0.0,
             },
         };
-        if v.is_nan() { None } else { Some(v) }
+        if v.is_nan() {
+            None
+        } else {
+            Some(v)
+        }
     }
 
     fn get_formula_value(&self, name: &str) -> Option<f64> {
         let slot = self.formula_slots.get(name)?;
         let v = self.formula_values.get(*slot);
-        if v.is_nan() { None } else { Some(v) }
+        if v.is_nan() {
+            None
+        } else {
+            Some(v)
+        }
     }
 }
 
@@ -161,13 +169,15 @@ impl FrameStore {
 
     // ---- 跨线程写点 (波4: 原子真相源, 见字段注) ----
     pub fn set_fatal_warn(&self, v: bool) {
-        self.fatal_warn.store(v, std::sync::atomic::Ordering::SeqCst);
+        self.fatal_warn
+            .store(v, std::sync::atomic::Ordering::SeqCst);
     }
     pub fn fatal_warn(&self) -> bool {
         self.fatal_warn.load(std::sync::atomic::Ordering::SeqCst)
     }
     pub fn set_start_time(&self, v: i64) {
-        self.start_time.store(v, std::sync::atomic::Ordering::SeqCst);
+        self.start_time
+            .store(v, std::sync::atomic::Ordering::SeqCst);
     }
     pub fn start_time_load(&self) -> i64 {
         self.start_time.load(std::sync::atomic::Ordering::SeqCst)

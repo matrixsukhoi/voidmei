@@ -56,7 +56,7 @@ fn update_compact_matches_java_oracle() {
     assert_eq!(mo.mov[0].dx, 0.0);
     assert_eq!(mo.mov[0].dy, 0.0);
     assert_eq!(mo.mov[0].distance, 0.0); // distance 无写值点
-    // sta: 静态对象 (y 后直接 '}')
+                                         // sta: 静态对象 (y 后直接 '}')
     assert_eq!(mo.sta[0].r#type.as_deref(), Some("ground"));
     assert_eq!(mo.sta[0].colorg, Some([23, 77, 255, 255]));
     assert_eq!(mo.sta[0].x, 0.11f32 as f64);
@@ -161,7 +161,10 @@ fn get_player_loc_no_match_leaves_untouched() {
     MapObj::get_player_loc("[{\"icon\":\"xPlayer\",\"x\":1,\"y\":2}]", &mut loc);
     MapObj::get_player_loc("[{\"icon\":\"Player\"},{\"x\":1,\"y\":2}]", &mut loc);
     // 数字后必须紧跟逗号 (原正则无 \s 容忍, oracle 实测)
-    MapObj::get_player_loc("[{  \"icon\"  :  \"Player\" , \"x\" :  1.5 , \"y\" :  -2.25 }]", &mut loc);
+    MapObj::get_player_loc(
+        "[{  \"icon\"  :  \"Player\" , \"x\" :  1.5 , \"y\" :  -2.25 }]",
+        &mut loc,
+    );
     // "7." 的小数点后无数字 → 该对象不匹配
     MapObj::get_player_loc("[{\"icon\":\"Player\",\"x\":7.,\"y\":8}]", &mut loc);
     assert_eq!(loc, [11.0, 22.0]);
@@ -208,6 +211,9 @@ fn get_player_dir_matches_only_player() {
 fn get_airfield_loc_parses_but_never_writes() {
     // Java 原实现的 loc 写入已注释 — 只解析不落值
     let mut loc = [5.0, 6.0];
-    MapObj::get_airfield_loc("[{\"type\":\"airfield\",\"sx\":0.359126,\"sy\":0.560636}]", &mut loc);
+    MapObj::get_airfield_loc(
+        "[{\"type\":\"airfield\",\"sx\":0.359126,\"sy\":0.560636}]",
+        &mut loc,
+    );
     assert_eq!(loc, [5.0, 6.0]);
 }

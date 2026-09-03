@@ -1,7 +1,7 @@
 use super::*;
-use crate::config::config_loader::ConfigValue;
 use crate::base::bus::ui_state_bus::UiStateEvent;
 use crate::base::java_compat::java_double_to_string;
+use crate::config::config_loader::ConfigValue;
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -72,14 +72,12 @@ impl Drop for UserCfgGuard {
 
 #[test]
 fn get_config_priority_row_groupkey_missing() {
-    let s = svc(
-        "(panel \"G1\" :switch-key \"g1Switch\" :visible true\n\
+    let s = svc("(panel \"G1\" :switch-key \"g1Switch\" :visible true\n\
              \x20 (item \"s\" :type switch :target \"k1\" :value true)\n\
              \x20 (item \"d\" :type data :target \"getIAS\" :unit \"Km/h\")\n\
              \x20 (group \"Sub\" (item \"n\" :type switch :target \"k2\" :value false))\n\
              \x20 (item \"onlyLabel\" :type info :value 7)\n)\
-            ",
-    );
+            ");
     // 命中行 target
     assert_eq!(s.get_config("k1"), Some("true".to_string()));
     // 嵌套 group 子行递归
@@ -198,20 +196,18 @@ fn set_config_without_layout_noop() {
 
 #[test]
 fn is_field_disabled_matrix() {
-    let s = svc(
-        "(panel \"P\"\n\
+    let s = svc("(panel \"P\"\n\
              \x20 (item \"inv1\" :type switch-inv :target \"disableX\" :value true)\n\
              \x20 (item \"inv2\" :type switch-inv :target \"disableY\" :value false)\n\
              \x20 (item \"sw\" :type switch :target \"boolFalse\" :value false)\n\
              \x20 (item \"sw2\" :type switch :target \"boolTrue\" :value true)\n\
              \x20 (item \"sl\" :type slider :target \"intRow\" :value 5)\n)\
-            ",
-    );
+            ");
     assert!(!s.is_field_disabled(""));
     // SWITCH_INV: !getBool
     assert!(!s.is_field_disabled("disableX")); // value true → !true
     assert!(s.is_field_disabled("disableY")); // value false → !false
-    // Boolean 值: false → 禁用
+                                              // Boolean 值: false → 禁用
     assert!(s.is_field_disabled("boolFalse"));
     assert!(!s.is_field_disabled("boolTrue"));
     // 非 Boolean 值: 不返回, 继续扫描 → false
@@ -256,9 +252,8 @@ fn reset_all_layout_defaults_phases_and_notify() {
 
 #[test]
 fn reset_all_layout_defaults_no_change() {
-    let (s, log, _sub) = svc_bus(
-        "(panel \"P\" (item \"a\" :type switch :target \"k1\" :value true :default true))",
-    );
+    let (s, log, _sub) =
+        svc_bus("(panel \"P\" (item \"a\" :type switch :target \"k1\" :value true :default true))");
     assert!(!s.reset_all_layout_defaults());
     assert!(log.lock().unwrap().is_empty());
 }
@@ -270,7 +265,9 @@ fn reset_all_layout_defaults_no_change() {
 /// 沙箱用例加大暴露窗口后实测复现; group_position_read_write_roundtrip 同款锁)
 #[test]
 fn import_reset_failure_paths() {
-    let _cwd = crate::config::config_manager::CWD_LOCK.lock().expect("cwd 测试锁中毒");
+    let _cwd = crate::config::config_manager::CWD_LOCK
+        .lock()
+        .expect("cwd 测试锁中毒");
     let _guard = UserCfgGuard;
     let (s, log, _sub) = svc_bus("(panel \"P\")");
     assert!(!s.import_config("definitely_missing_zzz.cfg"));
@@ -286,13 +283,15 @@ fn group_position_read_write_roundtrip() {
     // 跨模块 CWD 锁 (config_manager::CWD_LOCK, 审查 B4): 落盘走全局路径
     // ./ui_layout.user.cfg, 须与 config_manager 的 chdir 型沙箱测试互斥 —
     // 并行时本测试的落盘会写进他人沙箱 (实测曾打挂 reset_to_factory 断言)
-    let _cwd = crate::config::config_manager::CWD_LOCK.lock().expect("cwd 测试锁中毒");
+    let _cwd = crate::config::config_manager::CWD_LOCK
+        .lock()
+        .expect("cwd 测试锁中毒");
     let _guard = UserCfgGuard; // save_group_position 落盘 → Drop 清理 ./ui_layout.user.cfg
     let s = svc("(panel \"飞行信息\" :x 0.0602 :y 0.1188)");
     // 读: 归一化原值 (忽略大小写, 对齐视图 getGroupConfig 语义)
     assert_eq!(s.group_position("飞行信息"), Some((0.0602, 0.1188)));
     assert_eq!(s.group_position("FLIGHT 信息"), None); // 未命中 → None (host 居中兜底)
-    // 写: 归一化直写 + 回读一致 (落盘副作用同 save_window_position 测试先例)
+                                                       // 写: 归一化直写 + 回读一致 (落盘副作用同 save_window_position 测试先例)
     assert!(s.save_group_position("飞行信息", 0.25, 0.75));
     assert_eq!(s.group_position("飞行信息"), Some((0.25, 0.75)));
     // 未命中写: false 不 panic (Java warn 分支)
@@ -345,7 +344,10 @@ fn overlay_settings_flight_info_repo() {
     assert_eq!(v.get_int("fontSize", -99), 0);
 
     // trait 借出面
-    assert_eq!(v.get_group_config().map(|g| g.title.as_str()), Some("飞行信息"));
+    assert_eq!(
+        v.get_group_config().map(|g| g.title.as_str()),
+        Some("飞行信息")
+    );
 }
 
 /// 全局五色读链: cfg 五键 (ui_layout.cfg:379-383) 经 load_app_check 覆盖
@@ -383,7 +385,8 @@ fn overlay_center_fallback_and_guard_branches() {
     // 分组存在但 screen<=0 → Java gc!=null && sw>0 && sh>0 为假 → warn
     let s2 = svc("(panel \"A\" :x 0.9 :y 0.9)");
     s2.set_screen_size(0, 0);
-    s2.get_overlay_settings("A").save_window_position(10.0, 10.0);
+    s2.get_overlay_settings("A")
+        .save_window_position(10.0, 10.0);
 
     // screen=0 的读面: round(0.9*0)=0 (Java 同)
     assert_eq!(s2.get_overlay_settings("A").get_window_x(50), 0);
@@ -424,12 +427,10 @@ fn hud_settings_repo_minihud() {
 
 #[test]
 fn hud_crosshair_fallback_writeback() {
-    let s = svc(
-        "(panel \"Other\"\n\
+    let s = svc("(panel \"Other\"\n\
              \x20 (item \"cx\" :type slider :target \"crosshairX\" :value 500)\n\
              \x20 (item \"cy\" :type slider :target \"crosshairY\" :value 300))\
-            ",
-    );
+            ");
     s.set_screen_size(1920, 1080);
     let h = s.get_hud_settings();
     // 无 "MiniHUD" 分组 → crosshairX/Y 行优先, 缺省才用居中默认
@@ -454,15 +455,13 @@ fn hud_crosshair_fallback_writeback() {
 #[test]
 fn hud_aoa_ratio_and_layout_first() {
     // 字符串值: parse 成功; Int 值: Number.doubleValue; >1 归一 /100
-    let s = svc(
-        "(panel \"MiniHUD\"\n\
+    let s = svc("(panel \"MiniHUD\"\n\
              \x20 (group \"G\"\n\
              \x20   (item \"a\" :type info :target \"miniHUDaoaWarningRatio\" :value \"0.5\")\n\
              \x20   (item \"b\" :type info :target \"miniHUDaoaBarWarningRatio\" :value 100)\n\
              \x20   (item \"c\" :type info :target \"extraKey\" :value 2.5)\n\
              \x20   (item \"d\" :type info :target \"edgeKey\" :value 1)\n)\
-            ",
-    );
+            ");
     let h = s.get_hud_settings();
     assert!((h.get_aoa_warning_ratio() - 0.5).abs() < 1e-12); // 0.5 ≤ 1 → 原值
     assert!((h.get_aoa_bar_warning_ratio() - 1.0).abs() < 1e-12); // 100 → 1.0
@@ -470,16 +469,16 @@ fn hud_aoa_ratio_and_layout_first() {
     assert!((h.get_double_from_layout_first("MiniHUD", "edgeKey", 9.0) - 1.0).abs() < 1e-12); // Int 分支
 
     // 不可解析字符串 → catch ignore → Priority 2 全局 getDouble → 默认 25 → 0.25
-    let s2 = svc(
-        "(panel \"MiniHUD\" (group \"G\"\n\
+    let s2 = svc("(panel \"MiniHUD\" (group \"G\"\n\
              \x20 (item \"a\" :type info :target \"miniHUDaoaWarningRatio\" :value \"abc\")))\
-            ",
-    );
+            ");
     assert!((s2.get_hud_settings().get_aoa_warning_ratio() - 0.25).abs() < 1e-12);
 
     // 段名不匹配 → Priority 1 落空; Priority 2 的 getDouble→getConfig 是
     // 全局行查找 (不限段), 命中 Other 面板的同 target 行 → 90 → 0.9 (Java 同流)
-    let s3 = svc("(panel \"Other\" (item \"a\" :type info :target \"miniHUDaoaWarningRatio\" :value 90))");
+    let s3 = svc(
+        "(panel \"Other\" (item \"a\" :type info :target \"miniHUDaoaWarningRatio\" :value 90))",
+    );
     assert!((s3.get_hud_settings().get_aoa_warning_ratio() - 0.9).abs() < 1e-12);
 }
 
@@ -578,14 +577,12 @@ fn load_app_check_missing_keys_defaults() {
 
 #[test]
 fn load_app_check_bad_values_recovery() {
-    let s = svc(
-        "(panel \"P\"\n\
+    let s = svc("(panel \"P\"\n\
              \x20 (item \"i\" :type slider :target \"Interval\" :value 100)\n\
              \x20 (item \"v\" :type slider :target \"voiceVolume\" :value 0)\n\
              \x20 (item \"p\" :type data :target \"httpPort\" :value \"abc\")\n\
              \x20 (item \"a\" :type switch :target \"AAEnable\" :value false))\
-            ",
-    );
+            ");
     let mut c = ControllerIntervals::default();
     s.load_app_check(&mut c);
     let app = s.application_state();
@@ -606,12 +603,10 @@ fn load_app_check_bad_values_recovery() {
     assert_eq!(app.text_aa_setting, TextAaSetting::Off);
 
     // 新键非数值 → NumberFormatException → 50 (legacy 键不再回看)
-    let s2 = svc(
-        "(panel \"P\"\n\
+    let s2 = svc("(panel \"P\"\n\
              \x20 (item \"n\" :type data :target \"dataPollIntervalMs\" :value \"xyz\")\n\
              \x20 (item \"i\" :type slider :target \"Interval\" :value 300))\
-            ",
-    );
+            ");
     let mut c2 = ControllerIntervals::default();
     s2.load_app_check(&mut c2);
     assert_eq!(c2.service_loop_interval_ms, 50);
@@ -626,7 +621,7 @@ fn color_parse_matrix() {
     assert_eq!(parse_color("#FF5500", w), [255, 85, 0, 255]); // RGB → alpha 255
     assert_eq!(parse_color("#FF5500AA", w), [255, 85, 0, 170]);
     assert_eq!(parse_color("#ff5500aa", w), [255, 85, 0, 170]); // 小写 hex
-    // decimal
+                                                                // decimal
     assert_eq!(parse_color("255, 85, 0, 170", w), [255, 85, 0, 170]);
     assert_eq!(parse_color("255, 85, 0", w), [255, 85, 0, 255]);
     // clamp
@@ -657,11 +652,9 @@ fn set_color_config_roundtrip() {
 
 #[test]
 fn dyn_trait_dispatch() {
-    let s = svc(
-        "(panel \"MiniHUD\" :x 0.5 :y 0.5\n\
+    let s = svc("(panel \"MiniHUD\" :x 0.5 :y 0.5\n\
              \x20 (item \"sw\" :type switch :target \"showSpeedBar\" :value false))\
-            ",
-    );
+            ");
     s.set_screen_size(100, 100);
 
     // Box<dyn ConfigProvider> (面向接口编程)
@@ -748,12 +741,30 @@ fn config_value_java_equals_double_bits() {
         &ConfigValue::Double(f64::NAN),
         &ConfigValue::Double(f64::NAN)
     ));
-    assert!(!config_value_java_equals(&ConfigValue::Double(0.0), &ConfigValue::Double(-0.0)));
-    assert!(!config_value_java_equals(&ConfigValue::Double(-0.0), &ConfigValue::Double(0.0)));
-    assert!(config_value_java_equals(&ConfigValue::Double(2.5), &ConfigValue::Double(2.5)));
-    assert!(!config_value_java_equals(&ConfigValue::Double(1.0), &ConfigValue::Int(1)));
-    assert!(config_value_java_equals(&ConfigValue::Int(1), &ConfigValue::Int(1)));
-    assert!(config_value_java_equals(&ConfigValue::Bool(true), &ConfigValue::Bool(true)));
+    assert!(!config_value_java_equals(
+        &ConfigValue::Double(0.0),
+        &ConfigValue::Double(-0.0)
+    ));
+    assert!(!config_value_java_equals(
+        &ConfigValue::Double(-0.0),
+        &ConfigValue::Double(0.0)
+    ));
+    assert!(config_value_java_equals(
+        &ConfigValue::Double(2.5),
+        &ConfigValue::Double(2.5)
+    ));
+    assert!(!config_value_java_equals(
+        &ConfigValue::Double(1.0),
+        &ConfigValue::Int(1)
+    ));
+    assert!(config_value_java_equals(
+        &ConfigValue::Int(1),
+        &ConfigValue::Int(1)
+    ));
+    assert!(config_value_java_equals(
+        &ConfigValue::Bool(true),
+        &ConfigValue::Bool(true)
+    ));
     assert!(!config_value_java_equals(
         &ConfigValue::Str("a".to_string()),
         &ConfigValue::Str("b".to_string())

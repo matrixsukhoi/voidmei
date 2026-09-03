@@ -26,7 +26,11 @@ mod win_tests {
             file_name_after_last_backslash(r"C:\Games\War Thunder\aces.exe"),
             "aces.exe"
         );
-        assert_eq!(file_name_after_last_backslash("aces.exe"), "aces.exe", "无分隔符 → 整串");
+        assert_eq!(
+            file_name_after_last_backslash("aces.exe"),
+            "aces.exe",
+            "无分隔符 → 整串"
+        );
         // Java equalsIgnoreCase 比对语义
         assert!("aces.exe".eq_ignore_ascii_case("ACES.EXE"));
         assert!(!"aces.exe".eq_ignore_ascii_case("aces2.exe"));

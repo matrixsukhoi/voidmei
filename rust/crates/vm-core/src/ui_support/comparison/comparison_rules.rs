@@ -3,9 +3,11 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use crate::ui_support::comparison::comparison_rule::ComparisonRule;
-use crate::ui_support::comparison::rules::{try_number_ends, LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule};
 use crate::telemetry::parser::char_len_at;
+use crate::ui_support::comparison::comparison_rule::ComparisonRule;
+use crate::ui_support::comparison::rules::{
+    try_number_ends, LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule,
+};
 
 /// Registry of comparison rules for FM properties.
 ///
@@ -104,7 +106,9 @@ fn rules() -> &'static HashMap<&'static str, &'static (dyn ComparisonRule + Send
     RULES.get_or_init(build_rules)
 }
 
-fn leak_rule<R: ComparisonRule + Send + Sync + 'static>(r: R) -> &'static (dyn ComparisonRule + Send + Sync) {
+fn leak_rule<R: ComparisonRule + Send + Sync + 'static>(
+    r: R,
+) -> &'static (dyn ComparisonRule + Send + Sync) {
     Box::leak(Box::new(r))
 }
 
@@ -118,7 +122,10 @@ fn build_rules() -> HashMap<&'static str, &'static (dyn ComparisonRule + Send + 
     // 空重: 轻好
     rules.insert("空重(kg)", leak_rule(SimpleRule::lower_is_better()));
     // 燃油: 重好
-    rules.insert("最大燃油重量(kg)", leak_rule(SimpleRule::higher_is_better()));
+    rules.insert(
+        "最大燃油重量(kg)",
+        leak_rule(SimpleRule::higher_is_better()),
+    );
 
     // ========== 速度类 ==========
     // 临界速度 [min, max]: 后面那个数(vne)大好
@@ -126,18 +133,30 @@ fn build_rules() -> HashMap<&'static str, &'static (dyn ComparisonRule + Send + 
 
     // ========== 过载类 ==========
     // 允许过载 [满油+, 满油-], [半油+, 半油-]: 第一个列表最后一项大好
-    rules.insert("允许过载(满/半油)", leak_rule(MultiListIndexRule::new(0, 1, false)));
+    rules.insert(
+        "允许过载(满/半油)",
+        leak_rule(MultiListIndexRule::new(0, 1, false)),
+    );
 
     // ========== 耐热类 ==========
     // 耐热条恢复速率: 大好
-    rules.insert("平均耐热条恢复速率", leak_rule(SimpleRule::higher_is_better()));
+    rules.insert(
+        "平均耐热条恢复速率",
+        leak_rule(SimpleRule::higher_is_better()),
+    );
 
     // ========== 升力类 ==========
     // 最大升力过载 "X / Y(襟)": 第一个数大好
-    rules.insert("千米最大升力过载", leak_rule(SimpleRule::higher_is_better()));
+    rules.insert(
+        "千米最大升力过载",
+        leak_rule(SimpleRule::higher_is_better()),
+    );
 
     // 升力面积因数载荷 "X / Y(襟)": 第一个数大好
-    rules.insert("主升力面积因数载荷", leak_rule(SimpleRule::higher_is_better()));
+    rules.insert(
+        "主升力面积因数载荷",
+        leak_rule(SimpleRule::higher_is_better()),
+    );
 
     // 翼展效率: 大好
     rules.insert("翼展效率", leak_rule(SimpleRule::higher_is_better()));
@@ -160,9 +179,7 @@ fn build_rules() -> HashMap<&'static str, &'static (dyn ComparisonRule + Send + 
     rules.insert(
         "诱导阻力因数及加速度系数",
         leak_rule(LambdaRule::new(
-            Box::new(|raw| {
-                find_slash_second(raw).and_then(|g| g.parse::<f64>().ok())
-            }),
+            Box::new(|raw| find_slash_second(raw).and_then(|g| g.parse::<f64>().ok())),
             true, // lower is better
         )),
     );
@@ -197,7 +214,9 @@ impl ComparisonRules {
     /// @param property_name the property name (e.g., "空重(kg)")
     /// @return the rule, or null if no rule is defined (will show as draw)
     pub fn get(property_name: &str) -> Option<&'static dyn ComparisonRule> {
-        rules().get(property_name).map(|r| *r as &'static dyn ComparisonRule)
+        rules()
+            .get(property_name)
+            .map(|r| *r as &'static dyn ComparisonRule)
     }
 
     /// Check if a rule exists for the given property.

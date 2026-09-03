@@ -1,8 +1,8 @@
 use super::*;
 use crate::audio::voice_alert_type;
+use crate::audio::voice_resource_manager::SoundError;
 use crate::base::bus::EventBus;
 use crate::base::event::event_payload::EventPayload;
-use crate::audio::voice_resource_manager::SoundError;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicUsize;
 
@@ -117,7 +117,11 @@ fn snapshot_indicators(i: &Indicators) -> Indicators {
 /// 播放日志中指定 key 的 start 次数
 fn starts(log: &Mutex<Vec<String>>, key: &str) -> usize {
     let target = format!("{key}:start");
-    log.lock().unwrap().iter().filter(|s| s.as_str() == target).count()
+    log.lock()
+        .unwrap()
+        .iter()
+        .filter(|s| s.as_str() == target)
+        .count()
 }
 
 // ---- mock SoundClip/SoundPlayer (D7 trait 的测试替身) ----
@@ -451,7 +455,9 @@ fn init_default_lines_without_fm() {
 // 冷却期内不重播; 冷却过后 clip 仍在播放则继续压制; 播放结束后可重播
 #[test]
 fn voice_alert_cooldown_and_running_gate() {
-    let TestEnv { vw, player, log, .. } = env();
+    let TestEnv {
+        vw, player, log, ..
+    } = env();
     let alert = vw.aoa_crit.as_ref().unwrap(); // 冷却 1s
 
     assert!(!alert.is_playing(0)); // 初始静默
@@ -580,10 +586,7 @@ fn dispose_unsubscribes_both_buses() {
 #[test]
 fn drop_unsubscribes_both_buses() {
     let TestEnv {
-        vw,
-        ui_bus,
-        fd_bus,
-        ..
+        vw, ui_bus, fd_bus, ..
     } = env();
     assert_eq!(fd_bus.subscriber_count(), 1);
     drop(vw); // 不调 dispose 直接 drop
@@ -604,11 +607,7 @@ fn drop_unsubscribes_both_buses() {
 // 高攻角带: 仅 aoaHigh 播放, 非 fatal
 #[test]
 fn check_aoa_warning_crit_marks_high() {
-    let TestEnv {
-        mut vw,
-        log,
-        ..
-    } = env();
+    let TestEnv { mut vw, log, .. } = env();
     vw.st.ias = 100;
     vw.st.aoa = 14.5; // > 15-1
 
@@ -643,11 +642,7 @@ fn check_aoa_warning_crit_marks_high() {
 // IAS / Mach 双超限各自播放并置 fatal
 #[test]
 fn check_speed_warning_ias_mach_fatal() {
-    let TestEnv {
-        mut vw,
-        log,
-        ..
-    } = env();
+    let TestEnv { mut vw, log, .. } = env();
     vw.ias.line = 500.0;
     vw.mach.line = 0.8;
     vw.st.ias = 600;
@@ -675,11 +670,7 @@ fn check_speed_warning_ias_mach_fatal() {
 // 起落架超速 fatal / 减速板组合 / 大下降率
 #[test]
 fn check_gear_brake_vario_warnings() {
-    let TestEnv {
-        mut vw,
-        log,
-        ..
-    } = env();
+    let TestEnv { mut vw, log, .. } = env();
     // gear: 放下 (gear>0) 且 IAS >= 450
     vw.st.ias = 500;
     vw.st.gear = 100;
@@ -749,10 +740,7 @@ fn check_flap_warning_conditions() {
 #[test]
 fn check_fuel_warning_tick_gates() {
     let TestEnv {
-        mut vw,
-        svc,
-        log,
-        ..
+        mut vw, svc, log, ..
     } = env();
     svc.edit(|d| {
         d.total_fuel = 0.0;
@@ -775,11 +763,7 @@ fn check_fuel_warning_tick_gates() {
 // 油压低 → 2s 后 warn_lowpressure + 引擎损坏标记; 损坏后油压 0 → 1s 后 fail_engine
 #[test]
 fn check_fuel_pressure_warning_chain() {
-    let TestEnv {
-        mut vw,
-        log,
-        ..
-    } = env();
+    let TestEnv { mut vw, log, .. } = env();
     vw.st.throttle = 100;
     vw.indic.fuel_pressure = 0.1; // 100 - 0.1*10 = 99 > 2
 
@@ -813,17 +797,18 @@ fn check_fuel_pressure_warning_chain() {
 #[test]
 fn check_inverted_flight_and_rpm_warnings() {
     let TestEnv {
-        mut vw,
-        svc,
-        log,
-        ..
+        mut vw, svc, log, ..
     } = env();
     // 倒飞: Ny<0, 油门>50, 推力<50
     vw.st.ny = -1.0;
     vw.st.throttle = 60;
     vw.st.thrust[0] = 10;
     vw.check_inverted_flight_warning(0);
-    assert_eq!(starts(&log, "fail_engine"), 1, "invert 实例共用 fail_engine 键");
+    assert_eq!(
+        starts(&log, "fail_engine"),
+        1,
+        "invert 实例共用 fail_engine 键"
+    );
 
     // 转速低: 非喷气 + 桨距有效, 油门-30 > RPM*100/maxRPM。
     // (须先解除倒飞态 — Ny<0+油门大+推力低 会短路转速检测)
@@ -850,10 +835,7 @@ fn check_inverted_flight_and_rpm_warnings() {
 #[test]
 fn check_stall_warning() {
     let TestEnv {
-        mut vw,
-        svc,
-        log,
-        ..
+        mut vw, svc, log, ..
     } = env();
     svc.edit(|d| d.stall_speed = 150.0);
     vw.st.gear = 0;
@@ -878,10 +860,7 @@ fn check_stall_warning() {
 #[test]
 fn check_altitude_and_terrain_warning() {
     let TestEnv {
-        mut vw,
-        svc,
-        log,
-        ..
+        mut vw, svc, log, ..
     } = env();
     vw.st.gear = 0; // 且 playerLive=true
     vw.st.heightm = 100.0;
@@ -907,11 +886,7 @@ fn check_altitude_and_terrain_warning() {
 // 过载动态阈值: rawWingCritOverload 存在时按当前重量重算上下限
 #[test]
 fn check_load_factor_dynamic_limits() {
-    let TestEnv {
-        mut vw,
-        log,
-        ..
-    } = env();
+    let TestEnv { mut vw, log, .. } = env();
     // 静态线上限拉高到 20 — 动态计算应压回 ~12, ny=15 触发
     vw.ny_warning_line1 = 20.0;
     vw.st.ny = 15.0;
@@ -924,7 +899,10 @@ fn check_load_factor_dynamic_limits() {
     vw.fmdata = Some(b);
     vw.nofuelweight = 5000.0;
     vw.st.mfuel = 1000.0; // currentWeight = 6000
-    assert!(vw.check_load_factor_warning(3000), "动态上限 ~12, ny=15 应触发");
+    assert!(
+        vw.check_load_factor_warning(3000),
+        "动态上限 ~12, ny=15 应触发"
+    );
     assert_eq!(starts(&log, "warn_loadfactor"), 1);
 }
 
@@ -999,10 +977,7 @@ fn compressor_mismatch_delayed_and_repeating() {
 #[test]
 fn structure_health_damage_and_restore() {
     let TestEnv {
-        mut vw,
-        svc,
-        log,
-        ..
+        mut vw, svc, log, ..
     } = env();
     vw.st.ias = 500; // > gear 线 450
     vw.st.gear = 100; // 放下态, 阻断同帧复原
@@ -1036,18 +1011,10 @@ fn structure_health_damage_and_restore() {
 // 无 FM 时 updateDynamicParameters 保持既有告警线 (R1 快照降级路径)
 #[test]
 fn update_dynamic_parameters_keeps_lines_without_fm() {
-    let TestEnv {
-        mut vw,
-        svc,
-        ..
-    } = env();
+    let TestEnv { mut vw, svc, .. } = env();
     svc.edit(|d| d.indic.wsweep_indicator = 0.5); // 有 sweep 指示也无 FM 可用
     vw.st.flaps = 30;
-    let (aoa, ias, mach) = (
-        vw.aoa_warning_line,
-        vw.ias.line,
-        vw.mach.line,
-    );
+    let (aoa, ias, mach) = (vw.aoa_warning_line, vw.ias.line, vw.mach.line);
     vw.update_dynamic_parameters();
     assert_eq!(vw.aoa_warning_line, aoa);
     assert_eq!(vw.ias.line, ias);
@@ -1059,11 +1026,7 @@ fn update_dynamic_parameters_keeps_lines_without_fm() {
 // 启动延迟后正常打点 (写 fatalWarn), 停机标志翻转后循环退出
 #[test]
 fn run_loop_ticks_and_exits_on_stop() {
-    let TestEnv {
-        mut vw,
-        svc,
-        ..
-    } = env();
+    let TestEnv { mut vw, svc, .. } = env();
     let doit = Arc::clone(&vw.doit);
     let (tx, rx) = std::sync::mpsc::channel::<()>();
     let handle = std::thread::spawn(move || {

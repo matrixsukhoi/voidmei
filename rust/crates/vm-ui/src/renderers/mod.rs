@@ -78,8 +78,8 @@ pub(crate) mod test_util {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use vm_core::config::configuration_service::ConfigurationService;
     use crate::render_context::RenderContext;
+    use vm_core::config::configuration_service::ConfigurationService;
 
     #[derive(Default)]
     pub(crate) struct MapCtx {
@@ -94,9 +94,7 @@ pub(crate) mod test_util {
             self.calls.borrow_mut().push("on_save".into());
         }
         fn sync_to_config_service(&self, key: &str, value: bool) {
-            self.calls
-                .borrow_mut()
-                .push(format!("sync:{key}={value}"));
+            self.calls.borrow_mut().push(format!("sync:{key}={value}"));
         }
         fn get_from_config_service(&self, key: &str, default_val: bool) -> bool {
             // DynamicDataPage 同语义
@@ -127,7 +125,8 @@ pub(crate) mod test_util {
         persist: Option<String>,
     ) -> crate::main_form::MainFormState {
         // 掺 PID: 防两个测试进程并发跑时同名临时文件 truncate/read 竞争 (config_loader 实测同款踩坑)
-        let p = std::env::temp_dir().join(format!("vm_ui_renderers_{}_{name}.cfg", std::process::id()));
+        let p =
+            std::env::temp_dir().join(format!("vm_ui_renderers_{}_{name}.cfg", std::process::id()));
         std::fs::write(&p, cfg).unwrap();
         let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&bus)));

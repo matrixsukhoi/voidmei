@@ -3,8 +3,8 @@
 //! (BOS 形态的 PixCanvas 路径在 renderers.rs; render_fields 整帧自建画布变体
 //! 已随波12 死代码清扫删除, 生产仅剩 fixed 复用缓冲形态)
 
-use crate::render::font::{Canvas, LoadedFont};
 use crate::layout::RenderCtx;
+use crate::render::font::{Canvas, LoadedFont};
 
 /// 运行时颜色 (对应 Application.colorNum 等, 当前 ui_layout.cfg 默认值)
 pub struct RenderColors {
@@ -79,14 +79,41 @@ pub fn draw_fields(
         let vbase = ctx.value_baseline(oy);
         let vw = fonts.num.measure(f.value);
         let vx = ox + lwidth - vw - ctx.num_padding();
-        draw_shaded(canvas, &fonts.num, vx, vbase, f.value, colors.num, colors.shade, aa);
+        draw_shaded(
+            canvas,
+            &fonts.num,
+            vx,
+            vbase,
+            f.value,
+            colors.num,
+            colors.shade,
+            aa,
+        );
 
         // --- 标签 (基线 y) ---
-        draw_shaded(canvas, &fonts.label, ox + lwidth, oy, f.label, colors.label, colors.shade, aa);
+        draw_shaded(
+            canvas,
+            &fonts.label,
+            ox + lwidth,
+            oy,
+            f.label,
+            colors.label,
+            colors.shade,
+            aa,
+        );
 
         // --- 单位 (基线 y + labelFontSize) ---
         let ubase = ctx.unit_baseline(oy);
-        draw_shaded(canvas, &fonts.unit, ox + lwidth, ubase, f.unit, colors.unit, colors.shade, aa);
+        draw_shaded(
+            canvas,
+            &fonts.unit,
+            ox + lwidth,
+            ubase,
+            f.unit,
+            colors.unit,
+            colors.shade,
+            aa,
+        );
 
         // --- 列推进 (Java updateOffset: 每画满 columnNum 个换行) ---
         visible_index += 1;

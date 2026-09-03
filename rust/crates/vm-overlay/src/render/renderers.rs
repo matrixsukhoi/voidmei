@@ -14,14 +14,14 @@
 //! - BOS 的 TextGauge 按 label 缓存 (Java gaugeCache)。
 
 use crate::render::primitives;
-use vm_core::base::format::java_round_f32;
 use std::collections::HashMap;
 use std::rc::Rc;
+use vm_core::base::format::java_round_f32;
 
+use crate::layout::RenderCtx;
+use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::{aa, colors};
-use crate::render::canvas::PixCanvas;
-use crate::layout::RenderCtx;
 use crate::ui_model::DataField;
 
 // ---------------------------------------------------------------------------
@@ -101,7 +101,11 @@ impl RenderContext {
     /// 用 glyph 探针补齐本构造路径的防护: 损坏/无法解析的文件返回 Err, 而非在
     /// metrics() 处 panic。Java new Font 对坏字体静默回退 dialog 字体; Rust 无
     /// 内置回退族, 降级为显式 Err (POC 裁决: 字体随应用分发, 损坏属安装事故)。
-    pub fn load(fonts_dir: &std::path::Path, font_add: i32, column_num: i32) -> Result<Self, String> {
+    pub fn load(
+        fonts_dir: &std::path::Path,
+        font_add: i32,
+        column_num: i32,
+    ) -> Result<Self, String> {
         let font_size = 24 + font_add;
         let half = java_round_f32(font_size as f32 / 2.0);
         let bold = fonts_dir.join("sarasa-mono-sc-bold.ttf");
@@ -118,7 +122,9 @@ impl RenderContext {
         let num_font = load_font(&bold, font_size)?;
         let label_font = load_font(&bold, half)?;
         let unit_font = load_font(&regular, half)?;
-        Ok(RenderContext::new(num_font, label_font, unit_font, column_num))
+        Ok(RenderContext::new(
+            num_font, label_font, unit_font, column_num,
+        ))
     }
 
     pub fn font_size(&self) -> i32 {
@@ -176,7 +182,8 @@ pub trait OverlayRenderer {
 
     /// Java calculatePreferredSize(fields, ctx) → Dimension,
     /// 返回 (width, height)。
-    fn calculate_preferred_size(&mut self, fields: &[Field<'_>], ctx: &RenderContext) -> (i32, i32);
+    fn calculate_preferred_size(&mut self, fields: &[Field<'_>], ctx: &RenderContext)
+        -> (i32, i32);
 }
 
 // ---------------------------------------------------------------------------
@@ -352,7 +359,9 @@ impl OverlayRenderer for BosStyleRenderer {
                 None => {
                     self.gauge_cache
                         .insert(base.label.clone(), TextGauge::new(&base.label, &base.unit));
-                    self.gauge_cache.get_mut(base.label.as_str()).expect("刚插入")
+                    self.gauge_cache
+                        .get_mut(base.label.as_str())
+                        .expect("刚插入")
                 }
             };
             gauge.update(&base.current_value);
@@ -369,7 +378,11 @@ impl OverlayRenderer for BosStyleRenderer {
         }
     }
 
-    fn calculate_preferred_size(&mut self, fields: &[Field<'_>], ctx: &RenderContext) -> (i32, i32) {
+    fn calculate_preferred_size(
+        &mut self,
+        fields: &[Field<'_>],
+        ctx: &RenderContext,
+    ) -> (i32, i32) {
         let visible_count = fields.iter().filter(|f| f.base().visible).count() as i32;
         (ctx.geom.total_width(), ctx.geom.total_height(visible_count))
     }

@@ -116,7 +116,8 @@ fn pixmap_of(width: i32, height: i32) -> Option<tiny_skia::Pixmap> {
 
 impl PixCanvas {
     pub fn new(width: i32, height: i32) -> Result<Self, String> {
-        let pm = pixmap_of(width, height).ok_or_else(|| format!("非法画布尺寸 {width}x{height}"))?;
+        let pm =
+            pixmap_of(width, height).ok_or_else(|| format!("非法画布尺寸 {width}x{height}"))?;
         let n = pm.data().len();
         Ok(PixCanvas {
             pm,
@@ -271,8 +272,13 @@ impl PixCanvas {
         if let Some(path) = pb.finish() {
             let paint = solid_paint(color, aa);
             let stroke = stroke_of(width, cap);
-            self.pm
-                .stroke_path(&path, &paint, &stroke, tiny_skia::Transform::identity(), None);
+            self.pm.stroke_path(
+                &path,
+                &paint,
+                &stroke,
+                tiny_skia::Transform::identity(),
+                None,
+            );
             self.straight_valid = false;
         }
     }
@@ -299,7 +305,15 @@ impl PixCanvas {
     }
 
     /// Java Graphics.drawOval 的圆特例: 描边圆 (CompassGauge 双层描圆)
-    pub fn stroke_circle(&mut self, cx: i32, cy: i32, r: i32, width: f32, color: [u8; 4], aa: bool) {
+    pub fn stroke_circle(
+        &mut self,
+        cx: i32,
+        cy: i32,
+        r: i32,
+        width: f32,
+        color: [u8; 4],
+        aa: bool,
+    ) {
         if r <= 0 {
             return;
         }
@@ -308,8 +322,13 @@ impl PixCanvas {
         if let Some(path) = pb.finish() {
             let paint = solid_paint(color, aa);
             let stroke = stroke_of(width, LineCapStyle::Round);
-            self.pm
-                .stroke_path(&path, &paint, &stroke, tiny_skia::Transform::identity(), None);
+            self.pm.stroke_path(
+                &path,
+                &paint,
+                &stroke,
+                tiny_skia::Transform::identity(),
+                None,
+            );
             self.straight_valid = false;
         }
     }
@@ -359,8 +378,13 @@ impl PixCanvas {
         if let Some(path) = pb.finish() {
             let paint = solid_paint(color, aa);
             let stroke = stroke_of(width, cap);
-            self.pm
-                .stroke_path(&path, &paint, &stroke, tiny_skia::Transform::identity(), None);
+            self.pm.stroke_path(
+                &path,
+                &paint,
+                &stroke,
+                tiny_skia::Transform::identity(),
+                None,
+            );
             self.straight_valid = false;
         }
     }
@@ -372,7 +396,10 @@ impl PixCanvas {
         }
         // PORT: Java fillPolygon 坐标是 int[], NaN 在调用点 (int) 强转已归 0;
         // Rust f32 直收需消毒 — 含非有限坐标的多边形整体不绘制 (避免 tiny-skia 静默 UB)
-        if points.iter().any(|&(x, y)| !x.is_finite() || !y.is_finite()) {
+        if points
+            .iter()
+            .any(|&(x, y)| !x.is_finite() || !y.is_finite())
+        {
             return;
         }
         let mut pb = tiny_skia::PathBuilder::new();
@@ -494,7 +521,14 @@ impl PixCanvas {
 /// Java drawArc 角度语义 (oracle 实测): point(θ) = (cx + r·cosθ, cy − r·sinθ)
 /// — y 分量取负 (角度按数学逆时针解释, 与屏幕 y 向下无关), 正 sweep 视觉逆时针;
 /// sweep 可负 = 反向 (顺时针) 弧, kappa 随 seg 变号自动反向
-fn append_arc(pb: &mut tiny_skia::PathBuilder, cx: f32, cy: f32, r: f32, start_deg: f32, sweep_deg: f32) {
+fn append_arc(
+    pb: &mut tiny_skia::PathBuilder,
+    cx: f32,
+    cy: f32,
+    r: f32,
+    start_deg: f32,
+    sweep_deg: f32,
+) {
     let total = sweep_deg.to_radians();
     let n = ((total.abs() / std::f32::consts::FRAC_PI_2).ceil() as i32).max(1);
     let seg = total / n as f32;

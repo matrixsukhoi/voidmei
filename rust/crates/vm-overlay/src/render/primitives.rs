@@ -6,9 +6,9 @@
 //! vline_square2 与旋转 stroke 精确轮廓族 (attitude)。
 //! Java 取整族 (java_round_*) 收敛在 vm_core::base::format。
 
+use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::colors;
-use crate::render::canvas::PixCanvas;
 
 /// Java Graphics.drawRect(x,y,w,h) + BasicStroke(1): 覆盖 x..x+w × y..y+h
 /// (含端点) 的 1px 环。负宽或负高整体不绘制 (Java 8 oracle 实测 0 像素 —
@@ -71,7 +71,14 @@ pub(crate) fn draw_h_rect(
         );
     } else {
         // PORT: UIBaseElements 负宽分支: 环自 x+width 起, 填充同步翻转
-        ring1px(cv, x + width, y, -width - 1, height - 1, colors().shade_shape);
+        ring1px(
+            cv,
+            x + width,
+            y,
+            -width - 1,
+            height - 1,
+            colors().shade_shape,
+        );
         cv.fill_rect(
             x + borderwidth + width,
             y + borderwidth,
@@ -165,7 +172,14 @@ pub(crate) fn butt_line(
 /// aa=true: 覆盖盒 [tx-0.5,tx+1.5]×[ya-0.5,yb+1.5] → 3 列柔边: 列 tx 全值,
 /// 列 tx±1 半值, 端行 ya-1/yb+1 半覆盖, 角点 1/4 (oracle: 行 4..26 端行半透明)。
 /// (方帽 ≠ CAP_BUTT 的 [`butt_line`], 独立基元; 重构波13 自 gauges_bars 迁入)
-pub(crate) fn vline_square2(cv: &mut PixCanvas, tx: i32, y0: i32, y1: i32, color: [u8; 4], aa: bool) {
+pub(crate) fn vline_square2(
+    cv: &mut PixCanvas,
+    tx: i32,
+    y0: i32,
+    y1: i32,
+    color: [u8; 4],
+    aa: bool,
+) {
     let (ya, yb) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
     if !aa {
         cv.fill_rect(tx - 1, ya - 1, 2, yb - ya + 2, color);
@@ -223,7 +237,12 @@ pub(crate) fn text_shaded_auto(
 /// AA 柔边像素的覆盖率缩放: Java AA 管线合成式 = SrcOver(源 alpha × 覆盖率),
 /// 不透明色 oracle 值 cov=0.5 → a=128、cov=0.25 → a=64, 即 round(a·cov)
 pub(crate) fn cov_color(color: [u8; 4], cov: f32) -> [u8; 4] {
-    [color[0], color[1], color[2], ((color[3] as f32) * cov + 0.5) as u8]
+    [
+        color[0],
+        color[1],
+        color[2],
+        ((color[3] as f32) * cov + 0.5) as u8,
+    ]
 }
 
 /// 像素区间 [p, p+1) 与覆盖盒 [lo, hi] 的重叠覆盖率
@@ -313,7 +332,7 @@ pub(crate) fn line_stroke_outline(x0: f64, y0: f64, x1: f64, y1: f64, w: f64) ->
     }
     let (tx, ty) = (dx / len, dy / len); // 切向
     let (nx, ny) = (-ty * half, tx * half); // 法向 × half
-    // 上侧边: P0+n → P1+n
+                                            // 上侧边: P0+n → P1+n
     pts.push(((x0 + nx) as f32, (y0 + ny) as f32));
     pts.push(((x1 + nx) as f32, (y1 + ny) as f32));
     // P1 端帽: +n 绕过 +t 到 −n (φ: 0→π)

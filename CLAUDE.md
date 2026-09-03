@@ -73,13 +73,15 @@ java -jar VoidMei.jar
 
 **Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
 
-**Rust 全量迁移 (已完成 + 六波架构重构 + 波7~11 组织结构重构完成)**: `rust/` 是
-Java 版的全量迁移产物 (cargo workspace 六 crate, 1,292 测试)。2026-09 架构:
+**Rust 全量迁移 (已完成 + 六波架构重构 + 波7~11 组织结构 + 波12~19 坏味道清扫)**: `rust/` 是
+Java 版的全量迁移产物 (cargo workspace 六 crate, 1,256 测试)。2026-09 架构:
 vm-core 11 域分组 (base/config/telemetry/fm/formula/derived/audio/ui_support/
 platform/lang/activation, 根 shim 已退役 — 全库唯一路径 `vm_core::<域>::<模块>`);
-vm-overlay 五域 (platform/render/overlays/layout/ui_model); vm-app lib 标准入口;
+vm-overlay 五域 (platform/render/overlays/layout/ui_model, 根 re-export 壳亦退役);
+vm-app lib 标准入口 (win32.rs 已更名 render_thread.rs);
 跨线程数据读面 = vm-data `FrameStore` 不可变帧快照 (零锁); UIStateBus 统一路由总线
 (嵌套 publish 安全); HTTP 单线程阻塞客户端。
+坏味道清扫登记: `doc/rust坏味道登记与重构方案.md`。
 构建/运行/对拍/e2e 见 `rust/README.md`;
 迁移设计档案: `build/migration/` (PORTING 宪法/CLASSIFY/LIFETIMES/DECISIONS/PROGRESS),
 迁移文档: `doc/overlay_java_to_rust_migration.md` (§11 执行记录+人工验收清单)。

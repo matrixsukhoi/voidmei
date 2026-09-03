@@ -18,8 +18,15 @@ pub struct WindowConfig {
 #[derive(Debug, PartialEq)]
 pub enum OverlayEvent {
     Close,
-    MousePress { root_x: i32, root_y: i32 },
-    MouseMove { root_x: i32, root_y: i32, left_down: bool },
+    MousePress {
+        root_x: i32,
+        root_y: i32,
+    },
+    MouseMove {
+        root_x: i32,
+        root_y: i32,
+        left_down: bool,
+    },
     MouseRelease,
 }
 

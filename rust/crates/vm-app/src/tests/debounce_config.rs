@@ -7,18 +7,20 @@ use super::*;
 fn debounce_leading_immediate_and_trailing_final() {
     let shared = Arc::new(ControllerShared::new());
     let (out_tx, out_rx) = std::sync::mpsc::channel::<UiCommand>();
-    let mut deb =
-        ConfigDebouncer::spawn(Duration::from_millis(40), out_tx, Arc::clone(&shared));
+    let mut deb = ConfigDebouncer::spawn(Duration::from_millis(40), out_tx, Arc::clone(&shared));
     let tx = deb.sender();
     for k in ["k1", "k2", "k3", "k4", "k5"] {
         tx.send(DebounceMsg::ConfigKey(k.to_string())).unwrap();
         std::thread::sleep(Duration::from_millis(5));
     }
     drop(tx); // shutdown 前 drop 全部发送端克隆, 否则 join 等 Disconnected 永阻塞
-    // leading: 首条 k1 立即 (30ms 门槛 < 纯尾沿最早 65ms = k5@25ms + 窗 40ms,
-    // 区分两种实现且留调度余量)
+              // leading: 首条 k1 立即 (30ms 门槛 < 纯尾沿最早 65ms = k5@25ms + 窗 40ms,
+              // 区分两种实现且留调度余量)
     match out_rx.recv_timeout(Duration::from_millis(30)) {
-        Ok(UiCommand::RefreshPreviews { changed_key, generation }) => {
+        Ok(UiCommand::RefreshPreviews {
+            changed_key,
+            generation,
+        }) => {
             assert_eq!(changed_key, Some("k1".to_string()), "首条立即刷 (leading)");
             assert_eq!(
                 generation,
@@ -31,7 +33,11 @@ fn debounce_leading_immediate_and_trailing_final() {
     // trailing: 窗口内连发合并, 末条 k5 生效
     match out_rx.recv_timeout(Duration::from_millis(500)) {
         Ok(UiCommand::RefreshPreviews { changed_key, .. }) => {
-            assert_eq!(changed_key, Some("k5".to_string()), "末条变更收尾 (trailing)");
+            assert_eq!(
+                changed_key,
+                Some("k5".to_string()),
+                "末条变更收尾 (trailing)"
+            );
         }
         other => panic!("trailing 沿应送达末条刷新: {:?}", other),
     }
@@ -55,7 +61,9 @@ fn debounce_fm_and_reset_full_refresh() {
         tx.send(DebounceMsg::FmChanged).unwrap();
     } // 块尾 drop 发送端克隆
     match out_rx.recv_timeout(Duration::from_millis(500)) {
-        Ok(UiCommand::RefreshPreviews { changed_key: None, .. }) => {}
+        Ok(UiCommand::RefreshPreviews {
+            changed_key: None, ..
+        }) => {}
         other => panic!("FmChanged 应产全量刷新: {:?}", other),
     }
     {
@@ -66,7 +74,9 @@ fn debounce_fm_and_reset_full_refresh() {
         .unwrap();
     }
     match out_rx.recv_timeout(Duration::from_millis(500)) {
-        Ok(UiCommand::RefreshPreviews { changed_key: None, .. }) => {}
+        Ok(UiCommand::RefreshPreviews {
+            changed_key: None, ..
+        }) => {}
         other => panic!("RESET_COMPLETED 应产全量刷新: {:?}", other),
     }
     deb.shutdown();
@@ -83,8 +93,15 @@ fn wysiwyg_config_change_refreshes_via_debounce() {
     publish_ui_event(&shell.ui_bus, ui_state_events::UI_READY, "");
     pump_events(&mut shell);
     // MainForm 侧配置写入 (服务内联发布 CONFIG_CHANGED — vm-ui 链同源)
-    publish_ui_event(&shell.ui_bus, ui_state_events::CONFIG_CHANGED, "showSpeedBar");
-    assert!(pump_events(&mut shell), "CONFIG_CHANGED 应经转发到达监督循环");
+    publish_ui_event(
+        &shell.ui_bus,
+        ui_state_events::CONFIG_CHANGED,
+        "showSpeedBar",
+    );
+    assert!(
+        pump_events(&mut shell),
+        "CONFIG_CHANGED 应经转发到达监督循环"
+    );
     // 防抖产出直达渲染线程命令通道 — 接收端留在 shell (未 spawn 渲染线程)。
     // 容忍 UI_READY→preview() 的 Preview-Refresh 线程全量刷新 (None) 抢先入队
     let mut keyed = None;
@@ -223,7 +240,11 @@ fn preview_reinit_params_precede_debounced_refresh() {
     let mut shell = fixture_with_debounce(30);
     publish_ui_event(&shell.ui_bus, ui_state_events::UI_READY, "");
     pump_events(&mut shell);
-    publish_ui_event(&shell.ui_bus, ui_state_events::CONFIG_CHANGED, "showSpeedBar");
+    publish_ui_event(
+        &shell.ui_bus,
+        ui_state_events::CONFIG_CHANGED,
+        "showSpeedBar",
+    );
     assert!(pump_events(&mut shell));
     let mut reinit_at: Option<usize> = None;
     let mut refresh_at: Option<usize> = None;
@@ -235,9 +256,10 @@ fn preview_reinit_params_precede_debounced_refresh() {
             .recv_timeout(Duration::from_millis(400))
         {
             Ok(UiCommand::ReinitOverlays { .. }) => reinit_at = Some(i),
-            Ok(UiCommand::RefreshPreviews { changed_key: Some(k), .. }) if k == "showSpeedBar" => {
-                refresh_at = Some(i)
-            }
+            Ok(UiCommand::RefreshPreviews {
+                changed_key: Some(k),
+                ..
+            }) if k == "showSpeedBar" => refresh_at = Some(i),
             Ok(_) => {}
             Err(_) => break,
         }
@@ -245,7 +267,10 @@ fn preview_reinit_params_precede_debounced_refresh() {
             break;
         }
     }
-    let (r, f) = (reinit_at.expect("ReinitOverlays 应到达"), refresh_at.expect("键控 RefreshPreviews 应到达"));
+    let (r, f) = (
+        reinit_at.expect("ReinitOverlays 应到达"),
+        refresh_at.expect("键控 RefreshPreviews 应到达"),
+    );
     assert!(r < f, "参数直送 ({}) 应先于防抖刷新 ({})", r, f);
 }
 
@@ -279,7 +304,9 @@ fn fm_changed_missing_schedules_full_refresh() {
         .recv_timeout(Duration::from_millis(500))
         .expect("FM_CHANGED 应触发防抖全量刷新");
     match cmd {
-        UiCommand::RefreshPreviews { changed_key: None, .. } => {}
+        UiCommand::RefreshPreviews {
+            changed_key: None, ..
+        } => {}
         other => panic!("应为全量刷新: {:?}", other),
     }
 }
@@ -343,7 +370,10 @@ fn refresh_previews_keep_session_window_mode() {
     *shell.shared.state.write().unwrap() = ControllerState::Preview;
     let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
     // 模拟游戏形态 (openpad → OpenAllOverlays 处理点置 false)
-    shell.shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
+    shell
+        .shared
+        .overlay_ctx_preview
+        .store(false, Ordering::SeqCst);
     shell.send_ui(UiCommand::RefreshPreviews {
         changed_key: None,
         generation: gen,

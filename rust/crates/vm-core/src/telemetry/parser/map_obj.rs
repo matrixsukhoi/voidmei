@@ -313,7 +313,11 @@ fn scan_obj_y(t: &str, eix: i32) -> (i32, f64, i32) {
     let y = get_data_float(Some(&t[bix as usize..eix as usize]));
 
     // Java 的 if/else 语句赋值 → 等价表达式形态 (无副作用)
-    let flag = if t.as_bytes()[eix as usize] == b'}' { 0 } else { 1 };
+    let flag = if t.as_bytes()[eix as usize] == b'}' {
+        0
+    } else {
+        1
+    };
     (eix, y, flag)
 }
 
@@ -718,7 +722,8 @@ fn match_from<'a>(
                                                         r = skip_ws(t, r);
                                                         if b.get(r) == Some(&b':') {
                                                             r = skip_ws(t, r + 1);
-                                                            if let Some((r2, g3)) = try_number(t, r) {
+                                                            if let Some((r2, g3)) = try_number(t, r)
+                                                            {
                                                                 // 尾部 [^{}]*\}
                                                                 let e5 = nb_extent(t, r2);
                                                                 if e5 < t.len() && b[e5] == b'}' {
@@ -747,7 +752,13 @@ fn match_from<'a>(
 }
 
 /// java.util.regex Matcher.find() 循环的等价: 从左到右不重叠匹配, 收集 (捕获1, 捕获3)
-fn find_pairs<'a>(text: &'a str, key1: &str, val1: &str, key2: &str, key3: &str) -> Vec<(&'a str, &'a str)> {
+fn find_pairs<'a>(
+    text: &'a str,
+    key1: &str,
+    val1: &str,
+    key2: &str,
+    key3: &str,
+) -> Vec<(&'a str, &'a str)> {
     let b = text.as_bytes();
     let mut out = Vec::new();
     let mut start = 0usize;

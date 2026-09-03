@@ -32,13 +32,13 @@ use std::sync::Mutex;
 #[cfg(test)]
 use vm_core::base::bus::ui_state_bus::UiStateEvent;
 
-use vm_core::config::config_api::ConfigProvider;
-use vm_core::config::config_loader::{save_config as save_layout_file, GroupConfig, RowConfig};
-use vm_core::config::configuration_service::ConfigurationService;
+use crate::render_context::RenderContext;
 use vm_core::base::bus::ui_state_bus::UIStateBus;
 use vm_core::base::event::ui_state_events;
 use vm_core::base::logger;
-use crate::render_context::RenderContext;
+use vm_core::config::config_api::ConfigProvider;
+use vm_core::config::config_loader::{save_config as save_layout_file, GroupConfig, RowConfig};
+use vm_core::config::configuration_service::ConfigurationService;
 
 // F7: GroupConfig 字段表 (GroupField/PanelField 两域的单一真相)
 use crate::renderer_config_helper::group_field_table;
@@ -56,13 +56,29 @@ pub mod headless;
 #[derive(Debug, Clone)]
 pub enum Message {
     /// 开关翻转 (value 为**显示值**, SWITCH_INV 落库取反) — SwitchRowRenderer 闭包
-    Toggle { panel: String, key: String, value: bool },
+    Toggle {
+        panel: String,
+        key: String,
+        value: bool,
+    },
     /// 滑条值变更 (拖拽期实时, 不落盘) — SliderRowRenderer.persistValue 的内存链
-    Slider { panel: String, key: String, value: i32 },
+    Slider {
+        panel: String,
+        key: String,
+        value: i32,
+    },
     /// 下拉选中 — ComboRowRenderer.addActionListener
-    Combo { panel: String, key: String, value: String },
+    Combo {
+        panel: String,
+        key: String,
+        value: String,
+    },
     /// 颜色选择 (主键十进制 + legacy 分键写回, 见 color::apply) — ColorRowRenderer
-    ColorPicked { panel: String, key: String, value: [u8; 4] },
+    ColorPicked {
+        panel: String,
+        key: String,
+        value: [u8; 4],
+    },
     /// 保存 (按钮/滑条拖拽释放) — DynamicDataPage.save / saveDynamicConfig
     Save,
     /// 开始游戏 — MainForm.confirm
@@ -292,12 +308,18 @@ pub fn update(state: &mut MainFormState, message: Message) {
         Message::StartGame => {
             // Java MainForm.confirm: ACTION 日志 + endPreview + saveConfig +
             // loadFromConfig + tc.start() — 此处落保存链
-            logger::info("MainForm", "ACTION: User confirmed start. Initializing Game Mode...");
+            logger::info(
+                "MainForm",
+                "ACTION: User confirmed start. Initializing Game Mode...",
+            );
             persist_and_notify(state);
         }
         Message::EndGame => {
             // 对位 Java 底部 mCancel 的保存语义; 进程退出/托盘回收归组装层 (vm-app)
-            logger::info("MainForm", "ACTION: User requested end. Saving configuration...");
+            logger::info(
+                "MainForm",
+                "ACTION: User requested end. Saving configuration...",
+            );
             persist_and_notify(state);
         }
         Message::RefreshPreviews => {
@@ -311,7 +333,10 @@ pub fn update(state: &mut MainFormState, message: Message) {
             // open* 三键由 vm-app dispatcher 拦截开窗, 不达本臂
             match action.as_str() {
                 "resetConfig" | "factoryReset" => {
-                    logger::info("MainForm", &format!("ACTION: 按钮按下 ({action}), 挂确认模态"));
+                    logger::info(
+                        "MainForm",
+                        &format!("ACTION: 按钮按下 ({action}), 挂确认模态"),
+                    );
                     state.pending_action = Some(action);
                 }
                 other => logger::warn("MainForm", &format!("未迁移动作键: {other}")),
@@ -332,13 +357,15 @@ pub fn update(state: &mut MainFormState, message: Message) {
             };
             logger::info(
                 "MainForm",
-                &format!("ACTION: 确认执行 ({action}) → {}", if ok { "成功" } else { "失败" }),
+                &format!(
+                    "ACTION: 确认执行 ({action}) → {}",
+                    if ok { "成功" } else { "失败" }
+                ),
             );
             // 整树收敛: 服务重读自用户配置 (persist 优先, headless 回退全局路径)
-            let path = state
-                .persist_path
-                .clone()
-                .unwrap_or_else(|| vm_core::config::config_manager::get_user_config_path().to_string());
+            let path = state.persist_path.clone().unwrap_or_else(|| {
+                vm_core::config::config_manager::get_user_config_path().to_string()
+            });
             state.config.load_layout(&path);
             state.groups = state.config.get_layout_configs().unwrap_or_default();
             publish_config_changed(&state.ui_bus, "ui_layout.cfg");
@@ -419,9 +446,10 @@ fn persist_and_notify(state: &mut MainFormState) {
     let pending_fields = std::mem::take(&mut state.pending_panel_fields);
     let pending_rows = std::mem::take(&mut state.pending_row_values);
     for (title, field) in &pending_fields {
-        if let (Some(dst), Some(src)) =
-            (group_by_title_mut(&mut tree, title), group_by_title(&state.groups, title))
-        {
+        if let (Some(dst), Some(src)) = (
+            group_by_title_mut(&mut tree, title),
+            group_by_title(&state.groups, title),
+        ) {
             field.copy(dst, src);
         }
     }
@@ -429,7 +457,8 @@ fn persist_and_notify(state: &mut MainFormState) {
         let src_val = group_by_title(&state.groups, title)
             .and_then(|g| label_row(&g.rows, label))
             .and_then(|r| r.value.clone());
-        let dst = group_by_title_mut(&mut tree, title).and_then(|g| label_row_mut(&mut g.rows, label));
+        let dst =
+            group_by_title_mut(&mut tree, title).and_then(|g| label_row_mut(&mut g.rows, label));
         if let (Some(v), Some(dst)) = (src_val, dst) {
             dst.value = Some(v);
         }
@@ -481,7 +510,9 @@ fn mirror_key_from_service(config: &ConfigurationService, groups: &mut [GroupCon
     let svc = config.get_layout_configs().unwrap_or_default();
     for g in groups.iter_mut() {
         // 按 title 在服务树定位对应组; 找不到跳过 (不镜像进错位组)
-        let Some(sg) = group_by_title(&svc, &g.title) else { continue };
+        let Some(sg) = group_by_title(&svc, &g.title) else {
+            continue;
+        };
         if g.switch_key.as_deref() == Some(key) {
             g.visible = sg.visible;
         }
@@ -489,14 +520,23 @@ fn mirror_key_from_service(config: &ConfigurationService, groups: &mut [GroupCon
     }
 }
 
+/// A4 行级收尾: 本地行命中谓词即在服务行树按同谓词 DFS 取首个命中行 (服务侧
+/// update_rows_recursive 写值的正是该行 — 真相行与树形对位无关)。服务树无命中
+/// 行时跳过 (原按位 zip 依赖两树同构: 顺序漂移会把值镜像进不相干行, 长度不等
+/// 静默截断; 现同构时语义等价 — 对位行即命中行, 漂移时不再错配)。
 fn mirror_rows(rows: &mut [RowConfig], svc: &[RowConfig], key: &str) {
-    for (r, sr) in rows.iter_mut().zip(svc.iter()) {
+    let svc_row =
+        renderers::find_row_path(svc, key).and_then(|path| renderers::row_by_path(svc, &path));
+    for r in rows.iter_mut() {
         // 与服务侧 update_rows_recursive 同一命中谓词 (property 精确 / 无 property 时 label)
-        if r.property.as_deref() == Some(key) || (r.property.is_none() && key == r.label) {
-            r.value = sr.value.clone();
+        let hit = r.property.as_deref() == Some(key) || (r.property.is_none() && key == r.label);
+        if hit {
+            if let Some(sr) = svc_row {
+                r.value = sr.value.clone();
+            }
         }
         if !r.children.is_empty() {
-            mirror_rows(&mut r.children, &sr.children, key);
+            mirror_rows(&mut r.children, svc, key);
         }
     }
 }
@@ -572,7 +612,10 @@ fn group_by_title<'a>(groups: &'a [GroupConfig], title: &str) -> Option<&'a Grou
     groups.iter().find(|g| g.title == title)
 }
 
-fn group_by_title_mut<'a>(groups: &'a mut [GroupConfig], title: &str) -> Option<&'a mut GroupConfig> {
+fn group_by_title_mut<'a>(
+    groups: &'a mut [GroupConfig],
+    title: &str,
+) -> Option<&'a mut GroupConfig> {
     groups.iter_mut().find(|g| g.title == title)
 }
 

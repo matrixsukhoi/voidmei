@@ -33,15 +33,15 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Shell::{
-    Shell_NotifyIconW, NOTIFYICONDATAW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE,
+    Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CreateIconIndirect, CreatePopupMenu, CreateWindowExW, DefWindowProcW,
-    DestroyIcon, DestroyMenu, DestroyWindow, DispatchMessageW, GetCursorPos, HICON, LoadIconW,
-    PeekMessageW, PostMessageW, RegisterClassW, RegisterWindowMessageW, SetForegroundWindow,
-    TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_VREDRAW, HMENU, ICONINFO, IDI_APPLICATION,
-    MF_STRING, MSG, PM_REMOVE, TPM_RIGHTBUTTON, WM_APP, WM_COMMAND, WM_CONTEXTMENU, WM_LBUTTONUP,
-    WM_NULL, WM_RBUTTONUP, WNDCLASSW, WS_OVERLAPPED,
+    AppendMenuW, CreateIconIndirect, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon,
+    DestroyMenu, DestroyWindow, DispatchMessageW, GetCursorPos, LoadIconW, PeekMessageW,
+    PostMessageW, RegisterClassW, RegisterWindowMessageW, SetForegroundWindow, TrackPopupMenu,
+    TranslateMessage, CS_HREDRAW, CS_VREDRAW, HICON, HMENU, ICONINFO, IDI_APPLICATION, MF_STRING,
+    MSG, PM_REMOVE, TPM_RIGHTBUTTON, WM_APP, WM_COMMAND, WM_CONTEXTMENU, WM_LBUTTONUP, WM_NULL,
+    WM_RBUTTONUP, WNDCLASSW, WS_OVERLAPPED,
 };
 
 /// NIF_MESSAGE 回调消息号 (Java: AWT 内部把托盘鼠标事件转给 TrayIcon 的
@@ -228,9 +228,18 @@ fn dispatch_activate() {
         return;
     }
     // (Java 在 try 内打点三行日志, e2e 断言标记 — 原文保留)
-    vm_core::base::logger::info("Application", "--------------------------------------------------");
-    vm_core::base::logger::info("Application", "ACTION: Tray Icon Clicked. Restoring MainForm...");
-    vm_core::base::logger::info("Application", "--------------------------------------------------");
+    vm_core::base::logger::info(
+        "Application",
+        "--------------------------------------------------",
+    );
+    vm_core::base::logger::info(
+        "Application",
+        "ACTION: Tray Icon Clicked. Restoring MainForm...",
+    );
+    vm_core::base::logger::info(
+        "Application",
+        "--------------------------------------------------",
+    );
     with_handler(|h| h.activate());
     // 无论成功或异常都重置标志，允许下一次点击
     // (Java finally — handler panic 已被 with_handler 捕获, 此处必达)
@@ -287,8 +296,8 @@ unsafe extern "system" fn tray_wnd_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     // 句柄/参数均为 Copy 整数, AssertUnwindSafe 无实际逃逸面
-    let handled = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        unsafe { tray_dispatch(hwnd, msg, wparam, lparam) }
+    let handled = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+        tray_dispatch(hwnd, msg, wparam, lparam)
     }));
     match handled {
         Ok(r) => r,
@@ -334,7 +343,11 @@ unsafe fn tray_dispatch(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) ->
 /// explorer 重启后重挂托盘图标: 以共享槽保存的 NIM_ADD 数据副本重发。
 /// 锁内只 Copy 数据, Shell_NotifyIconW 是外部调用不得持锁执行
 unsafe fn readd_icon() {
-    let shared = TRAY_SHARED.lock().unwrap().filter(|s| s.added).map(|s| s.nid);
+    let shared = TRAY_SHARED
+        .lock()
+        .unwrap()
+        .filter(|s| s.added)
+        .map(|s| s.nid);
     let Some(nid) = shared else { return };
     // 广播迟到 (Drop 后 NIM_DELETE 已清) 或 (hWnd,uID) 仍存在时失败无害
     if Shell_NotifyIconW(NIM_ADD, &nid).as_bool() {
@@ -384,7 +397,10 @@ fn load_icon(path: &Path) -> Result<HICON, String> {
     // 通道数守卫: normalize_to_color8 只做 16→8bit 归一, 不改 color type —
     // 灰度(1B/px)/RGB(3B/px) 输入若放行, 后续按 4B/px 解析必错位
     if info.color_type != png::ColorType::Rgba {
-        return Err(format!("非 RGBA PNG (color_type={:?}), 不做错位解析", info.color_type));
+        return Err(format!(
+            "非 RGBA PNG (color_type={:?}), 不做错位解析",
+            info.color_type
+        ));
     }
     let (w, h) = (info.width as i32, info.height as i32);
     if w <= 0 || h <= 0 {
@@ -412,14 +428,14 @@ fn load_icon(path: &Path) -> Result<HICON, String> {
             ..Default::default()
         };
         let mut bits: *mut std::ffi::c_void = std::ptr::null_mut();
-        let color = match CreateDIBSection(Some(hdc_screen), &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
-        {
-            Ok(d) => d,
-            Err(e) => {
-                ReleaseDC(None, hdc_screen);
-                return Err(format!("CreateDIBSection: {}", e));
-            }
-        };
+        let color =
+            match CreateDIBSection(Some(hdc_screen), &bmi, DIB_RGB_COLORS, &mut bits, None, 0) {
+                Ok(d) => d,
+                Err(e) => {
+                    ReleaseDC(None, hdc_screen);
+                    return Err(format!("CreateDIBSection: {}", e));
+                }
+            };
         std::ptr::copy_nonoverlapping(bgra.as_ptr(), bits as *mut u8, bgra.len());
         // 单色全零掩码 (AND=0: 每像素取色位图; 32bpp 下实际由 alpha 决定)
         let mask_row = ((w + 31) / 32) * 4; // DWORD 对齐

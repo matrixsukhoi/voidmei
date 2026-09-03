@@ -27,7 +27,11 @@ fn tmp_path(name: &str) -> String {
 fn mk_state(
     name: &str,
     persist: Option<String>,
-) -> (MainFormState, Arc<Mutex<Vec<UiStateEvent>>>, vm_core::base::bus::Subscription<UiStateEvent>) {
+) -> (
+    MainFormState,
+    Arc<Mutex<Vec<UiStateEvent>>>,
+    vm_core::base::bus::Subscription<UiStateEvent>,
+) {
     let p = tmp_path(name);
     std::fs::write(&p, TEST_CFG).unwrap();
     let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
@@ -57,7 +61,14 @@ fn events_of(seen: &Arc<Mutex<Vec<UiStateEvent>>>) -> Vec<(String, String)> {
 #[test]
 fn toggle_updates_service_snapshot_and_bus() {
     let (mut state, seen, _sub) = mk_state("toggle", None);
-    update(&mut state, Message::Toggle { panel: "面板A".into(), key: "k1".into(), value: false });
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "面板A".into(),
+            key: "k1".into(),
+            value: false,
+        },
+    );
 
     assert_eq!(state.service_string("k1"), "false");
     assert_eq!(
@@ -71,14 +82,24 @@ fn toggle_updates_service_snapshot_and_bus() {
     );
     let evs = events_of(&seen);
     assert!(evs.contains(&(ui_state_events::CONFIG_CHANGED.into(), "k1".into())));
-    assert!(evs.contains(&(ui_state_events::CONFIG_CHANGED.into(), "ui_layout.cfg".into())));
+    assert!(evs.contains(&(
+        ui_state_events::CONFIG_CHANGED.into(),
+        "ui_layout.cfg".into()
+    )));
 }
 
 // SwitchInv 反相链: 显示 true → 服务存 false + row.value 存显示值
 #[test]
 fn toggle_switch_inv_inverts_on_write() {
     let (mut state, _seen, _sub) = mk_state("inv", None);
-    update(&mut state, Message::Toggle { panel: "面板A".into(), key: "k2".into(), value: true });
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "面板A".into(),
+            key: "k2".into(),
+            value: true,
+        },
+    );
     // 服务 get_config 对 SWITCH_INV 返回 !row.get_bool() (存 true → 读 false)
     assert_eq!(state.service_string("k2"), "false");
     assert_eq!(
@@ -95,12 +116,25 @@ fn slider_live_then_save_persists_and_converges() {
     let _ = std::fs::remove_file(&persist);
     let (mut state, seen, _sub) = mk_state("slider", Some(persist.clone()));
 
-    update(&mut state, Message::Slider { panel: "面板A".into(), key: "fontSize".into(), value: 7 });
+    update(
+        &mut state,
+        Message::Slider {
+            panel: "面板A".into(),
+            key: "fontSize".into(),
+            value: 7,
+        },
+    );
     // 实时链: 快照行值 + 组字段 + 服务值
-    assert_eq!(state.snapshot_row("面板A", "fontSize").unwrap().get_int(), 7);
+    assert_eq!(
+        state.snapshot_row("面板A", "fontSize").unwrap().get_int(),
+        7
+    );
     assert_eq!(state.service_string("fontSize"), "7");
     // 拖拽语义: 不落盘 (on_release 前文件不存在)
-    assert!(!std::path::Path::new(&persist).exists(), "Slider 拖拽期不得落盘");
+    assert!(
+        !std::path::Path::new(&persist).exists(),
+        "Slider 拖拽期不得落盘"
+    );
     assert!(events_of(&seen).contains(&(ui_state_events::CONFIG_CHANGED.into(), "fontSize".into())));
 
     // Save: 落盘 + 服务树重读收敛 (组字段 font_size 回到服务侧 — clone-split 收敛)
@@ -113,7 +147,10 @@ fn slider_live_then_save_persists_and_converges() {
         .into_iter()
         .find(|g| g.title == "面板A")
         .unwrap();
-    assert_eq!(group_a.font_size, 7, "组字段经落盘→load_layout 收敛回服务树");
+    assert_eq!(
+        group_a.font_size, 7,
+        "组字段经落盘→load_layout 收敛回服务树"
+    );
     let _ = std::fs::remove_file(&persist);
 }
 
@@ -124,7 +161,14 @@ fn combo_pick_persists_immediately() {
     let _ = std::fs::remove_file(&persist);
     let (mut state, _seen, _sub) = mk_state("combo", Some(persist.clone()));
 
-    update(&mut state, Message::Combo { panel: "面板A".into(), key: "style".into(), value: "B".into() });
+    update(
+        &mut state,
+        Message::Combo {
+            panel: "面板A".into(),
+            key: "style".into(),
+            value: "B".into(),
+        },
+    );
     assert_eq!(state.service_string("style"), "B");
     assert_eq!(
         state.snapshot_row("面板A", "style").unwrap().value,
@@ -162,7 +206,11 @@ fn color_picked_writes_decimal_bus_and_persists() {
 
     update(
         &mut state,
-        Message::ColorPicked { panel: "P".into(), key: "fontWarn".into(), value: [255, 36, 0, 128] },
+        Message::ColorPicked {
+            panel: "P".into(),
+            key: "fontWarn".into(),
+            value: [255, 36, 0, 128],
+        },
     );
     // 服务: 主键十进制 (Java L124 向后兼容存储格式)
     assert_eq!(state.service_string("fontWarn"), "255, 36, 0, 128");
@@ -174,7 +222,10 @@ fn color_picked_writes_decimal_bus_and_persists() {
     // WYSIWYG 链: set→publish(key) + 保存链 publish("ui_layout.cfg")
     let evs = events_of(&seen);
     assert!(evs.contains(&(ui_state_events::CONFIG_CHANGED.into(), "fontWarn".into())));
-    assert!(evs.contains(&(ui_state_events::CONFIG_CHANGED.into(), "ui_layout.cfg".into())));
+    assert!(evs.contains(&(
+        ui_state_events::CONFIG_CHANGED.into(),
+        "ui_layout.cfg".into()
+    )));
     // Java L135 onSave: 即时落盘 + 服务树收敛
     assert!(std::path::Path::new(&persist).exists());
     assert_eq!(
@@ -206,8 +257,18 @@ fn toggle_without_target_falls_back_to_row_value() {
         Some(persist.clone()),
     );
 
-    update(&mut state, Message::Toggle { panel: "P".into(), key: "裸开关".into(), value: false });
-    assert_eq!(state.snapshot_row("P", "裸开关").unwrap().value, Some(ConfigValue::Bool(false)));
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "P".into(),
+            key: "裸开关".into(),
+            value: false,
+        },
+    );
+    assert_eq!(
+        state.snapshot_row("P", "裸开关").unwrap().value,
+        Some(ConfigValue::Bool(false))
+    );
     // Java 每次交互 onSave 即落盘; row.value 经挂起重放 → 服务树收敛
     assert!(std::path::Path::new(&persist).exists());
     assert_eq!(
@@ -228,13 +289,23 @@ fn slider_without_target_memory_then_save() {
         Some(persist.clone()),
     );
 
-    update(&mut state, Message::Slider { panel: "P".into(), key: "裸滑条".into(), value: 7 });
+    update(
+        &mut state,
+        Message::Slider {
+            panel: "P".into(),
+            key: "裸滑条".into(),
+            value: 7,
+        },
+    );
     assert!(!std::path::Path::new(&persist).exists(), "拖拽期不落盘");
     assert_eq!(state.snapshot_row("P", "裸滑条").unwrap().get_int(), 7);
 
     update(&mut state, Message::Save);
     assert!(std::path::Path::new(&persist).exists());
-    assert_eq!(state.config.get_layout_configs().unwrap()[0].rows[0].get_int(), 7);
+    assert_eq!(
+        state.config.get_layout_configs().unwrap()[0].rows[0].get_int(),
+        7
+    );
     let _ = std::fs::remove_file(&persist);
 }
 
@@ -249,7 +320,14 @@ fn combo_without_target_persists_row_value() {
         Some(persist.clone()),
     );
 
-    update(&mut state, Message::Combo { panel: "P".into(), key: "裸下拉".into(), value: "Y".into() });
+    update(
+        &mut state,
+        Message::Combo {
+            panel: "P".into(),
+            key: "裸下拉".into(),
+            value: "Y".into(),
+        },
+    );
     assert_eq!(
         state.snapshot_row("P", "裸下拉").unwrap().value,
         Some(ConfigValue::Str("Y".into()))
@@ -276,7 +354,14 @@ fn persist_after_external_reload_keeps_external_values() {
     let mut state = solo_state("ext", cfg, Some(persist.clone()));
 
     // 交互 1: e1=false 交互即存
-    update(&mut state, Message::Toggle { panel: "P".into(), key: "e1".into(), value: false });
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "P".into(),
+            key: "e1".into(),
+            value: false,
+        },
+    );
     assert!(std::path::Path::new(&persist).exists());
 
     // 外部替换: 持久化路径被外部重写 (e1=true) 且服务树重载 — 快照变陈旧
@@ -284,7 +369,14 @@ fn persist_after_external_reload_keeps_external_values() {
     state.config.load_layout(&persist);
 
     // 交互 2: e2=false → 落盘必须保留外部 e1=true (旧实现写陈旧快照会回滚 e1)
-    update(&mut state, Message::Toggle { panel: "P".into(), key: "e2".into(), value: false });
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "P".into(),
+            key: "e2".into(),
+            value: false,
+        },
+    );
     let reread = vm_core::config::config_loader::load_config(&persist);
     let vals: Vec<(String, bool)> = reread[0]
         .rows
@@ -309,7 +401,10 @@ fn refresh_previews_publishes_exactly() {
     update(&mut state, Message::RefreshPreviews);
     assert_eq!(
         events_of(&seen),
-        vec![(ui_state_events::CONFIG_CHANGED.into(), "ui_layout.cfg".into())]
+        vec![(
+            ui_state_events::CONFIG_CHANGED.into(),
+            "ui_layout.cfg".into()
+        )]
     );
 }
 
@@ -317,7 +412,14 @@ fn refresh_previews_publishes_exactly() {
 #[test]
 fn unknown_panel_message_is_ignored() {
     let (mut state, seen, _sub) = mk_state("unknown_panel", None);
-    update(&mut state, Message::Toggle { panel: "不存在".into(), key: "k1".into(), value: false });
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "不存在".into(),
+            key: "k1".into(),
+            value: false,
+        },
+    );
     assert_eq!(state.service_string("k1"), "true", "服务值不变");
     assert!(events_of(&seen).is_empty(), "不得产生事件");
 }
@@ -337,7 +439,10 @@ fn counts_and_first_row_of_type() {
         state.first_row_of_type("SLIDER"),
         Some(("面板A".to_string(), "fontSize".to_string()))
     );
-    assert_eq!(state.first_row_of_type("COMBO"), Some(("面板A".to_string(), "style".to_string())));
+    assert_eq!(
+        state.first_row_of_type("COMBO"),
+        Some(("面板A".to_string(), "style".to_string()))
+    );
     assert_eq!(state.first_row_of_type("COLOR"), None);
 }
 
@@ -346,7 +451,11 @@ fn counts_and_first_row_of_type() {
 #[test]
 fn write_context_fmprint_special_publishes() {
     let p = tmp_path("fmp");
-    std::fs::write(&p, r#"(panel "p" (item "fm" :type switch :target "enableFMPrint" :value true))"#).unwrap();
+    std::fs::write(
+        &p,
+        r#"(panel "p" (item "fm" :type switch :target "enableFMPrint" :value true))"#,
+    )
+    .unwrap();
     let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     // 路由总线: 两类事件各挂一探针, 共享 seen (实际送达序 = publish 序)
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
@@ -373,8 +482,14 @@ fn write_context_fmprint_special_publishes() {
     assert_eq!(
         evs,
         vec![
-            (ui_state_events::CONFIG_CHANGED.into(), "enableFMPrint".into()),
-            (ui_state_events::FM_PRINT_SWITCH_CHANGED.into(), "false".into()),
+            (
+                ui_state_events::CONFIG_CHANGED.into(),
+                "enableFMPrint".into()
+            ),
+            (
+                ui_state_events::FM_PRINT_SWITCH_CHANGED.into(),
+                "false".into()
+            ),
         ]
     );
 }
@@ -409,7 +524,10 @@ fn button_action_confirm_executes_reset() {
             let _ = std::fs::remove_dir_all(&self.dir);
         }
     }
-    let _sandbox = Sandbox { orig, dir: dir.clone() };
+    let _sandbox = Sandbox {
+        orig,
+        dir: dir.clone(),
+    };
 
     let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
@@ -417,12 +535,21 @@ fn button_action_confirm_executes_reset() {
     let mut state = MainFormState::new(
         config,
         Arc::clone(&bus),
-        Some(dir.join("ui_layout.user.cfg").to_string_lossy().into_owned()),
+        Some(
+            dir.join("ui_layout.user.cfg")
+                .to_string_lossy()
+                .into_owned(),
+        ),
     );
     let n_before = state.groups.len();
 
     // ① 按下 factoryReset → 挂起确认模态 (不执行)
-    update(&mut state, Message::ButtonAction { action: "factoryReset".into() });
+    update(
+        &mut state,
+        Message::ButtonAction {
+            action: "factoryReset".into(),
+        },
+    );
     assert!(state.pending_action.is_some(), "确认模态应挂起");
     assert_eq!(state.groups.len(), n_before, "未确认前不得重置");
 
@@ -431,7 +558,12 @@ fn button_action_confirm_executes_reset() {
     assert!(state.pending_action.is_none());
 
     // ③ 再按 + 确认 → reset 执行 + 整树收敛 (模板组数回归)
-    update(&mut state, Message::ButtonAction { action: "factoryReset".into() });
+    update(
+        &mut state,
+        Message::ButtonAction {
+            action: "factoryReset".into(),
+        },
+    );
     update(&mut state, Message::ConfirmPending);
     assert!(state.pending_action.is_none(), "执行后模态关闭");
     assert!(

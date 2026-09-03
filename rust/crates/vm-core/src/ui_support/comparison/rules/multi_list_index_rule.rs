@@ -18,7 +18,11 @@ impl MultiListIndexRule {
     /// @param item_index the 0-based index within that list
     /// @param lower_is_better true if lower values are better
     pub fn new(list_index: i32, item_index: i32, lower_is_better: bool) -> Self {
-        Self { list_index, item_index, lower_is_better }
+        Self {
+            list_index,
+            item_index,
+            lower_is_better,
+        }
     }
 }
 

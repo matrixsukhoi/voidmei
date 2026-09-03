@@ -52,7 +52,11 @@ pub fn lex(src: &str) -> Result<Vec<Tok>, LexError> {
 
     macro_rules! err {
         ($msg:expr) => {
-            return Err(LexError { line, col, msg: $msg.to_string() })
+            return Err(LexError {
+                line,
+                col,
+                msg: $msg.to_string(),
+            })
         };
     }
 
@@ -75,13 +79,19 @@ pub fn lex(src: &str) -> Result<Vec<Tok>, LexError> {
                 i += 1;
                 col += 1;
             }
-            c if c.is_ascii_digit() || (c == '.' && i + 1 < bytes.len() && (bytes[i + 1] as char).is_ascii_digit()) => {
+            c if c.is_ascii_digit()
+                || (c == '.' && i + 1 < bytes.len() && (bytes[i + 1] as char).is_ascii_digit()) =>
+            {
                 // 数字: [0-9]+("." [0-9]+)? ([eE][+-]?[0-9]+)?
                 let start = i;
                 while i < bytes.len() && (bytes[i] as char).is_ascii_digit() {
                     i += 1;
                 }
-                if i < bytes.len() && bytes[i] == b'.' && i + 1 < bytes.len() && (bytes[i + 1] as char).is_ascii_digit() {
+                if i < bytes.len()
+                    && bytes[i] == b'.'
+                    && i + 1 < bytes.len()
+                    && (bytes[i + 1] as char).is_ascii_digit()
+                {
                     i += 1;
                     while i < bytes.len() && (bytes[i] as char).is_ascii_digit() {
                         i += 1;
@@ -122,17 +132,61 @@ pub fn lex(src: &str) -> Result<Vec<Tok>, LexError> {
                 toks.push(Tok::Ident(text.to_string()));
                 col += text.len();
             }
-            '+' => { toks.push(Tok::Plus); i += 1; col += 1; }
-            '-' => { toks.push(Tok::Minus); i += 1; col += 1; }
-            '*' => { toks.push(Tok::Star); i += 1; col += 1; }
-            '/' => { toks.push(Tok::Slash); i += 1; col += 1; }
-            '%' => { toks.push(Tok::Percent); i += 1; col += 1; }
-            '^' => { toks.push(Tok::Caret); i += 1; col += 1; }
-            '(' => { toks.push(Tok::LParen); i += 1; col += 1; }
-            ')' => { toks.push(Tok::RParen); i += 1; col += 1; }
-            ',' => { toks.push(Tok::Comma); i += 1; col += 1; }
-            '?' => { toks.push(Tok::Question); i += 1; col += 1; }
-            ':' => { toks.push(Tok::Colon); i += 1; col += 1; }
+            '+' => {
+                toks.push(Tok::Plus);
+                i += 1;
+                col += 1;
+            }
+            '-' => {
+                toks.push(Tok::Minus);
+                i += 1;
+                col += 1;
+            }
+            '*' => {
+                toks.push(Tok::Star);
+                i += 1;
+                col += 1;
+            }
+            '/' => {
+                toks.push(Tok::Slash);
+                i += 1;
+                col += 1;
+            }
+            '%' => {
+                toks.push(Tok::Percent);
+                i += 1;
+                col += 1;
+            }
+            '^' => {
+                toks.push(Tok::Caret);
+                i += 1;
+                col += 1;
+            }
+            '(' => {
+                toks.push(Tok::LParen);
+                i += 1;
+                col += 1;
+            }
+            ')' => {
+                toks.push(Tok::RParen);
+                i += 1;
+                col += 1;
+            }
+            ',' => {
+                toks.push(Tok::Comma);
+                i += 1;
+                col += 1;
+            }
+            '?' => {
+                toks.push(Tok::Question);
+                i += 1;
+                col += 1;
+            }
+            ':' => {
+                toks.push(Tok::Colon);
+                i += 1;
+                col += 1;
+            }
             '=' if i + 1 < bytes.len() && bytes[i + 1] == b'=' => {
                 toks.push(Tok::EqEq);
                 i += 2;
@@ -143,19 +197,31 @@ pub fn lex(src: &str) -> Result<Vec<Tok>, LexError> {
                 i += 2;
                 col += 2;
             }
-            '!' => { toks.push(Tok::Not); i += 1; col += 1; }
+            '!' => {
+                toks.push(Tok::Not);
+                i += 1;
+                col += 1;
+            }
             '<' if i + 1 < bytes.len() && bytes[i + 1] == b'=' => {
                 toks.push(Tok::Le);
                 i += 2;
                 col += 2;
             }
-            '<' => { toks.push(Tok::Lt); i += 1; col += 1; }
+            '<' => {
+                toks.push(Tok::Lt);
+                i += 1;
+                col += 1;
+            }
             '>' if i + 1 < bytes.len() && bytes[i + 1] == b'=' => {
                 toks.push(Tok::Ge);
                 i += 2;
                 col += 2;
             }
-            '>' => { toks.push(Tok::Gt); i += 1; col += 1; }
+            '>' => {
+                toks.push(Tok::Gt);
+                i += 1;
+                col += 1;
+            }
             '&' if i + 1 < bytes.len() && bytes[i + 1] == b'&' => {
                 toks.push(Tok::AndAnd);
                 i += 2;

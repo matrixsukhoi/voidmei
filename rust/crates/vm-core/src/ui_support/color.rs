@@ -37,7 +37,7 @@ pub fn try_parse_color(text: &str) -> Option<[u8; 4]> {
 /// 其他长度/非法数字落穿 → None。
 fn parse_hex_color(hex: &str) -> Option<[u8; 4]> {
     let h = &hex[1..]; // '#' 恒 ASCII 单字节, [1..] 是合法切点
-    // 非 ASCII 多字节字符在 Java parseInt 必失败 → None (顺带规避切包边界 panic)
+                       // 非 ASCII 多字节字符在 Java parseInt 必失败 → None (顺带规避切包边界 panic)
     if !h.is_ascii() {
         return None;
     }
@@ -67,7 +67,11 @@ fn parse_decimal_color(decimal: &str) -> Option<[u8; 4]> {
     let r = parts[0].parse::<i32>().ok()?;
     let g = parts[1].parse::<i32>().ok()?;
     let b = parts[2].parse::<i32>().ok()?;
-    let a = if parts.len() >= 4 { parts[3].parse::<i32>().ok()? } else { 255 };
+    let a = if parts.len() >= 4 {
+        parts[3].parse::<i32>().ok()?
+    } else {
+        255
+    };
     Some([clamp_u8(r), clamp_u8(g), clamp_u8(b), clamp_u8(a)])
 }
 

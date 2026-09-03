@@ -4,15 +4,15 @@
 //! (butt_line 波13 迁出)。
 
 use crate::render::primitives::butt_line;
+use crate::render::primitives::ring1px;
 use crate::render::primitives::text_shaded_auto;
 use crate::render::primitives::vline_1px;
-use crate::render::primitives::ring1px;
-use vm_core::base::format::java_round_f32;
 use std::rc::Rc;
+use vm_core::base::format::java_round_f32;
 
+use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::colors;
-use crate::render::canvas::PixCanvas;
 
 // ---------------------------------------------------------------------------
 // MarkerType (ui/component/gauge/MarkerType.java)
@@ -107,9 +107,9 @@ impl Default for GaugeBarStyle {
     /// borderColor=GRAY, showBorder=false, vertical=true, strokeWidth=2
     fn default() -> Self {
         GaugeBarStyle {
-            fill_color: [0, 255, 255, 255], // Color.CYAN
+            fill_color: [0, 255, 255, 255],      // Color.CYAN
             background_color: [64, 64, 64, 255], // Color.DARK_GRAY
-            border_color: [128, 128, 128, 255], // Color.GRAY
+            border_color: [128, 128, 128, 255],  // Color.GRAY
             show_border: false,
             vertical: true,
             stroke_width: 2,
@@ -238,9 +238,7 @@ impl MarkedGauge {
     pub(crate) fn pix_value(&self, length: i32) -> i32 {
         if self.max_value > 0.0 {
             // PORT: Java 先 double 乘除再 (float) 强转再 round — f64 算完 as f32 (§2.12)
-            let v = java_round_f32(
-                ((self.current_value * length as f64) / self.max_value) as f32,
-            );
+            let v = java_round_f32(((self.current_value * length as f64) / self.max_value) as f32);
             v.clamp(0, length)
         } else {
             0
@@ -295,27 +293,60 @@ impl MarkedGauge {
         // 1. LINE_PARTIAL 标记垫底 (被条盖住)
         for m in &self.markers {
             if m.is_visible() && m.marker_type == MarkerType::LinePartial {
-                Self::draw_marker_vertical(cv, bar_x, y, length, thickness, m, style,
-                    self.tick_font.as_deref(), aa);
+                Self::draw_marker_vertical(
+                    cv,
+                    bar_x,
+                    y,
+                    length,
+                    thickness,
+                    m,
+                    style,
+                    self.tick_font.as_deref(),
+                    aa,
+                );
             }
         }
         // 2. 背景条
         cv.fill_rect(bar_x, y, thickness, length, style.background_color);
         // 3. 填充段 (自底向上)
         if pix_val > 0 {
-            cv.fill_rect(bar_x, y + length - pix_val, thickness, pix_val, style.fill_color);
+            cv.fill_rect(
+                bar_x,
+                y + length - pix_val,
+                thickness,
+                pix_val,
+                style.fill_color,
+            );
         }
         // 4/5. ZONE 与 LINE_FULL 标记 (叠在条上)
         for m in &self.markers {
             if m.is_visible() && m.marker_type == MarkerType::Zone {
-                Self::draw_marker_vertical(cv, bar_x, y, length, thickness, m, style,
-                    self.tick_font.as_deref(), aa);
+                Self::draw_marker_vertical(
+                    cv,
+                    bar_x,
+                    y,
+                    length,
+                    thickness,
+                    m,
+                    style,
+                    self.tick_font.as_deref(),
+                    aa,
+                );
             }
         }
         for m in &self.markers {
             if m.is_visible() && m.marker_type == MarkerType::LineFull {
-                Self::draw_marker_vertical(cv, bar_x, y, length, thickness, m, style,
-                    self.tick_font.as_deref(), aa);
+                Self::draw_marker_vertical(
+                    cv,
+                    bar_x,
+                    y,
+                    length,
+                    thickness,
+                    m,
+                    style,
+                    self.tick_font.as_deref(),
+                    aa,
+                );
             }
         }
         // 6. 分隔线 + 数值文本 (随值移动); Java 此处显式 setStroke(borderStroke)
@@ -348,8 +379,17 @@ impl MarkedGauge {
         // 1. LINE_PARTIAL 标记垫底
         for m in &self.markers {
             if m.is_visible() && m.marker_type == MarkerType::LinePartial {
-                Self::draw_marker_horizontal(cv, x, y, length, thickness, m, style,
-                    self.tick_font.as_deref(), aa);
+                Self::draw_marker_horizontal(
+                    cv,
+                    x,
+                    y,
+                    length,
+                    thickness,
+                    m,
+                    style,
+                    self.tick_font.as_deref(),
+                    aa,
+                );
             }
         }
         // 2. 背景条
@@ -362,15 +402,33 @@ impl MarkedGauge {
         let mut tick_stroke_set = false; // 画过标记 → g2d stroke 已被置为 tickStroke
         for m in &self.markers {
             if m.is_visible() && m.marker_type == MarkerType::Zone {
-                Self::draw_marker_horizontal(cv, x, y, length, thickness, m, style,
-                    self.tick_font.as_deref(), aa);
+                Self::draw_marker_horizontal(
+                    cv,
+                    x,
+                    y,
+                    length,
+                    thickness,
+                    m,
+                    style,
+                    self.tick_font.as_deref(),
+                    aa,
+                );
                 tick_stroke_set = true;
             }
         }
         for m in &self.markers {
             if m.is_visible() && m.marker_type == MarkerType::LineFull {
-                Self::draw_marker_horizontal(cv, x, y, length, thickness, m, style,
-                    self.tick_font.as_deref(), aa);
+                Self::draw_marker_horizontal(
+                    cv,
+                    x,
+                    y,
+                    length,
+                    thickness,
+                    m,
+                    style,
+                    self.tick_font.as_deref(),
+                    aa,
+                );
                 tick_stroke_set = true;
             }
         }
@@ -382,17 +440,39 @@ impl MarkedGauge {
         // (调用链前置组件的 1px 族, 见 gauges_bars LabeledLinearGauge 横向同款注)。
         // 按此确定性复刻两条路径
         if tick_stroke_set {
-            butt_line(cv, x + pix_val + 1, y, x + pix_val + 1, y + sep_height,
-                style.stroke_width, colors().shade_shape, aa);
-            butt_line(cv, x + pix_val, y, x + pix_val, y + sep_height,
-                style.stroke_width, text_color, aa);
+            butt_line(
+                cv,
+                x + pix_val + 1,
+                y,
+                x + pix_val + 1,
+                y + sep_height,
+                style.stroke_width,
+                colors().shade_shape,
+                aa,
+            );
+            butt_line(
+                cv,
+                x + pix_val,
+                y,
+                x + pix_val,
+                y + sep_height,
+                style.stroke_width,
+                text_color,
+                aa,
+            );
         } else {
             vline_1px(cv, x + pix_val + 1, y, y + sep_height, colors().shade_shape);
             vline_1px(cv, x + pix_val, y, y + sep_height, text_color);
         }
         // 7. 数值文本 (条下方)
-        self.draw_value_text(cv, x + pix_val, y + thickness + font_value.size,
-            font_value, text_color, aa);
+        self.draw_value_text(
+            cv,
+            x + pix_val,
+            y + thickness + font_value.size,
+            font_value,
+            text_color,
+            aa,
+        );
         // 8. 边框 (borderStroke 显式 set)
         if style.show_border {
             ring1px(cv, x, y, length - 1, thickness - 1, style.border_color);
@@ -416,23 +496,55 @@ impl MarkedGauge {
         let marker_y = bar_y + length - (length as f64 * Self::clamp01(m.ratio)) as i32;
         match m.marker_type {
             MarkerType::LineFull => {
-                butt_line(cv, bar_x, marker_y, bar_x + thickness, marker_y,
-                    style.stroke_width, m.color, aa);
+                butt_line(
+                    cv,
+                    bar_x,
+                    marker_y,
+                    bar_x + thickness,
+                    marker_y,
+                    style.stroke_width,
+                    m.color,
+                    aa,
+                );
             }
             MarkerType::LinePartial => {
                 let line_width = (thickness as f32 * m.width_ratio) as i32;
                 if m.side < 0 {
                     // 左侧伸入条内
-                    butt_line(cv, bar_x - 4, marker_y, bar_x + line_width, marker_y,
-                        style.stroke_width, m.color, aa);
+                    butt_line(
+                        cv,
+                        bar_x - 4,
+                        marker_y,
+                        bar_x + line_width,
+                        marker_y,
+                        style.stroke_width,
+                        m.color,
+                        aa,
+                    );
                 } else if m.side > 0 {
                     // 右侧伸出条外
-                    butt_line(cv, bar_x + thickness - line_width, marker_y,
-                        bar_x + thickness + 4, marker_y, style.stroke_width, m.color, aa);
+                    butt_line(
+                        cv,
+                        bar_x + thickness - line_width,
+                        marker_y,
+                        bar_x + thickness + 4,
+                        marker_y,
+                        style.stroke_width,
+                        m.color,
+                        aa,
+                    );
                 } else {
                     let start = bar_x + (thickness - line_width) / 2;
-                    butt_line(cv, start, marker_y, start + line_width, marker_y,
-                        style.stroke_width, m.color, aa);
+                    butt_line(
+                        cv,
+                        start,
+                        marker_y,
+                        start + line_width,
+                        marker_y,
+                        style.stroke_width,
+                        m.color,
+                        aa,
+                    );
                 }
             }
             MarkerType::Zone => {
@@ -444,15 +556,36 @@ impl MarkedGauge {
                 } else if m.side == 0 {
                     zone_x = bar_x + (thickness - zone_width) / 2;
                 }
-                cv.fill_rect(zone_x, bar_y + length - zone_height, zone_width, zone_height, m.color);
+                cv.fill_rect(
+                    zone_x,
+                    bar_y + length - zone_height,
+                    zone_width,
+                    zone_height,
+                    m.color,
+                );
             }
             MarkerType::TickLabeled => {
-                butt_line(cv, bar_x, marker_y, bar_x + thickness, marker_y,
-                    style.stroke_width, m.color, aa);
+                butt_line(
+                    cv,
+                    bar_x,
+                    marker_y,
+                    bar_x + thickness,
+                    marker_y,
+                    style.stroke_width,
+                    m.color,
+                    aa,
+                );
                 if let Some(f) = tick_font {
                     if !m.label.is_empty() {
-                        text_shaded_auto(cv, f, bar_x + thickness + 4, marker_y + 4,
-                            &m.label, m.color, aa);
+                        text_shaded_auto(
+                            cv,
+                            f,
+                            bar_x + thickness + 4,
+                            marker_y + 4,
+                            &m.label,
+                            m.color,
+                            aa,
+                        );
                     }
                 }
             }
@@ -475,23 +608,55 @@ impl MarkedGauge {
         let marker_x = bar_x + (length as f64 * Self::clamp01(m.ratio)) as i32;
         match m.marker_type {
             MarkerType::LineFull => {
-                butt_line(cv, marker_x, bar_y, marker_x, bar_y + thickness,
-                    style.stroke_width, m.color, aa);
+                butt_line(
+                    cv,
+                    marker_x,
+                    bar_y,
+                    marker_x,
+                    bar_y + thickness,
+                    style.stroke_width,
+                    m.color,
+                    aa,
+                );
             }
             MarkerType::LinePartial => {
                 let line_height = (thickness as f32 * m.width_ratio) as i32;
                 if m.side < 0 {
                     // 上侧
-                    butt_line(cv, marker_x, bar_y - 4, marker_x, bar_y + line_height,
-                        style.stroke_width, m.color, aa);
+                    butt_line(
+                        cv,
+                        marker_x,
+                        bar_y - 4,
+                        marker_x,
+                        bar_y + line_height,
+                        style.stroke_width,
+                        m.color,
+                        aa,
+                    );
                 } else if m.side > 0 {
                     // 下侧
-                    butt_line(cv, marker_x, bar_y + thickness - line_height,
-                        marker_x, bar_y + thickness + 4, style.stroke_width, m.color, aa);
+                    butt_line(
+                        cv,
+                        marker_x,
+                        bar_y + thickness - line_height,
+                        marker_x,
+                        bar_y + thickness + 4,
+                        style.stroke_width,
+                        m.color,
+                        aa,
+                    );
                 } else {
                     let start = bar_y + (thickness - line_height) / 2;
-                    butt_line(cv, marker_x, start, marker_x, start + line_height,
-                        style.stroke_width, m.color, aa);
+                    butt_line(
+                        cv,
+                        marker_x,
+                        start,
+                        marker_x,
+                        start + line_height,
+                        style.stroke_width,
+                        m.color,
+                        aa,
+                    );
                 }
             }
             MarkerType::Zone => {
@@ -506,12 +671,27 @@ impl MarkedGauge {
                 cv.fill_rect(bar_x, zone_y, zone_width, zone_height, m.color);
             }
             MarkerType::TickLabeled => {
-                butt_line(cv, marker_x, bar_y, marker_x, bar_y + thickness,
-                    style.stroke_width, m.color, aa);
+                butt_line(
+                    cv,
+                    marker_x,
+                    bar_y,
+                    marker_x,
+                    bar_y + thickness,
+                    style.stroke_width,
+                    m.color,
+                    aa,
+                );
                 if let Some(f) = tick_font {
                     if !m.label.is_empty() {
-                        text_shaded_auto(cv, f, marker_x + 4,
-                            bar_y + thickness + f.size, &m.label, m.color, aa);
+                        text_shaded_auto(
+                            cv,
+                            f,
+                            marker_x + 4,
+                            bar_y + thickness + f.size,
+                            &m.label,
+                            m.color,
+                            aa,
+                        );
                     }
                 }
             }

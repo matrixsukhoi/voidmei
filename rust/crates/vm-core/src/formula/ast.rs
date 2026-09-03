@@ -33,10 +33,24 @@ pub enum Expr {
     Num(f64),
     /// 变量引用 (原子变量名 / 公式名 / 常量名, 编译期裁决)
     Name(String),
-    Call { name: String, args: Vec<Expr> },
-    Unary { op: UnOp, expr: Box<Expr> },
-    Binary { op: BinOp, lhs: Box<Expr>, rhs: Box<Expr> },
-    Ternary { cond: Box<Expr>, then: Box<Expr>, els: Box<Expr> },
+    Call {
+        name: String,
+        args: Vec<Expr>,
+    },
+    Unary {
+        op: UnOp,
+        expr: Box<Expr>,
+    },
+    Binary {
+        op: BinOp,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    Ternary {
+        cond: Box<Expr>,
+        then: Box<Expr>,
+        els: Box<Expr>,
+    },
 }
 
 /// 已解析表达式 — 名字全部替换为编号:
@@ -51,10 +65,25 @@ pub enum RExpr {
     Var(u16),
     /// 其他公式的结果槽 (拓扑序保证被引用者先算)
     Formula(u16),
-    Call { fid: u16, args: Vec<RExpr>, site: u32 },
-    Unary { op: UnOp, expr: Box<RExpr> },
-    Binary { op: BinOp, lhs: Box<RExpr>, rhs: Box<RExpr> },
-    Ternary { cond: Box<RExpr>, then: Box<RExpr>, els: Box<RExpr> },
+    Call {
+        fid: u16,
+        args: Vec<RExpr>,
+        site: u32,
+    },
+    Unary {
+        op: UnOp,
+        expr: Box<RExpr>,
+    },
+    Binary {
+        op: BinOp,
+        lhs: Box<RExpr>,
+        rhs: Box<RExpr>,
+    },
+    Ternary {
+        cond: Box<RExpr>,
+        then: Box<RExpr>,
+        els: Box<RExpr>,
+    },
 }
 
 /// 收集 RExpr 中对其他公式的引用槽 (编译期建依赖图用)

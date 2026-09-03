@@ -32,16 +32,16 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use vm_core::config::config_api::ConfigProvider; // get_config/set_config trait 面 (根+tests 经 glob 消费)
-use vm_core::config::configuration_service::{ConfigurationService, GlobalColors};
+use vm_core::audio::voice_resource_manager::VoiceResourceManager;
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
 use vm_core::base::event::ui_state_events;
 use vm_core::base::java_compat::java_parse_boolean;
-use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::base::logger;
+use vm_core::config::config_api::ConfigProvider; // get_config/set_config trait 面 (根+tests 经 glob 消费)
+use vm_core::config::configuration_service::{ConfigurationService, GlobalColors};
 use vm_core::fm::FMManager;
 use vm_core::lang::Lang;
-use vm_core::base::logger;
-use vm_core::base::bus::ui_state_bus::UIStateBus;
-use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
 use vm_overlay::platform::hotkey::{HotkeyEvent, HotkeyManager};
 
@@ -57,9 +57,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(test)]
 use std::time::Instant;
 #[cfg(test)]
-use vm_core::config::config_api::HudSettingsSnapshot;
-#[cfg(test)]
 use vm_core::base::event::event_payload::EventPayload;
+#[cfg(test)]
+use vm_core::config::config_api::HudSettingsSnapshot;
 #[cfg(test)]
 use vm_core::fm::FMStatus;
 #[cfg(test)]
@@ -78,15 +78,15 @@ mod debouncer;
 mod env;
 mod keys;
 mod overlay_inputs;
-mod voice_setup;
 mod render_thread;
+mod voice_setup;
 
 pub use crate::commands::{DebounceMsg, MainEvent, SupervisorOutcome, TrayCommand, UiCommand};
 pub use crate::controller::{Controller, ControllerDeps};
-pub use crate::controller_state::ControllerState;
 pub use crate::controller_shared::{
     is_stale_refresh, ControllerFlags, ControllerShared, FLIGHT_SILENT_EXIT_MS,
 };
+pub use crate::controller_state::ControllerState;
 pub use crate::debouncer::{ConfigDebouncer, CONFIG_DEBOUNCE_MS};
 pub use crate::env::Env;
 pub use crate::keys::{
@@ -103,14 +103,14 @@ pub use crate::voice_setup::ConfigSnapshots; // AppShell pub 字段类型 (E9b)
 
 // tests.rs 专用符号 (经 `use super::*` 抵达; cfg(test) 免非测试构建 unused 警告)
 #[cfg(test)]
-use vm_core::base::java_compat::current_time_millis;
-#[cfg(test)]
-use crate::voice_setup::open_voice_warning;
-#[cfg(test)]
 use crate::render_thread::{
     feed_overlays_live, register_live_overlays, reset_handles_preview_values, strategy_for,
     AttitudeFeedState, ChannelFocusBridge, HostActivationCtx, OverlayHandles, OverlayRegSetup,
 };
+#[cfg(test)]
+use crate::voice_setup::open_voice_warning;
+#[cfg(test)]
+use vm_core::base::java_compat::current_time_millis;
 
 /// 语音播放平台件 (winmm waveOut 每路独立流; 播放模型裁决见该模块头注)
 pub mod winmm_player;
@@ -175,7 +175,7 @@ pub struct AppShell {
     /// 注入 load 过的实例, Controller::start 会话覆盖 Service 实例; ShellForm
     /// 构造时经参数接线同源 (vm-webui 直算命令经 tauri State 读)
     pub formula_shared: vm_webui::ipc::FormulaShared,
-    /// stop 步3 / start 的设置窗释放闭包 (W2 接 iced MainForm; 默认记日志)
+    /// stop 步3 / start 的设置窗释放闭包 (MainForm 归主线程 web 壳, 组装层接线; 默认记日志)
     pub release_main_form: Box<dyn FnMut()>,
     /// Exit 托盘命令 → run_supervisor 退出标志
     exit_requested: bool,
@@ -184,9 +184,9 @@ pub struct AppShell {
     /// 消费时记日志兜底
     about_requested: bool,
     /// 托盘 Activate 置位 (新核构造了 MainForm 存活位) — 组装层主循环据此
-    /// 重开 iced 设置窗 (Java: 托盘点击 → ctr = new Controller(false) → 弹窗)。
-    /// 相 A (窗口期) 内置位 → 关窗重开; 相 B (监督期) 内置位 → run_supervisor_phase
-    /// 返回 MainFormRequested。
+    /// 显示设置窗 (Java: 托盘点击 → ctr = new Controller(false) → 弹窗)。
+    /// web 壳单循环内经 take_form_request 轮询 → show + UI_READY;
+    /// 无窗形态 (run_supervisor_phase) 内置位 → 返回 MainFormRequested。
     form_requested: bool,
     /// 8111 网络探测开关 (生产 true; 测试隔离置 false, 见 fixture 注)
     probe_network: bool,
@@ -236,7 +236,9 @@ impl AppShell {
             config,
             ui_bus,
             flight_bus: Arc::new(FlightDataBus::new()),
-            fm: Arc::new(FMManager::new(Arc::new(vm_core::base::bus::EventBus::new()))),
+            fm: Arc::new(FMManager::new(
+                Arc::new(vm_core::base::bus::EventBus::new()),
+            )),
             hotkey,
             hotkey_rx,
             debounce_delay: Duration::from_millis(CONFIG_DEBOUNCE_MS),
@@ -292,8 +294,12 @@ impl AppShell {
             render: None,
             formula_shared: vm_webui::ipc::FormulaShared::default(),
             release_main_form: Box::new(|| {
-                // 默认无 MainForm (W2 前): 记日志占位
-                logger::info("AppShell", "释放设置窗 (默认空操作 — W2 接线前)");
+                // 默认占位: desktop 形态收窗由主循环 window_visibility_step 承担,
+                // 不经本闭包 (组装层需要真窗动作时可注入覆盖)
+                logger::info(
+                    "AppShell",
+                    "释放设置窗 (默认空操作 — desktop 收窗走主循环可见性步)",
+                );
             }),
             exit_requested: false,
             about_requested: false,
@@ -344,7 +350,7 @@ impl AppShell {
             }
         };
         refresh_activation_cache(&config, &self.activation); // 渲染线程激活面同步
-        // voice_*/FM show* 快照随新配置树全量重刷 (VoiceWarning 与 generate_lines 读面)
+                                                             // voice_*/FM show* 快照随新配置树全量重刷 (VoiceWarning 与 generate_lines 读面)
         self.config_snapshots.refresh(&config);
         self.shared.reset_for_rebuild();
         self.controller = Some(Controller::new(
@@ -416,7 +422,7 @@ impl AppShell {
         Ok(())
     }
 
-    /// MainForm 侧命令路由 (W2: iced update 收 Message::StartGame → 此处)
+    /// MainForm 侧命令路由 (web 壳 IPC dispatcher 收 Message::StartGame → 此处)
     pub fn dispatch(&mut self, cmd: UiCommand) {
         match cmd {
             UiCommand::StartGame => {
@@ -432,8 +438,8 @@ impl AppShell {
                 // — 设置窗内未确认落盘的 layout 改动随
                 // 退出丢弃, 勿在此加回 (审查 A-W1); System.exit(0) 的退出归属:
                 // 置 exit_requested — run_supervisor 路径经循环尾 shutdown() 收尾
-                // 退出 (比 Java 裸 exit 多做线程/托盘清理); W2 iced 外部驱动路径
-                // 由调用方轮询 is_exit_requested() 决定退出 (iced 侧 exit +
+                // 退出 (比 Java 裸 exit 多做线程/托盘清理); desktop 主循环
+                // 由调用方轮询 is_exit_requested() 决定退出 (主循环 break +
                 // drop AppShell = Drop 兜底 shutdown)。
                 if let Some(c) = self.controller.as_ref() {
                     c.config.save_config();
@@ -463,7 +469,9 @@ impl AppShell {
                 let is_reset_completed = key == ui_state_events::ACTION_RESET_COMPLETED;
                 // 分支内对核只读 (handle_fm_hotkey_config_change/load_from_config_ 均
                 // &self) — as_ref 使 send_ui(&self) 共享借用共存
-                let Some(c) = self.controller.as_ref() else { return };
+                let Some(c) = self.controller.as_ref() else {
+                    return;
+                };
                 if key == "displayFmKey" || key == "enableFMPrint" {
                     c.handle_fm_hotkey_config_change();
                 }
@@ -506,12 +514,12 @@ impl AppShell {
                 // WYSIWYG reinit 参数直送 (五色直送同款模式): 即时读配置重建参数包,
                 // 先于下方 RefreshPreviews(防抖)/ReinitActiveOverlays 入队 —
                 // 对位 Java refreshPreviews → reinitConfig 即时读配置的时序
-                let params = vm_overlay::platform::reinit::ReinitParams::from(&OverlayInputs::build(
-                    &c.config,
-                    &self.env,
-                    &self.shared,
-                ));
-                self.send_ui(UiCommand::ReinitOverlays { params: Box::new(params) });
+                let params = vm_overlay::platform::reinit::ReinitParams::from(
+                    &OverlayInputs::build(&c.config, &self.env, &self.shared),
+                );
+                self.send_ui(UiCommand::ReinitOverlays {
+                    params: Box::new(params),
+                });
                 if c.state() == ControllerState::Preview {
                     // loadFromConfig 在调度点先行 (Java 在任务体首行; 配置 !Send
                     // 不能进防抖线程, 值等价 — 发布→调度间配置无二次变更面)
@@ -582,7 +590,7 @@ impl AppShell {
         }
     }
 
-    /// 非阻塞泵: 监督事件 + 状态机推进 (W2 的 iced tick / 测试循环调用;
+    /// 非阻塞泵: 监督事件 + 状态机推进 (desktop 主循环每迭代 / 测试循环调用;
     /// Java 中该两项分别由 UIStateBus 同步回调与 Service 轮询线程内联承担)
     pub fn pump(&mut self) {
         while let Ok(ev) = self.main_event_rx.try_recv() {
@@ -593,15 +601,15 @@ impl AppShell {
         }
     }
 
-    /// 退出请求查询 (W2 iced 外部驱动路径: dispatch(EndGame)/托盘 Exit 置位;
+    /// 退出请求查询 (desktop 主循环轮询: dispatch(EndGame)/托盘 Exit 置位;
     /// 调用方见真即应退出事件循环并 drop AppShell — Drop 兜底收尾)。
     pub fn is_exit_requested(&self) -> bool {
         self.exit_requested
     }
 
-    /// 取走设置窗重开请求 (托盘 Activate; 见 form_requested 注)。组装层主循环:
-    /// 相 A (iced 窗口期) Tick 泵查询 → true 即 iced::exit 关窗重开;
-    /// 相 B (监督期) 由 run_supervisor_phase 返回值表达。
+    /// 取走设置窗显示请求 (托盘 Activate; 见 form_requested 注)。组装层主循环
+    /// 每迭代查询 → true 即 show + UI_READY; 无窗形态由 run_supervisor_phase
+    /// 返回值表达。
     pub fn take_form_request(&mut self) -> bool {
         std::mem::replace(&mut self.form_requested, false)
     }
@@ -649,7 +657,8 @@ impl AppShell {
     /// 对位 Java: MainForm.dispose 后 UI 事件循环继续 (托盘/overlay 存活),
     /// Controller 的 Service 驱动状态机推进。
     /// 返回: Exit = 进程退出请求 (EndGame/托盘 Exit); MainFormRequested = 托盘
-    /// Activate 已重建核并请求弹设置窗 (主循环回相 A 重开 iced 窗口)。
+    /// Activate 已重建核并请求弹设置窗 (desktop 主循环转窗口形态 show;
+    /// 无窗形态记日志继续)。
     /// 渲染线程未启动时自动补 spawn (run_supervisor 同款防呆; spawn 失败转
     /// Exit 兜底, 见其注释 — 无退出面的悬空监督不可达)。
     pub fn run_supervisor_phase(&mut self) -> SupervisorOutcome {
@@ -702,8 +711,8 @@ impl AppShell {
 }
 
 impl Drop for AppShell {
-    /// 兜底收尾 (审查 A-W4/B-W1): 不经 shutdown() 直接 drop (W2 iced 外部驱动
-    /// 路径可能) 时, 渲染/防抖线程不泄漏、热键钩子必卸 — shutdown 幂等, 与
+    /// 兜底收尾 (审查 A-W4/B-W1): 不经 shutdown() 直接 drop (调用方提前
+    /// 放弃持有可能) 时, 渲染/防抖线程不泄漏、热键钩子必卸 — shutdown 幂等, 与
     /// run_supervisor 尾部的显式调用双保险, 二次调用全部空转。
     /// (渲染线程唯一出口是 UiCommand::Shutdown; 若仅 drop 发送端, 线程的
     /// try_recv 恒 Disconnected 但循环仍 10ms 空转 — 必须显式 send。)

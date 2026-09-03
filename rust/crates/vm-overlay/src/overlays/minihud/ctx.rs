@@ -59,7 +59,6 @@ pub struct MinimalHudContext {
     pub stroke_thick_w: f32,
     /// strokeThin = BasicStroke(halfLine, ...) 的宽度
     pub stroke_thin_w: f32,
-
     // --- Resources ---
     // PORT: crosshairImageScaled (纹理准星双线性缩放缓存) 不迁移 —
     // gauge_crosshair.rs 头注裁决: 软件矢量路径为唯一视觉语义, 配置项裁剪。
@@ -88,14 +87,19 @@ impl MinimalHudContext {
 
         let f_add = settings.get_font_size_add();
         // Font size is derived from crossScale (already scaled)
-        let mut hud_font_size = cross_scale / 4 + java_round_long_narrowed(f_add as f64 * dpi_scale);
+        let mut hud_font_size =
+            cross_scale / 4 + java_round_long_narrowed(f_add as f64 * dpi_scale);
         // Ensure minimum size to prevent crash
         if hud_font_size < 8 {
             hud_font_size = 8;
         }
 
         let bar_width = hud_font_size / 4;
-        let mut line_width = if hud_font_size / 10 == 0 { 1 } else { hud_font_size / 10 };
+        let mut line_width = if hud_font_size / 10 == 0 {
+            1
+        } else {
+            hud_font_size / 10
+        };
 
         // 2. Window Dimensions - derived from scaled crossScale
         // PORT: (int)(double) 强转 = JLS 5.1.3 截断+饱和, 与 Rust as i32 一致
@@ -190,7 +194,11 @@ impl MinimalHudContext {
             line_width,
             bar_width,
             half_line,
-            fonts: MiniHudFonts { draw, small, s_small },
+            fonts: MiniHudFonts {
+                draw,
+                small,
+                s_small,
+            },
             stroke_thick_w,
             stroke_thin_w,
         })

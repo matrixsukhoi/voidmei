@@ -15,7 +15,9 @@ struct MapConfig {
 
 impl MapConfig {
     fn new() -> Self {
-        MapConfig { values: RefCell::new(HashMap::new()) }
+        MapConfig {
+            values: RefCell::new(HashMap::new()),
+        }
     }
 }
 
@@ -25,7 +27,9 @@ impl ConfigProvider for MapConfig {
     }
 
     fn set_config(&self, key: &str, value: &str) {
-        self.values.borrow_mut().insert(key.to_string(), value.to_string());
+        self.values
+            .borrow_mut()
+            .insert(key.to_string(), value.to_string());
     }
 
     fn is_field_disabled(&self, _key: &str) -> bool {
@@ -135,9 +139,8 @@ fn test_is_jet_null_short_circuit() {
     // (Blkx 含 blkx 模块树私有字段, 结构体字面量 FUS 不可用; is_jet 为 pub 可赋值)
     let mut jet_fmdata = FmData::default();
     jet_fmdata.is_jet = true;
-    let ctx: OverlayContext<MockController, MockService> = OverlayContext::builder()
-        .fmdata(Some(jet_fmdata))
-        .build();
+    let ctx: OverlayContext<MockController, MockService> =
+        OverlayContext::builder().fmdata(Some(jet_fmdata)).build();
     assert!(ctx.is_jet());
 }
 
@@ -178,7 +181,10 @@ fn test_build_explicit_provider_wins() {
         .controller(Some(mock_controller("k", "true", false)))
         .config_provider(Some(explicit))
         .build();
-    assert!(!ctx.get_bool("k"), "显式 configProvider (false) 优先于 Controller 回退 (true)");
+    assert!(
+        !ctx.get_bool("k"),
+        "显式 configProvider (false) 优先于 Controller 回退 (true)"
+    );
 }
 
 // -- build() 无 Controller 无回退: configProvider 保持 null, 读配置 NPE --
@@ -219,7 +225,10 @@ fn test_for_live_wiring() {
     // 未 identify 的 FMManager → UNRESOLVED 句柄 blkx=null (javadoc: 消费方 null 容忍)
     assert!(ctx.fmdata.is_none());
     assert!(!ctx.is_preview_mode, "游戏模式 previewMode=false");
-    assert!(ctx.get_bool("showSpeedBar"), "configProvider 自动取自 getConfigService");
+    assert!(
+        ctx.get_bool("showSpeedBar"),
+        "configProvider 自动取自 getConfigService"
+    );
 }
 
 // -- for_preview_mode: 仅 previewMode 翻转 (OverlayManager.java:122/203) --
@@ -254,7 +263,9 @@ fn test_activation_context_impl_semantics() {
     let mut jet_fmdata = FmData::default();
     jet_fmdata.is_jet = true;
     let mut jet = OverlayContext::<MockController, MockService>::builder();
-    jet.fmdata(Some(jet_fmdata)).preview_mode(true).config_provider(Some(jet_config));
+    jet.fmdata(Some(jet_fmdata))
+        .preview_mode(true)
+        .config_provider(Some(jet_config));
     let jet_ctx = jet.build();
     assert!(ActivationStrategy::jet_only().should_activate(&jet_ctx));
     assert!(ActivationStrategy::preview_only().should_activate(&jet_ctx));

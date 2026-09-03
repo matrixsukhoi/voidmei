@@ -200,7 +200,10 @@ fn test_identify_dedup(m: &mut FMManager) {
         ),
     );
     // PORT: Java `m.current().blkx != null` 引用非空判 ↔ Option::is_some
-    check(m.current().has_fm() && m.current().fmdata.is_some(), "READY 句柄应携带 fmdata");
+    check(
+        m.current().has_fm() && m.current().fmdata.is_some(),
+        "READY 句柄应携带 fmdata",
+    );
     check(
         m.current_target_name().as_deref() == Some("plane1"),
         "目标名应规范化为小写 plane1",
@@ -234,7 +237,10 @@ fn test_negative_cache_no_storm(m: &mut FMManager) {
             loader::get_load_count()
         ),
     );
-    check(m.current().status == FMStatus::Missing, "状态应稳定停留在 MISSING");
+    check(
+        m.current().status == FMStatus::Missing,
+        "状态应稳定停留在 MISSING",
+    );
     check(!m.is_loading(), "不应有在途任务");
 }
 
@@ -246,8 +252,14 @@ fn test_corrupt_also_cached(m: &mut FMManager) {
 
     m.identify(Some("badplane"));
     let ok = wait_for(|| m.current().is_missing_like() && !m.is_loading());
-    check(ok, "identify(badplane) 应落定 missing-like (MISSING/CORRUPT)");
-    check(m.current().status == FMStatus::Corrupt, "物理文件缺失应为 CORRUPT");
+    check(
+        ok,
+        "identify(badplane) 应落定 missing-like (MISSING/CORRUPT)",
+    );
+    check(
+        m.current().status == FMStatus::Corrupt,
+        "物理文件缺失应为 CORRUPT",
+    );
 
     let after_first = loader::get_load_count();
     for _ in 0..500 {
@@ -271,7 +283,10 @@ fn test_clear_target_keeps_handle(m: &mut FMManager) {
     check(ok, "前置: plane1 到达 READY");
 
     m.clear_target();
-    check(m.current_target_name().is_none(), "clearTarget 后目标应为 null");
+    check(
+        m.current_target_name().is_none(),
+        "clearTarget 后目标应为 null",
+    );
     check(m.current().has_fm(), "clearTarget 后句柄应保留 (下次秒开)");
 
     let before = loader::get_load_count();
@@ -282,7 +297,10 @@ fn test_clear_target_keeps_handle(m: &mut FMManager) {
     );
     check(m.current().has_fm(), "句柄持续可用");
     std::thread::sleep(Duration::from_millis(200));
-    check(loader::get_load_count() == before, "秒开路径不应触发重新加载");
+    check(
+        loader::get_load_count() == before,
+        "秒开路径不应触发重新加载",
+    );
 }
 
 /**
@@ -330,8 +348,14 @@ fn test_not_aircraft_short_circuit(m: &mut FMManager) {
 
     // 同步落定: 不经过 loader 线程
     m.identify(Some("tankmodels/us_n4a3e8_76_sherman"));
-    check(m.current().status == FMStatus::NotAircraft, "坦克应立即落定 NOT_AIRCRAFT");
-    check(!m.current().is_missing_like(), "不属于 missing-like (不弹缺失 toast)");
+    check(
+        m.current().status == FMStatus::NotAircraft,
+        "坦克应立即落定 NOT_AIRCRAFT",
+    );
+    check(
+        !m.current().is_missing_like(),
+        "不属于 missing-like (不弹缺失 toast)",
+    );
     check(!m.current().has_fm(), "无 FM, HUD 走降级");
     check(loader::get_load_count() == 0, "不应触发任何磁盘加载");
     check(!m.is_loading(), "无在途任务");
@@ -340,7 +364,10 @@ fn test_not_aircraft_short_circuit(m: &mut FMManager) {
     for _ in 0..100 {
         m.identify(Some("tankmodels/us_n4a3e8_76_sherman"));
     }
-    check(loader::get_load_count() == 0, "重复 identify 同一坦克仍零加载");
+    check(
+        loader::get_load_count() == 0,
+        "重复 identify 同一坦克仍零加载",
+    );
 
     // 飞机 → 坦克 → 换坦克 → 回飞机: 往返行为正确
     m.identify(Some("plane1"));
@@ -358,10 +385,16 @@ fn test_not_aircraft_short_circuit(m: &mut FMManager) {
             && m.current().name.as_deref() == Some("tankmodels/germ_panther_ii"),
         "坦克→坦克: 直接换 NOT_AIRCRAFT 句柄",
     );
-    check(loader::get_load_count() == loads_before, "坦克切换全程零加载");
+    check(
+        loader::get_load_count() == loads_before,
+        "坦克切换全程零加载",
+    );
 
     m.identify(Some("plane1"));
-    check(wait_for(|| m.current().has_fm()), "坦克→飞机: 应重新加载回 READY(plane1)");
+    check(
+        wait_for(|| m.current().has_fm()),
+        "坦克→飞机: 应重新加载回 READY(plane1)",
+    );
 }
 
 /** 用例⑤ reset：清一切（含负缓存），停掉 pending 任务 */
@@ -369,10 +402,16 @@ fn test_reset(m: &mut FMManager) {
     // -- 用例⑤ reset --
     // PORT: Java 此用例刻意不带前置 reset —— 承接用例④b 的残留状态
     m.identify(Some("ghost"));
-    check(wait_for(|| m.current().status == FMStatus::Missing), "前置: ghost 已进负缓存");
+    check(
+        wait_for(|| m.current().status == FMStatus::Missing),
+        "前置: ghost 已进负缓存",
+    );
 
     m.reset();
-    check(m.current().status == FMStatus::Unresolved, "reset 后 current 应为 UNRESOLVED");
+    check(
+        m.current().status == FMStatus::Unresolved,
+        "reset 后 current 应为 UNRESOLVED",
+    );
     check(m.current_target_name().is_none(), "reset 后目标应为 null");
     check(!m.is_loading(), "reset 后无在途任务");
 
@@ -454,7 +493,9 @@ fn java_main_sequence() {
     // 对 config_manager sandbox 的进程级 CWD 翻转免疫 (审查 A B1 修复点)
     let tmp_root = create_temp_root();
     // Java finally 的 Drop 承接: panic 展栈时也还原 DATA_ROOT + rmtree
-    let _cleanup = RootCleanup { root: tmp_root.clone() };
+    let _cleanup = RootCleanup {
+        root: tmp_root.clone(),
+    };
 
     setup_synthetic_data(&tmp_root);
     // load 的 central/physical 解析不再随 CWD 漂移

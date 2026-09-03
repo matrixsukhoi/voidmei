@@ -24,12 +24,14 @@ use crate::overlays::attitude::AttitudeIndicatorGauge;
 use crate::overlays::bars::{FlapAngleBar, LinearGauge, SpeedRatioBar};
 use crate::overlays::compass::CompassGauge;
 use crate::overlays::crosshair::CrosshairGauge;
-use crate::overlays::rows::{HUDAkbRow, HUDEnergyRow, HUDMechanizationRow, HUDManeuverRow, HUDTextRow};
+use crate::overlays::rows::{
+    HUDAkbRow, HUDEnergyRow, HUDManeuverRow, HUDMechanizationRow, HUDTextRow,
+};
 use crate::render::canvas::PixCanvas;
 use crate::render::palette::colors;
 
-use super::{fmt_d, MiniHudOverlay};
 use super::ctx::MiniHudFonts;
+use super::{fmt_d, MiniHudOverlay};
 
 // ---------------------------------------------------------------------------
 // HUDComponent 装配 seam (HUDComponent.java + AbstractHUDComponent.java)
@@ -130,13 +132,15 @@ impl MiniHudComponent {
             // FlapAngleBar: w = totalWidth>0 ? totalWidth : 200;
             // h = (font!=null ? font.size : 12) + barHeight + 5 (font = drawFontSmall)
             MiniHudComponentInner::FlapBar(b) => Dimension::new(
-                if b.total_width() > 0 { b.total_width() } else { 200 },
+                if b.total_width() > 0 {
+                    b.total_width()
+                } else {
+                    200
+                },
                 self.fonts.small.size + b.bar_height() + 5,
             ),
             // SpeedRatioBar
-            MiniHudComponentInner::SpeedRatioBar(s) => {
-                Dimension::new(s.width(), s.height())
-            }
+            MiniHudComponentInner::SpeedRatioBar(s) => Dimension::new(s.width(), s.height()),
             // LinearGauge (vertical): textMetric = fontNum.size*2 + thickness;
             // height = lengthCache (fontNum = drawFontSSmall)
             MiniHudComponentInner::ThrottleBar(t) => Dimension::new(
@@ -259,8 +263,8 @@ impl CompCell {
 
     /// 枚举分发借出口: 把 inner 交给闭包, 调用侧以 `if let MiniHudComponentInner::X(r) = inner`
     /// 守卫变体 (不匹配即空转, 同原 borrow_mut+if let 样板)。
-    /// **闭包内不得再借其它 CompCell** — RefCell 独占借用跨槽嵌套会 panic
-    /// (现有调用已守此纪律)
+    /// **闭包内不得再借同一 CompCell** — RefCell 独占借用自嵌套会 panic; 借
+    /// 其它 CompCell (不同 RefCell 实例) 不冲突 (现有调用已守此纪律)
     pub(super) fn map_inner<R>(&self, f: impl FnOnce(&mut MiniHudComponentInner) -> R) -> R {
         f(&mut self.0.borrow_mut().inner)
     }
@@ -310,27 +314,46 @@ impl MiniHudOverlay {
     /// 六个具名仪表组件的构造集 — init 占位 (Java null 字段的 Rust 可查替身) 与
     /// init_components_layout 正式建身共用一份 (C27 双份构造收敛; 构造参数同源
     /// ctx.roundCompass, 行组件仅正式建身 — 占位期 hud_rows 为空)
-    pub(super) fn named_gauge_cells(fonts: &Rc<MiniHudFonts>, round_compass: i32) -> NamedGaugeCells {
+    pub(super) fn named_gauge_cells(
+        fonts: &Rc<MiniHudFonts>,
+        round_compass: i32,
+    ) -> NamedGaugeCells {
         let cell = |inner: MiniHudComponentInner| CompCell::new(inner, Rc::clone(fonts));
         NamedGaugeCells {
             flap_angle_bar: cell(MiniHudComponentInner::FlapBar(FlapAngleBar::new())),
             speed_ratio_bar: cell(MiniHudComponentInner::SpeedRatioBar(SpeedRatioBar::new())),
-            compass_gauge: cell(MiniHudComponentInner::Compass(CompassGauge::new(round_compass))),
+            compass_gauge: cell(MiniHudComponentInner::Compass(CompassGauge::new(
+                round_compass,
+            ))),
             attitude_indicator_gauge: cell(MiniHudComponentInner::Attitude(
                 AttitudeIndicatorGauge::new(),
             )),
             crosshair_gauge: cell(MiniHudComponentInner::Crosshair(CrosshairGauge::new())),
             throttle_bar: cell(MiniHudComponentInner::ThrottleBar(LinearGauge::new(
-                "ThrottleBar", 110, true,
+                "ThrottleBar",
+                110,
+                true,
             ))),
         }
     }
 
     /// Java refreshTemplates()
     pub(super) fn refresh_templates<S: HUDSettings>(&mut self, settings: &S) {
-        let spd_pre = if settings.is_speed_label_disabled() { "" } else { "SPD" };
-        let alt_pre = if settings.is_altitude_label_disabled() { "" } else { "ALT" };
-        let sep_pre = if settings.is_sep_label_disabled() { "" } else { "SEP" };
+        let spd_pre = if settings.is_speed_label_disabled() {
+            ""
+        } else {
+            "SPD"
+        };
+        let alt_pre = if settings.is_altitude_label_disabled() {
+            ""
+        } else {
+            "ALT"
+        };
+        let sep_pre = if settings.is_sep_label_disabled() {
+            ""
+        } else {
+            "SEP"
+        };
 
         if settings.draw_hud_mach() {
             // "M%5.2f" (0.85) — M 前缀在宽度域外
@@ -359,7 +382,7 @@ impl MiniHudOverlay {
         self.throttley = 100;
         self.aoa_y = 10;
         self.throttle_color = colors().shade_shape; // Application.colorShadeShape
-        self.aoa_color = colors().num;              // Application.colorNum
+        self.aoa_color = colors().num; // Application.colorNum
         self.aoa_bar_color = colors().num;
         self.line_aoa = format!("α{}", pad_width(java_f(20.0, 0), 3, false));
         self.rel_energy = "E114514".to_string();

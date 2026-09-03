@@ -161,8 +161,14 @@ fn write_err(line: &str) {
 /// 测试专用: 重定向激活状态 (out, err)
 #[cfg(test)]
 pub(crate) fn redirects_active_for_test() -> (bool, bool) {
-    let o = OUT_REDIRECT.lock().expect("logger stdout 重定向锁中毒").is_some();
-    let e = ERR_REDIRECT.lock().expect("logger stderr 重定向锁中毒").is_some();
+    let o = OUT_REDIRECT
+        .lock()
+        .expect("logger stdout 重定向锁中毒")
+        .is_some();
+    let e = ERR_REDIRECT
+        .lock()
+        .expect("logger stderr 重定向锁中毒")
+        .is_some();
     (o, e)
 }
 

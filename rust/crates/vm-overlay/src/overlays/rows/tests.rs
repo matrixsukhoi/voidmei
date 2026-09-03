@@ -66,7 +66,10 @@ fn text_row_colors_and_translation() {
     let mut cvw = PixCanvas::new(120, 60).unwrap();
     row.draw(&mut cvw, 10, 10, &f, false);
     assert!(any_alpha_above(&cvw, 5, 5, 60, 45, 80), "警告笔画存在");
-    assert!(!any_alpha_above(&cvw, 5, 5, 60, 45, 150), "警告色无 240 级像素");
+    assert!(
+        !any_alpha_above(&cvw, 5, 5, 60, 45, 150),
+        "警告色无 240 级像素"
+    );
 
     // 平移不变性: y+10 的输出 = y 输出整体下移 10 行
     let mut cv2 = PixCanvas::new(120, 70).unwrap();
@@ -182,7 +185,10 @@ fn akb_row_visibility_gates() {
     row.set_show_speed(false);
     let mut cv = PixCanvas::new(140, 60).unwrap();
     row.draw(&mut cv, x, y, &f, &sf, false);
-    assert!(!any_alpha_above(&cv, x, y, x + 29, y + 28, 30), "主文字隐藏");
+    assert!(
+        !any_alpha_above(&cv, x, y, x + 29, y + 28, 30),
+        "主文字隐藏"
+    );
     assert_eq!(px(&cv, x + 31, liney + 1), COLOR_YELLOW, "条仍在");
 
     // 仅速度: 条与 α 文字均无
@@ -243,7 +249,10 @@ fn energy_row_side_text_and_gates() {
     row.update("88", false, "12.3");
     let mut cv = PixCanvas::new(140, 60).unwrap();
     row.draw(&mut cv, x, y, &f, &sf, false);
-    assert!(any_alpha_above(&cv, x, y, x + 40, y + 28, 200), "高度主文字");
+    assert!(
+        any_alpha_above(&cv, x, y, x + 40, y + 28, 200),
+        "高度主文字"
+    );
     assert!(
         any_alpha_above(&cv, x + 50, base_y - 20, x + 110, base_y + 4, 200),
         "能量小字在 x+rightDraw 右侧"
@@ -264,10 +273,7 @@ fn energy_row_side_text_and_gates() {
     let mut cv3 = PixCanvas::new(140, 60).unwrap();
     row3.draw(&mut cv3, x, y, &f, &sf, false);
     assert!(!any_alpha_above(&cv3, x, 0, x + 45, 60, 30), "高度隐藏");
-    assert!(
-        any_alpha_above(&cv3, x + 50, 0, 140, 60, 200),
-        "能量仍在"
-    );
+    assert!(any_alpha_above(&cv3, x + 50, 0, 140, 60, 200), "能量仍在");
 }
 
 /// HUDMechanizationRow 模板解析与占位宽 (Java:72-81 / 115-131):
@@ -307,7 +313,11 @@ fn mech_row_template_parse_and_preferred_size() {
     // 模板带 F100 前缀的解析 (襟翼条禁用预览串)
     row.set_template(Some("F100BRKGEA"));
     assert_eq!(
-        (&row.flaps_template, &row.airbrake_template, &row.gear_template),
+        (
+            &row.flaps_template,
+            &row.airbrake_template,
+            &row.gear_template
+        ),
         (&"F100".to_string(), &"BRK".to_string(), &"GEA".to_string())
     );
 }
@@ -326,7 +336,10 @@ fn mech_row_update_parse() {
 
     assert!(row.update("    BRKGEAR", true), "内容与警告态均变");
     assert_eq!(row.flaps_wing_str, "", "4 空格段 trim 后为空");
-    assert_eq!((&row.airbrake_str, &row.gear_str), (&"BRK".to_string(), &"GEA".to_string()));
+    assert_eq!(
+        (&row.airbrake_str, &row.gear_str),
+        (&"BRK".to_string(), &"GEA".to_string())
+    );
     assert!(row.base.is_warning);
 
     assert!(!row.update("    BRKGEAR", true), "同值无变化");
@@ -408,7 +421,14 @@ fn mech_row_draw_segments_and_gates() {
         "襟翼隐藏 → 占位区无笔画"
     );
     assert!(
-        any_alpha_above(&cv2, x + flaps_seg, base_y - 25, x + flaps_seg + f.measure("BRK"), base_y + 5, 200),
+        any_alpha_above(
+            &cv2,
+            x + flaps_seg,
+            base_y - 25,
+            x + flaps_seg + f.measure("BRK"),
+            base_y + 5,
+            200
+        ),
         "减速板仍从占位推进处起"
     );
 
@@ -426,7 +446,10 @@ fn mech_row_draw_segments_and_gates() {
         !any_alpha_above(&cv3, x, 0, right_edge, 60, 150),
         "警告色无 240 级像素"
     );
-    assert!(!any_alpha_above(&cv3, right_edge, 0, 200, 60, 30), "右缘外无");
+    assert!(
+        !any_alpha_above(&cv3, right_edge, 0, 200, 60, 30),
+        "右缘外无"
+    );
 
     // 起落架段无尾随空格占位: gear_template 清空 → 段宽 0 (Java:109-112 无推进消费)
     let mut row4 = HUDMechanizationRow::new(2, 30);
@@ -435,7 +458,11 @@ fn mech_row_draw_segments_and_gates() {
     row4.update_parts("", "", "GEA", false);
     let mut cv4 = PixCanvas::new(200, 60).unwrap();
     row4.draw(&mut cv4, x, y, &f, false);
-    assert_eq!(row4.preferred_size(&f), (flaps_seg + brk_seg, 30), "空起落架模板不占宽");
+    assert_eq!(
+        row4.preferred_size(&f),
+        (flaps_seg + brk_seg, 30),
+        "空起落架模板不占宽"
+    );
 }
 
 /// 对拍口径锁定: enableFlapAngleBar 预览串 "    BRKGEAR" (模板同源) →
@@ -460,11 +487,25 @@ fn mech_row_preview_placeholder_advance() {
         "襟翼段空占位"
     );
     assert!(
-        any_alpha_above(&cv, x + flaps_seg, base_y - 25, x + flaps_seg + f.measure("BRK"), base_y + 5, 200),
+        any_alpha_above(
+            &cv,
+            x + flaps_seg,
+            base_y - 25,
+            x + flaps_seg + f.measure("BRK"),
+            base_y + 5,
+            200
+        ),
         "BRK @ 襟翼段宽处"
     );
     assert!(
-        any_alpha_above(&cv, gear_x, base_y - 25, gear_x + f.measure("GEA"), base_y + 5, 200),
+        any_alpha_above(
+            &cv,
+            gear_x,
+            base_y - 25,
+            gear_x + f.measure("GEA"),
+            base_y + 5,
+            200
+        ),
         "GEA @ 前两段宽和处"
     );
     assert_eq!(
@@ -481,7 +522,9 @@ fn maneuver_row_tick_thresholds() {
     let (x, y) = (10, 5);
     let (right_draw, half_line, line_width) = (60, 2, 2);
     let base_y = y + f.metrics().ascent;
-    let ticks = TickScale { ticks: [10, 20, 30, 40, 50] };
+    let ticks = TickScale {
+        ticks: [10, 20, 30, 40, 50],
+    };
 
     let mut row = HUDManeuverRow::new(4, 30, right_draw, half_line, line_width, 4.0, 2.0);
     // showGLoad=false: 排除主文字, 刻度列纯净 (色取主文字色规范语义)
@@ -511,7 +554,11 @@ fn maneuver_row_tick_thresholds() {
     row2.update("2.0", false, 0.4, 5, ticks);
     let mut cv2 = PixCanvas::new(100, 60).unwrap();
     row2.draw(&mut cv2, x, y, &f, false);
-    assert_eq!(a(&cv2, x + right_draw - 50, tick_top + 2), 240, "0.4 含等点亮");
+    assert_eq!(
+        a(&cv2, x + right_draw - 50, tick_top + 2),
+        240,
+        "0.4 含等点亮"
+    );
 }
 
 /// HUDManeuverRow 条线双层描边 (Java:104-114): thick shade 下层 + thin colorNum
@@ -527,14 +574,26 @@ fn maneuver_row_bar_double_stroke_layers() {
 
     let mut row = HUDManeuverRow::new(4, 30, right_draw, half_line, line_width, 4.0, 2.0);
     row.set_show_g_load(false); // 排除文字, 条区纯净
-    row.update("2.0", false, 0.35, 30, TickScale { ticks: [10, 20, 30, 40, 50] });
+    row.update(
+        "2.0",
+        false,
+        0.35,
+        30,
+        TickScale {
+            ticks: [10, 20, 30, 40, 50],
+        },
+    );
     let mut cv = PixCanvas::new(100, 60).unwrap();
     row.draw(&mut cv, x, y, &f, false);
 
     // 条横跨 x+30..x+60 (len=30), 采样列 x+58 (条体内, 非刻度列)
     let col = x + 58;
     // thin(宽2, 圆帽) 行 line_y-1..line_y = baseY+3..4: thin 叠 thick
-    assert_a_close(a(&cv, col, line_y), src_over_a(240, 42), "主线行 (thin over thick)");
+    assert_a_close(
+        a(&cv, col, line_y),
+        src_over_a(240, 42),
+        "主线行 (thin over thick)",
+    );
     assert_a_close(a(&cv, col, line_y - 1), src_over_a(240, 42), "主线行上");
     // thick(宽4) 独占行 baseY+2 / baseY+5 (band 边界为整, 像素中心 .5 无歧义)
     assert_eq!(a(&cv, col, line_y - 2), 42, "影线单独行上 (thick only)");
@@ -557,7 +616,15 @@ fn maneuver_row_gates_and_preferred_size() {
     let line_y = base_y + 2 + 2;
 
     let mut row = HUDManeuverRow::new(4, 30, 60, 2, 2, 4.0, 2.0);
-    row.update("2.0", false, 0.35, 30, TickScale { ticks: [10, 20, 30, 40, 50] });
+    row.update(
+        "2.0",
+        false,
+        0.35,
+        30,
+        TickScale {
+            ticks: [10, 20, 30, 40, 50],
+        },
+    );
     let (w, h) = row.preferred_size(&f);
     assert_eq!(w, (f.measure("2.0")).max(60 + 5));
     assert_eq!(h, 30);
@@ -568,15 +635,29 @@ fn maneuver_row_gates_and_preferred_size() {
     row.draw(&mut cv, x, y, &f, false);
     assert_eq!(a(&cv, x + 58, line_y), 0, "条关闭无条线");
     assert_eq!(a(&cv, x + 50, base_y + 4), 0, "条关闭无刻度");
-    assert!(any_alpha_above(&cv, x, y, x + 40, y + 28, 200), "G 文字仍在");
+    assert!(
+        any_alpha_above(&cv, x, y, x + 40, y + 28, 200),
+        "G 文字仍在"
+    );
 
     // G 文字关: 仅条 (index=0.25 → len10/20/30 刻度点亮, 列 ≥ x+30 不入左区)
     let mut row2 = HUDManeuverRow::new(4, 30, 60, 2, 2, 4.0, 2.0);
-    row2.update("2.0", false, 0.25, 30, TickScale { ticks: [10, 20, 30, 40, 50] });
+    row2.update(
+        "2.0",
+        false,
+        0.25,
+        30,
+        TickScale {
+            ticks: [10, 20, 30, 40, 50],
+        },
+    );
     row2.set_show_g_load(false);
     let mut cv2 = PixCanvas::new(100, 60).unwrap();
     row2.draw(&mut cv2, x, y, &f, false);
-    assert!(!any_alpha_above(&cv2, x, y, x + 25, y + 28, 30), "G 文字隐藏");
+    assert!(
+        !any_alpha_above(&cv2, x, y, x + 25, y + 28, 30),
+        "G 文字隐藏"
+    );
     assert_a_close(a(&cv2, x + 58, line_y), src_over_a(240, 42), "条仍在");
 }
 
@@ -592,7 +673,10 @@ fn update_changed_covers_all_fields() {
     assert!(!en.update("1000", false, "E100"), "全同值无变化");
     assert!(en.update("1000", false, "E200"), "仅能量变化须报 changed");
     assert!(!en.update("1000", false, "E200"), "重复同能量无变化");
-    assert!(en.update("1001", false, "E200"), "仅 base 文字变化仍报 changed");
+    assert!(
+        en.update("1001", false, "E200"),
+        "仅 base 文字变化仍报 changed"
+    );
     assert!(en.update("1001", true, "E200"), "仅警告态变化仍报 changed");
 
     // HUDManeuverRow (刻度尺整体 + 单档距离均须参与比较)
@@ -603,13 +687,40 @@ fn update_changed_covers_all_fields() {
         !mn.update("2.0", false, 0.1, 5, t([10, 20, 30, 40, 50])),
         "全同值无变化"
     );
-    assert!(mn.update("2.0", false, 0.2, 5, t([10, 20, 30, 40, 50])), "仅 index 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, t([10, 20, 30, 40, 50])), "仅 len 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, t([11, 20, 30, 40, 50])), "仅 len10 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, t([11, 21, 30, 40, 50])), "仅 len20 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 40, 50])), "仅 len30 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 41, 50])), "仅 len40 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 41, 51])), "仅 len50 变化");
-    assert!(mn.update("2.1", false, 0.2, 6, t([11, 21, 31, 41, 51])), "仅文字变化");
-    assert!(mn.update("2.1", true, 0.2, 6, t([11, 21, 31, 41, 51])), "仅警告态变化");
+    assert!(
+        mn.update("2.0", false, 0.2, 5, t([10, 20, 30, 40, 50])),
+        "仅 index 变化"
+    );
+    assert!(
+        mn.update("2.0", false, 0.2, 6, t([10, 20, 30, 40, 50])),
+        "仅 len 变化"
+    );
+    assert!(
+        mn.update("2.0", false, 0.2, 6, t([11, 20, 30, 40, 50])),
+        "仅 len10 变化"
+    );
+    assert!(
+        mn.update("2.0", false, 0.2, 6, t([11, 21, 30, 40, 50])),
+        "仅 len20 变化"
+    );
+    assert!(
+        mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 40, 50])),
+        "仅 len30 变化"
+    );
+    assert!(
+        mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 41, 50])),
+        "仅 len40 变化"
+    );
+    assert!(
+        mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 41, 51])),
+        "仅 len50 变化"
+    );
+    assert!(
+        mn.update("2.1", false, 0.2, 6, t([11, 21, 31, 41, 51])),
+        "仅文字变化"
+    );
+    assert!(
+        mn.update("2.1", true, 0.2, 6, t([11, 21, 31, 41, 51])),
+        "仅警告态变化"
+    );
 }

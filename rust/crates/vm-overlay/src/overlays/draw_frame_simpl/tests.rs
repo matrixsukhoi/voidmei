@@ -57,7 +57,10 @@ fn jet_fmdata() -> FmData {
 fn chart_geometry_oracle() {
     let g = chart_geometry(&jet_fmdata());
     assert_eq!((g.dwidth, g.dheight), (800, 400));
-    assert_eq!((g.xmin, g.xmax, g.ymin, g.ymax), (100.0, 400.0, 1200.0, 3000.0));
+    assert_eq!(
+        (g.xmin, g.xmax, g.ymin, g.ymax),
+        (100.0, 400.0, 1200.0, 3000.0)
+    );
     assert_eq!((g.xgap, g.ygap), (60, 360));
     assert_eq!((g.pxmin, g.pymin), (100, 1200));
     assert_eq!(g.ggx4, 800.0 / 360.0, "dwidth/(pxmax-pxmin)");
@@ -94,7 +97,12 @@ fn dfs_fonts() -> (LoadedFont, LoadedFont, LoadedFont) {
 #[test]
 fn draw_blank_without_fm_data() {
     let (f12, f16, f18) = dfs_fonts();
-    let fonts = DfsFonts { num12: &f12, text16: &f16, text18: &f18, text12: &f12 };
+    let fonts = DfsFonts {
+        num12: &f12,
+        text16: &f16,
+        text18: &f18,
+        text12: &f12,
+    };
     let mut cv = PixCanvas::new(900, 500).unwrap();
     DrawFrameSimpl::new().draw(&mut cv, &fonts, false);
     assert!(cv.pixmap().data().iter().all(|&b| b == 0), "无句柄全空");
@@ -103,7 +111,10 @@ fn draw_blank_without_fm_data() {
     let mut d = DrawFrameSimpl::new();
     d.reload_fm(Some(Arc::new(b0)));
     d.draw(&mut cv, &fonts, false);
-    assert!(cv.pixmap().data().iter().all(|&b| b == 0), "velThrNum=0 跳过");
+    assert!(
+        cv.pixmap().data().iter().all(|&b| b == 0),
+        "velThrNum=0 跳过"
+    );
 }
 
 /// 坐标系/数据点/图例的像素落点 (aa=false):
@@ -114,7 +125,12 @@ fn draw_blank_without_fm_data() {
 #[test]
 fn draw_curve_pixels() {
     let (f12, f16, f18) = dfs_fonts();
-    let fonts = DfsFonts { num12: &f12, text16: &f16, text18: &f18, text12: &f12 };
+    let fonts = DfsFonts {
+        num12: &f12,
+        text16: &f16,
+        text18: &f18,
+        text12: &f12,
+    };
     let mut d = DrawFrameSimpl::new();
     d.reload_fm(Some(Arc::new(jet_fmdata())));
     let mut cv = PixCanvas::new(900, 500).unwrap();
@@ -131,7 +147,11 @@ fn draw_curve_pixels() {
 
     // 行1 首点 dot (49,218): 灰 (1+1)*63=126 over 黑轴 → r 保持 premul 124
     let dot = px(&cv, 49, 218);
-    assert_eq!((dot[0], dot[1], dot[2]), (124, 124, 124), "数据点灰 126 直通的预乘");
+    assert_eq!(
+        (dot[0], dot[1], dot[2]),
+        (124, 124, 124),
+        "数据点灰 126 直通的预乘"
+    );
     assert!(dot[3] >= 250);
     // dot 下缘外一格仍是轴黑 (dot 恰 2×2)
     assert_eq!(px(&cv, 49, 220)[0], 0, "dot 外回轴黑");
@@ -149,14 +169,21 @@ fn draw_curve_pixels() {
         "标题墨迹"
     );
     // 画布全域有量级墨迹 (曲线 3 行 × 3 点 + 网格)
-    let ink = cv.pixmap().data().chunks_exact(4).filter(|p| p[3] > 0).count();
+    let ink = cv
+        .pixmap()
+        .data()
+        .chunks_exact(4)
+        .filter(|p| p[3] > 0)
+        .count();
     assert!(ink > 2000, "非零像素量级 (实测 {ink})");
 }
 
 // ---- spec 工厂 (Controller.java:746-752 registerWithStrategy) ----
 
 fn feed_fm() -> Arc<FMManager> {
-    Arc::new(FMManager::new(Arc::new(vm_core::base::bus::EventBus::new())))
+    Arc::new(FMManager::new(
+        Arc::new(vm_core::base::bus::EventBus::new()),
+    ))
 }
 
 /// 工厂初态 = initPreview 形态 (恒可见); spec 尺寸 = setBounds 字面量 900×500;
@@ -169,7 +196,11 @@ fn draw_frame_simpl_spec_shape_and_factory_state() {
         (spec.id.as_str(), spec.config_key.as_str()),
         ("thrustdFS", "thrustdFS")
     );
-    assert_eq!((spec.width, spec.height), (900, 500), "setBounds(0, H-500, 900, 500)");
+    assert_eq!(
+        (spec.width, spec.height),
+        (900, 500),
+        "setBounds(0, H-500, 900, 500)"
+    );
     {
         let d = h.borrow();
         assert!(d.is_preview, "工厂 initPreview 形态");
@@ -221,8 +252,9 @@ impl crate::platform::OverlayWindow for FeedMockWin {
 fn feed_host(log: &Rc<RefCell<Vec<String>>>) -> OverlayHost {
     let log = Rc::clone(log);
     OverlayHost::with_factory(Box::new(move |_cfg| {
-        Ok(Box::new(FeedMockWin { log: Rc::clone(&log) })
-            as Box<dyn crate::platform::OverlayWindow>)
+        Ok(Box::new(FeedMockWin {
+            log: Rc::clone(&log),
+        }) as Box<dyn crate::platform::OverlayWindow>)
     }))
 }
 
@@ -276,20 +308,44 @@ fn dfs_feed_auto_exit_when_gear_up() {
     log.borrow_mut().clear();
     // 收腿 (gear=0 ≠ 100) 命中: 本轮先隐藏再进入 10s 等待
     feed.pump(
-        &mut host, "thrustdFS", &h, 1_000, 0,
-        Some(DfsFlight { gear: 0, speedv: 0.0, throttle: 0 }),
+        &mut host,
+        "thrustdFS",
+        &h,
+        1_000,
+        0,
+        Some(DfsFlight {
+            gear: 0,
+            speedv: 0.0,
+            throttle: 0,
+        }),
     );
     assert_eq!(*log.borrow(), vec!["set_visible:false".to_string()]);
     // 等待期 (Java sleepQuietly(10000)): 线程沉睡, 无窗口动作
     feed.pump(
-        &mut host, "thrustdFS", &h, 6_000, 0,
-        Some(DfsFlight { gear: 0, speedv: 300.0, throttle: 100 }),
+        &mut host,
+        "thrustdFS",
+        &h,
+        6_000,
+        0,
+        Some(DfsFlight {
+            gear: 0,
+            speedv: 300.0,
+            throttle: 100,
+        }),
     );
     assert_eq!(log.borrow().len(), 1, "等待期无动作");
     // 到点: break → dispose (close 链存位置 + 销毁)
     feed.pump(
-        &mut host, "thrustdFS", &h, 11_100, 0,
-        Some(DfsFlight { gear: 0, speedv: 300.0, throttle: 100 }),
+        &mut host,
+        "thrustdFS",
+        &h,
+        11_100,
+        0,
+        Some(DfsFlight {
+            gear: 0,
+            speedv: 300.0,
+            throttle: 100,
+        }),
     );
     assert!(!host.is_active("thrustdFS"), "dispose 后窗口销毁");
     assert!(
@@ -306,7 +362,11 @@ fn dfs_feed_auto_exit_when_gear_up() {
     host.open_all().unwrap();
     assert!(host.is_active("thrustdFS"), "会话重开 materialize");
     feed.pump(&mut host, "thrustdFS", &h, 21_000, 80, None);
-    assert_eq!(log.borrow().last().unwrap(), "set_visible:false", "新 run 循环接管隐藏");
+    assert_eq!(
+        log.borrow().last().unwrap(),
+        "set_visible:false",
+        "新 run 循环接管隐藏"
+    );
 }
 
 /// Java run 自动退场的僵尸实例语义 (OverlayManager.java:294-299/:332-336):
@@ -325,12 +385,28 @@ fn dfs_zombie_blocks_rematerialize_until_close_all() {
     log.borrow_mut().clear();
     // 收腿命中 → 10s → dispose + 僵尸化
     feed.pump(
-        &mut host, "thrustdFS", &h, 1_000, 0,
-        Some(DfsFlight { gear: 0, speedv: 0.0, throttle: 0 }),
+        &mut host,
+        "thrustdFS",
+        &h,
+        1_000,
+        0,
+        Some(DfsFlight {
+            gear: 0,
+            speedv: 0.0,
+            throttle: 0,
+        }),
     );
     feed.pump(
-        &mut host, "thrustdFS", &h, 11_100, 0,
-        Some(DfsFlight { gear: 0, speedv: 0.0, throttle: 0 }),
+        &mut host,
+        "thrustdFS",
+        &h,
+        11_100,
+        0,
+        Some(DfsFlight {
+            gear: 0,
+            speedv: 0.0,
+            throttle: 0,
+        }),
     );
     assert!(!host.is_active("thrustdFS"));
     // ① refreshAllPreviews (激活全真): 僵尸实例只跑 reinitializer, 不建窗
@@ -389,19 +465,41 @@ fn dfs_feed_no_exit_on_ground_parked() {
     host.open_all().unwrap();
     h.borrow_mut().init(None);
     let mut feed = DrawFrameSimplFeed::new();
-    let parked = || Some(DfsFlight { gear: 100, speedv: 0.0, throttle: 0 });
+    let parked = || {
+        Some(DfsFlight {
+            gear: 100,
+            speedv: 0.0,
+            throttle: 0,
+        })
+    };
     for t in [1_000i64, 5_000, 12_000, 30_000] {
         feed.pump(&mut host, "thrustdFS", &h, t, 0, parked());
     }
     assert!(host.is_active("thrustdFS"), "停场不退场");
     // 滑跑起飞 (speedv>10 且 throttle>0) 才命中
     feed.pump(
-        &mut host, "thrustdFS", &h, 31_000, 0,
-        Some(DfsFlight { gear: 100, speedv: 30.0, throttle: 90 }),
+        &mut host,
+        "thrustdFS",
+        &h,
+        31_000,
+        0,
+        Some(DfsFlight {
+            gear: 100,
+            speedv: 30.0,
+            throttle: 90,
+        }),
     );
     feed.pump(
-        &mut host, "thrustdFS", &h, 42_000, 0,
-        Some(DfsFlight { gear: 100, speedv: 30.0, throttle: 90 }),
+        &mut host,
+        "thrustdFS",
+        &h,
+        42_000,
+        0,
+        Some(DfsFlight {
+            gear: 100,
+            speedv: 30.0,
+            throttle: 90,
+        }),
     );
     assert!(!host.is_active("thrustdFS"), "起飞 (热键=0) 后退场");
 }

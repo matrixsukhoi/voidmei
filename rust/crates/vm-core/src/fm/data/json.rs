@@ -301,7 +301,9 @@ fn fill_british(mod_: &mut FuelModification, fuel: &Value) {
 /// getDoubleFromBlock 的树版: effects 块内 CS 子串键 → f64 直取 (Double 域),
 /// 缺席/非数值 → 0.0。
 fn block_f64(effects: &Value, key: &str) -> f64 {
-    find_leaf_cs(effects, key).and_then(|v| v.as_f64()).unwrap_or(0.0)
+    find_leaf_cs(effects, key)
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0)
 }
 
 /// getBoolFromBlock 的树版: 块内 CI 子串键, 值为 Bool 直取; 其他标量按
@@ -526,8 +528,8 @@ pub(crate) fn get_in_json(v: &Value, label: &str) -> String {
 // ==================== parse 入口 (Java 构造器等价) ====================
 
 use super::FmData;
-use crate::lang::Lang;
 use crate::base::logger;
+use crate::lang::Lang;
 
 impl FmData {
     /// (path, name) 具名入口 (JSON) — Blkx::parse_named 的 JSON 对应物:
@@ -541,13 +543,16 @@ impl FmData {
     /// 守卫与文本版互为镜像: 空文件 → Err; 内容不以 '{' 开头 (blkx 文本误喂)
     /// → Err (文本版守卫语义的反转面); serde 解析失败 → Err; doLoad=true 的
     /// getload panic 由 catch_unwind 收敛 Err。
-    pub fn parse_named_opts_json(filepath: &str, name: &str, do_load: bool) -> Result<FmData, String> {
+    pub fn parse_named_opts_json(
+        filepath: &str,
+        name: &str,
+        do_load: bool,
+    ) -> Result<FmData, String> {
         let file = std::path::Path::new(filepath);
         if !file.exists() {
             return Err(format!("FM文件不存在: {filepath}"));
         }
-        let content = std::fs::read_to_string(file)
-            .map_err(|e| format!("FM文件读取: {e}"))?;
+        let content = std::fs::read_to_string(file).map_err(|e| format!("FM文件读取: {e}"))?;
         let src = Self::json_guard_and_load(name, &content)?;
         let mut b = FmData::default();
         b.fmdata = Some(Lang::init_lang().noblkx.to_string());
@@ -566,10 +571,7 @@ impl FmData {
                     } else {
                         "null".to_string()
                     };
-                    logger::error(
-                        "FmData",
-                        &format!("FM 解析失败, 标记无效: {name} - {msg}"),
-                    );
+                    logger::error("FmData", &format!("FM 解析失败, 标记无效: {name} - {msg}"));
                     return Err(format!("FM 解析失败, 标记无效: {name} - {msg}"));
                 }
             }

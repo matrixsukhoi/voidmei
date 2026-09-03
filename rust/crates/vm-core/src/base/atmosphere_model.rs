@@ -142,7 +142,11 @@ pub fn ram_effect_altitude(
     let p = pressure(altitude_m);
     let rho = density(p, sea_level_temp_c, altitude_m);
     // PORT: Java 三目 `isIAS ? iasToTas(...) : speedKmh` 两臂均为 double, 无数值提升
-    let tas_kmh = if is_ias { ias_to_tas(speed_kmh, rho) } else { speed_kmh };
+    let tas_kmh = if is_ias {
+        ias_to_tas(speed_kmh, rho)
+    } else {
+        speed_kmh
+    };
     let tas_ms = tas_kmh / 3.6; // Convert km/h to m/s
 
     // Dynamic pressure: q = ½ρv² (as relative pressure)

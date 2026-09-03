@@ -6,14 +6,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-use vm_core::config::config_api::ConfigProvider;
-use vm_core::config::configuration_service::ConfigurationService;
-use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
-use vm_core::base::bus::ui_state_bus::UIStateBus;
 use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 use vm_core::audio::voice_warning::{VoiceWarning, VoiceWarningService};
 use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
+use vm_core::config::config_api::ConfigProvider;
+use vm_core::config::configuration_service::ConfigurationService;
 use vm_core::fm::FMManager;
+use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
 
 use crate::keys::FM_FIELD_KEYS;
 
@@ -86,7 +86,9 @@ impl SnapshotConfigProvider {
 
     /// 键值对构造 (FlightLogConfig 单键场景: None 值不落键 = get 返回 None,
     /// 与原 Option<String> 语义一致)
-    pub(crate) fn from_pairs(pairs: impl IntoIterator<Item = (&'static str, Option<String>)>) -> Self {
+    pub(crate) fn from_pairs(
+        pairs: impl IntoIterator<Item = (&'static str, Option<String>)>,
+    ) -> Self {
         let mut m = HashMap::new();
         for (k, v) in pairs {
             if let Some(v) = v {
@@ -120,7 +122,10 @@ fn refresh_voice_config_snapshot(
         // with_voice_prefix: "voice_" + key (无前缀时补, 有则原样)
         let cfg_key = vm_core::audio::VoicePackConfig::with_voice_prefix(Some(ty.get_key()))
             .expect("告警键非 null");
-        m.insert(cfg_key.clone(), config.get_config(&cfg_key).unwrap_or_default());
+        m.insert(
+            cfg_key.clone(),
+            config.get_config(&cfg_key).unwrap_or_default(),
+        );
     }
 }
 
@@ -174,16 +179,28 @@ impl VoiceWarningService for LiveVoiceService {
     }
     fn total_fuel(&self) -> f64 {
         // 波17 F14: 派生标量按语义分组 (fuel/engine/altm), 字段路径随组
-        self.frames.latest().map(|f| f.fuel.total_fuel).unwrap_or(0.0)
+        self.frames
+            .latest()
+            .map(|f| f.fuel.total_fuel)
+            .unwrap_or(0.0)
     }
     fn fuel_percent(&self) -> i32 {
-        self.frames.latest().map(|f| f.fuel.fuel_percent).unwrap_or(0)
+        self.frames
+            .latest()
+            .map(|f| f.fuel.fuel_percent)
+            .unwrap_or(0)
     }
     fn radio_alt(&self) -> f64 {
-        self.frames.latest().map(|f| f.altm.radio_alt).unwrap_or(0.0)
+        self.frames
+            .latest()
+            .map(|f| f.altm.radio_alt)
+            .unwrap_or(0.0)
     }
     fn d_radio_alt(&self) -> f64 {
-        self.frames.latest().map(|f| f.altm.d_radio_alt).unwrap_or(0.0)
+        self.frames
+            .latest()
+            .map(|f| f.altm.d_radio_alt)
+            .unwrap_or(0.0)
     }
     fn cur_load_min_work_time(&self) -> f64 {
         self.frames
@@ -192,17 +209,22 @@ impl VoiceWarningService for LiveVoiceService {
             .unwrap_or(0.0)
     }
     fn maximum_thr_rpm(&self) -> f64 {
-        self.frames.latest().map(|f| f.engine.maximum_thr_rpm).unwrap_or(0.0)
+        self.frames
+            .latest()
+            .map(|f| f.engine.maximum_thr_rpm)
+            .unwrap_or(0.0)
     }
     fn get_maximum_rpm(&self) -> bool {
-        self.frames.latest().is_some_and(|f| f.engine.get_maximum_rpm)
+        self.frames
+            .latest()
+            .is_some_and(|f| f.engine.maximum_rpm_learned)
     }
     fn is_eng_jet(&self) -> bool {
         // Java Service.isEngJet() = iEngType == ENGINE_TYPE_JET;
         // 波17 F1: i32 常量族 → EngineType 枚举
-        self.frames.latest().is_some_and(|f| {
-            f.engine.engine_type == vm_data::service_fields::EngineType::Jet
-        })
+        self.frames
+            .latest()
+            .is_some_and(|f| f.engine.engine_type == vm_data::service_fields::EngineType::Jet)
     }
     fn get_stall_speed(&self) -> f64 {
         // W-C: 直读公式槽, None→0(永不触发失速告警)
@@ -293,7 +315,8 @@ pub(crate) fn open_voice_warning(
         Arc::clone(flight_bus),
         // legacy_player: playWav/getClip 直开面 (全库无调用方), 独立 winmm 实例
         // 与 resource_manager 注入同一实现即等价 (voice_warning.rs PORT 注)
-        Arc::from(crate::winmm_player::make_player()) as Arc<dyn vm_core::audio::voice_resource_manager::SoundPlayer>,
+        Arc::from(crate::winmm_player::make_player())
+            as Arc<dyn vm_core::audio::voice_resource_manager::SoundPlayer>,
     );
     let doit = Arc::clone(&vw.doit);
     vw.init(Some(Arc::new(LiveVoiceService { frames })));

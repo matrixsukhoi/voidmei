@@ -11,7 +11,12 @@ use vm_webui::ShellForm;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let pick = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).and_then(|v| v.parse::<u64>().ok());
+    let pick = |name: &str| {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1))
+            .and_then(|v| v.parse::<u64>().ok())
+    };
 
     // formula cell 用缺省 (壳自验收不涉公式编辑器面; E11 签名注入)
     let mut form = match ShellForm::new(
@@ -104,7 +109,11 @@ fn bench_reopen(form: &mut ShellForm, n: u64) -> i32 {
             );
             return 1;
         }
-        println!("vm-webui-selftest: run {}: {} ms", i + 1, t0.elapsed().as_millis());
+        println!(
+            "vm-webui-selftest: run {}: {} ms",
+            i + 1,
+            t0.elapsed().as_millis()
+        );
         samples_ms.push(t0.elapsed().as_millis());
         form.hide();
         for _ in 0..20 {

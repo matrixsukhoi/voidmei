@@ -18,13 +18,12 @@
 //! 平滑/低通**——每轮 ~10Hz 轮询值直接驱动指针。Rust 侧同样直通 (update 即时重算);
 //! -65535 哨兵回退分支属数据层, 已落 vm-data::service_loop (update_compass), 不在本文件。
 
-use crate::render::primitives;
-use crate::render::palette::colors;
 use crate::render::font::LoadedFont;
+use crate::render::palette::colors;
+use crate::render::primitives;
 
 use crate::render::canvas::{LineCapStyle, PixCanvas};
 use vm_core::base::format;
-
 
 /// Java (int) double 强转语义: 向零截断, NaN→0, ±∞ 饱和到 MIN/MAX —
 /// 与 Rust `as i32` (饱和转换) 逐例一致 (PORTING §2.2 的 long 位截断差异不适用于浮点)
@@ -53,7 +52,10 @@ fn fmt_heading3(v: f64) -> String {
 fn compass_dxy(radius: i32, compass_rads: f32) -> (i32, i32) {
     let outer = radius as f32 * 1.3f32;
     let rad = compass_rads as f64;
-    (trunc_i32(outer as f64 * rad.sin()), trunc_i32(outer as f64 * rad.cos()))
+    (
+        trunc_i32(outer as f64 * rad.sin()),
+        trunc_i32(outer as f64 * rad.cos()),
+    )
 }
 
 /// 离体模式指针内端 (0.618r 处)。0.618 是 double 字面量, 全程 f64
@@ -85,10 +87,7 @@ fn north_triangle(cx: i32, cy: i32, radius: i32, angle_rads: f64) -> [(i32, i32)
     let triangle_half_base = trunc_i32(radius as f64 * 0.30);
     let tip_dist = (radius + triangle_height) as f64;
     let (s, c) = (angle_rads.sin(), angle_rads.cos());
-    let tip = (
-        cx + trunc_i32(tip_dist * s),
-        cy - trunc_i32(tip_dist * c),
-    );
+    let tip = (cx + trunc_i32(tip_dist * s), cy - trunc_i32(tip_dist * c));
     let base = (
         cx + trunc_i32(radius as f64 * s),
         cy - trunc_i32(radius as f64 * c),
@@ -124,7 +123,10 @@ fn label_positions(
     hud_font_size_small: i32,
 ) -> ((i32, i32), (i32, i32)) {
     (
-        (x + line_width + 3, y + hud_font_size - (r - hud_font_size) / 2),
+        (
+            x + line_width + 3,
+            y + hud_font_size - (r - hud_font_size) / 2,
+        ),
         (
             x + line_width + 3,
             y + r + hud_font_size_small / 2 + hud_font_size,
@@ -140,7 +142,14 @@ fn stroke_polygon_thin(cv: &mut PixCanvas, pts: &[(i32, i32); 3], color: [u8; 4]
     for i in 0..3 {
         let j = (i + 1) % 3;
         cv.draw_line_cap(
-            pts[i].0, pts[i].1, pts[j].0, pts[j].1, 1.0, color, LineCapStyle::Square, aa,
+            pts[i].0,
+            pts[i].1,
+            pts[j].0,
+            pts[j].1,
+            1.0,
+            color,
+            LineCapStyle::Square,
+            aa,
         );
     }
 }
@@ -291,7 +300,14 @@ impl CompassGauge {
 
     /// draw。font_small=None 跳过文本 (Java fontSmall==null 同)。
     /// aa 对齐 graphAASetting (生产恒 ON)
-    pub fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, font_small: Option<&LoadedFont>, aa: bool) {
+    pub fn draw(
+        &mut self,
+        cv: &mut PixCanvas,
+        x: i32,
+        y: i32,
+        font_small: Option<&LoadedFont>,
+        aa: bool,
+    ) {
         let r = self.radius;
         let center_x = x + r;
         let center_y = y + r;
@@ -300,7 +316,14 @@ impl CompassGauge {
         let in_w = self.line_width as f32;
 
         // 图层 1 (底): 北三角先画
-        Self::draw_north_triangle(cv, center_x, center_y, r, north_angle(self.inertial_mode, self.compass_rads), aa);
+        Self::draw_north_triangle(
+            cv,
+            center_x,
+            center_y,
+            r,
+            north_angle(self.inertial_mode, self.compass_rads),
+            aa,
+        );
 
         // 图层 2: 罗盘圆双层描边 (drawOval(x,y,2r,2r) 圆心 (x+r,y+r))
         cv.stroke_circle(center_x, center_y, r, out_w, colors().shade_shape, aa);
@@ -329,8 +352,26 @@ impl CompassGauge {
                 self.hud_font_size,
                 self.hud_font_size_small,
             );
-            primitives::text_shaded(cv, f, cpx, cpy, &self.line_compass, colors().num, colors().shade_shape, aa);
-            primitives::text_shaded(cv, f, lpx, lpy, &self.line_loc, colors().num, colors().shade_shape, aa);
+            primitives::text_shaded(
+                cv,
+                f,
+                cpx,
+                cpy,
+                &self.line_compass,
+                colors().num,
+                colors().shade_shape,
+                aa,
+            );
+            primitives::text_shaded(
+                cv,
+                f,
+                lpx,
+                lpy,
+                &self.line_loc,
+                colors().num,
+                colors().shade_shape,
+                aa,
+            );
         }
         self.dirty = false;
     }

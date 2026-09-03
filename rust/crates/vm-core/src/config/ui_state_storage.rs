@@ -43,7 +43,11 @@ pub(crate) fn ui_state_config_dir() -> PathBuf {
     }
 
     let user_home = || -> String {
-        let v = if cfg!(windows) { env::var("USERPROFILE") } else { env::var("HOME") };
+        let v = if cfg!(windows) {
+            env::var("USERPROFILE")
+        } else {
+            env::var("HOME")
+        };
         v.unwrap_or_else(|_| ".".to_string())
     };
     // PORT: Java 是字符串拼接 `base + File.separator + tail` — 基座为空串时
@@ -62,7 +66,10 @@ pub(crate) fn ui_state_config_dir() -> PathBuf {
         if let Some(xdg) = env::var("XDG_CONFIG_HOME").ok().filter(|s| !s.is_empty()) {
             return PathBuf::from(join(xdg, UI_STATE_APP_NAME.to_string()));
         }
-        PathBuf::from(join(join(user_home(), ".config".to_string()), UI_STATE_APP_NAME.to_string()))
+        PathBuf::from(join(
+            join(user_home(), ".config".to_string()),
+            UI_STATE_APP_NAME.to_string(),
+        ))
     } else {
         // macOS or others
         PathBuf::from(join(user_home(), format!(".{UI_STATE_APP_NAME}")))
@@ -89,9 +96,8 @@ fn ui_state_parse_properties(text: &str) -> Vec<(String, String)> {
         .map(|l| l.strip_suffix('\r').unwrap_or(l))
         .collect();
 
-    let count_trailing_backslashes = |s: &str| -> usize {
-        s.bytes().rev().take_while(|&b| b == b'\\').count()
-    };
+    let count_trailing_backslashes =
+        |s: &str| -> usize { s.bytes().rev().take_while(|&b| b == b'\\').count() };
 
     let unescape = |s: &str| -> String {
         let mut out = String::new();
@@ -236,7 +242,10 @@ pub(crate) fn ui_state_load_template_hash() -> Option<String> {
                 }
             }
             Err(e) => {
-                logger::info("UIStateStorage", &format!("Failed to load template hash: {e}"));
+                logger::info(
+                    "UIStateStorage",
+                    &format!("Failed to load template hash: {e}"),
+                );
             }
         }
     }
@@ -260,7 +269,10 @@ pub(crate) fn ui_state_save_template_hash(hash: Option<&str>) {
     // (Java: 载入失败 catch(IOException) 静默忽略 ↔ unwrap_or_default)
     let mut entries = ui_state_read_properties(&file).unwrap_or_default();
 
-    if let Some(e) = entries.iter_mut().find(|(k, _)| k == UI_STATE_KEY_TEMPLATE_HASH) {
+    if let Some(e) = entries
+        .iter_mut()
+        .find(|(k, _)| k == UI_STATE_KEY_TEMPLATE_HASH)
+    {
         e.1 = hash.to_string();
     } else {
         entries.push((UI_STATE_KEY_TEMPLATE_HASH.to_string(), hash.to_string()));
@@ -275,6 +287,9 @@ pub(crate) fn ui_state_save_template_hash(hash: Option<&str>) {
         ));
     }
     if let Err(e) = fs::write(&file, out) {
-        logger::info("UIStateStorage", &format!("Failed to save template hash: {e}"));
+        logger::info(
+            "UIStateStorage",
+            &format!("Failed to save template hash: {e}"),
+        );
     }
 }

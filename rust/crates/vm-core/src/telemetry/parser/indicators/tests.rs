@@ -141,6 +141,6 @@ fn update_fuel_sentinel_zeroing() {
     assert_eq!(id.fuel[2], 0.0);
     assert_eq!(id.fuel[3], 7.5);
     assert_eq!(id.fuel[4], 0.0); // 缺失 → 哨兵 → 0
-    // 基准 1 + fuel1/fuel2/fuel3 各计数 +1, fuel4 缺失不计数
+                                 // 基准 1 + fuel1/fuel2/fuel3 各计数 +1, fuel4 缺失不计数
     assert_eq!(id.fuelnum, 4);
 }

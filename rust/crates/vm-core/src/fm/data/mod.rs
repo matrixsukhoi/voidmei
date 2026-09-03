@@ -33,9 +33,8 @@ mod types;
 #[cfg(test)]
 mod realtests;
 
-
 pub use flap_limits::{get_flap_allow_angle, get_flap_allow_speed};
-pub use types::{EngineLoad, FuelModification, FuelType, FmParts, SweepLevel};
+pub use types::{EngineLoad, FmParts, FuelModification, FuelType, SweepLevel};
 
 /// 增压器 9 组平行表 (波17 F5 收拢; 对应 Java Blkx 的
 /// `compAlt/compPower/compBoost/hasCompBoost/compRpmRatio/compCeiling/
@@ -200,16 +199,16 @@ pub struct FmData {
     pub comp_omega_factor_sq: f64,  // Compressor.CompressorOmegaFactorSq
     pub has_comp_omega_factor_sq: bool, // Whether CompressorOmegaFactorSq exists in FM file
     pub comp_ata: Option<Vec<f64>>, // Compressor.ATA0/1/2 (manifold pressure, ata)
-    pub military_mp: f64, // Max of all ATA values (true military manifold pressure)
+    pub military_mp: f64,           // Max of all ATA values (true military manifold pressure)
     pub comp_afterburner_pressure_boost: Option<Vec<f64>>, // Compressor.AfterburnerPressureBoost0/1/2
 
     // ExactAltitudes flag (may be explicitly set in FM file)
     pub explicit_exact_altitudes: Option<bool>, // null = not defined in FM
 
     // WEP parameters
-    pub throttle_boost: f64,         // Main.ThrottleBoost (typically 1.0)
+    pub throttle_boost: f64,          // Main.ThrottleBoost (typically 1.0)
     pub octane_afterburner_mult: f64, // Main.OctaneAfterburnerMult (typically 1.0)
-    pub wep_manifold_pressure: f64,  // AfterburnerManifoldPressure (WEP manifold pressure, ata)
+    pub wep_manifold_pressure: f64,   // AfterburnerManifoldPressure (WEP manifold pressure, ata)
 
     // Sea level power
     pub deck_power: f64, // Main.Power (sea level rated power)

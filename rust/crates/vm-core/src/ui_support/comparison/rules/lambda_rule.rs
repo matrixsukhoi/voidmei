@@ -36,7 +36,10 @@ impl LambdaRule {
         extractor: Box<dyn Fn(&str) -> Option<f64> + Send + Sync>,
         lower_is_better: bool,
     ) -> Self {
-        Self { extractor, lower_is_better }
+        Self {
+            extractor,
+            lower_is_better,
+        }
     }
 }
 

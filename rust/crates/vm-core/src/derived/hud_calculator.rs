@@ -33,14 +33,14 @@
 //! catch_unwind (§6 循环级会额外丢整轮事件发布, 降级幅度不同) — 归 vm-data Service
 //! (D6) 波次落实, 过渡期警告见 calculate() 内 unwrap 处。
 
-use crate::fm::data::FmData;
-use crate::config::config_api::HUDSettings;
 use crate::base::event::event_payload::EventPayload;
-use crate::derived::hud_data::HUDData;
-use crate::derived::hud_data::Builder;
-use crate::telemetry::parser::{Indicators, State};
-use crate::formula::registry::FormulaView;
 use crate::base::format::{java_f, pad_width};
+use crate::config::config_api::HUDSettings;
+use crate::derived::hud_data::Builder;
+use crate::derived::hud_data::HUDData;
+use crate::fm::data::FmData;
+use crate::formula::registry::FormulaView;
+use crate::telemetry::parser::{Indicators, State};
 
 /// W7: var_value 桥取值 (NaN→0, 对齐原 getter map_or(0.0) 零值帧语义)
 fn v(s: &dyn FormulaView, name: &str) -> f64 {
@@ -164,7 +164,7 @@ fn read_flight_data<S: HUDSettings>(
             b.throttle_color = COLOR_RED;
         } else {
             b.throttle_color = COLOR_WHITE; // Or default? HUDData defaults to GREEN, but white is standard
-                                             // text.
+                                            // text.
         }
 
         // W-E: HUDData 副本统一走公式槽 (fm_flap_allow_angle 引擎函数在公式侧,
@@ -244,7 +244,10 @@ fn apply_fm_warnings<S: HUDSettings>(
         }
 
         // W-E: 公式路径唯一
-        b.warn_stall = source.get_formula_value("warn_stall").map(|v| v != 0.0).unwrap_or(false);
+        b.warn_stall = source
+            .get_formula_value("warn_stall")
+            .map(|v| v != 0.0)
+            .unwrap_or(false);
     } else {
         b.maneuver_index = 0.0;
         b.aoa_color = colors.color_num;
@@ -270,23 +273,44 @@ fn format_display_strings<S: HUDSettings>(
     let always_radar = settings.always_show_radar_altitude();
 
     // Low altitude warning flag (W-E: 公式路径唯一)
-    b.warn_altitude = source.get_formula_value("warn_altitude").map(|v| v != 0.0).unwrap_or(false);
+    b.warn_altitude = source
+        .get_formula_value("warn_altitude")
+        .map(|v| v != 0.0)
+        .unwrap_or(false);
 
     // --- Strings Formatting (using Data) ---
     if b.is_mach_mode {
         b.speed_str = format!("M{}", pad_width(java_f(b.mach, 2), 5, false));
     } else {
-        let spd_pre = if settings.is_speed_label_disabled() { "" } else { "SPD" };
-        b.speed_str = format!("{spd_pre}{}", pad_width((b.ias as i32).to_string(), 6, false));
+        let spd_pre = if settings.is_speed_label_disabled() {
+            ""
+        } else {
+            "SPD"
+        };
+        b.speed_str = format!(
+            "{spd_pre}{}",
+            pad_width((b.ias as i32).to_string(), 6, false)
+        );
     }
 
-    let alt_pre = if settings.is_altitude_label_disabled() { "" } else { "ALT" };
+    let alt_pre = if settings.is_altitude_label_disabled() {
+        ""
+    } else {
+        "ALT"
+    };
     // Display decision: separate from warning flag
     // When alwaysRadar is enabled, use radar altitude if valid; otherwise use warning-based logic
-    let use_radar_alt = if always_radar { radio_alt_valid } else { b.warn_altitude };
+    let use_radar_alt = if always_radar {
+        radio_alt_valid
+    } else {
+        b.warn_altitude
+    };
 
     if use_radar_alt {
-        b.alt_str = format!("{alt_pre}R{}", pad_width(java_f(b.radio_altitude, 0), 5, false));
+        b.alt_str = format!(
+            "{alt_pre}R{}",
+            pad_width(java_f(b.radio_altitude, 0), 5, false)
+        );
     } else {
         b.alt_str = format!("{alt_pre}{}", pad_width(java_f(b.altitude, 0), 6, false));
     }
@@ -295,11 +319,21 @@ fn format_display_strings<S: HUDSettings>(
     b.aoa_str = format!("α{}", pad_width(java_f(b.aoa, 0), 3, false));
     b.energy_str = format!("E{}", pad_width(java_f(b.energy_m, 0), 5, false));
 
-    let sep_pre = if settings.is_sep_label_disabled() { "" } else { "SEP" };
-    if b.vertical_speed > 0.0 {
-        b.sep_str = format!("{sep_pre}↑{}", pad_width(java_f(b.vertical_speed, 0), 4, true));
+    let sep_pre = if settings.is_sep_label_disabled() {
+        ""
     } else {
-        b.sep_str = format!("{sep_pre}↓{}", pad_width(java_f(b.vertical_speed, 0), 4, true));
+        "SEP"
+    };
+    if b.vertical_speed > 0.0 {
+        b.sep_str = format!(
+            "{sep_pre}↑{}",
+            pad_width(java_f(b.vertical_speed, 0), 4, true)
+        );
+    } else {
+        b.sep_str = format!(
+            "{sep_pre}↓{}",
+            pad_width(java_f(b.vertical_speed, 0), 4, true)
+        );
     }
 
     // Maneuver / Time
@@ -338,7 +372,11 @@ fn format_display_strings<S: HUDSettings>(
     } else if fmdata.is_some() && fmdata.unwrap().is_v_wing.unwrap() && s_indic.is_some() {
         b.flaps_wing_str = format!(
             "W{}",
-            pad_width(java_f(s_indic.unwrap().wsweep_indicator * 100.0, 0), 3, false)
+            pad_width(
+                java_f(s_indic.unwrap().wsweep_indicator * 100.0, 0),
+                3,
+                false
+            )
         );
     } else {
         b.flaps_wing_str = String::new();
@@ -349,10 +387,8 @@ fn format_display_strings<S: HUDSettings>(
     if b.flaps > 0.0 {
         // Restore readable text if Bar is disabled
         if !settings.enable_flap_angle_bar() {
-            b.mechanization_str = format!(
-                "F{}{brk}{gear}",
-                pad_width(java_f(b.flaps, 0), 3, false)
-            );
+            b.mechanization_str =
+                format!("F{}{brk}{gear}", pad_width(java_f(b.flaps, 0), 3, false));
         } else {
             // Bar enabled -> Hide text (keep Brk/Gear)
             b.mechanization_str = format!("{}{brk}{gear}", pad_width(String::new(), 4, false));
@@ -361,7 +397,11 @@ fn format_display_strings<S: HUDSettings>(
         // approx logic (Java 行尾注释)
         b.mechanization_str = format!(
             "W{}{brk}{gear}",
-            pad_width(java_f(s_indic.unwrap().wsweep_indicator * 100.0, 0), 3, false)
+            pad_width(
+                java_f(s_indic.unwrap().wsweep_indicator * 100.0, 0),
+                3,
+                false
+            )
         );
     } else {
         b.mechanization_str = format!("{}{brk}{gear}", pad_width(String::new(), 4, false));
@@ -401,7 +441,6 @@ fn compute_speed_bar(b: &mut Builder, source: &dyn FormulaView, fmdata: Option<&
     }
 }
 
-
 // --- Helper for Text Measurement ---
 
 /// 对应 Java `public static int getStringWidth(String text, java.awt.Font font)`
@@ -411,13 +450,16 @@ fn compute_speed_bar(b: &mut Builder, source: &dyn FormulaView, fmdata: Option<&
 /// 的 FontHandle); 度量闭包由调用方注入, 承接原 `MEASURE_G.setFont(font) +
 /// getFontMetrics().stringWidth(text)`。三重早退守卫 (text null/空、font null → 0)
 /// 与求值顺序逐条保持。
-pub fn get_string_width<F>(text: Option<&str>, font: Option<&F>, measure: impl Fn(&F, &str) -> i32) -> i32 {
+pub fn get_string_width<F>(
+    text: Option<&str>,
+    font: Option<&F>,
+    measure: impl Fn(&F, &str) -> i32,
+) -> i32 {
     if text.is_none() || text.unwrap().is_empty() || font.is_none() {
         return 0;
     }
     measure(font.unwrap(), text.unwrap())
 }
-
 
 #[cfg(test)]
 mod tests;

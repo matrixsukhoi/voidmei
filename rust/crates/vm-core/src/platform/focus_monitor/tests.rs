@@ -89,7 +89,10 @@ fn advance_past_interval(m: &mut FocusMonitor) {
 #[test]
 fn test_defaults_disabled_and_tick_short_circuits() {
     let (mut m, det, coord) = monitor(true);
-    assert!(!m.is_enabled(), "Java `private boolean enabled = false` 默认值");
+    assert!(
+        !m.is_enabled(),
+        "Java `private boolean enabled = false` 默认值"
+    );
     m.tick();
     assert_eq!(det.calls(), 0, "未启用时 tick 立即返回, 不做进程检测");
     assert!(coord.calls().is_empty());
@@ -116,13 +119,20 @@ fn test_disable_restores_hidden_overlays() {
     let (mut m, _det, coord) = monitor(true);
     coord.set_hidden(true);
     m.set_enabled(false);
-    assert_eq!(coord.calls(), vec!["show".to_string()], "禁用时确保overlay可见");
+    assert_eq!(
+        coord.calls(),
+        vec!["show".to_string()],
+        "禁用时确保overlay可见"
+    );
     assert!(!coord.is_overlays_hidden());
 
     // 未隐藏时禁用: 不产生任何调用
     let (mut m2, _d2, coord2) = monitor(true);
     m2.set_enabled(false);
-    assert!(coord2.calls().is_empty(), "overlay 本来可见 ⇒ 不调 showAllOverlays");
+    assert!(
+        coord2.calls().is_empty(),
+        "overlay 本来可见 ⇒ 不调 showAllOverlays"
+    );
 }
 
 // -- 节流: 间隔内 (< 200ms) 的 tick 被吞 --
@@ -136,7 +146,11 @@ fn test_tick_throttled_within_interval() {
     m.last_check_time = current_time_millis() + 3_600_000;
     m.tick();
     assert_eq!(det.calls(), 1, "间隔内的 tick 直接返回, 不做检测");
-    assert_eq!(coord.calls(), vec!["hide".to_string()], "只有首次检测的失焦动作");
+    assert_eq!(
+        coord.calls(),
+        vec!["hide".to_string()],
+        "只有首次检测的失焦动作"
+    );
 }
 
 // -- 节流边界: 恰好 200ms (== CHECK_INTERVAL_MS) 不算间隔内, 检测放行 --

@@ -33,15 +33,20 @@ fn embed_manifest_via_windres() {
         return;
     }
     let rc = out_dir.join("manifest.rc");
-    if let Err(e) = std::fs::write(&rc, "1 24 \"app.manifest\"
-") {
+    if let Err(e) = std::fs::write(
+        &rc,
+        "1 24 \"app.manifest\"
+",
+    ) {
         println!("cargo:warning=manifest.rc 写入失败: {e}");
         return;
     }
     let obj = out_dir.join("manifest.o");
     let ok = std::process::Command::new("windres")
-        .arg("--input").arg(&rc)
-        .arg("--output").arg(&obj)
+        .arg("--input")
+        .arg(&rc)
+        .arg("--output")
+        .arg(&obj)
         .arg("--input-format=rc")
         .arg("--output-format=coff")
         .current_dir(&out_dir)
@@ -52,10 +57,11 @@ fn embed_manifest_via_windres() {
         }
         Ok(o) => println!(
             "cargo:warning=windres 失败 ({}), manifest 嵌入降级 — 测试 exe 将无法加载: {}",
-            o.status, String::from_utf8_lossy(&o.stderr)
+            o.status,
+            String::from_utf8_lossy(&o.stderr)
         ),
-        Err(e) => println!(
-            "cargo:warning=windres 不可用 ({e}), manifest 嵌入降级 — 测试 exe 将无法加载"
-        ),
+        Err(e) => {
+            println!("cargo:warning=windres 不可用 ({e}), manifest 嵌入降级 — 测试 exe 将无法加载")
+        }
     }
 }

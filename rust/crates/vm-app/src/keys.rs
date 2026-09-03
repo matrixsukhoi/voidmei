@@ -70,7 +70,8 @@ pub const FM_FIELD_KEYS: [&str; 16] = [
 ];
 
 /// 全局五色 cfg 键 (Java loadFromConfig 读入 Application 静态)
-pub const GLOBAL_COLOR_KEYS: [&str; 5] = ["fontNum", "fontLabel", "fontUnit", "fontWarn", "fontShade"];
+pub const GLOBAL_COLOR_KEYS: [&str; 5] =
+    ["fontNum", "fontLabel", "fontUnit", "fontWarn", "fontShade"];
 
 /// 窗口 overlay id → 配置组标题 (Java Controller 各 init 的 getOverlaySettings
 /// 字面量; MiniHUD 经 getHUDSettings → sectionName "MiniHUD")。位置持久化按此映射读写

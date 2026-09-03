@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 
-use crate::fm::data::FmData;
 use crate::config::config_api::ConfigProvider;
+use crate::fm::data::FmData;
 use crate::fm::FMManager;
 
 /// `prog.Controller` 在本文件的消费面 trait (依赖桩)。
@@ -240,7 +240,10 @@ impl<TC, S> Builder<TC, S> {
     }
 
     /// 设置配置提供者，用于访问配置而不依赖 Controller。
-    pub fn config_provider(&mut self, config_provider: Option<Arc<dyn ConfigProvider>>) -> &mut Self {
+    pub fn config_provider(
+        &mut self,
+        config_provider: Option<Arc<dyn ConfigProvider>>,
+    ) -> &mut Self {
         self.config_provider = config_provider;
         self
     }

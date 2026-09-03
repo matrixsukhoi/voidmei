@@ -35,7 +35,9 @@ pub enum UiCommand {
     /// 线程局部参数仓供各 spec 工厂 reinit 闭包读取 (配置 !Send, 值随命令进线程)
     /// — 渲染线程属主
     /// Box: 参数包 ~272B 远大于其余变体, 装箱拉平枚举尺寸 (clippy large_enum_variant)
-    ReinitOverlays { params: Box<vm_overlay::platform::reinit::ReinitParams> },
+    ReinitOverlays {
+        params: Box<vm_overlay::platform::reinit::ReinitParams>,
+    },
     /// 游戏失焦隐藏全部 overlay (Java FocusMonitor → hideAllOverlays;
     /// 不销毁实例) — 渲染线程属主
     HideAllOverlays,
@@ -78,10 +80,7 @@ pub enum MainEvent {
     UiReady,
     /// FM_CHANGED 载荷摘要 (Java fmChangedHandler: toast + 防抖全量刷新)。
     /// name=Some 即 missing/corrupt (toast 面); name=None 为纯刷新调度信号
-    FmChanged {
-        name: Option<String>,
-        corrupt: bool,
-    },
+    FmChanged { name: Option<String>, corrupt: bool },
     /// 托盘动作
     Tray(TrayCommand),
     /// overlay 位置存档 (渲染线程拖拽松手/销毁链 → 主线程落盘)。

@@ -1,7 +1,7 @@
 use super::*;
+use vm_core::base::event::event_payload::EventPayload;
 use vm_core::base::format::java_f;
 use vm_core::config::config_api::overlay_settings::OverlaySettings;
-use vm_core::base::event::event_payload::EventPayload;
 use vm_core::derived::hud_data::Builder;
 
 const FONTS: &str = "../../../fonts";
@@ -209,7 +209,10 @@ fn overlay() -> MiniHudOverlay {
 }
 
 /// 组件内件读取助手 (测试断言用; Ref 借用源自 cell 参数)
-fn inner_of<'a>(_o: &MiniHudOverlay, cell: &'a CompCell) -> std::cell::Ref<'a, MiniHudComponentInner> {
+fn inner_of<'a>(
+    _o: &MiniHudOverlay,
+    cell: &'a CompCell,
+) -> std::cell::Ref<'a, MiniHudComponentInner> {
     std::cell::Ref::map(cell.0.borrow(), |c| &c.inner)
 }
 
@@ -220,7 +223,11 @@ fn inner_of<'a>(_o: &MiniHudOverlay, cell: &'a CompCell) -> std::cell::Ref<'a, M
 fn java_f_oracle() {
     assert_eq!(java_f(0.85, 2), "0.85");
     assert_eq!(java_f(20.0, 0), "20");
-    assert_eq!(java_f(2.675, 2), "2.68", "最短往返十进制 HALF_UP (非二进制半偶)");
+    assert_eq!(
+        java_f(2.675, 2),
+        "2.68",
+        "最短往返十进制 HALF_UP (非二进制半偶)"
+    );
     assert_eq!(java_f(-0.04, 1), "-0.0", "舍到零的负数保负号");
     assert_eq!(pad_width("0.85".into(), 5, false), " 0.85");
     assert_eq!(pad_width("360".into(), 5, false), "  360");
@@ -247,7 +254,7 @@ fn ctx_metrics_match_java_math() {
     assert_eq!(ctx.cross_x, 127); // 254/2
     assert_eq!(ctx.cross_y, 133); // 267/2 (int 除截断)
     assert_eq!(ctx.round_compass, 22); // Math.round(28*0.8f)=round(22.4)
-    // 标签全开 → 5.5f: (int)(28*5.5f)=154
+                                       // 标签全开 → 5.5f: (int)(28*5.5f)=154
     assert_eq!(ctx.right_draw, 154);
     assert_eq!(ctx.compass_diameter, 35); // round(2*28*0.618)=round(34.608)
     assert_eq!(ctx.compass_radius, 18); // round(35/2.0)=round(17.5)=18 (§2.3)
@@ -309,7 +316,10 @@ fn refresh_templates_preview_strings() {
     let o = overlay();
     assert_eq!(o.lines[0], "M 0.85", "drawHudMach: M + %5.2f(0.85)");
     assert_eq!(o.lines[1], "ALT  1024", "标签开: ALT + %6s(1024)");
-    assert_eq!(o.lines[2], "    BRKGEAR", "襟翼条启用 → 4 空格 + BRK + GEAR");
+    assert_eq!(
+        o.lines[2], "    BRKGEAR",
+        "襟翼条启用 → 4 空格 + BRK + GEAR"
+    );
     // ↑ 符号行: SEP 标签开 + "↑%-4s"("30") — ↑ 为格式串字面量前缀
     assert!(o.lines[3].starts_with("SEP↑30"), "lines[3]={}", o.lines[3]);
     assert_eq!(o.lines[3], "SEP↑30  ");
@@ -362,19 +372,34 @@ fn components_order_and_nodes() {
     assert_eq!(
         ids,
         vec![
-            "flap", "speedBar", "compass", "attitude", "crosshair", "row0", "row1", "row2",
-            "row3", "row4", "throttle"
+            "flap",
+            "speedBar",
+            "compass",
+            "attitude",
+            "crosshair",
+            "row0",
+            "row1",
+            "row2",
+            "row3",
+            "row4",
+            "throttle"
         ]
     );
     // 节点集 (displayCrosshair=true 全建, Java initModernLayout 拓扑)
     for id in [
-        "row0", "row1", "row2", "row3", "row4", "flap", "attitude", "compass", "speedBar",
-        "throttle", "crosshair",
+        "row0",
+        "row1",
+        "row2",
+        "row3",
+        "row4",
+        "flap",
+        "attitude",
+        "compass",
+        "speedBar",
+        "throttle",
+        "crosshair",
     ] {
-        assert!(
-            o.layout.engine.get_node(id).is_some(),
-            "节点 {id} 应存在"
-        );
+        assert!(o.layout.engine.get_node(id).is_some(), "节点 {id} 应存在");
     }
     // displayCrosshair=false: crosshair 节点不建, 组件仍在分发清单
     let mut s = TestSettings::default();
@@ -405,7 +430,10 @@ fn visibility_switches_from_settings() {
     assert!(!o3.flap_angle_bar.is_visible());
     assert!(!o3.hud_rows[0].is_visible());
     assert!(!o3.hud_rows[4].is_visible());
-    assert!(o3.crosshair_gauge.is_visible(), "准星不受 drawHUDtext 管 (L323-324)");
+    assert!(
+        o3.crosshair_gauge.is_visible(),
+        "准星不受 drawHUDtext 管 (L323-324)"
+    );
 
     // 行级独立开关: row0 只开 AoA (L342-346)
     let mut s4 = TestSettings::default();
@@ -534,9 +562,12 @@ fn update_from_event_dispatches() {
     dispatch_data(&mut o, &data, true);
 
     let (txt, warn, aoa, aoa_y) = match &*inner_of(&o, &o.hud_rows[0]) {
-        MiniHudComponentInner::Row0(r) => {
-            (r.base.text.clone(), r.base.is_warning, r.aoa_text.clone(), r.aoa_y)
-        }
+        MiniHudComponentInner::Row0(r) => (
+            r.base.text.clone(),
+            r.base.is_warning,
+            r.aoa_text.clone(),
+            r.aoa_y,
+        ),
         _ => unreachable!(),
     };
     assert_eq!(txt, "M0.72");
@@ -563,7 +594,10 @@ fn update_from_event_dispatches() {
         _ => unreachable!(),
     };
     // HUDMechanizationRow.onDataUpdate 三段直取 (Java:66-68; base.text 不动)
-    assert_eq!((fw.as_str(), ab.as_str(), g.as_str()), ("F100", "BRK", "GEA"));
+    assert_eq!(
+        (fw.as_str(), ab.as_str(), g.as_str()),
+        ("F100", "BRK", "GEA")
+    );
     assert!(mech_warn, "warnConfiguration");
 
     let sep = match &*inner_of(&o, &o.hud_rows[3]) {
@@ -583,13 +617,20 @@ fn update_from_event_dispatches() {
         _ => unreachable!(),
     };
     assert_eq!((val, disp.as_str()), (87, " 87"), "%3d(87)");
-    assert_eq!(vc, Some([0, 255, 0, 255]), "onDataUpdate 注入 throttleColor");
+    assert_eq!(
+        vc,
+        Some([0, 255, 0, 255]),
+        "onDataUpdate 注入 throttleColor"
+    );
 
     assert!(o.warn_vne);
     // blink: 致命警告已置位 → drawBlinkX 有输出 (帧序归 WarningBlinkHost 单测)
     let mut cv = PixCanvas::new(o.ctx.width, 40).unwrap();
     o.warning.draw_blink_x(&mut cv, o.ctx.width, 40, false);
-    assert!(cv.pixmap().data().iter().any(|&b| b != 0), "fatalWarn → X 可见");
+    assert!(
+        cv.pixmap().data().iter().any(|&b| b != 0),
+        "fatalWarn → X 可见"
+    );
 }
 
 /// onFlightData 节流 (refreshInterval=100ms): 窗口内跳过 (Java L418-431)
@@ -598,23 +639,62 @@ fn on_flight_data_throttle_gate() {
     let mut o = overlay();
     let s = TestSettings::default();
     let payload = EventPayload::builder().build();
-    let src = MockSrc { alt: 5300.0, sep: -13.2 };
+    let src = MockSrc {
+        alt: 5300.0,
+        sep: -13.2,
+    };
     let st = vm_core::telemetry::parser::State::new();
     let colors = HudColors::application_defaults();
     assert!(
-        o.on_flight_data(1000, Some(&st), None, &payload, Some(&src), None, &s, &colors),
+        o.on_flight_data(
+            1000,
+            Some(&st),
+            None,
+            &payload,
+            Some(&src),
+            None,
+            &s,
+            &colors
+        ),
         "首帧 (0→1000)"
     );
     assert!(
-        !o.on_flight_data(1050, Some(&st), None, &payload, Some(&src), None, &s, &colors),
+        !o.on_flight_data(
+            1050,
+            Some(&st),
+            None,
+            &payload,
+            Some(&src),
+            None,
+            &s,
+            &colors
+        ),
         "+50ms 跳过"
     );
     assert!(
-        !o.on_flight_data(1099, Some(&st), None, &payload, Some(&src), None, &s, &colors),
+        !o.on_flight_data(
+            1099,
+            Some(&st),
+            None,
+            &payload,
+            Some(&src),
+            None,
+            &s,
+            &colors
+        ),
         "+99ms 跳过"
     );
     assert!(
-        o.on_flight_data(1100, Some(&st), None, &payload, Some(&src), None, &s, &colors),
+        o.on_flight_data(
+            1100,
+            Some(&st),
+            None,
+            &payload,
+            Some(&src),
+            None,
+            &s,
+            &colors
+        ),
         "+100ms 放行"
     );
     let txt = match &*inner_of(&o, &o.hud_rows[3]) {
@@ -642,7 +722,9 @@ impl FormulaView for MockSrc {
             "throttle" => Some(64.0),
             // W-E 后 HUD 只走公式槽 — 桩按场景直供 (无 FM 缺省 125)
             "flap_allow_angle" => Some(125.0),
-            _ => vm_core::formula::registry::registry().lookup(name).map(|_| 0.0),
+            _ => vm_core::formula::registry::registry()
+                .lookup(name)
+                .map(|_| 0.0),
         }
     }
 
@@ -661,10 +743,21 @@ impl FormulaView for MockSrc {
 fn update_from_event_calculates_from_service() {
     let mut o = overlay();
     let s = TestSettings::default();
-    let src = MockSrc { alt: 5300.0, sep: 0.0 };
+    let src = MockSrc {
+        alt: 5300.0,
+        sep: 0.0,
+    };
     let st = vm_core::telemetry::parser::State::new();
     let payload = EventPayload::builder().build();
-    o.update_from_event(Some(&st), None, &payload, Some(&src), None, &s, &HudColors::application_defaults());
+    o.update_from_event(
+        Some(&st),
+        None,
+        &payload,
+        Some(&src),
+        None,
+        &s,
+        &HudColors::application_defaults(),
+    );
     // altStr = "ALT" + %6.0f(5300) (HUDCalculator 的标签前缀语义 — 标签开时
     // refreshTemplates 的 lines[1] 同格式, Java L177 注释 "Format must match
     // HUDCalculator" 即此对齐契约)
@@ -689,12 +782,23 @@ fn update_from_event_calculates_from_service() {
 fn update_from_event_consumes_state_snapshot() {
     let mut o = overlay();
     let s = TestSettings::default();
-    let src = MockSrc { alt: 5300.0, sep: 0.0 };
+    let src = MockSrc {
+        alt: 5300.0,
+        sep: 0.0,
+    };
     let mut st = vm_core::telemetry::parser::State::new();
     st.flaps = 50;
     st.airbrake = 100;
     let payload = EventPayload::builder().build();
-    o.update_from_event(Some(&st), None, &payload, Some(&src), None, &s, &HudColors::application_defaults());
+    o.update_from_event(
+        Some(&st),
+        None,
+        &payload,
+        Some(&src),
+        None,
+        &s,
+        &HudColors::application_defaults(),
+    );
     // FlapAngleBar: flaps=50 / allowAngle=125 (无 FM 缺省) → " 50/125"
     let flap = match &*inner_of(&o, &o.flap_angle_bar) {
         MiniHudComponentInner::FlapBar(f) => f.display_text().to_string(),

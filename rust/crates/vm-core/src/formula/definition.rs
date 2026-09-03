@@ -28,7 +28,10 @@ pub enum CompileError {
     Parse(String),
     UnknownName(String),
     UnknownFn(String),
-    BadArity { f: String, got: usize },
+    BadArity {
+        f: String,
+        got: usize,
+    },
     DuplicateName(String),
     Cycle(Vec<String>),
     /// 接管型公式 (与系统变量同名) 的表达式引用了自身 — 会隐式变成
@@ -182,7 +185,13 @@ impl CompiledFormulaSet {
         for &slot in &self.order {
             let f = &self.formulas[slot as usize];
             if let Some(rexpr) = &f.rexpr {
-                let ctx = EvalCtx { snap, results: &results, now_ms, interval_ms, fm_data };
+                let ctx = EvalCtx {
+                    snap,
+                    results: &results,
+                    now_ms,
+                    interval_ms,
+                    fm_data,
+                };
                 let v = eval(rexpr, &ctx, store).num();
                 results.values[slot as usize] = v;
             }
@@ -203,7 +212,9 @@ impl CompiledFormulaSet {
 
     /// 槽号 → 公式名
     pub fn name_of(&self, slot: u16) -> Option<&str> {
-        self.formulas.get(slot as usize).map(|f| f.def.name.as_str())
+        self.formulas
+            .get(slot as usize)
+            .map(|f| f.def.name.as_str())
     }
 }
 
@@ -262,7 +273,10 @@ fn resolve_expr(
             let fid = resolve_fn(name).ok_or_else(|| CompileError::UnknownFn(name.clone()))?;
             let (lo, hi) = arity(fid);
             if args.len() < lo || args.len() > hi {
-                return Err(CompileError::BadArity { f: name.clone(), got: args.len() });
+                return Err(CompileError::BadArity {
+                    f: name.clone(),
+                    got: args.len(),
+                });
             }
             let mut rargs = Vec::with_capacity(args.len());
             for a in args {
@@ -274,7 +288,11 @@ fn resolve_expr(
             if is_stateful(fid) {
                 sites.push(site);
             }
-            RExpr::Call { fid: fid_to_u16(fid), args: rargs, site }
+            RExpr::Call {
+                fid: fid_to_u16(fid),
+                args: rargs,
+                site,
+            }
         }
         Expr::Unary { op, expr } => RExpr::Unary {
             op: *op,
@@ -301,12 +319,7 @@ fn detect_cycles(formulas: &mut [CompiledFormula]) {
     let mut stack: Vec<usize> = Vec::new();
 
     // 深度递归改显式栈 (公式依赖链理论可深, 防栈溢)
-    fn dfs(
-        u: usize,
-        formulas: &mut [CompiledFormula],
-        color: &mut [u8],
-        stack: &mut Vec<usize>,
-    ) {
+    fn dfs(u: usize, formulas: &mut [CompiledFormula], color: &mut [u8], stack: &mut Vec<usize>) {
         if color[u] != 0 {
             return;
         }
@@ -333,7 +346,8 @@ fn detect_cycles(formulas: &mut [CompiledFormula]) {
                         .chain(std::iter::once(formulas[v].def.name.clone()))
                         .collect();
                     // 环上所有公式标 invalid (仍在 stack gray 区间 v..)
-                    let cyc: HashSet<usize> = stack.iter().skip_while(|&&s| s != v).cloned().collect();
+                    let cyc: HashSet<usize> =
+                        stack.iter().skip_while(|&&s| s != v).cloned().collect();
                     for &cu in &cyc {
                         if color[cu] == 1 {
                             color[cu] = 2; // 视作处理完, 防重复标
@@ -385,7 +399,9 @@ fn topo_sort(formulas: &[CompiledFormula]) -> Vec<u16> {
             }
         }
     }
-    let mut q: VecDeque<usize> = (0..n).filter(|&i| indeg[i] == 0 && formulas[i].err.is_none()).collect();
+    let mut q: VecDeque<usize> = (0..n)
+        .filter(|&i| indeg[i] == 0 && formulas[i].err.is_none())
+        .collect();
     let mut order = Vec::with_capacity(n);
     while let Some(u) = q.pop_front() {
         order.push(u as u16);
@@ -398,7 +414,6 @@ fn topo_sort(formulas: &[CompiledFormula]) -> Vec<u16> {
     }
     order
 }
-
 
 /// 单公式试算 (编辑器 TryPanel 用: 无持久化/无依赖公式时逐个验证)
 pub fn try_eval_single(
@@ -415,7 +430,13 @@ pub fn try_eval_single(
     let mut next_site = 0u32;
     let (rexpr, _sites) = resolve_formula(expr_src, reg, &slots, "", &mut next_site)?;
     let empty = FormulaResults { values: Vec::new() };
-    let ctx = EvalCtx { snap, results: &empty, now_ms, interval_ms, fm_data };
+    let ctx = EvalCtx {
+        snap,
+        results: &empty,
+        now_ms,
+        interval_ms,
+        fm_data,
+    };
     Ok(eval(&rexpr, &ctx, store).num())
 }
 
@@ -440,10 +461,22 @@ fn fold_consts(r: RExpr) -> RExpr {
             Gt => (l > rr) as u8 as f64,
             Ge => (l >= rr) as u8 as f64,
             And => {
-                if l == 0.0 { 0.0 } else if l.is_nan() || rr.is_nan() { f64::NAN } else { (rr != 0.0) as u8 as f64 }
+                if l == 0.0 {
+                    0.0
+                } else if l.is_nan() || rr.is_nan() {
+                    f64::NAN
+                } else {
+                    (rr != 0.0) as u8 as f64
+                }
             }
             Or => {
-                if l != 0.0 && !l.is_nan() { 1.0 } else if l.is_nan() || rr.is_nan() { f64::NAN } else { (rr != 0.0) as u8 as f64 }
+                if l != 0.0 && !l.is_nan() {
+                    1.0
+                } else if l.is_nan() || rr.is_nan() {
+                    f64::NAN
+                } else {
+                    (rr != 0.0) as u8 as f64
+                }
             }
         }
     };
@@ -453,7 +486,10 @@ fn fold_consts(r: RExpr) -> RExpr {
             if let (RExpr::Num(v), UnOp::Neg) = (&e, op) {
                 RExpr::Num(-v)
             } else {
-                RExpr::Unary { op, expr: Box::new(e) }
+                RExpr::Unary {
+                    op,
+                    expr: Box::new(e),
+                }
             }
         }
         RExpr::Binary { op, lhs, rhs } => {
@@ -470,16 +506,28 @@ fn fold_consts(r: RExpr) -> RExpr {
             }
             match (&l, &rr) {
                 (RExpr::Num(a), RExpr::Num(b)) => RExpr::Num(fold_bin(op, *a, *b)),
-                _ => RExpr::Binary { op, lhs: Box::new(l), rhs: Box::new(rr) },
+                _ => RExpr::Binary {
+                    op,
+                    lhs: Box::new(l),
+                    rhs: Box::new(rr),
+                },
             }
         }
         RExpr::Ternary { cond, then, els } => {
             let c = fold_consts(*cond);
             match &c {
                 RExpr::Num(v) if !v.is_nan() => {
-                    if *v != 0.0 { fold_consts(*then) } else { fold_consts(*els) }
+                    if *v != 0.0 {
+                        fold_consts(*then)
+                    } else {
+                        fold_consts(*els)
+                    }
                 }
-                _ => RExpr::Ternary { cond: Box::new(c), then: Box::new(fold_consts(*then)), els: Box::new(fold_consts(*els)) },
+                _ => RExpr::Ternary {
+                    cond: Box::new(c),
+                    then: Box::new(fold_consts(*then)),
+                    els: Box::new(fold_consts(*els)),
+                },
             }
         }
         RExpr::Call { fid, args, site } => RExpr::Call {

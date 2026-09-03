@@ -15,10 +15,11 @@
 
 use std::sync::Arc;
 
+use crate::base::format::java_f;
+use crate::base::java_compat::{java_float_to_string, java_parse_boolean};
+use crate::base::physics_constants::g;
 use crate::config::config_api::config_provider::ConfigProvider;
 use crate::lang::Lang;
-use crate::base::physics_constants::g;
-use crate::base::java_compat::{java_float_to_string, java_parse_boolean};
 
 /// FlightAnalyzer 对 Service 的读取面 (依赖倒置, 见模块头说明)。
 /// `s_indic_type` 的 `Option` 表达 type 键缺失; `elapsed_time` 单位毫秒。
@@ -88,8 +89,8 @@ impl Default for FlightAnalyzer {
         FlightAnalyzer {
             engine_type: 0,
             r#type: None,
-            time: vec![0.0; MAX_ALT_STAGE as usize],  // 从第零层开始
-            power: vec![0; MAX_ALT_STAGE as usize],   // 从第一层开始
+            time: vec![0.0; MAX_ALT_STAGE as usize], // 从第零层开始
+            power: vec![0; MAX_ALT_STAGE as usize],  // 从第一层开始
             thrust: vec![0; MAX_ALT_STAGE as usize],
             eff: vec![0; MAX_ALT_STAGE as usize],
             sep: vec![0.0; MAX_ALT_STAGE as usize],
@@ -112,7 +113,9 @@ impl Default for FlightAnalyzer {
 impl FlightAnalyzer {
     /// Service 读取面访问: init 前为 None (未 init 即用 → panic, 对应 Java NPE)。
     fn xs(&self) -> &Arc<dyn AnalyzerService + Send + Sync> {
-        self.xs.as_ref().expect("FlightAnalyzer 未 init 即访问 xs (Java NullPointerException)")
+        self.xs
+            .as_ref()
+            .expect("FlightAnalyzer 未 init 即访问 xs (Java NullPointerException)")
     }
 
     /// 记录首个高度级快照并复位计数。
@@ -239,9 +242,9 @@ impl FlightAnalyzer {
                         lang.f_a_turn1,
                         stage * 10,
                         lang.f_a_turn2,
-                        java_format_f1((self.turn_load[s] + g_load) / 2.0),
+                        java_f((self.turn_load[s] + g_load) / 2.0, 1),
                         lang.f_a_turn3,
-                        java_format_f1((self.sep_loss[s] + sep) / 2.0),
+                        java_f((self.sep_loss[s] + sep) / 2.0, 1),
                         lang.f_a_turn4
                     ));
                 }
@@ -321,8 +324,7 @@ impl FlightAnalyzer {
                 ias[j] = i as f64 * 10.0;
                 // 参数名沿 Java 的 g; Rust E0530 禁止绑定遮蔽常量 g, 加下划线后缀
                 g_[j] = (self.turn_load[i - 1] + self.turn_load[i] + self.turn_load[i + 1]) / 3.0;
-                seploss[j] =
-                    (self.sep_loss[i - 1] + self.sep_loss[i] + self.sep_loss[i + 1]) / 3.0;
+                seploss[j] = (self.sep_loss[i - 1] + self.sep_loss[i] + self.sep_loss[i + 1]) / 3.0;
                 j += 1;
             }
             i += 1;
@@ -359,71 +361,6 @@ fn java_math_round(a: f64) -> i64 {
         // |a| < 2^-64 量级 / a 已是数学整数 / Inf / NaN
         a as i64
     }
-}
-
-/// Java `String.format("%.1f", d)` 一比一 (update_em_chart 通知)。
-/// 语义模型 (config_loader.rs java_format_f4 同源, Java 8 oracle 实证): 等价
-/// `new BigDecimal(Double.toString(d)).setScale(1, HALF_UP)` — 对**最短往返十进制
-/// 表示**做 HALF_UP (2.675 → "2.7"), 而非精确二进制值展开; Rust `{:.1}` 是对
-/// 精确值的半偶舍入, 双重分歧 (5.25 → Java "5.3" vs Rust "5.2")。
-/// NaN/Infinity 原样; -0.0 → "-0.0"; 巨整数域 (exp10 > 25) 全整数输出 ".0"。
-fn java_format_f1(d: f64) -> String {
-    if d.is_nan() {
-        return "NaN".to_string();
-    }
-    if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
-    }
-    let neg = d.is_sign_negative(); // 含 -0.0 → "-0.0" (Java 亦然)
-    let a = d.abs();
-    let sci = format!("{:e}", a);
-    let epos = sci.find('e').unwrap();
-    let mant = &sci[..epos];
-    let exp10: i32 = sci[epos + 1..].parse().unwrap();
-    let digits = mant.replace('.', "");
-    let digits = digits.as_bytes();
-    let n = digits.len() as i32;
-
-    let mut out = String::new();
-    if exp10 > 25 {
-        // 巨整数域 (10^26 以上 double 间距 > 1, 恒无有效小数): digits + 隐含尾零 + ".0"
-        out.push_str(&sci[..epos].replace('.', ""));
-        out.push_str(&"0".repeat((exp10 - n + 1) as usize));
-        out.push_str(".0");
-    } else {
-        // 最短表示的 i 号数字 (1-based, place = 10^(exp10-i+1)); 越界补 0
-        let digit_at = |i: i32| -> u128 {
-            if i < 1 {
-                0
-            } else {
-                let idx = (i - 1) as usize;
-                if idx < digits.len() {
-                    u128::from(digits[idx] - b'0')
-                } else {
-                    0
-                }
-            }
-        };
-        // 保留到 10^-1 位: i ≤ exp10 + 2; 判定位 = 其后一位 (HALF_UP: ≥5 进位,
-        // 再后的剩余数字 < 1 单位不影响判定)
-        let keep = exp10 + 2;
-        let mut scaled: u128 = 0; // = (整数 + 1 位小数) 的 10 倍
-        if keep > 0 {
-            for i in 1..=keep {
-                scaled = scaled * 10 + digit_at(i);
-            }
-        }
-        if digit_at(keep + 1) >= 5 {
-            scaled += 1; // HALF_UP (含精确 .5 进位; 进位可级联到整数部分)
-        }
-        let int_part = scaled / 10;
-        let frac1 = scaled % 10;
-        out.push_str(&format!("{int_part}.{frac1}"));
-    }
-    if neg {
-        out.insert(0, '-');
-    }
-    out
 }
 
 #[cfg(test)]

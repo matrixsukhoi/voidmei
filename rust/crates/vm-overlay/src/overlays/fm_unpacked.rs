@@ -29,16 +29,16 @@ use std::sync::Arc;
 use crate::render::font::LoadedFont;
 use crate::render::palette::aa;
 
-use crate::platform::host::{OverlayHost, OverlaySpec, ReinitFn};
 use crate::overlays::list::BaseListOverlay;
 use crate::overlays::spec_common::{keyed_spec, FontSlot};
+use crate::platform::host::{OverlayHost, OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
-use vm_core::fm::data::{FmData, FmParts};
-use vm_core::config::config_api::ConfigProvider;
-use vm_core::fm::FMManager;
 use vm_core::base::format::{java_string_format, FmtArg};
 use vm_core::base::physics_constants::g;
+use vm_core::config::config_api::ConfigProvider;
+use vm_core::fm::data::{FmData, FmParts};
+use vm_core::fm::FMManager;
 use vm_core::lang::Lang;
 
 // Java String.format printf 引擎与 FmtArg 收敛于 vm_core::base::format
@@ -179,7 +179,10 @@ impl FmUnpackedDataOverlay {
 /// Lang 模板取 init_lang() 快照 (Java 读全局静态字段, 值同源 cur.properties)。
 /// 15+ 个开关段改表驱动 (重构波15): 键-生成器对见 [`FM_FIELD_TABLE`],
 /// 各段内条件 (nitro>0 / Option 守卫) 原样留在生成器内。
-pub(crate) fn generate_lines(fmdata: Option<&FmData>, config: Option<&dyn ConfigProvider>) -> Vec<String> {
+pub(crate) fn generate_lines(
+    fmdata: Option<&FmData>,
+    config: Option<&dyn ConfigProvider>,
+) -> Vec<String> {
     let lang = Lang::init_lang();
     let mut lines: Vec<String> = Vec::new();
     let fmdata = match fmdata {
@@ -190,7 +193,10 @@ pub(crate) fn generate_lines(fmdata: Option<&FmData>, config: Option<&dyn Config
         }
         Some(b) => b,
     };
-    let ctx = LineCtx { lang: &lang, fmdata };
+    let ctx = LineCtx {
+        lang: &lang,
+        fmdata,
+    };
 
     // ==================== FM Version (always shown) ====================
     // PORT: Java %s 收 null 字段打印 "null" (Formatter 行为), Option 展开对齐
@@ -255,7 +261,10 @@ static FM_FIELD_TABLE: &[(&str, LineFn)] = &[
 fn add_weight(lines: &mut Vec<String>, ctx: &LineCtx) {
     let weight = java_string_format(
         ctx.lang.b_weight,
-        &[FmtArg::F(ctx.fmdata.emptyweight), FmtArg::F(ctx.fmdata.maxfuelweight)],
+        &[
+            FmtArg::F(ctx.fmdata.emptyweight),
+            FmtArg::F(ctx.fmdata.maxfuelweight),
+        ],
     );
     add_lines(lines, &weight);
 }
@@ -264,7 +273,10 @@ fn add_weight(lines: &mut Vec<String>, ctx: &LineCtx) {
 fn add_crit_speed(lines: &mut Vec<String>, ctx: &LineCtx) {
     let crit_speed = java_string_format(
         ctx.lang.b_crit_speed,
-        &[FmtArg::F(ctx.fmdata.critical_speed * 3.6), FmtArg::F(ctx.fmdata.vne)],
+        &[
+            FmtArg::F(ctx.fmdata.critical_speed * 3.6),
+            FmtArg::F(ctx.fmdata.vne),
+        ],
     );
     add_lines(lines, &crit_speed);
 }
@@ -279,7 +291,12 @@ fn add_g_load_limits(lines: &mut Vec<String>, ctx: &LineCtx) {
         let half_pos = 1.2 * (2.0 * raw[1] / (g * ctx.fmdata.halfweight) - 1.0);
         let load_factor = java_string_format(
             ctx.lang.b_allow_load_factor,
-            &[FmtArg::F(full_neg), FmtArg::F(full_pos), FmtArg::F(half_neg), FmtArg::F(half_pos)],
+            &[
+                FmtArg::F(full_neg),
+                FmtArg::F(full_pos),
+                FmtArg::F(half_neg),
+                FmtArg::F(half_pos),
+            ],
         );
         add_lines(lines, &load_factor);
     }
@@ -436,17 +453,29 @@ fn add_fm_parts(lines: &mut Vec<String>, lang: &Lang, p: Option<&FmParts>) {
     };
     add_lines(
         lines,
-        &java_string_format(lang.b_fm_parts, &[FmtArg::S(p.name.as_deref().unwrap_or("null"))]),
+        &java_string_format(
+            lang.b_fm_parts,
+            &[FmtArg::S(p.name.as_deref().unwrap_or("null"))],
+        ),
     );
-    add_lines(lines, &java_string_format(lang.b_cd_min, &[FmtArg::F(p.cd_min)]));
+    add_lines(
+        lines,
+        &java_string_format(lang.b_cd_min, &[FmtArg::F(p.cd_min)]),
+    );
     add_lines(lines, &java_string_format(lang.b_cl0, &[FmtArg::F(p.cl0)]));
     add_lines(
         lines,
-        &java_string_format(lang.b_ao_a_crit, &[FmtArg::F(p.aoa_crit_low), FmtArg::F(p.aoa_crit_high)]),
+        &java_string_format(
+            lang.b_ao_a_crit,
+            &[FmtArg::F(p.aoa_crit_low), FmtArg::F(p.aoa_crit_high)],
+        ),
     );
     add_lines(
         lines,
-        &java_string_format(lang.b_ao_a_crit_cl, &[FmtArg::F(p.cl_crit_low), FmtArg::F(p.cl_crit_high)]),
+        &java_string_format(
+            lang.b_ao_a_crit_cl,
+            &[FmtArg::F(p.cl_crit_low), FmtArg::F(p.cl_crit_high)],
+        ),
     );
 }
 

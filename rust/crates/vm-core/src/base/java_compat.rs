@@ -4,8 +4,8 @@
 //! `Double.toString` / `Float.toString` / `System.currentTimeMillis` 的
 //! 语义复刻收敛点 — 此前散落在 config_loader / config_manager /
 //! configuration_service / comparison rules / flight_analyzer / flight_log /
-//! map_service / fm_manager / focus_monitor 的私有同构副本已全部收编于此;
-//! 其他 crate 的副本由后续阶段切换到本模块。
+//! map_service / fm_manager / focus_monitor 的私有同构副本已全部收编于此,
+//! 各 crate (含 vm-overlay/vm-ui/vm-webui) 已统一切换到本模块。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -77,10 +77,18 @@ pub fn java_double_to_string(d: f64) -> String {
         return "NaN".to_string();
     }
     if d == 0.0 {
-        return if d.is_sign_negative() { "-0.0".to_string() } else { "0.0".to_string() };
+        return if d.is_sign_negative() {
+            "-0.0".to_string()
+        } else {
+            "0.0".to_string()
+        };
     }
     if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
+        return if d > 0.0 {
+            "Infinity".to_string()
+        } else {
+            "-Infinity".to_string()
+        };
     }
     let neg = d.is_sign_negative();
     let a = d.abs();
@@ -138,10 +146,18 @@ pub fn java_float_to_string(f: f32) -> String {
         return "NaN".to_string();
     }
     if f == 0.0 {
-        return if f.is_sign_negative() { "-0.0".to_string() } else { "0.0".to_string() };
+        return if f.is_sign_negative() {
+            "-0.0".to_string()
+        } else {
+            "0.0".to_string()
+        };
     }
     if f.is_infinite() {
-        return if f > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
+        return if f > 0.0 {
+            "Infinity".to_string()
+        } else {
+            "-Infinity".to_string()
+        };
     }
     let neg = f.is_sign_negative();
     let a = f.abs();

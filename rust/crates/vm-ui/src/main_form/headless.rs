@@ -7,8 +7,8 @@
 
 use std::sync::{Arc, Mutex};
 
-use vm_core::base::bus::Subscription;
 use vm_core::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
+use vm_core::base::bus::Subscription;
 use vm_core::base::event::ui_state_events;
 use vm_core::config::configuration_service::ConfigurationService;
 
@@ -46,7 +46,14 @@ const STEPS: &[(&str, StepDrive)] = &[
 fn step_switch(state: &mut MainFormState, panel: &str, key: &str) -> (bool, String) {
     let before = state.service_string(key);
     let new_val = !before.eq_ignore_ascii_case("true");
-    update(state, Message::Toggle { panel: panel.into(), key: key.into(), value: new_val });
+    update(
+        state,
+        Message::Toggle {
+            panel: panel.into(),
+            key: key.into(),
+            value: new_val,
+        },
+    );
     let after = state.service_string(key);
     let ok = after == new_val.to_string();
     (
@@ -57,10 +64,20 @@ fn step_switch(state: &mut MainFormState, panel: &str, key: &str) -> (bool, Stri
 
 /// 反相开关链路: 显示 true → 落库 false
 fn step_switch_inv(state: &mut MainFormState, panel: &str, key: &str) -> (bool, String) {
-    update(state, Message::Toggle { panel: panel.into(), key: key.into(), value: true });
+    update(
+        state,
+        Message::Toggle {
+            panel: panel.into(),
+            key: key.into(),
+            value: true,
+        },
+    );
     let after = state.service_string(key);
     let ok = after == "false";
-    (ok, format!("SwitchInv {key}: 显示 true → 服务 {after:?} (期望 false)"))
+    (
+        ok,
+        format!("SwitchInv {key}: 显示 true → 服务 {after:?} (期望 false)"),
+    )
 }
 
 /// 滑条链路: 区间中点 → 快照行值 + 服务值 (不落盘)
@@ -69,23 +86,45 @@ fn step_slider(state: &mut MainFormState, panel: &str, key: &str) -> (bool, Stri
     let (min, max) = row.as_ref().map_or((0, 100), |r| (r.min_val, r.max_val));
     let (min, max) = renderers::slider::effective_range(min, max);
     let v = min + (max - min) / 2;
-    update(state, Message::Slider { panel: panel.into(), key: key.into(), value: v });
-    let row_ok = state.snapshot_row(panel, key).is_some_and(|r| r.get_int() == v);
+    update(
+        state,
+        Message::Slider {
+            panel: panel.into(),
+            key: key.into(),
+            value: v,
+        },
+    );
+    let row_ok = state
+        .snapshot_row(panel, key)
+        .is_some_and(|r| r.get_int() == v);
     let svc = state.service_string(key);
     let ok = row_ok && svc == v.to_string();
-    (ok, format!("Slider {key}={v}: 快照行值+服务 {svc:?} (期望 {v})"))
+    (
+        ok,
+        format!("Slider {key}={v}: 快照行值+服务 {svc:?} (期望 {v})"),
+    )
 }
 
 /// 下拉链路: 重选当前值 → 服务保持 + 快照 Str
 fn step_combo(state: &mut MainFormState, panel: &str, key: &str) -> (bool, String) {
     let current = state.service_string(key);
-    update(state, Message::Combo { panel: panel.into(), key: key.into(), value: current.clone() });
+    update(
+        state,
+        Message::Combo {
+            panel: panel.into(),
+            key: key.into(),
+            value: current.clone(),
+        },
+    );
     let svc = state.service_string(key);
     let row_ok = state
         .snapshot_row(panel, key)
         .is_some_and(|r| r.get_str() == current);
     let ok = svc == current && row_ok;
-    (ok, format!("Combo {key}={current:?}: 服务 {svc:?} + 快照行值"))
+    (
+        ok,
+        format!("Combo {key}={current:?}: 服务 {svc:?} + 快照行值"),
+    )
 }
 
 /// 颜色链路: 选色 → 主键十进制写服务 + 快照行值 (分键 keyR/G/B/A 为忠实
@@ -93,7 +132,14 @@ fn step_combo(state: &mut MainFormState, panel: &str, key: &str) -> (bool, Strin
 fn step_color(state: &mut MainFormState, panel: &str, key: &str) -> (bool, String) {
     let rgba = [232u8, 147, 50, 200];
     let decimal = "232, 147, 50, 200";
-    update(state, Message::ColorPicked { panel: panel.into(), key: key.into(), value: rgba });
+    update(
+        state,
+        Message::ColorPicked {
+            panel: panel.into(),
+            key: key.into(),
+            value: rgba,
+        },
+    );
     let svc = state.service_string(key);
     let row_ok = state
         .snapshot_row(panel, key)
@@ -112,7 +158,11 @@ struct Report {
 
 impl Report {
     fn verdict(ok: bool) -> &'static str {
-        if ok { "PASS" } else { "FAIL" }
+        if ok {
+            "PASS"
+        } else {
+            "FAIL"
+        }
     }
 
     /// 记一步结果, 返回该步 verdict 文案
@@ -136,12 +186,10 @@ pub fn run_headless(persist_path: Option<String>) -> i32 {
     let bus = Arc::new(UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
-    let _sub: Subscription<UiStateEvent> = bus.subscribe(
-        ui_state_events::CONFIG_CHANGED,
-        move |m: &UiStateEvent| {
+    let _sub: Subscription<UiStateEvent> =
+        bus.subscribe(ui_state_events::CONFIG_CHANGED, move |m: &UiStateEvent| {
             s2.lock().unwrap().push(m.clone());
-        },
-    );
+        });
 
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(cfg_path);
@@ -173,12 +221,14 @@ pub fn run_headless(persist_path: Option<String>) -> i32 {
     {
         seen.lock().unwrap().clear();
         update(&mut state, Message::Save);
-        let published = seen
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|e| e.event_type == ui_state_events::CONFIG_CHANGED && e.data.as_deref() == Some("ui_layout.cfg"));
-        println!("vm-ui: [{}] Save 广播 CONFIG_CHANGED(\"ui_layout.cfg\")", report.record(published));
+        let published = seen.lock().unwrap().iter().any(|e| {
+            e.event_type == ui_state_events::CONFIG_CHANGED
+                && e.data.as_deref() == Some("ui_layout.cfg")
+        });
+        println!(
+            "vm-ui: [{}] Save 广播 CONFIG_CHANGED(\"ui_layout.cfg\")",
+            report.record(published)
+        );
     }
 
     if report.failures == 0 {

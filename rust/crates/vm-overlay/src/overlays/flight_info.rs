@@ -25,13 +25,13 @@ use vm_core::base::format;
 use vm_core::formula::registry::FormulaView;
 use vm_core::ui_support::row_def::RowDef;
 
-use crate::render::font::Canvas;
 use crate::overlays::spec_common::keyed_spec;
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
-use crate::render::palette::{aa, colors};
-use crate::render::fields::{render_fields_fixed, FieldText, FontTriple, RenderColors};
 use crate::render::canvas::PixCanvas;
+use crate::render::fields::{render_fields_fixed, FieldText, FontTriple, RenderColors};
+use crate::render::font::Canvas;
+use crate::render::palette::{aa, colors};
 
 /// numHeight 默认值 (POC main.rs 平移): Java 实测校准 24px BOLD Sarasa = 31,
 /// 其余字号 1.25×fontSize 近似 (与实测差 ≤1px, 精确值由对拍脚本 --num-height 注入)
@@ -131,7 +131,10 @@ impl FlightInfoState {
     /// visible-when 过滤可少于 FIELDS, 回满行高 (reinit 用 rows.len() 度量)。
     pub fn reset_preview_rows(&mut self) {
         self.rows = preview_rows(&self.defs);
-        let (w, h) = (self.ctx.total_width(), self.ctx.total_height(self.rows.len() as i32));
+        let (w, h) = (
+            self.ctx.total_width(),
+            self.ctx.total_height(self.rows.len() as i32),
+        );
         self.canvas = Canvas::new(w, h);
     }
 
@@ -156,7 +159,10 @@ pub fn flight_info_overlay_spec(
     let ctx = RenderCtx::new(font_add, column, default_num_height(font_add));
     let fonts = FontTriple::load(fonts_dir, &ctx)?;
     // preview 初值: cfg 行定义的 preview 值
-    let defs = { let p = params.borrow(); Arc::clone(&p.flight.rows) };
+    let defs = {
+        let p = params.borrow();
+        Arc::clone(&p.flight.rows)
+    };
     let rows: Vec<(String, String, String)> = preview_rows(&defs);
     // 窗口尺寸: 全行高度 (POC run_live 同款 — visible-when 变化不重建窗口,
     // 空行区域透明无碍)
@@ -176,9 +182,16 @@ pub fn flight_info_overlay_spec(
     let reinit: ReinitFn = Box::new(move || {
         let (fa, col, defs) = {
             let p = reinit_params.borrow();
-            (p.flight.font_add, p.flight.columns, Arc::clone(&p.flight.rows))
+            (
+                p.flight.font_add,
+                p.flight.columns,
+                Arc::clone(&p.flight.rows),
+            )
         };
-        match reinit_handle.borrow_mut().reinit(&reinit_fonts, fa, col, defs) {
+        match reinit_handle
+            .borrow_mut()
+            .reinit(&reinit_fonts, fa, col, defs)
+        {
             Ok(size) => Some(size),
             Err(e) => {
                 vm_core::base::logger::error("FlightInfo", &format!("reinit 资源重建失败: {}", e));
@@ -195,10 +208,20 @@ pub fn flight_info_overlay_spec(
             Box::new(move |cv: &mut PixCanvas| {
                 let mut st = render_handle.borrow_mut();
                 // 借用拆分: rows 只读 / canvas 可变 (同结构不相交字段)
-                let FlightInfoState { defs: _, rows, canvas, ctx, fonts } = &mut *st;
+                let FlightInfoState {
+                    defs: _,
+                    rows,
+                    canvas,
+                    ctx,
+                    fonts,
+                } = &mut *st;
                 let texts: Vec<FieldText> = rows
                     .iter()
-                    .map(|(l, u, v)| FieldText { label: l, unit: u, value: v })
+                    .map(|(l, u, v)| FieldText {
+                        label: l,
+                        unit: u,
+                        value: v,
+                    })
                     .collect();
                 // 清零重绘到直通 Canvas → 整帧 SrcOver 桥入 PixCanvas
                 // aa = 运行时全局仓 (cfg AAEnable 可关, 审查轮 1-A)。色板 = 运行时全局五色

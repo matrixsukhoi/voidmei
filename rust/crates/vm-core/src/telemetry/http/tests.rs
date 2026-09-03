@@ -17,7 +17,9 @@ where
                 Ok(s) => s,
                 Err(_) => break,
             };
-            stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
+            stream
+                .set_read_timeout(Some(Duration::from_millis(100)))
+                .ok();
             let mut req = Vec::new();
             let mut b = [0u8; 4096];
             loop {
@@ -258,7 +260,9 @@ fn get_live_aircraft_type_parses_indicators() {
     let resp = "HTTP/1.1 200 OK\r\n\r\n{\"valid\": true, \"type\": \"bf-109f-4\"}";
     let h = std::thread::spawn(move || {
         if let Ok((mut stream, _)) = listener.accept() {
-            stream.set_read_timeout(Some(Duration::from_millis(200))).ok();
+            stream
+                .set_read_timeout(Some(Duration::from_millis(200)))
+                .ok();
             let mut b = [0u8; 4096];
             let _ = stream.read(&mut b); // 收请求 (丢弃)
             stream.write_all(resp.as_bytes()).ok();
@@ -286,7 +290,9 @@ fn get_live_aircraft_type_invalid_returns_none() {
     let resp = "HTTP/1.1 200 OK\r\n\r\n{\"valid\": false}";
     let h = std::thread::spawn(move || {
         if let Ok((mut stream, _)) = listener.accept() {
-            stream.set_read_timeout(Some(Duration::from_millis(200))).ok();
+            stream
+                .set_read_timeout(Some(Duration::from_millis(200)))
+                .ok();
             let mut b = [0u8; 4096];
             let _ = stream.read(&mut b);
             stream.write_all(resp.as_bytes()).ok();
@@ -330,7 +336,9 @@ fn send_get_url_joins_lines_stripping_newlines() {
 
 #[test]
 fn send_get_url_error_status_is_err() {
-    let (addr, h) = serve_n(1, |_| b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".to_vec());
+    let (addr, h) = serve_n(1, |_| {
+        b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".to_vec()
+    });
     let r = HttpHelper::send_get_url(&format!("http://127.0.0.1:{}/miss", addr.port()));
     assert!(r.is_err());
     assert!(r.unwrap_err().contains("404"));

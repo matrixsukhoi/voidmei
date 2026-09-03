@@ -18,7 +18,10 @@ fn null_and_empty_return_none() {
 fn delegates_to_extractor_with_parse_double_trim_semantics() {
     // oracle: " 3.5 " → 3.5 (parseDouble 内部 trim)
     let r = LambdaRule::new(Box::new(parse_double_like), false);
-    assert_eq!(r.extract_value(Some(" 3.5 ")).map(|v| v.to_bits()), Some(4615063718147915776));
+    assert_eq!(
+        r.extract_value(Some(" 3.5 ")).map(|v| v.to_bits()),
+        Some(4615063718147915776)
+    );
 }
 
 #[test]
@@ -50,10 +53,7 @@ fn extractor_panic_swallowed_like_java_exception() {
         }
     }));
 
-    let r = LambdaRule::new(
-        Box::new(|_| -> Option<f64> { panic!("boom") }),
-        true,
-    );
+    let r = LambdaRule::new(Box::new(|_| -> Option<f64> { panic!("boom") }), true);
     let got = r.extract_value(Some("x"));
 
     let restore = Arc::clone(&prev);

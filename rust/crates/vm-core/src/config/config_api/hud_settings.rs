@@ -49,17 +49,17 @@ pub trait HUDSettings: OverlaySettings {
     fn is_sep_label_disabled(&self) -> bool;
 
     // 组件级独立显示开关 — 每个视觉元素可独立控制
-    fn show_hud_speed(&self) -> bool;         // Row 0: 速度文字
-    fn show_hud_aoa(&self) -> bool;           // Row 0: AoA bar + α文字
-    fn show_hud_altitude(&self) -> bool;      // Row 1: 高度文字
-    fn show_hud_energy(&self) -> bool;        // Row 1: 能量读数
+    fn show_hud_speed(&self) -> bool; // Row 0: 速度文字
+    fn show_hud_aoa(&self) -> bool; // Row 0: AoA bar + α文字
+    fn show_hud_altitude(&self) -> bool; // Row 1: 高度文字
+    fn show_hud_energy(&self) -> bool; // Row 1: 能量读数
     fn show_hud_mechanization(&self) -> bool; // Row 2: 襟翼/起落架文字 (旧，保留向后兼容)
-    fn show_hud_flaps(&self) -> bool;         // Row 2: 襟翼/可变翼
-    fn show_hud_airbrake(&self) -> bool;      // Row 2: 减速板 BRK
-    fn show_hud_gear(&self) -> bool;          // Row 2: 起落架 GEA
-    fn show_hud_sep(&self) -> bool;           // Row 3: 爬升率文字
-    fn show_hud_g_load(&self) -> bool;        // Row 4: G-force 文字
-    fn show_hud_maneuver_bar(&self) -> bool;  // Row 4: 机动条
+    fn show_hud_flaps(&self) -> bool; // Row 2: 襟翼/可变翼
+    fn show_hud_airbrake(&self) -> bool; // Row 2: 减速板 BRK
+    fn show_hud_gear(&self) -> bool; // Row 2: 起落架 GEA
+    fn show_hud_sep(&self) -> bool; // Row 3: 爬升率文字
+    fn show_hud_g_load(&self) -> bool; // Row 4: G-force 文字
+    fn show_hud_maneuver_bar(&self) -> bool; // Row 4: 机动条
 
     fn is_attitude_indicator_inertial_mode(&self) -> bool;
 

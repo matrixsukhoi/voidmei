@@ -132,9 +132,11 @@ impl MapInfo {
         self.map_min_y = self.tp.y;
         self.cmapmaxsize_x = self.map_max_x - self.map_min_x;
         self.cmapmaxsize_y = self.map_max_y - self.map_min_y;
-        self.in_game_offset =
-            ((self.grid_zero_y - self.grid_zero_x) - (self.map_max_x + self.map_max_y)) / (self.grid_steps_x + self.grid_steps_y);
-        self.map_stage = (self.map_max_x + self.map_max_y) * 2.0 / (self.grid_steps_x + self.grid_steps_y);
+        self.in_game_offset = ((self.grid_zero_y - self.grid_zero_x)
+            - (self.map_max_x + self.map_max_y))
+            / (self.grid_steps_x + self.grid_steps_y);
+        self.map_stage =
+            (self.map_max_x + self.map_max_y) * 2.0 / (self.grid_steps_x + self.grid_steps_y);
 
         // Application.debugPrint("ingame mapinfo offset:" + inGameOffset + "map stage: " + mapStage);
     }

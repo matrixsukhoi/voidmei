@@ -45,9 +45,9 @@ pub struct DataField {
     pub length: i32,
     pub value_supplier: Option<Box<dyn Fn() -> f64>>,
     pub visibility_supplier: Option<Box<dyn Fn() -> bool>>,
-    pub precision: i32, // Default to integer
-    pub format: Option<String>, // Custom format (e.g., "TIME_MM_SS")
-    pub unit_supplier: Option<Box<dyn Fn() -> String>>, // Dynamic unit source
+    pub precision: i32,                                   // Default to integer
+    pub format: Option<String>,                           // Custom format (e.g., "TIME_MM_SS")
+    pub unit_supplier: Option<Box<dyn Fn() -> String>>,   // Dynamic unit source
     pub precision_supplier: Option<Box<dyn Fn() -> i32>>, // Dynamic precision source
 }
 

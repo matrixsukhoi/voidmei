@@ -236,7 +236,9 @@ fn test_install_pack_flattens() {
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .collect();
     assert_eq!(names.len(), 2, "仅两个 wav: {names:?}");
-    assert!(!names.iter().any(|n| n.contains("readme") || n.contains("emptydir")));
+    assert!(!names
+        .iter()
+        .any(|n| n.contains("readme") || n.contains("emptydir")));
 }
 
 #[test]
@@ -306,7 +308,10 @@ fn test_load_clip_resolves_and_applies_volume() {
     let clip = m.load_clip("aoa", Some("pack")).expect("应加载成功");
     // 路径解析命中 pack (拼接形态与 Java File.getPath() 一致;
     // Path 相等按组件比较, 混合 '/' 与 '\\' 分隔符不影响)
-    assert_eq!(player.calls.lock().unwrap()[0], voice.join("pack").join("aoa.wav"));
+    assert_eq!(
+        player.calls.lock().unwrap()[0],
+        voice.join("pack").join("aoa.wav")
+    );
     // 默认音量 100 → 对数衰减: -80 + log10(100)*80/2 = 0.0
     let logs = player.gain_logs.lock().unwrap();
     assert_eq!(logs.len(), 1);

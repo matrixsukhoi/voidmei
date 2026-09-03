@@ -32,7 +32,8 @@ fn parse_real_fm_files_json() {
     assert_eq!(phys.emptyweight, 3550.0, "emptyweight");
 
     // bf-109e-4: 装载面冒烟 (曲线 oracle 随曲线链退役)
-    let bf = FmData::parse_named_json(&format!("{root}/fm/bf-109e-4.json"), "fm/bf-109e-4.blk").unwrap();
+    let bf =
+        FmData::parse_named_json(&format!("{root}/fm/bf-109e-4.json"), "fm/bf-109e-4.blk").unwrap();
     assert!(bf.valid);
     assert_eq!(bf.engine_num, 1, "bf-109e-4 单发");
 }

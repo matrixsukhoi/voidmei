@@ -21,7 +21,6 @@ pub struct Damage {
     pub updated: bool,
 }
 
-
 pub struct HudMsg {
     s: String,
     /// Java `public damage dmg` — init() 前 null → Option; 未 init 即 update 会像
@@ -71,7 +70,11 @@ impl HudMsg {
             while cs[eix] != ',' {
                 eix += 1;
             }
-            dmg.id = cs[bix..eix].iter().collect::<String>().parse::<i32>().unwrap();
+            dmg.id = cs[bix..eix]
+                .iter()
+                .collect::<String>()
+                .parse::<i32>()
+                .unwrap();
 
             eix += 1;
 
