@@ -541,7 +541,7 @@ impl Lang {
         lang.m_config_error_content = Lang::update_language(
             cfg,
             "mConfigErrorContent",
-            "用户配置文件解析失败，将临时使用默认配置。\n请检查 ui_layout.user.cfg 文件是否损坏。",
+            "用户配置文件解析失败，将临时使用默认配置。\n请检查 voidmei_config.json 文件是否损坏。",
         );
         lang.m_config_merged_title = Lang::update_language(cfg, "mConfigMergedTitle", "配置已更新");
         lang.m_merge_added_panels = Lang::update_language(cfg, "mMergeAddedPanels", "新增面板:");
@@ -554,7 +554,7 @@ impl Lang {
         lang.m_import_confirm_content = Lang::update_language(
             cfg,
             "mImportConfirmContent",
-            "确定要导入此配置文件吗？\n当前配置将被备份到 ui_layout.user.cfg.bak",
+            "确定要导入此配置文件吗？\n当前配置将被备份到 voidmei_config.json.bak",
         );
         lang.m_import_success_title = Lang::update_language(cfg, "mImportSuccessTitle", "导入成功");
         lang.m_import_success_content = Lang::update_language(

@@ -511,24 +511,24 @@ fn collect_keyword_values(exprs: &[Rc<SExp>], keyword: &str, out: &mut Vec<Rc<SE
 }
 
 #[test]
-fn ui_layout_cfg_na_when_expressions_parsed() {
-    // TestNaWhenParsing.java 移植: 加载 ui_layout.cfg, 断言 :na-when / :visible-when
-    // 的值都解析成了非空列表 (对应 "naWhen 表达式已解析!" 而非 "[警告] naWhen 为 null!")
-    let cfg_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../ui_layout.cfg");
-    let content = fs::read_to_string(&cfg_path).expect("ui_layout.cfg 应在仓库根");
+fn formulas_cfg_sexp_expressions_parsed() {
+    // W5: ui_layout.cfg 已退役 (JSON 化) — S-expr 解析器的生产消费面仅剩
+    // formulas.cfg 外壳 (:formula/:unit 等关键字值 + 中缀表达式体)。
+    // 守卫: formulas.cfg 可解析出顶层公式条目, 关键字值形态健康。
+    let cfg_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../formulas.cfg");
+    let content = fs::read_to_string(&cfg_path).expect("formulas.cfg 应在仓库根");
     let mut parser = SExpParser::new();
-    let panels = parser.parse(&content);
-    assert!(!panels.is_empty(), "cfg 应解析出顶层 panel");
+    let forms = parser.parse(&content);
+    assert!(!forms.is_empty(), "formulas.cfg 应解析出顶层条目");
 
-    for keyword in [":na-when", ":visible-when"] {
+    for keyword in [":expr"] {
         let mut values = Vec::new();
-        collect_keyword_values(&panels, keyword, &mut values);
-        assert!(!values.is_empty(), "{} 在 ui_layout.cfg 中应存在", keyword);
+        collect_keyword_values(&forms, keyword, &mut values);
+        assert!(!values.is_empty(), "{} 在 formulas.cfg 中应存在", keyword);
         for v in &values {
-            assert!(v.is_list(), "{} 的值应为表达式列表", keyword);
             assert!(
-                !v.as_list().children.is_empty(),
-                "{} 表达式不应为空列表",
+                !v.as_atom().get_string().is_empty(),
+                "{} 的值应为非空表达式体",
                 keyword
             );
         }
@@ -548,36 +548,5 @@ fn ui_layout_cfg_na_when_expressions_parsed() {
         }
     }
 
-    // 对应 TestNaWhenParsing 的搜索目标: 转半径行 (target = turn_rds) 的
-    // :na-when 表达式确已解析为 (> value 9999)
-    let found = find_turn_radius_na_when(&panels);
-    assert_eq!(found.as_deref(), Some("(> value 9999)"));
 }
 
-fn find_turn_radius_na_when(exprs: &[Rc<SExp>]) -> Option<String> {
-    fn walk(e: &SExp) -> Option<String> {
-        let SExp::List(l) = e else {
-            return None;
-        };
-        let has_target = l.children.iter().any(|c| {
-            matches!(
-                &**c,
-                SExp::Atom(a) if a.r#type == AtomType::String && a.get_string() == "turn_rds"
-            )
-        });
-        if has_target {
-            let n = l.children.len();
-            for i in 0..n {
-                if i + 1 < n {
-                    if let SExp::Atom(a) = &*l.children[i] {
-                        if a.is_keyword() && a.get_string().eq_ignore_ascii_case(":na-when") {
-                            return Some(l.children[i + 1].to_string());
-                        }
-                    }
-                }
-            }
-        }
-        l.children.iter().find_map(|c| walk(c))
-    }
-    exprs.iter().find_map(|e| walk(e))
-}

@@ -425,12 +425,11 @@ def cmd_dist():
     shutil.copy2(ROOT / "VoidMei.bat", stage / "VoidMei.bat")
     if (ROOT / "VoidMei.exe").is_file():
         shutil.copy2(ROOT / "VoidMei.exe", stage / "VoidMei.exe")
-    # --- 依赖与资源 (白名单复制, 天然排除 records/ config/ ui_layout.user.cfg 等用户数据) ---
+    # --- 依赖与资源 (白名单复制, 天然排除 records/ config/ voidmei_config.json 等用户数据) ---
     for d in ("dep", "fonts", "image", "voice"):
         copytree(ROOT / d, stage / d)
     (stage / "lang").mkdir()
     shutil.copy2(ROOT / "lang" / "cur.properties", stage / "lang" / "cur.properties")
-    shutil.copy2(ROOT / "ui_layout.cfg", stage / "ui_layout.cfg")
     for txt in ("使用说明.txt", "快速使用说明.txt", "更新日志.txt"):
         if (ROOT / txt).is_file():
             shutil.copy2(ROOT / txt, stage / txt)
@@ -454,7 +453,7 @@ RUST_DIST_FONTS = ("sarasa-mono-sc-bold.ttf", "sarasa-mono-sc-regular.ttf")
 def cmd_rustdist():
     """组装 Rust 版分发包: rust 构建链 → dist/VoidMei_Rust_*.zip (解压即用, 无 JRE 依赖)。
 
-    与 Java dist 同形态 (data/fonts/image/voice/ui_layout.cfg/文档), 差异:
+    与 Java dist 同形态 (data/fonts/image/voice/文档), 差异:
     少 jar/bat/exe/dep/lang (前端与语言表已内嵌 exe), 多 voidmei.exe + WebView2Loader.dll + manifest。
     """
     cmd_rust()
@@ -487,7 +486,6 @@ def cmd_rustdist():
     # --- 其余资源同 Java dist: 整目录 + 配置 + 文档 (白名单复制, 天然排除用户数据) ---
     copytree(ROOT / "image", stage / "image")
     copytree(ROOT / "voice", stage / "voice")
-    shutil.copy2(ROOT / "ui_layout.cfg", stage / "ui_layout.cfg")
     for txt in ("使用说明.txt", "快速使用说明.txt", "更新日志.txt"):
         if (ROOT / txt).is_file():
             shutil.copy2(ROOT / txt, stage / txt)

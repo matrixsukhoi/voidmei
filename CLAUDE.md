@@ -75,8 +75,15 @@ java -jar VoidMei.jar
 
 **Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
 
-**Rust 全量迁移 (已完成 + 六波架构重构 + 波7~11 组织结构 + 波12~19 坏味道清扫 + 波20 8111 链现代化)**: `rust/` 是
+**Rust 全量迁移 (已完成 + 六波架构重构 + 波7~11 组织结构 + 波12~19 坏味道清扫 + 波20 8111 链现代化 + W1~W5 overlay 组件化)**: `rust/` 是
 Java 版的全量迁移产物 (cargo workspace 六 crate)。2026-09 架构:
+**overlay 组件化 (W1~W5)**: 配置 = 出厂 `factory_default.json` (编译期内嵌)
+⊕ 用户 `voidmei_config.json` (delta, 升级跟随语义); overlay = HUD 页面
+(PageDoc, 画布即窗口), 9 出厂页数据驱动 — vm-overlay widgets 域
+(HudWidget trait + WidgetMeta 注册表 + PageOverlay 编排器 + WidgetSidecar
+FM 黑盒面); MainForm 「HUD 布局」tab 拖拽编辑 (Tauri commands_layout 六命令
++ web/src/layout_editor 三栏); 旧 ui_layout.cfg S-expr 体系与 *_overlay_spec
+工厂族已整体退役。后续:
 vm-core 11 域分组 (base/config/game_api/fm/formula/derived/audio/ui_support/
 platform/lang/activation, 根 shim 已退役 — 全库唯一路径 `vm_core::<域>::<模块>`；game_api 域
 = 8111 客户端 ureq + serde 解析, 波20 由 telemetry 更名并退役手写 HTTP/子串扫描);

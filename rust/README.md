@@ -10,6 +10,14 @@ War Thunder 遥测 HUD overlay 应用：读取游戏本地 HTTP API (8111)，实
 坏味道清扫与历波重构的登记档案：`doc/rust坏味道登记与重构方案.md`；迁移期设计档案：
 `build/migration/`（PORTING 宪法/CLASSIFY/LIFETIMES/DECISIONS/PROGRESS）。
 
+**W1~W5 组件化改造 (2026-09, 已完成)**：配置 = 出厂 `factory_default.json`
+(编译期内嵌) ⊕ 用户 `voidmei_config.json` (delta, Emacs/VSCode 式升级跟随)；
+overlay = **HUD 页面** (PageDoc, 画布即窗口) — 9 个出厂页全部数据驱动
+(`vm-overlay::widgets` 域: HudWidget trait + WidgetMeta 注册表 +
+PageOverlay 通用编排器 + WidgetSidecar FM 黑盒数据面)；用户可在 MainForm
+「HUD 布局」tab 里拖拽组装自己的 HUD 页面 (palette/画布/inspector 三栏,
+Rust solve_page 快照保真)。新增组件 → widgets 域注册表一处。
+
 ## 架构地图
 
 ```
@@ -32,7 +40,7 @@ War Thunder HTTP API (127.0.0.1:8111)
     │ ReinitParams/UiCommand │ 规则触发/状态推送
     ▼                        ▼
 ┌─ vm-overlay ─────────┐  ┌─ vm-webui ──────────────────────┐
-│ 五域: platform(窗口/  │  │ Tauri 2 web 设置壳 (常驻隐藏预热)│
+│ 六域: platform(窗口/  │  │ Tauri 2 web 设置壳 (常驻隐藏预热)│
 │ 托盘/热键/host)/render│  │ IPC: command → mpsc → dispatcher │
 │ (canvas/基元/字体/    │  │ → 主线程执行体 → oneshot 回执     │
 │ 调色板)/overlays(~17  │  │ 前端 web/: React + AntD          │
@@ -46,7 +54,7 @@ War Thunder HTTP API (127.0.0.1:8111)
 |---|---|---|
 | vm-core | — | 纯逻辑 11 域：base(总线/事件/日志/工具/JDK 语义复刻 java_compat/数值格式化 format)/config(配置栈)/game_api(8111 客户端 ureq+serde 解析)/fm(管理栈+数据+功率模型)/formula(公式系统)/derived(HUD 派生)/audio(语音告警)/ui_support(行定义/机型对比/颜色)/platform(焦点检测)/lang(i18n)/activation(激活) |
 | vm-data | vm-core | 8111 轮询/派生量计算/Service 链；FrameStore 不可变帧 = 跨线程唯一读面 |
-| vm-overlay | vm-core | 五域：platform(win/x11/host/tray/hotkey/reinit)/render(canvas/fields/renderers/font/palette/primitives)/overlays(组件, spec_common 工厂脚手架)/layout(布局引擎)/ui_model |
+| vm-overlay | vm-core | 六域：platform(win/x11/host/tray/hotkey/reinit)/render(canvas/fields/renderers/font/palette/primitives)/widgets(**组件注册表+页面编排器+sidecar**, W2~W4 组件化)/overlays(组件 state 本体, 旧 spec 工厂已退役)/layout(布局引擎)/ui_model |
 | vm-ui | vm-core | MainForm 数据层（main_form 状态机 + renderers 写回链；view 归 web 壳） |
 | vm-webui | vm-core | Tauri 2 web 壳：IPC(dto/commands 三域) + web/ React/AntD 前端 |
 | vm-app | 全部 | 组装 bin `voidmei`：AppShell/Controller/render_thread/主循环 |
