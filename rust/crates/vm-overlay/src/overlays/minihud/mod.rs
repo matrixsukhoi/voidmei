@@ -162,6 +162,13 @@ impl MiniHudOverlay {
     ) -> Result<Self, String> {
         vm_core::base::logger::info("MinimalHUD", "init called");
         let ctx = MinimalHudContext::create(settings, dpi_scale, font_path)?;
+        vm_core::base::logger::info(
+            "MinimalHUD",
+            &format!(
+                "MinimalHUD Config: Width={}, Height={}, CrossWidth={}",
+                ctx.width, ctx.height, ctx.cross_scale
+            ),
+        );
         let fonts = Rc::new(ctx.fonts.clone());
         let mut overlay = MiniHudOverlay {
             fonts,
@@ -216,6 +223,13 @@ impl MiniHudOverlay {
         // Create Immutable Context
         self.ctx = MinimalHudContext::create(settings, self.dpi_scale, &self.font_path)?;
         self.fonts = Rc::new(self.ctx.fonts.clone());
+        vm_core::base::logger::info(
+            "MinimalHUD",
+            &format!(
+                "MinimalHUD Config: Width={}, Height={}, CrossWidth={}",
+                self.ctx.width, self.ctx.height, self.ctx.cross_scale
+            ),
+        );
 
         // 1. Refresh mock data and templates (WYSIWYG support)
         let templates = self.refresh_templates(settings);
@@ -233,73 +247,21 @@ impl MiniHudOverlay {
     /// Java refreshTemplates() — preview 串构造; W2 返回组件模板值包
     /// (推送统一在建树后, 原 set_row_templates 尾段并入 push_templates)。
     fn refresh_templates<S: HUDSettings>(&mut self, settings: &S) -> MiniHudTemplates {
-        let spd_pre = if settings.is_speed_label_disabled() {
-            ""
-        } else {
-            "SPD"
-        };
-        let alt_pre = if settings.is_altitude_label_disabled() {
-            ""
-        } else {
-            "ALT"
-        };
-        let sep_pre = if settings.is_sep_label_disabled() {
-            ""
-        } else {
-            "SEP"
-        };
-
-        if settings.draw_hud_mach() {
-            // "M%5.2f" (0.85) — M 前缀在宽度域外
-            self.lines[0] = format!("M{}", pad_width(fmt_f(0.85, 2), 5, false));
-        } else {
-            self.lines[0] = format!("{spd_pre}{}", pad_width("360".to_string(), 5, false));
-        }
-        // Format must match HUDCalculator: radar = "R%5.0f", barometric = "%6.0f"
-        self.lines[1] = if settings.always_show_radar_altitude() {
-            format!("{alt_pre}R{}", pad_width("1024".to_string(), 5, false))
-        } else {
-            format!("{alt_pre}{}", pad_width("1024".to_string(), 6, false))
-        };
-        // "↑%-4s"("30") — ↑ 是格式串字面量 (前缀, 不占 %-4s 宽度域)
-        self.lines[3] = format!("{sep_pre}↑{}", pad_width("30".to_string(), 4, true));
-        self.lines[4] = format!("G{}", pad_width("2.0".to_string(), 5, false));
-        if settings.enable_flap_angle_bar() {
-            self.lines[2] = pad_width(String::new(), 4, false); // "%4s"%""
-        } else {
-            self.lines[2] = format!("F{}", pad_width("100".to_string(), 3, false));
-        }
-        self.lines[2].push_str("BRK");
-        self.lines[2].push_str("GEAR");
+        let t = preview_templates(
+            settings,
+            (self.maneuver_index, self.maneuver_index_len, self.tick_scale),
+            self.in_action,
+        );
+        // self 会话缓存保留 (编排器状态面; lines = [String;6] 前 5 槽)
+        self.lines[..5].clone_from_slice(&t.lines);
+        self.line_aoa = t.line_aoa.clone();
+        self.rel_energy = t.rel_energy.clone();
+        self.aoa_y = t.aoa_y;
         self.throttley = 100;
-        self.aoa_y = 10;
         self.throttle_color = colors().shade_shape;
-        self.aoa_color = colors().num;
-        self.aoa_bar_color = colors().num;
-        self.line_aoa = format!("α{}", pad_width(fmt_f(20.0, 0), 3, false));
-        self.rel_energy = "E114514".to_string();
-
-        MiniHudTemplates {
-            lines: [
-                self.lines[0].clone(),
-                self.lines[1].clone(),
-                self.lines[2].clone(),
-                self.lines[3].clone(),
-                self.lines[4].clone(),
-            ],
-            line_aoa: self.line_aoa.clone(),
-            rel_energy: self.rel_energy.clone(),
-            aoa_y: self.aoa_y,
-            aoa_color: self.aoa_color,
-            aoa_bar_color: self.aoa_bar_color,
-            in_action: self.in_action,
-            throttle: 0, // update_components 的 service=None 分支值
-            maneuver: (
-                self.maneuver_index,
-                self.maneuver_index_len,
-                self.tick_scale,
-            ),
-        }
+        self.aoa_color = t.aoa_color;
+        self.aoa_bar_color = t.aoa_bar_color;
+        t
     }
 
     /// 建树 + 风格/模板注入 + 外壳可见性 (原 init_components_layout +
@@ -524,6 +486,66 @@ impl MiniHudOverlay {
 
     pub fn ctx(&self) -> &MinimalHudContext {
         &self.ctx
+    }
+}
+
+/// preview 模板纯构造 (refresh_templates 的计算体; W4 编辑器快照复用)。
+/// maneuver/in_action = 编排器会话量 (编辑器传缺省)。
+pub fn preview_templates<S: HUDSettings>(
+    settings: &S,
+    maneuver: (f64, i32, TickScale),
+    in_action: bool,
+) -> MiniHudTemplates {
+    let spd_pre = if settings.is_speed_label_disabled() {
+        ""
+    } else {
+        "SPD"
+    };
+    let alt_pre = if settings.is_altitude_label_disabled() {
+        ""
+    } else {
+        "ALT"
+    };
+    let sep_pre = if settings.is_sep_label_disabled() {
+        ""
+    } else {
+        "SEP"
+    };
+
+    let mut lines: [String; 5] = std::array::from_fn(|_| String::new());
+    if settings.draw_hud_mach() {
+        // "M%5.2f" (0.85) — M 前缀在宽度域外
+        lines[0] = format!("M{}", pad_width(fmt_f(0.85, 2), 5, false));
+    } else {
+        lines[0] = format!("{spd_pre}{}", pad_width("360".to_string(), 5, false));
+    }
+    // Format must match HUDCalculator: radar = "R%5.0f", barometric = "%6.0f"
+    lines[1] = if settings.always_show_radar_altitude() {
+        format!("{alt_pre}R{}", pad_width("1024".to_string(), 5, false))
+    } else {
+        format!("{alt_pre}{}", pad_width("1024".to_string(), 6, false))
+    };
+    // "↑%-4s"("30") — ↑ 是格式串字面量 (前缀, 不占 %-4s 宽度域)
+    lines[3] = format!("{sep_pre}↑{}", pad_width("30".to_string(), 4, true));
+    lines[4] = format!("G{}", pad_width("2.0".to_string(), 5, false));
+    if settings.enable_flap_angle_bar() {
+        lines[2] = pad_width(String::new(), 4, false); // "%4s"%""
+    } else {
+        lines[2] = format!("F{}", pad_width("100".to_string(), 3, false));
+    }
+    lines[2].push_str("BRK");
+    lines[2].push_str("GEAR");
+
+    MiniHudTemplates {
+        lines,
+        line_aoa: format!("α{}", pad_width(fmt_f(20.0, 0), 3, false)),
+        rel_energy: "E114514".to_string(),
+        aoa_y: 10,
+        aoa_color: colors().num,
+        aoa_bar_color: colors().num,
+        in_action,
+        throttle: 0, // update_components 的 service=None 分支值
+        maneuver,
     }
 }
 

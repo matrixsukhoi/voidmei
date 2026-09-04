@@ -228,7 +228,8 @@ fn dispatch_form(
 
 
 /// W4 编辑器快照求解 (主线程 — Rc 渲染面): PageDoc → 布局矩形 + PNG。
-/// 字体 = 仓库 fonts (编辑器基准字号); rows = 出厂两面板的编译行 (fields.grid)。
+/// 字体按页分派 (minihud 页 = preview ctx 三档, 其余 24px 基准);
+/// rows = 出厂两面板的编译行 (fields.grid)。
 fn solve_page_ipc(
     page: serde_json::Value,
     shell: &Rc<RefCell<AppShell>>,
@@ -242,18 +243,36 @@ fn solve_page_ipc(
         let s = shell.borrow();
         s.env.fonts_dir.clone()
     };
-    let font = match vm_overlay::render::font::LoadedFont::new(
+    let settings = vm_core::config::config_api::HudSettingsSnapshot::default();
+    // minihud 族组件的 preview 派生 ctx (离线 create: 出厂默认 settings + dpi 1.0)
+    let preview_ctx = match vm_overlay::overlays::minihud::MinimalHudContext::create(
+        &settings,
+        1.0,
         &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
-        24,
     ) {
-        Ok(f) => Rc::new(f),
-        Err(e) => return IpcReply::Err(format!("字体加载失败: {e}")),
+        Ok(c) => c,
+        Err(e) => return IpcReply::Err(format!("preview ctx 构造失败: {e}")),
     };
-    let fonts = Rc::new(vm_overlay::overlays::minihud::MiniHudFonts {
-        draw: Rc::clone(&font),
-        small: Rc::clone(&font),
-        s_small: font,
-    });
+    // 页面字体: minihud 页 = ctx 三档 (行距/字高一致, 与真窗同源);
+    // 其余页 = 24px 编辑器基准
+    let fonts = if doc.canvas.as_deref() == Some("minihud") {
+        Rc::new(preview_ctx.fonts.clone())
+    } else {
+        match vm_overlay::render::font::LoadedFont::new(
+            &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
+            24,
+        ) {
+            Ok(f) => {
+                let f = Rc::new(f);
+                Rc::new(vm_overlay::overlays::minihud::MiniHudFonts {
+                    draw: Rc::clone(&f),
+                    small: Rc::clone(&f),
+                    s_small: f,
+                })
+            }
+            Err(e) => return IpcReply::Err(format!("字体加载失败: {e}")),
+        }
+    };
     // fields.grid 行源 (两出厂面板编译)
     let mut rows: HashMap<String, std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>> =
         HashMap::new();
@@ -264,17 +283,20 @@ fn solve_page_ipc(
             rows.insert(panel.to_string(), std::sync::Arc::new(compiled));
         }
     }
+    // 编辑器 preview 参数面: lang (OnceLock 缓存) + 出厂默认兜底
+    // (engine_disables 全启用 / fields_cfg 字号增量 0 单列 — 用户实际配置
+    // 经真窗 WYSIWYG 链反映, 编辑器快照为布局示意)
+    let lang = vm_core::lang::Lang::init_lang();
     let fctx = vm_overlay::widgets::FactoryCtx {
-        minihud_ctx: None,
+        minihud_ctx: Some(&preview_ctx),
         fonts,
         rows: &rows,
-        engine_disables: None,
-        lang: None,
+        engine_disables: Some([false; 7]),
+        lang: Some(&lang),
         fonts_dir: Some(fonts_dir),
-        fields_cfg: None,
+        fields_cfg: Some((0, 1)),
         gauge_cfg: None,
     };
-    let settings = vm_core::config::config_api::HudSettingsSnapshot::default();
     match vm_overlay::widgets::solve_page_snapshot(&doc, &fctx, &settings) {
         Ok(r) => {
             let items: Vec<_> = r

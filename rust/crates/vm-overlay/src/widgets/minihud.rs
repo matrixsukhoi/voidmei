@@ -456,40 +456,47 @@ const ROW2_KEYS: &[&str] = &["drawHUDtext", "showHUDFlaps", "showHUDAirbrake", "
 const ROW3_KEYS: &[&str] = &["drawHUDtext", "showHUDSep"];
 const ROW4_KEYS: &[&str] = &["drawHUDtext", "showHUDGLoad", "showHUDManeuverBar"];
 
+/// minihud 族 ctx 取用 (缺 ctx = 编排器未提供 → 工厂 Err 跳过该节点, 不 panic)
+fn need_ctx<'a>(
+    fctx: &FactoryCtx<'a>,
+) -> Result<&'a crate::overlays::minihud::MinimalHudContext, String> {
+    fctx.minihud_ctx
+        .ok_or_else(|| "minihud 族组件需 minihud_ctx (页面编排器未提供)".to_string())
+}
+
 fn f_row0(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    let ctx = need_ctx(fctx)?;
     Ok(Box::new(HUDAkbRow::new(
         0,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").right_draw,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").line_width,
+        ctx.hud_font_size,
+        ctx.right_draw,
+        ctx.line_width,
     )))
 }
 
 fn f_row1(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(HUDEnergyRow::new(
-        1,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").right_draw,
-    )))
+    let ctx = need_ctx(fctx)?;
+    Ok(Box::new(HUDEnergyRow::new(1, ctx.hud_font_size, ctx.right_draw)))
 }
 
 fn f_row2(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(HUDMechanizationRow::new(2, fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size)))
+    Ok(Box::new(HUDMechanizationRow::new(2, need_ctx(fctx)?.hud_font_size)))
 }
 
 fn f_row3(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(HUDTextRow::new(3, fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size)))
+    Ok(Box::new(HUDTextRow::new(3, need_ctx(fctx)?.hud_font_size)))
 }
 
 fn f_row4(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    let ctx = need_ctx(fctx)?;
     Ok(Box::new(HUDManeuverRow::new(
         4,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").right_draw,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").half_line,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").line_width,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").stroke_thick_w,
-        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").stroke_thin_w,
+        ctx.hud_font_size,
+        ctx.right_draw,
+        ctx.half_line,
+        ctx.line_width,
+        ctx.stroke_thick_w,
+        ctx.stroke_thin_w,
     )))
 }
 
@@ -516,7 +523,7 @@ fn f_attitude(
 }
 
 fn f_compass(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(CompassGauge::new(fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").round_compass)))
+    Ok(Box::new(CompassGauge::new(need_ctx(fctx)?.round_compass)))
 }
 
 fn f_crosshair(

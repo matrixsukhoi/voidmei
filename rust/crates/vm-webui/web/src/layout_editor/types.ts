@@ -43,6 +43,8 @@ export interface PageDoc {
   strategyExtra?: string | null;
   pos?: [number, number] | null;
   padding: number;
+  /** 画布语义 (null = 自由画布; "minihud" = ctx 派生画布) */
+  canvas?: string | null;
   font: { family: string; sizeAdd: number; scaleSource: string };
   contentVersion: number;
   components: ComponentDoc[];

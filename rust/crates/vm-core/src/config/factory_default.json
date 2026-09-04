@@ -5670,6 +5670,7 @@
         0.7042
       ],
       "padding": 45,
+      "canvas": "minihud",
       "font": {
         "family": "Sarasa Mono SC",
         "sizeAdd": 0,

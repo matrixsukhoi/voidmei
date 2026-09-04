@@ -17,7 +17,7 @@ use vm_core::ui_support::row_def::RowDef;
 
 use crate::layout::hud_layout_node::HUDLayoutNodeExt;
 use crate::layout::minihud_layout::AutoSizingPlan;
-use crate::overlays::minihud::MiniHudFonts;
+use crate::overlays::minihud::{MinimalHudContext, MiniHudFonts};
 use crate::overlays::spec_common::keyed_spec;
 use crate::platform::host::OverlaySpec;
 use crate::render::canvas::PixCanvas;
@@ -38,27 +38,47 @@ pub struct PageOverlay {
     pub cells: HashMap<String, WidgetCell>,
     pub layout: BuiltPageLayout,
     fonts: Rc<MiniHudFonts>,
+    /// minihud 族组件的派生上下文 (build 时从 fctx 拷; 缺席 = 页无 minihud 组件)
+    minihud_ctx: Option<MinimalHudContext>,
 }
 
 /// 共享句柄 (spec render 闭包与喂数方各持一份, 单线程 RefCell)
 pub type PageHandle = Rc<RefCell<PageOverlay>>;
 
+/// 页画布语义解析: minihud 页 = ctx 派生 (宽×2 容纳 crosshair 右半区锚定),
+/// 其余 = 4096 自由画布。返回 (canvas_w, canvas_h, line_height)。
+fn page_canvas(doc: &PageDoc, fctx: &FactoryCtx) -> (i32, i32, f64) {
+    if doc.canvas.as_deref() == Some("minihud") {
+        if let Some(ctx) = fctx.minihud_ctx {
+            return (ctx.width * 2, ctx.height, ctx.hud_font_size as f64);
+        }
+    }
+    (4096, 4096, fctx.fonts.draw.size as f64)
+}
+
 impl PageOverlay {
-    /// 建树 + 风格注入 (reinit 同一入口整体重建)
+    /// 建树 + 风格注入 (reinit 同一入口整体重建)。
+    /// `edit_view` = 编辑器快照: visibleWhen 恒满足 (布局编辑视图显示全部组件,
+    /// 条件显隐是运行时行为)。
     pub fn build(
         doc: &PageDoc,
         fctx: &FactoryCtx,
         settings: &HudSettingsSnapshot,
         debug: bool,
+        edit_view: bool,
     ) -> Self {
-        let empty_visible = |_: &str| -> Option<bool> { None };
-        let line_height = fctx.fonts.draw.size as f64;
+        let visible: &dyn Fn(&str) -> Option<bool> = if edit_view {
+            &|_: &str| Some(true)
+        } else {
+            &|_: &str| None
+        };
+        let (canvas_w, canvas_h, line_height) = page_canvas(doc, fctx);
         let inputs = PageBuildInputs {
             doc,
             fctx,
-            visible_src: &empty_visible, // W3 出厂页无 visibleWhen (键控门控在编排器)
-            canvas_w: 4096,
-            canvas_h: 4096,
+            visible_src: visible, // 生产: W3 出厂页键控门控在编排器; 编辑器: 全显
+            canvas_w,
+            canvas_h,
             line_height,
             debug,
         };
@@ -69,6 +89,7 @@ impl PageOverlay {
             cells,
             layout,
             fonts,
+            minihud_ctx: fctx.minihud_ctx.cloned(),
         };
         page.apply_styles(settings);
         page
@@ -78,7 +99,7 @@ impl PageOverlay {
         let style = StyleEnv {
             fonts: Rc::clone(&self.fonts),
             settings,
-            minihud_ctx: None,
+            minihud_ctx: self.minihud_ctx.as_ref(),
         };
         for cell in self.cells.values() {
             cell.apply_style(&style);
@@ -192,8 +213,12 @@ fn build_page(p: &PageSpecParams) -> Result<(PageOverlay, i32, i32), String> {
         small: Rc::clone(&rc_font),
         s_small: rc_font,
     });
+    // minihud 族组件的派生 ctx (用户可把 minihud 组件拖进任意页 → 真窗同样可渲染;
+    // 字体文件上面已验证可载, create 内部的三份加载必成功)
+    let minihud_ctx =
+        MinimalHudContext::create(&p.settings, p.gauge_cfg.dpi_scale, &p.font_path).ok();
     let fctx = FactoryCtx {
-        minihud_ctx: None,
+        minihud_ctx: minihud_ctx.as_ref(),
         fonts,
         rows: &p.rows,
         engine_disables: Some(p.engine_disables),
@@ -204,7 +229,7 @@ fn build_page(p: &PageSpecParams) -> Result<(PageOverlay, i32, i32), String> {
         // 当前 None → 组件工厂走 GaugeCfg::default 的 Java 回退缺省)
         gauge_cfg: None,
     };
-    let page = PageOverlay::build(&p.doc, &fctx, &p.settings, p.debug);
+    let page = PageOverlay::build(&p.doc, &fctx, &p.settings, p.debug, false);
     let (w, h) = match page.sizing() {
         Some(s) => (s.new_width, s.new_height),
         None => (300, 200),
@@ -239,10 +264,20 @@ pub fn solve_page_snapshot(
     fctx: &FactoryCtx,
     settings: &HudSettingsSnapshot,
 ) -> Result<SolveResult, String> {
-    let page = PageOverlay::build(doc, fctx, settings, false);
+    let page = PageOverlay::build(doc, fctx, settings, false, true);
+    let line_height_px = page_canvas(doc, fctx).2 as i32;
+    // minihud 族 preview 模板 (行文本示例; 与真窗 preview 同源构造)
+    let templates = crate::overlays::minihud::preview_templates(
+        settings,
+        (0.0, 0, crate::overlays::rows::TickScale::default()),
+        false,
+    );
+    for cell in page.cells.values() {
+        cell.push_templates(&templates);
+    }
     let Some(sizing) = page.sizing() else {
         return Ok(SolveResult {
-            line_height_px: fctx.fonts.draw.size,
+            line_height_px,
             page_w: 1,
             page_h: 1,
             items: Vec::new(),
@@ -276,7 +311,7 @@ pub fn solve_page_snapshot(
             .map_err(|e| e.to_string())?;
     }
     Ok(SolveResult {
-        line_height_px: fctx.fonts.draw.size,
+        line_height_px,
         page_w: sizing.new_width,
         page_h: sizing.new_height,
         items,

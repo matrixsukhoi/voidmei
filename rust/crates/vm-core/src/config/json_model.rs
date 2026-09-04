@@ -273,6 +273,9 @@ pub struct PageDoc {
     pub pos: Option<[f64; 2]>,
     /// 包围盒 padding (窗口 = 内容包围盒 + 2×padding)
     pub padding: i32,
+    /// 画布语义 (None/"free" = 4096 自由画布; "minihud" = ctx.width×2 派生画布 —
+    /// crosshair 的 MiddleRight 右半区锚定依赖此语义, 真窗由 minihud 编排器承载)
+    pub canvas: Option<String>,
     pub font: PageFont,
     /// 出厂页内容版本戳 (升级提示比对; 用户页恒 0)
     pub content_version: u32,
@@ -300,6 +303,7 @@ impl Default for PageDoc {
             strategy_extra: None,
             pos: None,
             padding: 45,
+            canvas: None,
             font: PageFont::default(),
             content_version: 0,
             components: Vec::new(),

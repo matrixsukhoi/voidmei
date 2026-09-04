@@ -167,14 +167,6 @@ impl MinimalHudContext {
 
         // 5. Resource Loading (IO) — 纹理准星链不迁移 (模块头 PORT 注)
 
-        vm_core::base::logger::info(
-            "MinimalHUD",
-            &format!(
-                "MinimalHUD Config: Width={}, Height={}, CrossWidth={}",
-                width, height, cross_scale
-            ),
-        );
-
         Ok(MinimalHudContext {
             width,
             height,
