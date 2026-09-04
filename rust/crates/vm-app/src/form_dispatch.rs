@@ -70,9 +70,32 @@ fn dispatch_form(
         RequestKind::FormMessage(dto) => form_message(dto, shell, cell, rt),
         // ---- W4 HUD 布局编辑器 ----
         RequestKind::GetComponentCatalog => {
+            use vm_overlay::widgets::registry::PropKind;
             let catalog: Vec<_> = vm_overlay::widgets::widget_registry()
                 .iter()
                 .map(|m| {
+                    let schema: Vec<_> = m
+                        .props_schema
+                        .iter()
+                        .map(|p| {
+                            let mut o = serde_json::json!({
+                                "key": p.key,
+                                "displayZh": p.display_zh,
+                                "kind": match p.kind {
+                                    PropKind::Bool => "Bool",
+                                    PropKind::Int => "Int",
+                                    PropKind::Str => "Str",
+                                    PropKind::Color => "Color",
+                                    PropKind::Target => "Target",
+                                    PropKind::Enum(_) => "Enum",
+                                },
+                            });
+                            if let PropKind::Enum(values) = p.kind {
+                                o["values"] = serde_json::json!(values);
+                            }
+                            o
+                        })
+                        .collect();
                     serde_json::json!({
                         "typeName": m.type_name,
                         "displayZh": m.display_zh,
@@ -80,6 +103,7 @@ fn dispatch_form(
                         "composite": m.composite,
                         "configKeys": m.config_keys,
                         "dataShorts": m.data_shorts,
+                        "propsSchema": schema,
                     })
                 })
                 .collect();
@@ -234,7 +258,6 @@ fn solve_page_ipc(
     page: serde_json::Value,
     shell: &Rc<RefCell<AppShell>>,
 ) -> IpcReply {
-    use std::collections::HashMap;
     let doc: Result<vm_core::config::json_model::PageDoc, _> = serde_json::from_value(page);
     let Ok(doc) = doc else {
         return IpcReply::Err("页面解析失败".to_string());
@@ -254,47 +277,32 @@ fn solve_page_ipc(
         Err(e) => return IpcReply::Err(format!("preview ctx 构造失败: {e}")),
     };
     // 页面字体: minihud 页 = ctx 三档 (行距/字高一致, 与真窗同源);
-    // 其余页 = 24px 编辑器基准
+    // 其余页 = 24px 编辑器基准 (线程本地缓存 — 100ms 防抖 solve 高频)
     let fonts = if doc.canvas.as_deref() == Some("minihud") {
         Rc::new(preview_ctx.fonts.clone())
     } else {
-        match vm_overlay::render::font::LoadedFont::new(
+        match vm_overlay::render::font::LoadedFont::new_cached(
             &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
             24,
         ) {
-            Ok(f) => {
-                let f = Rc::new(f);
-                Rc::new(vm_overlay::overlays::minihud::MiniHudFonts {
-                    draw: Rc::clone(&f),
-                    small: Rc::clone(&f),
-                    s_small: f,
-                })
-            }
+            Ok(f) => Rc::new(vm_overlay::overlays::minihud::MiniHudFonts {
+                draw: Rc::clone(&f),
+                small: Rc::clone(&f),
+                s_small: f,
+            }),
             Err(e) => return IpcReply::Err(format!("字体加载失败: {e}")),
         }
     };
-    // fields.grid 行源 (两出厂面板编译)
-    let mut rows: HashMap<String, std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>> =
-        HashMap::new();
-    for panel in ["飞行信息", "动力信息"] {
-        let groups = vm_core::config::json_store::factory().panels.clone();
-        if let Some(gc) = groups.iter().find(|g| g.title == panel) {
-            let compiled = vm_core::ui_support::row_def::rows_from_group(gc, &|_| false);
-            rows.insert(panel.to_string(), std::sync::Arc::new(compiled));
-        }
-    }
     // 编辑器 preview 参数面: lang (OnceLock 缓存) + 出厂默认兜底
-    // (engine_disables 全启用 / fields_cfg 字号增量 0 单列 — 用户实际配置
-    // 经真窗 WYSIWYG 链反映, 编辑器快照为布局示意)
+    // (engine_disables 全启用; 用户实际配置经真窗 WYSIWYG 链反映,
+    // 编辑器快照为布局示意)
     let lang = vm_core::lang::Lang::init_lang();
     let fctx = vm_overlay::widgets::FactoryCtx {
         minihud_ctx: Some(&preview_ctx),
         fonts,
-        rows: &rows,
         engine_disables: Some([false; 7]),
         lang: Some(&lang),
         fonts_dir: Some(fonts_dir),
-        fields_cfg: Some((0, 1)),
         gauge_cfg: None,
     };
     match vm_overlay::widgets::solve_page_snapshot(&doc, &fctx, &settings) {

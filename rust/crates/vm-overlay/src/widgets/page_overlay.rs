@@ -7,13 +7,11 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use vm_core::base::logger;
 use vm_core::config::config_api::HudSettingsSnapshot;
 use vm_core::config::json_model::PageDoc;
 use vm_core::lang::Lang;
-use vm_core::ui_support::row_def::RowDef;
 
 use crate::layout::hud_layout_node::HUDLayoutNodeExt;
 use crate::layout::minihud_layout::AutoSizingPlan;
@@ -147,15 +145,11 @@ pub struct PageSpecParams {
     pub font_path: std::path::PathBuf,
     /// 页面主字号 (px, dpi 后)
     pub font_size: i32,
-    /// fields.grid 行源
-    pub rows: HashMap<String, Arc<Vec<RowDef>>>,
     /// 引擎控制 7 仪表 disable 集
     pub engine_disables: [bool; 7],
     pub lang: Lang,
     pub settings: HudSettingsSnapshot,
     pub debug: bool,
-    /// fields.grid 页配置 (font_add, columns — 本页 ListGroup 快照)
-    pub fields_cfg: Option<(i32, i32)>,
     /// 仪表组件配置 (dpi/节流/组开关 — ReinitParams 全量快照)
     pub gauge_cfg: super::env::GaugeCfg,
     /// reinit 时重取最新参数 (参数仓快照面; 捕获 Rc<RefCell<ReinitParams>> 族)
@@ -206,8 +200,7 @@ pub fn page_overlay_spec(params: PageSpecParams) -> Result<(PageHandle, OverlayS
 }
 
 fn build_page(p: &PageSpecParams) -> Result<(PageOverlay, i32, i32), String> {
-    let font = LoadedFont::new(&p.font_path, p.font_size)?;
-    let rc_font = Rc::new(font);
+    let rc_font = LoadedFont::new_cached(&p.font_path, p.font_size)?;
     let fonts = Rc::new(MiniHudFonts {
         draw: Rc::clone(&rc_font),
         small: Rc::clone(&rc_font),
@@ -220,11 +213,9 @@ fn build_page(p: &PageSpecParams) -> Result<(PageOverlay, i32, i32), String> {
     let fctx = FactoryCtx {
         minihud_ctx: minihud_ctx.as_ref(),
         fonts,
-        rows: &p.rows,
         engine_disables: Some(p.engine_disables),
         lang: Some(&p.lang),
         fonts_dir: Some(p.font_path.parent().map(|x| x.to_path_buf()).unwrap_or_default()),
-        fields_cfg: p.fields_cfg,
         // W3B/W3C 复合组件参数 (主线收口: 从 ReinitParams 各组随 refresh 闭包注入;
         // 当前 None → 组件工厂走 GaugeCfg::default 的 Java 回退缺省)
         gauge_cfg: None,

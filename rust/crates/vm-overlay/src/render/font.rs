@@ -63,6 +63,24 @@ impl LoadedFont {
         })
     }
 
+    /// (路径, 字号) 线程本地缓存版 — 组件工厂高频路径 (原子字段时代每页
+    /// 数十次加载, 实例含 glyph 缓存必须每线程独立; 文件只在各线程首次读)。
+    pub fn new_cached(path: &std::path::Path, size: i32) -> Result<Rc<LoadedFont>, String> {
+        thread_local! {
+            static CACHE: RefCell<HashMap<(std::path::PathBuf, i32), Rc<LoadedFont>>> =
+                RefCell::new(HashMap::new());
+        }
+        let key = (path.to_path_buf(), size);
+        CACHE.with(|c| {
+            if let Some(f) = c.borrow().get(&key) {
+                return Ok(Rc::clone(f));
+            }
+            let f = Rc::new(LoadedFont::new(path, size)?);
+            c.borrow_mut().insert(key, Rc::clone(&f));
+            Ok(f)
+        })
+    }
+
     fn face(&self) -> Result<Face<'_>, String> {
         Face::parse(&self.data, 0).map_err(|e| format!("解析字体失败: {:?}", e))
     }

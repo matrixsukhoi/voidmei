@@ -208,18 +208,6 @@ impl vm_overlay::platform::OverlayWindow for NullWin {
     }
 }
 
-/// 测试行定义: 出厂默认两面板 (与生产 OverlayInputs::build 同源)
-fn cfg_test_rows(panel: &str) -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
-    let groups = vm_core::config::json_store::factory_default().panels;
-    let gc = groups
-        .iter()
-        .find(|g| g.title == panel)
-        .unwrap_or_else(|| panic!("factory_default.json 应含面板 {panel}"));
-    let rows = vm_core::ui_support::row_def::rows_from_group(gc, &|_| false);
-    assert!(!rows.is_empty(), "面板 {panel} 的 data 行不应为空");
-    std::sync::Arc::new(rows)
-}
-
 fn test_overlay_inputs() -> OverlayInputs {
     OverlayInputs {
         dpi_scale: 1.0,
@@ -234,9 +222,7 @@ fn test_overlay_inputs() -> OverlayInputs {
         pages: vm_core::config::json_store::factory_pages_arc(),
         font_add_engine: 0,
         font_add_power: 0,
-        power_columns: 1,
         font_add_flight: 0,
-        flight_columns: 1,
         font_add_gear: 0,
         gear_show_edge: false,
         font_add_axis: 0,
@@ -251,8 +237,6 @@ fn test_overlay_inputs() -> OverlayInputs {
         colors: GlobalColors::JAVA_DEFAULT,
         aa: true,
         engine_disables: [false; 7],
-        flight_rows: cfg_test_rows("飞行信息"),
-        power_rows: cfg_test_rows("动力信息"),
     }
 }
 

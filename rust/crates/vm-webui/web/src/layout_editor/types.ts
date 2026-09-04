@@ -1,5 +1,14 @@
 // W4 HUD 布局编辑器类型面 (与 Rust dto 对齐: camelCase serde)
 
+/** 属性表单项 (Rust PropSchema; kind → 控件映射) */
+export interface PropSchemaEntry {
+  key: string;
+  displayZh: string;
+  kind: 'Bool' | 'Int' | 'Str' | 'Color' | 'Target' | 'Enum';
+  /** Enum kind 的可选值 */
+  values?: string[];
+}
+
 export interface ComponentCatalogEntry {
   typeName: string;
   displayZh: string;
@@ -7,6 +16,7 @@ export interface ComponentCatalogEntry {
   composite: boolean;
   configKeys: string[];
   dataShorts: string[];
+  propsSchema: PropSchemaEntry[];
 }
 
 export interface PageSummary {

@@ -1,8 +1,6 @@
 //! 组件环境 (W3 泛化: MiniHUD 族 HUDData + 通用短名面 + FM/payload 杂项)。
 
-use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use vm_core::base::event::event_payload::EventPayload;
 use vm_core::config::config_api::HudSettingsSnapshot;
@@ -10,7 +8,6 @@ use vm_core::derived::hud_data::HUDData;
 use vm_core::fm::data::FmData;
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
-use vm_core::ui_support::row_def::RowDef;
 
 use crate::overlays::minihud::{MinimalHudContext, MiniHudFonts};
 use crate::overlays::rows::TickScale;
@@ -131,32 +128,12 @@ pub struct FactoryCtx<'a> {
     /// MiniHUD 派生上下文 (仅 minihud 族组件; W3 页面 None)
     pub minihud_ctx: Option<&'a MinimalHudContext>,
     pub fonts: Rc<MiniHudFonts>,
-    /// fields.grid 行源 (fieldSet 面板名 → 编译行)
-    pub rows: &'a HashMap<String, Arc<Vec<RowDef>>>,
     /// 引擎控制的 7 仪表 disable 集 (cfg 跨线程快照)
     pub engine_disables: Option<[bool; 7]>,
     /// 本地化文案源 (起落襟翼等)
     pub lang: Option<&'a Lang>,
-    /// 字体目录 (fields 管线自管三字体加载)
+    /// 字体目录 (data.field 等自管字体加载)
     pub fonts_dir: Option<std::path::PathBuf>,
-    /// fields.grid 页配置 (font_add, columns — ListGroup 快照)
-    pub fields_cfg: Option<(i32, i32)>,
     /// W3B/W3C 复合组件参数快照 (缺省 None → GaugeCfg::default)
     pub gauge_cfg: Option<&'a GaugeCfg>,
-}
-
-impl<'a> FactoryCtx<'a> {
-    /// W4 编辑器快照面 / 测试的最小 ctx
-    pub fn minimal(fonts: Rc<MiniHudFonts>, rows: &'a HashMap<String, Arc<Vec<RowDef>>>) -> Self {
-        FactoryCtx {
-            minihud_ctx: None,
-            fonts,
-            rows,
-            engine_disables: None,
-            lang: None,
-            fonts_dir: None,
-            fields_cfg: None,
-            gauge_cfg: None,
-        }
-    }
 }

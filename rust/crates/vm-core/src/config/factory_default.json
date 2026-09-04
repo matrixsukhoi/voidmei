@@ -1611,439 +1611,6 @@
               "visibleWhen": null,
               "naWhen": null,
               "children": []
-            },
-            {
-              "label": "列数",
-              "type": "SLIDER",
-              "property": "flightInfoColumn",
-              "targetName": null,
-              "value": 1,
-              "defaultValue": 1,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 1,
-              "maxVal": 16,
-              "groupColumns": 0,
-              "desc": "设置数据分列显示的列数，列数越多面板越宽",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            }
-          ]
-        },
-        {
-          "label": "数据开关",
-          "type": "HEADER",
-          "property": null,
-          "targetName": null,
-          "value": true,
-          "defaultValue": null,
-          "unit": "",
-          "precision": 0,
-          "format": "%s",
-          "source": null,
-          "minVal": 0,
-          "maxVal": 100,
-          "groupColumns": 0,
-          "desc": null,
-          "descImg": null,
-          "previewValue": null,
-          "fgColor": null,
-          "unitSource": null,
-          "precisionSource": null,
-          "visibleWhen": null,
-          "naWhen": null,
-          "children": [
-            {
-              "label": "示空速/表速/IAS",
-              "type": "DATA",
-              "property": "ias",
-              "targetName": "表  速",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Km/h",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - IAS，仪表指示空速，反映飞机操控手感",
-              "descImg": null,
-              "previewValue": "500",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "真空速_TAS",
-              "type": "DATA",
-              "property": "tas",
-              "targetName": "真空速",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Km/h",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "TAS，真实的飞行速度",
-              "descImg": null,
-              "previewValue": "550",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "马赫数",
-              "type": "DATA",
-              "property": "mach",
-              "targetName": "马赫数",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Ma",
-              "precision": 2,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - Ma，当前速度与音速的比值",
-              "descImg": null,
-              "previewValue": "0.45",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "航向",
-              "type": "DATA",
-              "property": "compass",
-              "targetName": "航  向",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Deg",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - 飞机机头指向的罗盘方位 (0-360度)",
-              "descImg": null,
-              "previewValue": "270",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "高度",
-              "type": "DATA",
-              "property": "altitude",
-              "targetName": "高  度",
-              "value": true,
-              "defaultValue": true,
-              "unit": "M",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - 当前飞机的海拔高度",
-              "descImg": null,
-              "previewValue": "1500",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "爬升率",
-              "type": "DATA",
-              "property": "vario",
-              "targetName": "爬升率",
-              "value": true,
-              "defaultValue": true,
-              "unit": "M/s",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "垂直方向的高度变化速率(m/s)",
-              "descImg": null,
-              "previewValue": "10",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "单位剩余功率/SEP",
-              "type": "DATA",
-              "property": "sep",
-              "targetName": "S E P",
-              "value": true,
-              "defaultValue": true,
-              "unit": "M/s",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - 单位剩余功率/SEP/能量变化率，反映飞机当前的产能状态",
-              "descImg": null,
-              "previewValue": "15",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "加速度",
-              "type": "DATA",
-              "property": "acceleration",
-              "targetName": "加速度",
-              "value": true,
-              "defaultValue": true,
-              "unit": "M/s²",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Acceleration，飞机当前的直线加速度",
-              "descImg": null,
-              "previewValue": "1.2",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "滚转率",
-              "type": "DATA",
-              "property": "roll_rate",
-              "targetName": "滚转率",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Deg/s",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Roll Rate，飞机滚转的角速度",
-              "descImg": null,
-              "previewValue": "5.0",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "过载",
-              "type": "DATA",
-              "property": "ny",
-              "targetName": "过  载",
-              "value": true,
-              "defaultValue": true,
-              "unit": "G",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - G，与飞行方向垂直方向的法向过载",
-              "descImg": null,
-              "previewValue": "1.0",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "转弯率",
-              "type": "DATA",
-              "property": "turn_rate",
-              "targetName": "转弯率",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Deg/s",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Turn Rate，当前转向的角速度，对任意机动有效",
-              "descImg": null,
-              "previewValue": "2.5",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "转半径",
-              "type": "DATA",
-              "property": "turn_rds",
-              "targetName": "转半径",
-              "value": true,
-              "defaultValue": true,
-              "unit": "M",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "当前转弯对应的圆周半径，对任意机动有效（曲率半径），超过9999m时显示-",
-              "descImg": null,
-              "previewValue": "800",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": "value > 9999",
-              "children": []
-            },
-            {
-              "label": "攻角",
-              "type": "DATA",
-              "property": "aoa",
-              "targetName": "攻  角",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Deg",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - 机翼弦线与相对气流之间的夹角",
-              "descImg": null,
-              "previewValue": "4.2",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "侧滑角",
-              "type": "DATA",
-              "property": "aos",
-              "targetName": "侧滑角",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Deg",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - 机身纵轴与相对气流之间的水平夹角",
-              "descImg": null,
-              "previewValue": "0.5",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "可变翼",
-              "type": "DATA",
-              "property": "wing_sweep * 100",
-              "targetName": "可变翼",
-              "value": true,
-              "defaultValue": true,
-              "unit": "%",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - 可变后掠翼飞机的当前机翼后掠角度",
-              "descImg": null,
-              "previewValue": "15",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "value != 0",
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "测距高",
-              "type": "DATA",
-              "property": "radio_altitude",
-              "targetName": "测距高",
-              "value": true,
-              "defaultValue": true,
-              "unit": "M",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Radio Altitude，无线电高度计测量的离地绝对高度",
-              "descImg": null,
-              "previewValue": "325",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "value >= 0",
-              "naWhen": null,
-              "children": []
             }
           ]
         }
@@ -2174,511 +1741,6 @@
               "desc": "调整引擎信息面板文字的相对大小",
               "descImg": null,
               "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "HUD列数",
-              "type": "SLIDER",
-              "property": "hudColumns",
-              "targetName": null,
-              "value": 1,
-              "defaultValue": 1,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 1,
-              "maxVal": 8,
-              "groupColumns": 0,
-              "desc": "设置引擎数据分列显示的列数",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            }
-          ]
-        },
-        {
-          "label": "性能数据",
-          "type": "HEADER",
-          "property": null,
-          "targetName": null,
-          "value": true,
-          "defaultValue": null,
-          "unit": "",
-          "precision": 0,
-          "format": "%s",
-          "source": null,
-          "minVal": 0,
-          "maxVal": 100,
-          "groupColumns": 0,
-          "desc": null,
-          "descImg": null,
-          "previewValue": null,
-          "fgColor": null,
-          "unitSource": null,
-          "precisionSource": null,
-          "visibleWhen": null,
-          "naWhen": null,
-          "children": [
-            {
-              "label": "功率",
-              "type": "DATA",
-              "property": "horse_power",
-              "targetName": "功  率",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Hp",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Horsepower - 发动机当前的输出马力（喷气机不显示）",
-              "descImg": null,
-              "previewValue": "1200",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "!isJetEngine",
-              "naWhen": "value <= 0",
-              "children": []
-            },
-            {
-              "label": "推力",
-              "type": "DATA",
-              "property": "thrust",
-              "targetName": "推  力",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Kgf",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Thrust - 发动机产生的推力，喷气机始终显示，活塞机仅值大于0时显示",
-              "descImg": null,
-              "previewValue": "1000",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "转速",
-              "type": "DATA",
-              "property": "rpm",
-              "targetName": "转  速",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Rpm",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "RPM - 发动机每分钟转速",
-              "descImg": null,
-              "previewValue": "2400",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "桨距角",
-              "type": "DATA",
-              "property": "prop_pitch",
-              "targetName": "桨距角",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Deg",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Prop Pitch - 螺旋桨叶片的迎角角度（喷气机不显示）",
-              "descImg": null,
-              "previewValue": "55",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "!isJetEngine",
-              "naWhen": "value == -65535",
-              "children": []
-            },
-            {
-              "label": "桨效率",
-              "type": "DATA",
-              "property": "prop_efficiency",
-              "targetName": "桨效率",
-              "value": true,
-              "defaultValue": true,
-              "unit": "%",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Prop Efficiency - 螺旋桨将引擎功率转化为推力的效率（喷气机不显示）",
-              "descImg": null,
-              "previewValue": "85",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "!isJetEngine",
-              "naWhen": "value <= 0",
-              "children": []
-            },
-            {
-              "label": "实功率",
-              "type": "DATA",
-              "property": "eff_hp",
-              "targetName": "实功率",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Hp",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Effective HP - 考虑效率折损后的实际有效功率（喷气机不显示）",
-              "descImg": null,
-              "previewValue": "1100",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "!isJetEngine",
-              "naWhen": "value <= 0",
-              "children": []
-            },
-            {
-              "label": "进气压",
-              "type": "DATA",
-              "property": "manifold_pressure_display",
-              "targetName": "进气压",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Ata",
-              "precision": 2,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Manifold Pressure - 发动机进气歧管压力，仅活塞机显示，值为1时隐藏",
-              "descImg": null,
-              "previewValue": "1.2",
-              "fgColor": null,
-              "unitSource": "manifold_pressure_display_unit",
-              "precisionSource": "manifold_pressure_display_precision",
-              "visibleWhen": "isPistonEngine && value != 1",
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "动力量",
-              "type": "DATA",
-              "property": "power_percent",
-              "targetName": "动力量",
-              "value": true,
-              "defaultValue": true,
-              "unit": "%",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在引擎控制上有可视化版本的相同数据 - 当前功率/推力与发动机理论极限的比值，对活塞机与喷气机有效",
-              "descImg": null,
-              "previewValue": "95",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "燃油量",
-              "type": "DATA",
-              "property": "mass_fuel",
-              "targetName": "燃油量",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Kg",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Fuel Mass - 剩余燃油的总质量",
-              "descImg": null,
-              "previewValue": "500",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "总重",
-              "type": "DATA",
-              "property": "total_weight",
-              "targetName": "总  重",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Kg",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Total Weight - 飞机当前总重量，FM数据可用时显示",
-              "descImg": null,
-              "previewValue": "3500",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "value > 0",
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "燃油时",
-              "type": "DATA",
-              "property": "fuel_time_mili * 0.001",
-              "targetName": "燃油时",
-              "value": true,
-              "defaultValue": true,
-              "unit": "s",
-              "precision": 0,
-              "format": "TIME_MM_SS",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "在MiniHUD上有相同数据，建议使用MiniHUD - 按当前油耗计算的剩余燃油时间",
-              "descImg": null,
-              "previewValue": "45",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "加力量",
-              "type": "DATA",
-              "property": "wep_kg",
-              "targetName": "加力量",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Kg",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "WEP Fuel/Water - 剩余加力燃料或喷射水的质量，有加力系统时显示",
-              "descImg": null,
-              "previewValue": "50",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "hasWep",
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "加力时",
-              "type": "DATA",
-              "property": "wep_time",
-              "targetName": "加力时",
-              "value": true,
-              "defaultValue": true,
-              "unit": "s",
-              "precision": 0,
-              "format": "TIME_MM_SS",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "WEP Time - 加力燃料耗尽前的剩余时间，有加力且值大于0时显示",
-              "descImg": null,
-              "previewValue": "300",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "hasWep && value > 0",
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "助推燃料",
-              "type": "DATA",
-              "property": "booster_fuel_kg",
-              "targetName": "助推燃料",
-              "value": true,
-              "defaultValue": true,
-              "unit": "Kg",
-              "precision": 1,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "火箭助推器当前剩余燃料质量，仅限有助推器的飞机显示（如Me 262 C-2b）",
-              "descImg": null,
-              "previewValue": "850",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "hasBooster",
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "助推余量",
-              "type": "DATA",
-              "property": "booster_fuel_percent",
-              "targetName": "助推余量",
-              "value": true,
-              "defaultValue": true,
-              "unit": "%",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "火箭助推器剩余燃料百分比 = 当前助推燃料 / 助推燃料总量",
-              "descImg": null,
-              "previewValue": "100",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": "hasBooster",
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "温度",
-              "type": "DATA",
-              "property": "water_temp",
-              "targetName": "温  度",
-              "value": true,
-              "defaultValue": true,
-              "unit": "C",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Water Temp - 发动机温度（喷气机不显示）",
-              "descImg": null,
-              "previewValue": "90",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": "value <= -65535",
-              "children": []
-            },
-            {
-              "label": "油温",
-              "type": "DATA",
-              "property": "oil_temp",
-              "targetName": "油  温",
-              "value": true,
-              "defaultValue": true,
-              "unit": "C",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Oil Temp - 发动机滑油温度，数据有效时显示",
-              "descImg": null,
-              "previewValue": "80",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "耐热时",
-              "type": "DATA",
-              "property": "heat_tolerance",
-              "targetName": "耐热时",
-              "value": true,
-              "defaultValue": true,
-              "unit": "S",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Overheat Time - 发动机过热损坏前的倒计时，正常使用无误差，频繁搓油门跳跃温度区间时有偏差",
-              "descImg": null,
-              "previewValue": "60",
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": "value > 90000",
-              "children": []
-            },
-            {
-              "label": "响应速",
-              "type": "DATA",
-              "property": "engine_response",
-              "targetName": "响应速",
-              "value": true,
-              "defaultValue": true,
-              "unit": "%/s",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "Rotational Rate - 发动机转速响应变化的速率",
-              "descImg": null,
-              "previewValue": "10",
               "fgColor": null,
               "unitSource": null,
               "precisionSource": null,
@@ -5860,11 +4922,11 @@
         "sizeAdd": 0,
         "scaleSource": ""
       },
-      "contentVersion": 1,
+      "contentVersion": 2,
       "components": [
         {
-          "id": "grid",
-          "type": "core.fields.grid",
+          "id": "ias",
+          "type": "core.data.field",
           "pos": [
             0,
             0
@@ -5874,9 +4936,347 @@
             "TopLeft"
           ],
           "parent": null,
+          "visibleWhen": null,
           "enabled": true,
           "props": {
-            "fieldSet": "飞行信息"
+            "target": "ias",
+            "label": "表  速",
+            "unit": "Km/h",
+            "precision": 0,
+            "previewValue": "500"
+          }
+        },
+        {
+          "id": "tas",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "ias",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "tas",
+            "label": "真空速",
+            "unit": "Km/h",
+            "precision": 0,
+            "previewValue": "550"
+          }
+        },
+        {
+          "id": "mach",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "tas",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "mach",
+            "label": "马赫数",
+            "unit": "Ma",
+            "precision": 2,
+            "previewValue": "0.45"
+          }
+        },
+        {
+          "id": "compass",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "mach",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "compass",
+            "label": "航  向",
+            "unit": "Deg",
+            "precision": 0,
+            "previewValue": "270"
+          }
+        },
+        {
+          "id": "altitude",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "compass",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "altitude",
+            "label": "高  度",
+            "unit": "M",
+            "precision": 0,
+            "previewValue": "1500"
+          }
+        },
+        {
+          "id": "vario",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "altitude",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "vario",
+            "label": "爬升率",
+            "unit": "M/s",
+            "precision": 1,
+            "previewValue": "10"
+          }
+        },
+        {
+          "id": "sep",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "vario",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "sep",
+            "label": "S E P",
+            "unit": "M/s",
+            "precision": 0,
+            "previewValue": "15"
+          }
+        },
+        {
+          "id": "acceleration",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "sep",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "acceleration",
+            "label": "加速度",
+            "unit": "M/s²",
+            "precision": 1,
+            "previewValue": "1.2"
+          }
+        },
+        {
+          "id": "roll_rate",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "acceleration",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "roll_rate",
+            "label": "滚转率",
+            "unit": "Deg/s",
+            "precision": 0,
+            "previewValue": "5.0"
+          }
+        },
+        {
+          "id": "ny",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "roll_rate",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "ny",
+            "label": "过  载",
+            "unit": "G",
+            "precision": 1,
+            "previewValue": "1.0"
+          }
+        },
+        {
+          "id": "turn_rate",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "ny",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "turn_rate",
+            "label": "转弯率",
+            "unit": "Deg/s",
+            "precision": 1,
+            "previewValue": "2.5"
+          }
+        },
+        {
+          "id": "turn_rds",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "turn_rate",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "turn_rds",
+            "label": "转半径",
+            "unit": "M",
+            "precision": 0,
+            "previewValue": "800",
+            "naWhen": "value > 9999"
+          }
+        },
+        {
+          "id": "aoa",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "turn_rds",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "aoa",
+            "label": "攻  角",
+            "unit": "Deg",
+            "precision": 1,
+            "previewValue": "4.2"
+          }
+        },
+        {
+          "id": "aos",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "aoa",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "aos",
+            "label": "侧滑角",
+            "unit": "Deg",
+            "precision": 1,
+            "previewValue": "0.5"
+          }
+        },
+        {
+          "id": "wing_sweepx100",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "aos",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "wing_sweep * 100",
+            "label": "可变翼",
+            "unit": "%",
+            "precision": 0,
+            "previewValue": "15",
+            "visibleWhen": "value != 0"
+          }
+        },
+        {
+          "id": "radio_altitude",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wing_sweepx100",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "radio_altitude",
+            "label": "测距高",
+            "unit": "M",
+            "precision": 0,
+            "previewValue": "325",
+            "visibleWhen": "value >= 0"
           }
         }
       ]
@@ -5895,11 +5295,11 @@
         "sizeAdd": 0,
         "scaleSource": ""
       },
-      "contentVersion": 1,
+      "contentVersion": 2,
       "components": [
         {
-          "id": "grid",
-          "type": "core.fields.grid",
+          "id": "horse_power",
+          "type": "core.data.field",
           "pos": [
             0,
             0
@@ -5909,9 +5309,429 @@
             "TopLeft"
           ],
           "parent": null,
+          "visibleWhen": null,
           "enabled": true,
           "props": {
-            "fieldSet": "动力信息"
+            "target": "horse_power",
+            "label": "功  率",
+            "unit": "Hp",
+            "precision": 0,
+            "previewValue": "1200",
+            "visibleWhen": "!isJetEngine",
+            "naWhen": "value <= 0"
+          }
+        },
+        {
+          "id": "thrust",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "horse_power",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "thrust",
+            "label": "推  力",
+            "unit": "Kgf",
+            "precision": 0,
+            "previewValue": "1000"
+          }
+        },
+        {
+          "id": "rpm",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "thrust",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "rpm",
+            "label": "转  速",
+            "unit": "Rpm",
+            "precision": 0,
+            "previewValue": "2400"
+          }
+        },
+        {
+          "id": "prop_pitch",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "rpm",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "prop_pitch",
+            "label": "桨距角",
+            "unit": "Deg",
+            "precision": 1,
+            "previewValue": "55",
+            "visibleWhen": "!isJetEngine",
+            "naWhen": "value == -65535"
+          }
+        },
+        {
+          "id": "prop_efficiency",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "prop_pitch",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "prop_efficiency",
+            "label": "桨效率",
+            "unit": "%",
+            "precision": 1,
+            "previewValue": "85",
+            "visibleWhen": "!isJetEngine",
+            "naWhen": "value <= 0"
+          }
+        },
+        {
+          "id": "eff_hp",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "prop_efficiency",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "eff_hp",
+            "label": "实功率",
+            "unit": "Hp",
+            "precision": 0,
+            "previewValue": "1100",
+            "visibleWhen": "!isJetEngine",
+            "naWhen": "value <= 0"
+          }
+        },
+        {
+          "id": "manifold_pressure_display",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "eff_hp",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "manifold_pressure_display",
+            "label": "进气压",
+            "unit": "Ata",
+            "precision": 2,
+            "previewValue": "1.2",
+            "visibleWhen": "isPistonEngine && value != 1",
+            "imperial": true
+          }
+        },
+        {
+          "id": "power_percent",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "manifold_pressure_display",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "power_percent",
+            "label": "动力量",
+            "unit": "%",
+            "precision": 0,
+            "previewValue": "95"
+          }
+        },
+        {
+          "id": "mass_fuel",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "power_percent",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "mass_fuel",
+            "label": "燃油量",
+            "unit": "Kg",
+            "precision": 0,
+            "previewValue": "500"
+          }
+        },
+        {
+          "id": "total_weight",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "mass_fuel",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "total_weight",
+            "label": "总  重",
+            "unit": "Kg",
+            "precision": 0,
+            "previewValue": "3500",
+            "visibleWhen": "value > 0"
+          }
+        },
+        {
+          "id": "fuel_time_milix0_001",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "total_weight",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "fuel_time_mili * 0.001",
+            "label": "燃油时",
+            "unit": "s",
+            "precision": 0,
+            "previewValue": "45",
+            "format": "TIME_MM_SS"
+          }
+        },
+        {
+          "id": "wep_kg",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "fuel_time_milix0_001",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "wep_kg",
+            "label": "加力量",
+            "unit": "Kg",
+            "precision": 0,
+            "previewValue": "50",
+            "visibleWhen": "hasWep"
+          }
+        },
+        {
+          "id": "wep_time",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wep_kg",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "wep_time",
+            "label": "加力时",
+            "unit": "s",
+            "precision": 0,
+            "previewValue": "300",
+            "format": "TIME_MM_SS",
+            "visibleWhen": "hasWep && value > 0"
+          }
+        },
+        {
+          "id": "booster_fuel_kg",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wep_time",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "booster_fuel_kg",
+            "label": "助推燃料",
+            "unit": "Kg",
+            "precision": 1,
+            "previewValue": "850",
+            "visibleWhen": "hasBooster"
+          }
+        },
+        {
+          "id": "booster_fuel_percent",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "booster_fuel_kg",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "booster_fuel_percent",
+            "label": "助推余量",
+            "unit": "%",
+            "precision": 0,
+            "previewValue": "100",
+            "visibleWhen": "hasBooster"
+          }
+        },
+        {
+          "id": "water_temp",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "booster_fuel_percent",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "water_temp",
+            "label": "温  度",
+            "unit": "C",
+            "precision": 0,
+            "previewValue": "90",
+            "naWhen": "value <= -65535"
+          }
+        },
+        {
+          "id": "oil_temp",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "water_temp",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "oil_temp",
+            "label": "油  温",
+            "unit": "C",
+            "precision": 0,
+            "previewValue": "80"
+          }
+        },
+        {
+          "id": "heat_tolerance",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "oil_temp",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "heat_tolerance",
+            "label": "耐热时",
+            "unit": "S",
+            "precision": 0,
+            "previewValue": "60",
+            "naWhen": "value > 90000"
+          }
+        },
+        {
+          "id": "engine_response",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "heat_tolerance",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "engine_response",
+            "label": "响应速",
+            "unit": "%/s",
+            "precision": 0,
+            "previewValue": "10"
           }
         }
       ]

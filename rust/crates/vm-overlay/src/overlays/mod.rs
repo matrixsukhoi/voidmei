@@ -12,10 +12,9 @@ pub mod compass; // 罗盘 (CompassGauge)
 pub mod crosshair; // 十字准星 (CrosshairGauge)
 pub mod gauges; // MarkedGauge 条+可插拔标记系统 (Field 系共用)
 
-// ---- Field 系内容组件 (原 overlays_field1 壳: engine_control/gauges/gear_flaps/power_info) ----
+// ---- Field 系内容组件 (原 overlays_field1 壳: engine_control/gauges/gear_flaps) ----
 pub mod engine_control;
 pub mod gear_flaps;
-pub mod power_info;
 
 // ---- Field 系内容组件 (原 overlays_field2 壳: control_surfaces/fm_unpacked) ----
 pub mod control_surfaces;

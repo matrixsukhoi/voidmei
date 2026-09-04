@@ -298,9 +298,6 @@ fn assemble_page_spec(
     lang: &Rc<Lang>,
     params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
 ) -> PageSpecParams {
-    use std::collections::HashMap;
-    use std::sync::Arc;
-
     // 参数仓快照 (per-page 分差)
     let p = params.borrow();
     let dpi = env.dpi.get_scale();
@@ -320,55 +317,21 @@ fn assemble_page_spec(
         fm_font_add: p.fm.font_add,
         logical_height: env.dpi.get_logical_screen_height(),
     };
-    let (font_size, fields_cfg, mut rows, engine_disables) = match doc.id.as_str() {
-        "flight-info-default" => (
-            24,
-            Some((p.flight.font_add, p.flight.columns)),
-            Some(Arc::clone(&p.flight.rows)),
-            None,
-        ),
-        "power-info-default" => (
-            24,
-            Some((p.power.font_add, p.power.columns)),
-            Some(Arc::clone(&p.power.rows)),
-            None,
-        ),
+    let (font_size, engine_disables) = match doc.id.as_str() {
+        "flight-info-default" => (page_font_size(24, p.flight.font_add, dpi), None),
+        "power-info-default" => (page_font_size(24, p.power.font_add, dpi), None),
         "engine-control-default" => (
             page_font_size(24, p.engine.font_add, dpi),
-            None,
-            None,
             Some(p.engine.disables),
         ),
-        "gear-flaps-default" => (
-            page_font_size(24, p.gear.font_add, dpi),
-            None,
-            None,
-            None,
-        ),
-        "axis-default" => (
-            page_font_size(24, p.axis.font_add, dpi),
-            None,
-            None,
-            None,
-        ),
-        "fm-list-default" | "thrust-chart-default" => (24, None, None, None),
+        "gear-flaps-default" => (page_font_size(24, p.gear.font_add, dpi), None),
+        "axis-default" => (page_font_size(24, p.axis.font_add, dpi), None),
+        "fm-list-default" | "thrust-chart-default" => (24, None),
         // 地平仪: 矢量绘制, 页面字体仅占位
-        _ => (24, None, None, None),
+        _ => (24, None),
     };
     let hud = p.hud.clone();
     drop(p);
-
-    // fields.grid 行源表 ("飞行信息"/"动力信息" 两键)
-    let mut row_map: HashMap<String, Arc<Vec<vm_core::ui_support::row_def::RowDef>>> =
-        HashMap::new();
-    if let Some(arc) = rows.take() {
-        let key = match doc.id.as_str() {
-            "flight-info-default" => "飞行信息",
-            "power-info-default" => "动力信息",
-            _ => unreachable!(),
-        };
-        row_map.insert(key.to_string(), arc);
-    }
 
     // refresh 闭包: 重取参数仓 (reinit 语义 — CONFIG_CHANGED 后 ReinitOverlays 覆写)
     let refresh_params = Rc::clone(params);
@@ -377,63 +340,32 @@ fn assemble_page_spec(
     let refresh_lang = (**lang).clone();
     let refresh: Box<dyn Fn() -> PageSpecParams> = Box::new(move || {
         let p = refresh_params.borrow();
-        let (fs, fc, mut rw, ed) = match refresh_doc.id.as_str() {
-            "flight-info-default" => (
-                24,
-                Some((p.flight.font_add, p.flight.columns)),
-                Some(Arc::clone(&p.flight.rows)),
-                None,
-            ),
-            "power-info-default" => (
-                24,
-                Some((p.power.font_add, p.power.columns)),
-                Some(Arc::clone(&p.power.rows)),
-                None,
-            ),
+        let (fs, ed) = match refresh_doc.id.as_str() {
+            "flight-info-default" => (page_font_size(24, p.flight.font_add, refresh_env_dpi), None),
+            "power-info-default" => (page_font_size(24, p.power.font_add, refresh_env_dpi), None),
             "engine-control-default" => (
                 page_font_size(24, p.engine.font_add, refresh_env_dpi),
-                None,
-                None,
                 Some(p.engine.disables),
             ),
             "gear-flaps-default" => (
                 page_font_size(24, p.gear.font_add, refresh_env_dpi),
                 None,
-                None,
-                None,
             ),
-            "axis-default" => (
-                page_font_size(24, p.axis.font_add, refresh_env_dpi),
-                None,
-                None,
-                None,
-            ),
-            _ => (24, None, None, None),
+            "axis-default" => (page_font_size(24, p.axis.font_add, refresh_env_dpi), None),
+            _ => (24, None),
         };
         let hud = p.hud.clone();
         drop(p);
-        let mut rm: HashMap<String, Arc<Vec<vm_core::ui_support::row_def::RowDef>>> =
-            HashMap::new();
-        if let Some(arc) = rw.take() {
-            let key = match refresh_doc.id.as_str() {
-                "flight-info-default" => "飞行信息",
-                "power-info-default" => "动力信息",
-                _ => unreachable!(),
-            };
-            rm.insert(key.to_string(), arc);
-        }
         PageSpecParams {
             entry_key: refresh_doc.entry_key.clone(),
             gauge_cfg: refresh_gauge(&refresh_params, refresh_env_dpi),
             doc: refresh_doc.clone(),
             font_path: refresh_font_path(&refresh_doc),
             font_size: fs,
-            rows: rm,
             engine_disables: ed.unwrap_or([false; 7]),
             lang: refresh_lang.clone(),
             settings: hud,
             debug: false,
-            fields_cfg: fc,
             refresh: Box::new(|| unreachable!("refresh 的 refresh 不可达")),
         }
     });
@@ -444,12 +376,10 @@ fn assemble_page_spec(
         doc,
         font_path: env.fonts_dir.join("sarasa-mono-sc-bold.ttf"),
         font_size,
-        rows: row_map,
         engine_disables: engine_disables.unwrap_or([false; 7]),
         lang: (**lang).clone(),
         settings: hud,
         debug: false,
-        fields_cfg,
         refresh,
     }
 }

@@ -247,7 +247,8 @@ fn tokenize(s: &str) -> Option<Vec<Tok>> {
 /// 文法: or := and ('||' and)*; and := unary ('&&' unary)*;
 ///       unary := '!' unary | primary;
 ///       primary := '(' or ')' | 谓词 | 'value' relop 数字
-fn compile_cond(expr: &str) -> Option<Cond> {
+/// 中缀条件 → Cond (visibleWhen/naWhen 共用; 原子数据字段组件同源消费)
+pub fn compile_cond(expr: &str) -> Option<Cond> {
     let toks = tokenize(expr)?;
     let mut p = Parser { toks: &toks, pos: 0 };
     let c = p.parse_or()?;

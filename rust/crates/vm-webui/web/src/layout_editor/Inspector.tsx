@@ -1,10 +1,13 @@
 /**
- * W4 inspector: 选中组件属性 (id/type/坐标/锚点/父/条件) + 页面属性。
- * 坐标单位 = line_height 倍数 (字号相对 — 改字号整页等比)。
+ * W4 inspector: 选中组件属性 (id/坐标/锚点/父/条件) + props 表单
+ * (Rust propsSchema 驱动: Str/Int/Bool/Enum/Target — Target = 公式目录
+ * 下拉可自由输入) + 页面属性。坐标单位 = line_height 倍数 (字号相对)。
  */
-import React from 'react'
-import { Button, Input, InputNumber, Select, Space, Switch } from 'antd'
-import type { ComponentDoc, PageDoc } from './types'
+import React, { useEffect, useMemo, useState } from 'react'
+import { AutoComplete, Button, Input, InputNumber, Select, Space, Switch } from 'antd'
+import type { ComponentDoc, PageDoc, PropSchemaEntry } from './types'
+import { getComponentCatalog } from './api'
+import { getVarCatalog } from '../api'
 
 const ANCHORS = [
   'TopLeft',
@@ -18,7 +21,7 @@ const ANCHORS = [
   'BottomRight',
 ]
 
-/** 常用 visibleWhen 预设 (W4 简版; 高级模式自由输入) */
+/** 常用 visibleWhen 预设 (布局级条件; 数据级条件在组件 props) */
 const VW_PRESETS = [
   { value: '', label: '总是显示' },
   { value: 'displayCrosshair', label: '准星开关 (displayCrosshair)' },
@@ -41,6 +44,39 @@ export const Inspector: React.FC<InspectorProps> = ({
   onRemove,
   onDuplicate,
 }) => {
+  const [schema, setSchema] = useState<Record<string, PropSchemaEntry[]>>({})
+  const [varNames, setVarNames] = useState<{ value: string; label: string }[]>([])
+
+  // 目录一次拉取 (组件类型 → propsSchema)
+  useEffect(() => {
+    getComponentCatalog()
+      .then(list => {
+        const m: Record<string, PropSchemaEntry[]> = {}
+        for (const e of list) m[e.typeName] = e.propsSchema ?? []
+        setSchema(m)
+      })
+      .catch(() => setSchema({}))
+  }, [])
+
+  // 公式目录 (Target 下拉数据源; 懒加载一次)
+  useEffect(() => {
+    getVarCatalog()
+      .then(vs =>
+        setVarNames(
+          vs.map(v => ({
+            value: v.name,
+            label: v.unit ? `${v.name} (${v.unit})` : v.name,
+          })),
+        ),
+      )
+      .catch(() => setVarNames([]))
+  }, [])
+
+  const activeSchema = useMemo(
+    () => (component ? schema[component.type] ?? [] : []),
+    [schema, component],
+  )
+
   if (!component) {
     return (
       <div style={{ width: 280, flexShrink: 0, overflowY: 'auto', paddingLeft: 8 }}>
@@ -81,6 +117,9 @@ export const Inspector: React.FC<InspectorProps> = ({
 
   const patch = (mut: (c: ComponentDoc) => ComponentDoc) =>
     onPatchComponent(component.id, mut)
+
+  const patchProp = (key: string, value: unknown) =>
+    patch(c => ({ ...c, props: { ...c.props, [key]: value } }))
 
   return (
     <div style={{ width: 280, flexShrink: 0, overflowY: 'auto', paddingLeft: 8 }}>
@@ -172,20 +211,74 @@ export const Inspector: React.FC<InspectorProps> = ({
           />
         </Field>
       )}
-      {component.type === 'core.fields.grid' && (
-        <Field label="数据面板">
-          <Select
-            size="small"
-            value={String((component.props as any).fieldSet ?? '')}
-            options={[
-              { value: '飞行信息', label: '飞行信息' },
-              { value: '动力信息', label: '动力信息' },
-            ]}
-            onChange={v =>
-              patch(c => ({ ...c, props: { ...c.props, fieldSet: v } }))
+
+      {/* props 表单 (schema 驱动; 黑盒组件空表) */}
+      {activeSchema.length > 0 && (
+        <>
+          <SectionTitle>组件属性</SectionTitle>
+          {activeSchema.map(p => {
+            const v = (component.props as Record<string, unknown>)[p.key]
+            switch (p.kind) {
+              case 'Target':
+                return (
+                  <Field key={p.key} label={p.displayZh}>
+                    <AutoComplete
+                      size="small"
+                      value={typeof v === 'string' ? v : ''}
+                      options={varNames}
+                      placeholder="变量短名 / 公式名 / X * N"
+                      filterOption={(input, opt) =>
+                        (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                      onChange={val => patchProp(p.key, val)}
+                    />
+                  </Field>
+                )
+              case 'Int':
+                return (
+                  <Field key={p.key} label={p.displayZh}>
+                    <InputNumber
+                      size="small"
+                      value={typeof v === 'number' ? v : 0}
+                      onChange={n => patchProp(p.key, n ?? 0)}
+                    />
+                  </Field>
+                )
+              case 'Bool':
+                return (
+                  <Field key={p.key} label={p.displayZh}>
+                    <Switch
+                      size="small"
+                      checked={v === true}
+                      onChange={b => patchProp(p.key, b)}
+                    />
+                  </Field>
+                )
+              case 'Enum':
+                return (
+                  <Field key={p.key} label={p.displayZh}>
+                    <Select
+                      size="small"
+                      value={typeof v === 'string' && v ? v : (p.values?.[0] ?? '')}
+                      options={(p.values ?? []).map(s => ({ value: s }))}
+                      onChange={s => patchProp(p.key, s)}
+                    />
+                  </Field>
+                )
+              default:
+                // Str / Color (Color 本期无组件使用, 同文本输入)
+                return (
+                  <Field key={p.key} label={p.displayZh}>
+                    <Input
+                      size="small"
+                      value={typeof v === 'string' ? v : ''}
+                      onChange={e => patchProp(p.key, e.target.value)}
+                    />
+                  </Field>
+                )
             }
-          />
-        </Field>
+          })}
+        </>
       )}
     </div>
   )

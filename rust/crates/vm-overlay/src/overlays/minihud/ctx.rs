@@ -157,12 +157,12 @@ impl MinimalHudContext {
         let stroke_thin_w = half_line as f32;
 
         let n_font = settings.get_num_font();
-        let draw = Rc::new(LoadedFont::new(font_path, hud_font_size)?);
+        let draw = LoadedFont::new_cached(font_path, hud_font_size)?;
         // (int)(hudFontSize * 0.75f) — float 链截断
         let hud_font_size_small = (hud_font_size as f32 * 0.75f32) as i32;
-        let small = Rc::new(LoadedFont::new(font_path, hud_font_size_small)?);
+        let small = LoadedFont::new_cached(font_path, hud_font_size_small)?;
         // new Font(nFont, BOLD, hudFontSize / 2) — int 除法在造 Font 之前
-        let s_small = Rc::new(LoadedFont::new(font_path, hud_font_size / 2)?);
+        let s_small = LoadedFont::new_cached(font_path, hud_font_size / 2)?;
         let _ = n_font; // 家族名已由 font_path 承载 (模块头映射裁决)
 
         // 5. Resource Loading (IO) — 纹理准星链不迁移 (模块头 PORT 注)

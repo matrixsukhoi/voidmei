@@ -76,6 +76,11 @@ export const LayoutTab: React.FC = () => {
     (typeName: string, displayZh: string) => {
       if (!active) return
       const cx = Math.round((active.components.length ? 2 : 1) / SNAP) * SNAP
+      // data.field 默认绑定 ias (可用初值 — 空 target 工厂 Err 组件不显示)
+      const defaultProps: Record<string, unknown> =
+        typeName === 'core.data.field'
+          ? { target: 'ias', label: '表  速', unit: 'Km/h', precision: 0, previewValue: '500' }
+          : {}
       const comp: ComponentDoc = {
         id: `${displayZh}-${active.components.length + 1}`,
         type: typeName,
@@ -83,7 +88,7 @@ export const LayoutTab: React.FC = () => {
         anchor: ['TopLeft', 'TopLeft'],
         parent: null,
         enabled: true,
-        props: typeName === 'core.fields.grid' ? { fieldSet: '飞行信息' } : {},
+        props: defaultProps,
       }
       patchPage(d => ({ ...d, components: [...d.components, comp] }))
       setSelectedComp(comp.id)

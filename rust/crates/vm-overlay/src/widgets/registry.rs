@@ -11,7 +11,7 @@ use crate::layout::minihud_layout::HasVisibility;
 use crate::render::canvas::PixCanvas;
 
 use super::env::{FactoryCtx, MiniHudTemplates, StyleEnv, UpdateEnv};
-use super::{fields_grid, fm_sidecar, gauges_composite, minihud};
+use super::{data_field, fm_sidecar, gauges_composite, minihud};
 
 // =====================================================================
 // 组件契约
@@ -202,6 +202,8 @@ pub enum PropKind {
     Str,
     Color,
     Target, // 数据绑定 (变量目录下拉)
+    /// 枚举 (受限下拉)
+    Enum(&'static [&'static str]),
 }
 
 /// 组件工厂签名 (props + 工厂环境 → 组件实例)
@@ -233,7 +235,7 @@ pub fn widget_registry() -> &'static [&'static WidgetMeta] {
         .get_or_init(|| {
             minihud::REGISTRY_ENTRIES
                 .iter()
-                .chain(std::iter::once(&fields_grid::FIELDS_GRID_META))
+                .chain(std::iter::once(&data_field::DATA_FIELD_META))
                 .chain(gauges_composite::REGISTRY_ENTRIES.iter())
                 .chain(fm_sidecar::REGISTRY_ENTRIES.iter())
                 .collect()

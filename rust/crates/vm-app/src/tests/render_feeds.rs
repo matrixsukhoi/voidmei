@@ -185,31 +185,15 @@ fn test_pages(
         if doc.id == "minihud-default" {
             continue; // minihud 走编排器 spec (测试单独构造)
         }
-        // fields.grid 两页参数 (rows 行源 + (字号增量, 列数))
-        let mut rows = std::collections::HashMap::new();
-        let mut fields_cfg = None;
-        match doc.id.as_str() {
-            "flight-info-default" => {
-                rows.insert("飞行信息".to_string(), std::sync::Arc::clone(&inputs.flight_rows));
-                fields_cfg = Some((inputs.font_add_flight, inputs.flight_columns));
-            }
-            "power-info-default" => {
-                rows.insert("动力信息".to_string(), std::sync::Arc::clone(&inputs.power_rows));
-                fields_cfg = Some((inputs.font_add_power, inputs.power_columns));
-            }
-            _ => {}
-        }
         let params = PageSpecParams {
             doc: doc.clone(),
             entry_key: doc.entry_key.clone(),
             font_path: fonts.join("sarasa-mono-sc-bold.ttf"),
             font_size: 24,
-            rows,
             engine_disables: inputs.engine_disables,
             lang: Lang::init_lang(),
             settings: inputs.hud.clone(),
             debug: false,
-            fields_cfg,
             gauge_cfg: GaugeCfg::default(),
             refresh: Box::new(|| unreachable!("测试不触发 reinit")),
         };
@@ -300,23 +284,22 @@ fn feed_overlays_live_updates_all_handles() {
             .map(|(_, h)| h.clone())
             .unwrap_or_else(|| panic!("页面 {id} 应在 pages"))
     };
-    use vm_overlay::widgets::fields_grid::FieldsGridWidget;
+    use vm_overlay::widgets::data_field::DataFieldWidget;
     use vm_overlay::widgets::gauges_composite::{
         AttitudeWidget, AxesWidget, EnginePanelWidget, GearFlapsWidget,
     };
 
-    // 动力信息页: 功率 1200 → BOS 管线首字段 buffer (50ms 节流: now-0 恒放行)
+    // 动力信息页: 功率 1200 → horse_power 原子字段值文本 (无节流 — 组件每帧)
     {
         let h = page_of(&handles, "power-info-default");
         let page = h.borrow();
         let w = page
             .cells
-            .get("grid")
+            .get("horse_power")
             .unwrap()
-            .downcast_ref::<FieldsGridWidget>()
-            .expect("power 页 grid = FieldsGridWidget (BOS)");
-        let bos = w.bos().expect("动力信息走 BOS 管线");
-        assert_eq!(bos.fields()[0].buffer, "1200", "PowerInfo 功率字段");
+            .downcast_ref::<DataFieldWidget>()
+            .expect("power 页 horse_power = DataFieldWidget");
+        assert_eq!(w.value_text(), "1200", "PowerInfo 功率字段");
     }
     // 引擎控制页: throttle 55 (refreshInterval = 50×2 = 100, 首帧放行)
     {
@@ -582,7 +565,7 @@ fn reset_handles_preview_values_clears_live_residue() {
             .map(|(_, h)| h.clone())
             .unwrap_or_else(|| panic!("页面 {id} 应在 pages"))
     };
-    use vm_overlay::widgets::fields_grid::FieldsGridWidget;
+    use vm_overlay::widgets::data_field::DataFieldWidget;
     use vm_overlay::widgets::gauges_composite::{AttitudeWidget, AxesWidget};
     use vm_overlay::widgets::fm_sidecar::FmListWidget;
 
@@ -654,17 +637,16 @@ fn reset_handles_preview_values_clears_live_residue() {
         assert_eq!(w.state().px, 144, "live 残留: 游标已偏离中心");
     }
     {
+        // thrust: live 数组 [0;16] → 值文本 "0" (preview 为 "1000", 可区分)
         let h = page_of("power-info-default");
         let page = h.borrow();
         let w = page
             .cells
-            .get("grid")
+            .get("thrust")
             .unwrap()
-            .downcast_ref::<FieldsGridWidget>()
+            .downcast_ref::<DataFieldWidget>()
             .unwrap();
-        let bos = w.bos().unwrap();
-        assert_eq!(bos.fields()[0].buffer, "1200", "live 残留: buffer 已进 live 值");
-        assert!(bos.last_refresh_time > 0, "live 残留: 节流基准已推进");
+        assert_eq!(w.value_text(), "0", "live 残留: thrust 已进 live 值");
     }
 
     // 重置 (渲染线程 CloseAllOverlays 处理点同款)
@@ -675,16 +657,11 @@ fn reset_handles_preview_values_clears_live_residue() {
         let page = h.borrow();
         let w = page
             .cells
-            .get("grid")
+            .get("thrust")
             .unwrap()
-            .downcast_ref::<FieldsGridWidget>()
+            .downcast_ref::<DataFieldWidget>()
             .unwrap();
-        let bos = w.bos().unwrap();
-        assert_eq!(bos.last_refresh_time, 0, "动力信息节流基准复位");
-        assert!(
-            bos.fields().iter().all(|f| f.length == 0),
-            "动力信息 buffer 清空"
-        );
+        assert_eq!(w.value_text(), "1000", "动力信息回 preview 静态值");
     }
     {
         let h = page_of("axis-default");
@@ -714,29 +691,16 @@ fn reset_handles_preview_values_clears_live_residue() {
         assert_eq!(w.state().pitch_y, 0, "地平仪姿态点集复位");
     }
     {
-        // 行源 = 出厂编译行 (cfg_test_rows), 断言非平凡 (旧形态 ReinitParams::default
-        // 空行表曾退化至此断言平凡通过 — 本次改写实心化)
+        // mach: live 槽 0.72 → 复位回 preview "0.45" (原子字段; 槽注入链的复位面)
         let h = page_of("flight-info-default");
         let page = h.borrow();
         let w = page
             .cells
-            .get("grid")
+            .get("mach")
             .unwrap()
-            .downcast_ref::<FieldsGridWidget>()
+            .downcast_ref::<DataFieldWidget>()
             .unwrap();
-        let st = w.straight().expect("飞行信息走直通管线");
-        let rows = st.rows().to_vec();
-        let defs = st.defs.clone();
-        assert!(!defs.is_empty(), "出厂飞行信息行非空 (断言非平凡)");
-        assert_eq!(rows.len(), defs.len(), "飞行信息回全量行");
-        for (row, f) in rows.iter().zip(defs.iter()) {
-            // (波22: 行形态 = def 索引 + 值文本)
-            assert_eq!(
-                row.1, f.preview_value,
-                "飞行信息值列回 preview 静态: {}",
-                f.label
-            );
-        }
+        assert_eq!(w.value_text(), "0.45", "飞行信息回 preview 静态值");
     }
     {
         let h = page_of("fm-list-default");

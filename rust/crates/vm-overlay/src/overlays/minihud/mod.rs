@@ -59,10 +59,6 @@ use crate::widgets::{
     WidgetCell,
 };
 
-/// fields.grid 行源空表 (minihud 页无数据行; FactoryCtx 形参占位)
-static EMPTY_ROWS: std::sync::LazyLock<HashMap<String, std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>>> =
-    std::sync::LazyLock::new(HashMap::new);
-
 // ---------------------------------------------------------------------------
 // Java Math / printf 复刻
 // ---------------------------------------------------------------------------
@@ -275,11 +271,9 @@ impl MiniHudOverlay {
         let fctx = FactoryCtx {
             minihud_ctx: Some(&self.ctx),
             fonts: Rc::clone(&self.fonts),
-            rows: &EMPTY_ROWS,
             engine_disables: None,
             lang: None,
             fonts_dir: None,
-            fields_cfg: None,
             gauge_cfg: None,
         };
         // visibleWhen 求值源: HUDSettings 快照键 (displayCrosshair; W3 泛化

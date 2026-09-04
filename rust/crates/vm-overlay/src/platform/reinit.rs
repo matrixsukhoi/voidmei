@@ -16,10 +16,7 @@
 //! Default 的 Java 回退值 — 加字段只改本组); 顶层只留跨组消费面 (DPI/轮询节流/
 //! 地平仪喂入节流/MiniHUD 快照)。
 
-use std::sync::Arc;
-
 use vm_core::config::config_api::HudSettingsSnapshot;
-use vm_core::ui_support::row_def::RowDef;
 
 /// 引擎控制组 (getOverlaySettings("引擎控制"))。
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -30,26 +27,12 @@ pub struct EngineGroup {
     pub disables: [bool; 7],
 }
 
-/// 列表型面板组 (动力信息/飞行信息共用形态): 字号增量 + 列数 + W-D 行定义。
-#[derive(Debug, Clone, PartialEq)]
+/// 列表型面板组 (动力信息/飞行信息共用形态; 字段管理已原子化 — 列数/行定义
+/// 随 fields.grid 退役, 组只余字号增量供页面 font_size)
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ListGroup {
     /// 字号增量 (getFontSizeAdd)
     pub font_add: i32,
-    /// 列数 (动力 hudColumns / 飞行 flightInfoColumn)
-    pub columns: i32,
-    /// W-D cfg 驱动行定义 (主线程从 ui_layout.cfg 编译, 行开关过滤后随包进渲染线程)
-    pub rows: Arc<Vec<RowDef>>,
-}
-
-impl Default for ListGroup {
-    /// 缺省 = Java 无配置回退: fontadd=0 / 单列 / 空行表
-    fn default() -> Self {
-        ListGroup {
-            font_add: 0,
-            columns: 1,
-            rows: Arc::new(Vec::new()),
-        }
-    }
 }
 
 /// 边框开关组 (起落襟翼/操纵面共用形态): 字号增量 + 边缘模式。

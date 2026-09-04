@@ -51,12 +51,10 @@ pub struct OverlayInputs {
     pub pages: std::sync::Arc<Vec<vm_core::config::json_model::PageDoc>>,
     /// 引擎控制面板字号增量 (getOverlaySettings("引擎控制").get_font_size_add)
     pub font_add_engine: i32,
-    /// 动力信息字号增量 + 列数 (getOverlaySettings("动力信息"))
+    /// 动力信息字号增量 (getOverlaySettings("动力信息"))
     pub font_add_power: i32,
-    pub power_columns: i32,
-    /// 飞行信息字号增量 + 列数 (getOverlaySettings("飞行信息"))
+    /// 飞行信息字号增量 (getOverlaySettings("飞行信息"))
     pub font_add_flight: i32,
-    pub flight_columns: i32,
     /// 起落襟翼字号增量 + 边缘模式 (getOverlaySettings("起落襟翼"))
     pub font_add_gear: i32,
     pub gear_show_edge: bool,
@@ -84,9 +82,6 @@ pub struct OverlayInputs {
     /// 引擎控制 7 仪表 disable 开关 (ENGINE_DISABLE_KEYS 序; 曾 never-wired
     /// 恒 false — 用户关仪表 Rust 恒显全部, 启动首帧即错, 审查轮 1-B)
     pub engine_disables: [bool; 7],
-    /// W-D cfg 驱动行定义 (行开关过滤后)
-    pub flight_rows: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>,
-    pub power_rows: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>,
 }
 
 impl OverlayInputs {
@@ -104,30 +99,13 @@ impl OverlayInputs {
         let fm_print = config.get_overlay_settings("FM拆包数据");
         let attitude = config.get_overlay_settings("地平仪");
         let flight = config.get_overlay_settings("飞行信息");
-        let compile_rows =
-            |title: &str| -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
-                match config.get_overlay_settings(title).get_group_config() {
-                    Some(gc) => {
-                        // 行开关 (is_field_disabled = Java isFieldDisabled): value=false
-                        // 的 data 行不进面板 — Rust 侧此前 no-op, W-D 接线修复
-                        let rows = vm_core::ui_support::row_def::rows_from_group(gc, &|r| {
-                            let key = r.property.clone().unwrap_or_else(|| r.label.clone());
-                            ConfigProvider::is_field_disabled(config, &key)
-                        });
-                        std::sync::Arc::new(rows)
-                    }
-                    None => std::sync::Arc::new(Vec::new()),
-                }
-            };
         OverlayInputs {
             dpi_scale: env.dpi.get_scale(),
             hud: HudSettingsSnapshot::build(&config.get_hud_settings()),
             pages: config.pages(),
             font_add_engine: engine.get_font_size_add(),
             font_add_power: power.get_font_size_add(),
-            power_columns: power.get_int("hudColumns", 1),
             font_add_flight: flight.get_font_size_add(),
-            flight_columns: flight.get_int("flightInfoColumn", 1),
             font_add_gear: gear.get_font_size_add(),
             gear_show_edge: gear.get_bool("enablegearAndFlapsEdge", false),
             font_add_axis: axis.get_font_size_add(),
@@ -148,8 +126,6 @@ impl OverlayInputs {
                     .map(|v| java_parse_boolean(&v))
                     .unwrap_or(false)
             }),
-            flight_rows: compile_rows("飞行信息"),
-            power_rows: compile_rows("动力信息"),
         }
     }
 }
@@ -171,13 +147,9 @@ impl From<&OverlayInputs> for vm_overlay::platform::reinit::ReinitParams {
             },
             power: ListGroup {
                 font_add: i.font_add_power,
-                columns: i.power_columns,
-                rows: std::sync::Arc::clone(&i.power_rows),
             },
             flight: ListGroup {
                 font_add: i.font_add_flight,
-                columns: i.flight_columns,
-                rows: std::sync::Arc::clone(&i.flight_rows),
             },
             gear: EdgeGroup {
                 font_add: i.font_add_gear,

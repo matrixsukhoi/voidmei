@@ -388,10 +388,10 @@ fn overlay_settings_flight_info_factory() {
     // 无 :font-size 面板属性 → 0
     assert_eq!(v.get_font_size_add(), 0);
 
-    // 组内行读取
+    // 组内行读取 (flightInfoColumn 滑条已随字段原子化退役 — 行开关/列数
+    // 由画布编辑器组件管理)
     assert!(v.get_bool("flightInfoSwitch", false));
     assert!(!v.get_bool("flightInfoEdge", true));
-    assert_eq!(v.get_int("flightInfoColumn", 0), 1);
     assert_eq!(v.get_int("fontSize", -99), 0);
 
     // trait 借出面
