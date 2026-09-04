@@ -264,6 +264,11 @@ pub struct PageDoc {
     pub name: String,
     /// 激活开关键 (None = 恒显调试页)
     pub switch_key: Option<String>,
+    /// host 条目键 (默认 = switchKey; 推力曲线 = "thrustdFS" —
+    /// 激活策略 config(switchKey)∧jetOnly 经 strategy_extra 表达)
+    pub entry_key: Option<String>,
+    /// 激活策略扩展 ("jetOnly" 等; 渲染线程 strategy_for 特判)
+    pub strategy_extra: Option<String>,
     /// 归一化窗口位置 [x, y] (拖拽存档写回)
     pub pos: Option<[f64; 2]>,
     /// 包围盒 padding (窗口 = 内容包围盒 + 2×padding)
@@ -291,6 +296,8 @@ impl Default for PageDoc {
             id: String::new(),
             name: String::new(),
             switch_key: None,
+            entry_key: None,
+            strategy_extra: None,
             pos: None,
             padding: 45,
             font: PageFont::default(),

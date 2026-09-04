@@ -181,9 +181,77 @@ impl ConfigurationService {
         hit
     }
 
-    /// HUD 页面清单 (运行树 pages; W2 = 出厂页直通, delta 页面区 W4 接入)
+    /// HUD 页面清单 (运行树 pages = 出厂 ⊕ owned + user)
     pub fn pages(&self) -> std::sync::Arc<Vec<crate::config::json_model::PageDoc>> {
-        std::sync::Arc::new(json_store::factory().pages.clone())
+        let delta = self.inner.delta.read().expect(DELTA_LOCK_MSG);
+        std::sync::Arc::new(json_store::synthesize_pages(
+            &json_store::factory().pages,
+            &delta,
+        ))
+    }
+
+    /// 页面保存 (编辑器): 出厂 id → owned 区整页提升 (记当前出厂 content_version);
+    /// 用户 id → user 区 upsert。跨线程无 — 主线程 dispatcher 专用。
+    pub fn save_page(&self, page: crate::config::json_model::PageDoc) {
+        let factory = json_store::factory();
+        let is_factory = factory.pages.iter().any(|p| p.id == page.id);
+        {
+            let mut delta = self.inner.delta.write().expect(DELTA_LOCK_MSG);
+            if is_factory {
+                match delta.owned_factory_pages.iter().position(|p| p.id == page.id) {
+                    Some(i) => delta.owned_factory_pages[i] = page,
+                    None => delta.owned_factory_pages.push(page),
+                }
+            } else {
+                match delta.user_pages.iter().position(|p| p.id == page.id) {
+                    Some(i) => delta.user_pages[i] = page,
+                    None => delta.user_pages.push(page),
+                }
+            }
+        }
+        self.save_layout_config();
+        self.inner.publish_config_changed("voidmei_config.json");
+    }
+
+    /// 页面删除: owned 区删除 = 回跟随出厂; user 区删除 = 移除。
+    /// 出厂 id 且无 owned = 不可删 (回 Err)。
+    pub fn delete_page(&self, id: &str) -> Result<(), String> {
+        {
+            let mut delta = self.inner.delta.write().expect(DELTA_LOCK_MSG);
+            if let Some(i) = delta.owned_factory_pages.iter().position(|p| p.id == id) {
+                delta.owned_factory_pages.remove(i);
+            } else if let Some(i) = delta.user_pages.iter().position(|p| p.id == id) {
+                delta.user_pages.remove(i);
+            } else if json_store::factory().pages.iter().any(|p| p.id == id) {
+                return Err(format!("出厂页 {id} 不可删除 (可恢复出厂)"));
+            } else {
+                return Err(format!("页面 {id} 不存在"));
+            }
+        }
+        self.save_layout_config();
+        self.inner.publish_config_changed("voidmei_config.json");
+        Ok(())
+    }
+
+    /// 页面恢复出厂 (owned 区条目删除 → 重新跟随出厂版本)
+    pub fn reset_page_to_factory(&self, id: &str) -> Result<(), String> {
+        {
+            let mut delta = self.inner.delta.write().expect(DELTA_LOCK_MSG);
+            if let Some(i) = delta.owned_factory_pages.iter().position(|p| p.id == id) {
+                delta.owned_factory_pages.remove(i);
+            } else {
+                return Err(format!("页面 {id} 无用户修改"));
+            }
+        }
+        self.save_layout_config();
+        self.inner.publish_config_changed("voidmei_config.json");
+        Ok(())
+    }
+
+    /// 页面升级提示 (出厂 contentVersion > 用户拷贝版本)
+    pub fn page_upgrade_hints(&self) -> Vec<(String, u32, u32)> {
+        let delta = self.inner.delta.read().expect(DELTA_LOCK_MSG);
+        json_store::page_upgrade_hints(&json_store::factory().pages, &delta)
     }
 
     /// 行类型查询 (panel 作用域): 写链判 SWITCH_INV 反转用。

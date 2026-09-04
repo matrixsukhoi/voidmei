@@ -5,17 +5,14 @@
 //! 底部方向舵横条; 50ms 节流。窗口/拖动/FlightDataBus 注册归组装层
 //!, 本文件承载内容绘制的图层序与
 //! onFlightData 的数据换算。
+//! W3 起 host 挂载面 = widgets::gauges_composite 的 AxesWidget
+//! (包本 state), 旧 spec 工厂已退役。
 
 use crate::render::primitives;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 use crate::render::font::LoadedFont;
-use crate::render::palette::{aa, colors};
+use crate::render::palette::colors;
 
-use crate::overlays::spec_common::{keyed_spec, FontSlot};
-use crate::platform::host::{OverlaySpec, ReinitFn};
-use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::{LineCapStyle, PixCanvas};
 use vm_core::base::format as fast_number_format;
 use vm_core::lang::Lang;
@@ -617,93 +614,4 @@ impl ControlSurfacesOverlay {
             aa,
         );
     }
-}
-
-// ---------------------------------------------------------------------------
-// OverlayHost 挂载 (Java Controller registerWithPreview("enableAxis"))
-// ---------------------------------------------------------------------------
-
-/// 操纵面共享句柄 (minihud_overlay_spec 先例: render 闭包与喂入方共享 state)
-pub type ControlSurfacesHandle = Rc<RefCell<ControlSurfacesOverlay>>;
-
-/// 操纵面 OverlaySpec + live 句柄。参数为 init()/reinitConfig
-/// 的配置面, 经 [`ReinitParams`] 仓读取: font_add = "舵面值" panel 的 fontSize
-/// 增量, enable_axis_edge = enableAxisEdge (cfg 缺省 false)。
-/// PORT(边框不承载): Java totalWidth = twidth+sw·2 的 sw 是 WebLaF 窗口装饰边距,
-/// host 无边框层 — spec 尺寸 = 内容区 content_width×content_height (draw 的画布
-/// 断言钉内容尺寸, 窗口裁剪语义)。
-/// PORT(数据门控): Java init(S) 置 xs!=null (has_service) 才更新数据、initPreview
-/// 置 false; Rust 单实例形态下由渲染线程命令处理点按**会话窗口形态**切换 has_service
-/// (app_shell OpenAllOverlays→true / CloseAllOverlays→false, 对位 init(S)/实例销毁;
-/// 喂入点 feed_overlays_live 幂等置 true) — 初值随 init_preview 为 false。
-/// PORT(WYSIWYG): reinit 闭包 = reinit_config 的几何段 (字号/edge → 宽高派生) +
-/// 三字体重载 (fontNum/fontLabel/fontUnit new Font)
-pub fn control_surfaces_overlay_spec(
-    fonts_dir: &std::path::Path,
-    params: &Rc<RefCell<ReinitParams>>,
-) -> Result<(ControlSurfacesHandle, OverlaySpec), String> {
-    let (font_add, dpi_scale, enable_axis_edge) = {
-        let p = params.borrow();
-        (p.axis.font_add, p.dpi_scale, p.axis.show_edge)
-    };
-    let mut cs = ControlSurfacesOverlay::new();
-    // win_x/win_y = 0: 窗口定位归 host 位置存档 (HudSettingsSnapshot 同规)
-    cs.init_preview(font_add, dpi_scale, enable_axis_edge, 0, 0);
-    // 三字体 (Java init): num = NumFont BOLD(fontSize),
-    // label = FontName BOLD(round(fontSize/2)), unit = NumFont PLAIN(round(fontSize/2))
-    let bold_path = fonts_dir.join("sarasa-mono-sc-bold.ttf");
-    let regular_path = fonts_dir.join("sarasa-mono-sc-regular.ttf");
-    let f_num = FontSlot::new("ControlSurfaces", &bold_path, cs.font_size)?;
-    let f_label = FontSlot::new("ControlSurfaces", &bold_path, cs.label_font_size)?;
-    let f_unit = FontSlot::new("ControlSurfaces", &regular_path, cs.label_font_size)?;
-    let (w, h) = (cs.content_width, cs.content_height);
-    let handle: ControlSurfacesHandle = Rc::new(RefCell::new(cs));
-    let render_handle = Rc::clone(&handle);
-    let (render_num, render_label, render_unit) = (f_num.clone(), f_label.clone(), f_unit.clone());
-    // reinit 闭包: 几何 + 三字体重建, 返回新内容区尺寸 (Java setBounds 内容面)。
-    // 几何先行 (原序保真 — state 已换而字体失败时保持旧三档); 三档字体成组热换,
-    // 任一失败全组保持旧字体且仅首个错误留痕 (原 tuple-match `(r, _)` 语义)
-    let reinit_handle = Rc::clone(&handle);
-    let (reinit_num, reinit_label, reinit_unit) = (f_num, f_label, f_unit);
-    let reinit_params = Rc::clone(params);
-    let (reinit_bold, reinit_regular) = (bold_path, regular_path);
-    let reinit: ReinitFn = Box::new(move || {
-        let (fa, dpi, edge) = {
-            let p = reinit_params.borrow();
-            (p.axis.font_add, p.dpi_scale, p.axis.show_edge)
-        };
-        let mut cs = reinit_handle.borrow_mut();
-        cs.reinit_config(fa, dpi, edge, 0, 0);
-        let (fs, lfs) = (cs.font_size, cs.label_font_size);
-        let (w, h) = (cs.content_width, cs.content_height);
-        drop(cs);
-        if !FontSlot::reload_group(&[
-            (&reinit_num, &reinit_bold, fs),
-            (&reinit_label, &reinit_bold, lfs),
-            (&reinit_unit, &reinit_regular, lfs),
-        ]) {
-            return None;
-        }
-        Some((w, h))
-    });
-    Ok((
-        handle,
-        // Java LinkedHashMap 键 = configKey
-        keyed_spec(
-            "enableAxis",
-            w,
-            h,
-            Box::new(move |cv: &mut PixCanvas| {
-                // aa = 运行时仓 (cfg AAEnable 可关)
-                let (num, label, unit) = (render_num.get(), render_label.get(), render_unit.get());
-                let fonts = CsFonts {
-                    num: &num,
-                    label: &label,
-                    unit: &unit,
-                };
-                render_handle.borrow().draw(cv, &fonts, aa());
-            }),
-            Some(reinit),
-        ),
-    ))
 }

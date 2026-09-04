@@ -4,18 +4,13 @@
 //! 襟翼竖条 (UIBaseElements.drawVBarTextNum) + 起落架/减速板状态告警文本;
 //! onFlightData 100ms 节流。公共节流常量 FIELD_OVERLAY_REFRESH_INTERVAL_MS
 //! 随本文件 (PowerInfo 同源消费)。
+//! W3 起 host 挂载面 = widgets::gauges_composite 的 GearFlapsWidget
+//! (包本 state), 旧 spec 工厂已退役。
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use crate::overlays::spec_common::{keyed_spec, FontSlot};
-use crate::platform::host::{OverlaySpec, ReinitFn};
-use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
-use crate::render::palette::{aa, colors};
+use crate::render::palette::colors;
 use crate::render::primitives::{draw_h_rect, ring1px, text_shaded_auto};
-use vm_core::base::format::java_round_f32;
 use vm_core::base::format::java_round_f64;
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
@@ -214,79 +209,4 @@ impl GearFlapsState {
             aa,
         );
     }
-}
-
-// ---------------------------------------------------------------------------
-// live 喂数形态工厂 (minihud_overlay_spec 先例: render 闭包与喂入方共享句柄)
-// ---------------------------------------------------------------------------
-
-/// 起落襟翼共享句柄
-pub type GearFlapsHandle = Rc<RefCell<GearFlapsState>>;
-
-/// 起落襟翼 OverlaySpec + live 句柄 (Java Controller 注册键 enablegearAndFlaps)。
-/// 初始态 = 襟翼 50% 无告警 (new 的预览初值), 游戏模式由喂入方 update_tick 推进。
-/// PORT(WYSIWYG): 字号/边缘开关随 [`ReinitParams`] 仓 — reinit 闭包重建几何 +
-/// 双字体 (Java reinitConfig), 返回新 (total_width, total_height)
-pub fn gear_flaps_overlay_spec(
-    fonts_dir: &std::path::Path,
-    params: &Rc<RefCell<ReinitParams>>,
-) -> Result<(GearFlapsHandle, OverlaySpec), String> {
-    let (font_add, dpi_scale, show_edge) = {
-        let p = params.borrow();
-        (p.gear.font_add, p.dpi_scale, p.gear.show_edge)
-    };
-    let state = GearFlapsState::new(font_add, dpi_scale, show_edge);
-    let bold = fonts_dir.join("sarasa-mono-sc-bold.ttf");
-    // fontNum = BOLD(fontSize); fontLabel = BOLD(round(fontSize/2.0f)) (reinitConfig)
-    let font_num = FontSlot::new("GearFlaps", &bold, state.font_size)?;
-    let font_label = FontSlot::new(
-        "GearFlaps",
-        &bold,
-        java_round_f32(state.font_size as f32 / 2.0),
-    )?;
-    let (w, h) = (state.total_width, state.total_height);
-    let handle: GearFlapsHandle = Rc::new(RefCell::new(state));
-    let render_handle = Rc::clone(&handle);
-    let (render_num, render_label) = (font_num.clone(), font_label.clone());
-    // reinit 闭包: 几何 + 双字体重建 (Java reinitConfig 同段; flap 50%/warn 清空
-    // 的预览复位语义原样保留); 双档字体成组热换 — 任一失败全组保持旧字体且
-    // 仅首个错误留痕 (原 tuple-match `(r, _)` 语义)
-    let reinit_handle = Rc::clone(&handle);
-    let (reinit_num, reinit_label) = (font_num, font_label);
-    let reinit_params = Rc::clone(params);
-    let reinit_bold = bold;
-    let reinit: ReinitFn = Box::new(move || {
-        let (fa, dpi, edge) = {
-            let p = reinit_params.borrow();
-            (p.gear.font_add, p.dpi_scale, p.gear.show_edge)
-        };
-        let new_state = GearFlapsState::new(fa, dpi, edge);
-        if !FontSlot::reload_group(&[
-            (&reinit_num, &reinit_bold, new_state.font_size),
-            (
-                &reinit_label,
-                &reinit_bold,
-                java_round_f32(new_state.font_size as f32 / 2.0),
-            ),
-        ]) {
-            return None;
-        }
-        let (w, h) = (new_state.total_width, new_state.total_height);
-        *reinit_handle.borrow_mut() = new_state;
-        Some((w, h))
-    });
-    Ok((
-        handle,
-        keyed_spec(
-            "enablegearAndFlaps",
-            w,
-            h,
-            Box::new(move |cv: &mut PixCanvas| {
-                // aa = 运行时仓 (cfg AAEnable 可关 — 同 engine_control 先例)
-                let (num, label) = (render_num.get(), render_label.get());
-                render_handle.borrow().draw(cv, &num, &label, aa());
-            }),
-            Some(reinit),
-        ),
-    ))
 }

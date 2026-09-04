@@ -5,10 +5,16 @@
 //! sidecar (FM 黑盒组件)。
 
 pub mod env;
+pub mod fields_grid;
+pub mod fm_sidecar;
+pub mod gauges_composite;
 pub mod minihud;
 pub mod page_layout;
+pub mod page_overlay;
 pub mod registry;
 
-pub use env::{FactoryCtx, MiniHudTemplates, StyleEnv, UpdateEnv};
+pub use env::{FactoryCtx, GaugeCfg, MiniHudTemplates, StyleEnv, UpdateEnv};
+pub use fm_sidecar::{SidecarAction, SidecarCtx, WidgetSidecar};
 pub use page_layout::{build_page_layout, BuiltPageLayout, PageBuildInputs};
+pub use page_overlay::{page_font_size, page_overlay_spec, solve_page_snapshot, PageHandle, PageOverlay, PageSpecParams, SolveResult};
 pub use registry::{lookup_widget, widget_registry, HudWidget, WidgetCell, WidgetCategory, WidgetMeta};

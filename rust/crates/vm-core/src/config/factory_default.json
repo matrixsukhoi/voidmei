@@ -5844,6 +5844,276 @@
           "props": null
         }
       ]
+    },
+    {
+      "id": "flight-info-default",
+      "name": "飞行信息",
+      "switchKey": "flightInfoSwitch",
+      "pos": [
+        0.0602,
+        0.1188
+      ],
+      "padding": 0,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": ""
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "grid",
+          "type": "core.fields.grid",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": {
+            "fieldSet": "飞行信息"
+          }
+        }
+      ]
+    },
+    {
+      "id": "power-info-default",
+      "name": "动力信息",
+      "switchKey": "engineInfoSwitch",
+      "pos": [
+        0.0613,
+        0.4806
+      ],
+      "padding": 0,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": ""
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "grid",
+          "type": "core.fields.grid",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": {
+            "fieldSet": "动力信息"
+          }
+        }
+      ]
+    },
+    {
+      "id": "engine-control-default",
+      "name": "引擎控制",
+      "switchKey": "enableEngineControl",
+      "pos": [
+        0.1441,
+        0.4188
+      ],
+      "padding": 0,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": ""
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "panel",
+          "type": "core.engine.panel",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "gear-flaps-default",
+      "name": "起落襟翼",
+      "switchKey": "enablegearAndFlaps",
+      "pos": [
+        0.1551,
+        0.2833
+      ],
+      "padding": 0,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": ""
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "status",
+          "type": "core.gearflaps.status",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "axis-default",
+      "name": "舵面值",
+      "switchKey": "enableAxis",
+      "pos": [
+        0.8898,
+        0.3208
+      ],
+      "padding": 0,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": ""
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "cross",
+          "type": "core.axes.crosshair",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "attitude-default",
+      "name": "地平仪",
+      "switchKey": "enableAttitudeIndicator",
+      "pos": [
+        0.6934,
+        0.1299
+      ],
+      "padding": 0,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": ""
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "gauge",
+          "type": "core.attitude.window",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "fm-list-default",
+      "name": "FM拆包数据",
+      "switchKey": "enableFMPrint",
+      "pos": [
+        0.832,
+        0.3125
+      ],
+      "padding": 0,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": ""
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "list",
+          "type": "core.fm.list",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "thrust-chart-default",
+      "name": "推力曲线",
+      "switchKey": "enableFMPrint",
+      "entryKey": "thrustdFS",
+      "strategyExtra": "jetOnly",
+      "pos": [
+        0.0,
+        0.75
+      ],
+      "padding": 0,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": ""
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "chart",
+          "type": "core.fm.thrust_chart",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": {}
+        }
+      ]
     }
   ]
 }

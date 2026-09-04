@@ -2,17 +2,12 @@
 //! 重构波2 自 overlays_field2.rs 拆出 (后半)。
 //!
 //! FM 调试列表: BaseOverlay 斑马纹基座 + blkx 字段直读清单 (D4 砍反射段后的
-//! 等价实现)。UIStateBus 订阅 (FM_OVERLAY_TOGGLE/FM_CHANGED) 对应
-//! [`FmUnpackedDataOverlay::toggle`]/[`FmUnpackedDataOverlay::reload_fm_data`],
-//! 由组装层的事件循环驱动 (vm-app 渲染线程: 总线订阅转 channel → 循环内消费);
+//! 等价实现)。W3 起 host 挂载面 = widgets::fm_sidecar 的 FmListWidget
+//! (包本 overlay + 200ms tick 泵 + host 交互动作), 旧 spec 工厂与
+//! FmUnpackedFeed 泵已退役; UIStateBus 订阅 (FM_OVERLAY_TOGGLE/FM_CHANGED)
+//! 对应 [`FmUnpackedDataOverlay::toggle`]/[`FmUnpackedDataOverlay::reload_fm_data`],
+//! 由组装层的事件循环驱动 (vm-app 渲染线程: 总线订阅转 channel → sidecar tick 消费);
 //! dispose 的退订由所有权 Drop 根治, 无需显式方法。
-//!
-//! P5 组装契约三点已销号 (原 "host::OverlaySpec 不可表达" 豁口):
-//! (a) 动态窗口高 — host `resize_entry` 基建 + [`FmUnpackedFeed::pump`] 在
-//! tick 后按 `base.height` 变化落 resize (对位 Java adjustPosition 的 setSize
-//! 副作用); (b) 逐条目可见性 — host `set_entry_visible` (per-entry, 幂等) +
-//! pump 每 tick 落 `base.window_visible`; (c) spec 工厂
-//! [`fm_unpacked_data_overlay_spec`] (flight_info/field_overlays 先例形态)。
 //!
 //! 对拍备案 (审查 W3): rustcmp 套件覆盖 FlightInfo/gauges/MiniHUD; FMUnpackedData
 //! (ZebraList 首个生产消费者) 的渲染证据 = 单测级 基线 色/几何 (WebLaF 离屏
@@ -22,23 +17,16 @@
 //! printf 引擎: 本地 FmtArg/java_string_format/java_format_f 副本已收割至
 //! vm_core::base::format (重构波13, 历史基线 对拍等价)。
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::render::font::LoadedFont;
-use crate::render::palette::aa;
 
 use crate::overlays::list::BaseListOverlay;
-use crate::overlays::spec_common::{keyed_spec, FontSlot};
-use crate::platform::host::{OverlayHost, OverlaySpec, ReinitFn};
-use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
 use vm_core::base::format::{java_string_format, FmtArg};
 use vm_core::base::physics_constants::g;
 use vm_core::config::config_api::ConfigProvider;
 use vm_core::fm::data::{FmData, FmParts};
-use vm_core::fm::FMManager;
 use vm_core::lang::Lang;
 
 // Java String.format printf 引擎与 FmtArg 收敛于 vm_core::base::format
@@ -501,168 +489,5 @@ fn is_field_enabled(config: Option<&dyn ConfigProvider>, field_key: &str) -> boo
             Some(v) if v.is_empty() => true,
             Some(v) => v.eq_ignore_ascii_case("true"),
         },
-    }
-}
-
-// ---------------------------------------------------------------------------
-// OverlayHost 挂载 (Java Controller registerWithPreview("enableFMPrint"))
-// ---------------------------------------------------------------------------
-
-/// FM拆包数据共享句柄 (flight_info/control_surfaces 先例: render 闭包与
-/// 事件循环共享 state; Rc 恒留渲染线程)
-pub type FmUnpackedDataHandle = Rc<RefCell<FmUnpackedDataOverlay>>;
-
-/// FM拆包数据 OverlaySpec + live 句柄 (Java Controller 注册键
-/// enableFMPrint, previewEnabled=true)。
-///
-/// - `logical_height` — Application.logicalHeight 快照 (Env.dpi 探测; init 几何的
-///   scaleFactor 与 adjustPosition 的钳制上限来源, 屏幕常量不入 ReinitParams);
-/// - `config` — generateLines 逐 tick 读的 show* 开关面 (Java 每轮直读
-///   ConfigProvider; Rust 配置树 !Send, 组装层注入快照适配器, CONFIG_CHANGED
-///   刷新 — ActivationCache 同款"最后写胜出"等价);
-/// - `fm` — reinit 闭包的 blkx 直读源 (Java reinitConfig 的
-///   `FMManager.getInstance().current()`)。
-///
-/// 初始态 = initPreview 形态 (恒可见 + 空数据: 注册期 = Java 无实例形态 —
-/// LinkedHashMap 条目仅配置记录)。数据装载有两条面 (审查 B2-2 修正, 原注释
-/// "Java 预览实例无 run 线程" 为假前提): (a) 预览实例化时 Controller 的
-/// previewInitializer 先 setBlkx(current) 再 initPreview
-/// — Rust 对位 = refresh_preview 冷激活的 reinit 闭包直读 current; (b) run() 线程
-/// **预览同样在跑** (needsThread=true, OverlayManager.refreshPreview 也
-/// new Thread(instance).start()) — 每 200ms generateLines → 数据/高度自适应生效,
-/// Rust 对位 = FmUnpackedFeed::pump 不做会话门控 (渲染线程循环调用点)。
-/// 游戏形态 (is_preview=false + 隐藏起步) 由组装层在 OpenAllOverlays 处置位 —
-/// 单实例形态下 ControlSurfaces has_service 的同款会话翻转模式。
-///
-/// PORT(尺寸): 初始 spec 尺寸 = init 几何的 width × defaultFontsize·72 (Java
-/// Window 首帧尺寸; 高度随后被 adjustPosition 按行数接管 — FmUnpackedFeed)。
-/// PORT(字体): Java setupFont 的 fontName (cfg "FM拆包数据" 组) 为 Swing 逻辑
-/// 字体族名; Rust 字体面固定 sarasa regular 文件 (FontTriple/loadFontConfig 各
-/// overlay 同款先例, cfg 缺省 "Sarasa Mono SC" 时零偏差), PLAIN 14+fontSizeAdd。
-pub fn fm_unpacked_data_overlay_spec(
-    fonts_dir: &std::path::Path,
-    logical_height: i32,
-    params: &Rc<RefCell<ReinitParams>>,
-    config: Option<Arc<dyn ConfigProvider>>,
-    fm: &Arc<FMManager>,
-) -> Result<(FmUnpackedDataHandle, OverlaySpec), String> {
-    let (font_add, dpi_scale) = {
-        let p = params.borrow();
-        (p.fm.font_add, p.dpi_scale)
-    };
-    // Application.defaultFontsize = 12 (Lang defaultFontSize)
-    let mut ov = FmUnpackedDataOverlay::new(logical_height, dpi_scale, 12);
-    let regular_path = fonts_dir.join("sarasa-mono-sc-regular.ttf");
-    let font = FontSlot::new("FMUnpackedData", &regular_path, 14 + font_add)?;
-    ov.init_preview(config, &font.get());
-    let (w, h) = (ov.base.width, ov.base.height);
-    let handle: FmUnpackedDataHandle = Rc::new(RefCell::new(ov));
-    let render_handle = Rc::clone(&handle);
-    let render_font = font.clone();
-    // reinit 闭包 (Java reinitConfig): setBlkx(current) + setupFont。
-    // PORT(返回 None): Java reinitConfig 无 setBounds — 高度由下次数据变更的
-    // adjustPosition 接管 (行高随新字体变化, 数据 dirty 时自纠); 此处仅清指纹
-    let reinit_handle = Rc::clone(&handle);
-    let reinit_font = font;
-    let reinit_params = Rc::clone(params);
-    let reinit_fm = Arc::clone(fm);
-    let reinit_regular = regular_path;
-    let reinit: ReinitFn = Box::new(move || {
-        let fa = reinit_params.borrow().fm.font_add;
-        if !reinit_font.reload(&reinit_regular, 14 + fa) {
-            return None;
-        }
-        // P3: 直读 FMManager 句柄 (blkx None → 清空 → 占位容忍)
-        let fmdata = reinit_fm.current().fmdata.clone().map(Arc::new);
-        let font = reinit_font.get();
-        reinit_handle.borrow_mut().reinit_config(fmdata, &font);
-        None
-    });
-    Ok((
-        handle,
-        keyed_spec(
-            "enableFMPrint",
-            w,
-            h,
-            Box::new(move |cv: &mut PixCanvas| {
-                let font = render_font.get();
-                render_handle.borrow_mut().render(cv, &font, aa());
-            }),
-            Some(reinit),
-        ),
-    ))
-}
-
-/// FM拆包数据的组装面 tick 泵 — Java BaseOverlay.run() 线程循环 (while(doit)+
-/// sleep(200)) 的单线程驱动侧: 200ms 节流 (getRefreshInterval)
-/// → tick 单轮 (可见门控/取数/脏检查/高度自适应) → `base.window_visible` 落
-/// per-entry set_visible → 高度变化落 resize_entry (adjustPosition 的 setSize
-/// 副作用, 契约 (a)/(b) 接线)。
-///
-/// PORT(会话域, 审查 B2-2): Java needsThread=true — 游戏实例 (OverlayEntry.open)
-/// 与**预览实例** (refreshPreview) 都起 run 线程, 两会话均
-/// 200ms 轮询装载; 调用方 (渲染线程循环) 不做 preview 门控, 仅条目未激活
-/// (host 槽位空 = Java 无实例) 时跳过。
-///
-/// PORT(panic 边界): tick 内 generateLines 的保真 panic 点 (flap AIOOBE /
-/// java_string_format 错配, 见 generate_lines 的 PORT 注) 由本泵 catch_unwind
-/// 兜住; panic 后置 doit=false = Java "异常
-/// 杀死本 overlay 的 run 线程" 的冻结形态对位 (后续 tick 短路, 应用存活)。
-pub struct FmUnpackedFeed {
-    /// 节流基准 (Java run 循环的 sleep(200) 节拍; 0 = 首轮放行)
-    last_ms: i64,
-}
-
-impl Default for FmUnpackedFeed {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl FmUnpackedFeed {
-    pub fn new() -> Self {
-        FmUnpackedFeed { last_ms: 0 }
-    }
-
-    /// 单轮驱动。`id` = host 注册键 ("enableFMPrint"), `now_ms` 由调用方注入
-    /// (System.currentTimeMillis, 测试可假时钟)。
-    pub fn pump(
-        &mut self,
-        host: &mut OverlayHost,
-        id: &str,
-        handle: &FmUnpackedDataHandle,
-        now_ms: i64,
-    ) {
-        // getRefreshInterval() = 200ms (本组件未覆写;
-        // 读 base 字段 = 单一真相源)
-        let interval_ms = handle.borrow().base.refresh_interval_ms as i64;
-        if now_ms.saturating_sub(self.last_ms) < interval_ms {
-            return;
-        }
-        self.last_ms = now_ms;
-        let before = {
-            let fm = handle.borrow();
-            (fm.base.width, fm.base.height)
-        };
-        let ticked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            handle.borrow_mut().tick();
-        }));
-        if ticked.is_err() {
-            vm_core::base::logger::error(
-                "FMUnpackedData",
-                "run 轮 panic 已吞 (畸形 FM 字段, 对位 Java 杀 run 线程), 本 overlay 冻结",
-            );
-            handle.borrow_mut().base.stop(); // doit=false: 后续 tick 短路
-            return;
-        }
-        let fm = handle.borrow();
-        // run() 双分支的 setVisible 落地 (set_entry_visible 幂等)
-        host.set_entry_visible(id, fm.base.window_visible);
-        // adjustPosition 的 setSize 副作用: 高度 (或宽) 变化才落 resize
-        // (未变时避免清指纹引发无谓 present — Java 亦仅在变化时 setSize)
-        let after = (fm.base.width, fm.base.height);
-        if after != before {
-            let _ = host.resize_entry(id, after.0, after.1);
-        }
     }
 }

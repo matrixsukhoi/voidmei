@@ -1,23 +1,15 @@
-//! FlightInfoOverlay 的 host 工厂 — POC window.rs 专径收编进组装面。
-//!
-//! P6 人工验收缺口: 注册面 6/7 (flightInfoSwitch 走 POC bin 专径无窗口条目,
-//! 预览全开也轮不到它)。Java 对位 Controller
-//! `registerWithPreview("flightInfoSwitch", FlightInfoOverlay, init(this,S,
-//! getOverlaySettings("飞行信息")), ...)`。
+//! FlightInfoOverlay 的数据/渲染 state (W3: host 挂载面已迁 widgets::fields_grid
+//! 的直通管线, 旧 spec 工厂已退役)。
 //!
 //! 渲染栈复用 POC 像素对拍过的 fields/layout/render 三件套 (font::Canvas 直通
 //! 域), 经 [`PixCanvas::composite_straight_frame`] 整帧桥入 host 的 PixCanvas
 //! 体系 (SrcOver 合成, host 预览灰底保留)。
 //!
 //! 数据面 (对位 Java FieldOverlay 的字段行):
-//! - preview: [`fields::FIELDS`] 静态 [`preview_text`](FieldDef::preview_text)
-//!   (POC --preview 同源);
-//! - live: ServiceData.flight_values (service_loop deriver.step 整包快照) →
-//!   [`build_texts`] (visible-when/na-when 求值, POC 同源),
+//! - preview: 行定义 previewValue 静态 (构造/reset_preview_rows 落位);
+//! - live: FormulaView 快照 → [`build_texts`] (visible-when/na-when 求值),
 //!   经 [`FlightInfoState::update`] 喂入 (W2: 数据源 = TelemetrySource)。
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::layout::RenderCtx;
@@ -25,13 +17,8 @@ use vm_core::base::format;
 use vm_core::formula::registry::FormulaView;
 use vm_core::ui_support::row_def::RowDef;
 
-use crate::overlays::spec_common::keyed_spec;
-use crate::platform::host::{OverlaySpec, ReinitFn};
-use crate::platform::reinit::ReinitParams;
-use crate::render::canvas::PixCanvas;
-use crate::render::fields::{render_fields_fixed, FieldText, FontTriple, RenderColors};
+use crate::render::fields::FontTriple;
 use crate::render::font::Canvas;
-use crate::render::palette::{aa, colors};
 
 /// numHeight 默认值 (POC main.rs 平移): Java 实测校准 24px BOLD Sarasa = 31,
 /// 其余字号 1.25×fontSize 近似 (与实测差 ≤1px, 精确值由对拍脚本 --num-height 注入)
@@ -74,10 +61,7 @@ pub fn build_texts(defs: &[RowDef], s: &dyn FormulaView) -> Vec<(usize, String)>
     out
 }
 
-/// FlightInfo 共享句柄 (渲染线程内; live 喂数经 [`FlightInfoState::update`])
-pub type FlightInfoHandle = Rc<RefCell<FlightInfoState>>;
-
-/// preview 静态行 (工厂初值与 [`FlightInfoState::reset_preview_rows`] 同源,
+/// preview 静态行 (构造初值与 [`FlightInfoState::reset_preview_rows`] 同源,
 /// 免两处漂移): 行定义全量, preview 值原样不经格式化
 fn preview_rows(defs: &[RowDef]) -> Vec<(usize, String)> {
     defs.iter()
@@ -90,14 +74,31 @@ pub struct FlightInfoState {
     /// 行定义 (cfg 驱动, 随 ReinitParams 更新)
     pub defs: Arc<Vec<RowDef>>,
     /// 行集 (def 索引 + 值文本; preview 静态初值, live 由 update 覆写)
-    rows: Vec<(usize, String)>,
+    pub(crate) rows: Vec<(usize, String)>,
     /// POC 渲染栈三件套 (度量 + 字体 + 复用直通画布, 尺寸恒定零重分配)
-    ctx: RenderCtx,
-    fonts: FontTriple,
-    canvas: Canvas,
+    pub(crate) ctx: RenderCtx,
+    pub(crate) fonts: FontTriple,
+    pub(crate) canvas: Canvas,
 }
 
 impl FlightInfoState {
+    /// 资源直装构造 (widgets::fields_grid 工厂; rows 置空 —
+    /// 调用方紧接 reset_preview_rows 填 preview 行)
+    pub fn with_resources(
+        defs: Arc<Vec<RowDef>>,
+        ctx: RenderCtx,
+        fonts: FontTriple,
+    ) -> Self {
+        let (w, h) = (ctx.total_width(), ctx.total_height(defs.len() as i32));
+        FlightInfoState {
+            defs,
+            rows: Vec::new(),
+            canvas: Canvas::new(w, h),
+            ctx,
+            fonts,
+        }
+    }
+
     /// live 喂数 (Java FieldOverlay.onFlightData → 字段行更新; host 50ms 渲染
     /// 节拍 + 像素指纹脏检查兜底, 此处纯数据面; W2 起数据源 = TelemetrySource
     /// (ServiceData 散字段, Deriver 整包快照已消解))
@@ -145,107 +146,6 @@ impl FlightInfoState {
     pub fn rows(&self) -> &[(usize, String)] {
         &self.rows
     }
-}
-
-/// FlightInfo OverlaySpec + live 句柄 (Java Controller 注册键
-/// flightInfoSwitch; 字号/列数来自 getOverlaySettings("飞行信息") 组字段)。
-/// PORT(WYSIWYG): 字号/列数随 [`ReinitParams`] 仓, reinit 闭包走
-/// [`FlightInfoState::reinit`] 重建资源并返回新尺寸 (Java setBounds)
-pub fn flight_info_overlay_spec(
-    fonts_dir: &std::path::Path,
-    params: &Rc<RefCell<ReinitParams>>,
-) -> Result<(FlightInfoHandle, OverlaySpec), String> {
-    let (font_add, column) = {
-        let p = params.borrow();
-        (p.flight.font_add, p.flight.columns)
-    };
-    let ctx = RenderCtx::new(font_add, column, default_num_height(font_add));
-    let fonts = FontTriple::load(fonts_dir, &ctx)?;
-    // preview 初值: cfg 行定义的 preview 值
-    let defs = {
-        let p = params.borrow();
-        Arc::clone(&p.flight.rows)
-    };
-    let rows = preview_rows(&defs);
-    // 窗口尺寸: 全行高度 (POC run_live 同款 — visible-when 变化不重建窗口,
-    // 空行区域透明无碍)
-    let (w, h) = (ctx.total_width(), ctx.total_height(rows.len() as i32));
-    let state = FlightInfoState {
-        defs,
-        rows,
-        canvas: Canvas::new(w, h),
-        ctx,
-        fonts,
-    };
-    let handle: FlightInfoHandle = Rc::new(RefCell::new(state));
-    let render_handle = Rc::clone(&handle);
-    let reinit_handle = Rc::clone(&handle);
-    let reinit_params = Rc::clone(params);
-    let reinit_fonts = fonts_dir.to_path_buf();
-    let reinit: ReinitFn = Box::new(move || {
-        let (fa, col, defs) = {
-            let p = reinit_params.borrow();
-            (
-                p.flight.font_add,
-                p.flight.columns,
-                Arc::clone(&p.flight.rows),
-            )
-        };
-        match reinit_handle
-            .borrow_mut()
-            .reinit(&reinit_fonts, fa, col, defs)
-        {
-            Ok(size) => Some(size),
-            Err(e) => {
-                vm_core::base::logger::error("FlightInfo", &format!("reinit 资源重建失败: {}", e));
-                None
-            }
-        }
-    });
-    Ok((
-        handle,
-        keyed_spec(
-            "flightInfoSwitch",
-            w,
-            h,
-            Box::new(move |cv: &mut PixCanvas| {
-                let mut st = render_handle.borrow_mut();
-                // 借用拆分: defs/rows 只读 / canvas 可变 (同结构不相交字段)
-                let FlightInfoState {
-                    defs,
-                    rows,
-                    canvas,
-                    ctx,
-                    fonts,
-                } = &mut *st;
-                // label/unit 经索引向 defs 借用 (波22: 免逐帧 clone)
-                let texts: Vec<FieldText> = rows
-                    .iter()
-                    .map(|(i, v)| FieldText {
-                        label: &defs[*i].label,
-                        unit: &defs[*i].unit,
-                        value: v,
-                    })
-                    .collect();
-                // 清零重绘到直通 Canvas → 整帧 SrcOver 桥入 PixCanvas
-                // aa = 运行时全局仓 (cfg AAEnable 可关, 审查轮 1-A)。色板 = 运行时全局五色
-                // (Java FieldOverlay 读 Application.colorNum 族; 对拍工具路径
-                // 仍用 render::DEFAULT_COLORS 常量基线, 互不影响)
-                let pal = RenderColors {
-                    num: colors().num,
-                    label: colors().label,
-                    unit: colors().unit,
-                    shade: colors().shade_shape,
-                };
-                render_fields_fixed(canvas, &texts, ctx, fonts, &pal, aa());
-                if !cv.composite_straight_frame(&canvas.buf) {
-                    // 不可达 (spec 尺寸 = Canvas 尺寸 = host 画布尺寸); 防御性留痕
-                    vm_core::base::logger::warn("FlightInfo", "整帧桥尺寸不符, 本帧丢弃");
-                }
-            }),
-            Some(reinit),
-        ),
-    ))
 }
 
 // =====================================================================

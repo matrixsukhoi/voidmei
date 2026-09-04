@@ -452,87 +452,60 @@ fn overlay_center_arc_true_center() {
     );
 }
 
-/// live 工厂: DPI 缩放尺寸 (150%→round(150·1.5)=225/round(300·1.5)=450) +
-/// 句柄喂入后 render 闭包画到新值 (共享 state 生效) + 注册键
+/// live 形态 (state 直调, 旧 spec 工厂退役): DPI 缩放几何
+/// (150%→round(150·1.5)=225/round(300·1.5)=450) + 喂入后绘制含侧滑球十字
+/// (AttitudeWidget 的 gauge_cfg 消费面同款几何链) + reinit 换几何
 #[test]
-fn attitude_overlay_spec_dpi_and_shared_state() {
-    let cell = Rc::new(RefCell::new(ReinitParams {
-        dpi_scale: 1.5,
-        ..Default::default()
-    }));
-    let (h, mut spec) = attitude_overlay_spec(&cell).unwrap();
-    assert_eq!((spec.width, spec.height), (225, 450));
-    assert_eq!(
-        (spec.id.as_str(), spec.config_key.as_str()),
-        ("enableAttitudeIndicator", "enableAttitudeIndicator")
-    );
+fn attitude_dpi_geom_and_shared_state() {
+    let mut o = AttitudeOverlay::new();
+    o.reinit(225, 450, false, true);
     // 喂入: aoa=10 → AoA = round((10+30)·450/60) = 300
-    h.borrow_mut()
-        .update_telemetry(10.0, 0.0, 0.0, 0.0, 0.0, None);
-    assert_eq!(h.borrow().aoa_y, 300);
-    let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
-    (spec.render)(&mut cv);
+    o.update_telemetry(10.0, 0.0, 0.0, 0.0, 0.0, None);
+    assert_eq!(o.aoa_y, 300);
+    let mut cv = PixCanvas::new(225, 450).unwrap();
+    o.draw(&mut cv, false);
     // 侧滑球十字在 y=300 (colorNum 线体, BasicStroke(2) 行 299..300)
     assert!(
         a(&cv, 110, 299) > 0 || a(&cv, 110, 300) > 0,
         "十字随 aoa 喂入下移"
     );
 
-    // WYSIWYG reinit: 宽 150→200 (150%) → 新尺寸 300×450 (setBounds 面)
-    cell.borrow_mut().attitude.width = 200;
-    let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
-    assert_eq!((w1, h1), (300, 450));
+    // WYSIWYG reinit: 宽 225→300 → 新尺寸 300×450 (setBounds 面)
+    o.reinit(300, 450, false, true);
     assert_eq!(
-        (h.borrow().x_width, h.borrow().x_height),
+        (o.x_width, o.x_height),
         (300, 450),
         "state 已换新几何"
     );
 }
 
-/// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
+/// CloseAllOverlays 数据面重置 (组件 reset_preview 的 state 面):
 /// live 残留姿态点集/极限线 → reset_preview → 构造器数据初值, 几何保留。
 /// 场景: 托盘 live→preview 后重开的预览窗地平仪不得冻结在上次 live 姿态
 #[test]
 fn attitude_reset_preview_clears_telemetry_state() {
-    let cell = Rc::new(RefCell::new(ReinitParams::default()));
-    let (h, _spec) = attitude_overlay_spec(&cell).unwrap();
+    let mut o = AttitudeOverlay::new();
+    o.reinit(150, 300, false, true);
     // live 残留: aoa/pitch/roll/极限线全量喂入 (非构造态)
-    h.borrow_mut()
-        .update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
+    o.update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
     {
-        let g = h.borrow();
-        assert_ne!(g.aoa_y, 0, "aoa 喂入已离开构造态");
-        assert_ne!(g.pitch_y, 0, "pitch 喂入已离开构造态");
-        assert!(g.p_t.iter().any(|&p| p != (0, 0)), "姿态点集已生成");
+        assert_ne!(o.aoa_y, 0, "aoa 喂入已离开构造态");
+        assert_ne!(o.pitch_y, 0, "pitch 喂入已离开构造态");
+        assert!(o.p_t.iter().any(|&p| p != (0, 0)), "姿态点集已生成");
     }
-    let geo_before = {
-        let g = h.borrow();
-        (g.x_width, g.x_height, g.show_direction, g.show_aoa_limits)
-    };
+    let geo_before = (o.x_width, o.x_height, o.show_direction, o.show_aoa_limits);
     // 重置 → 构造器数据值; 几何不动 (reinit 闭包职责)
-    h.borrow_mut().reset_preview();
-    let att = h.borrow();
+    o.reset_preview();
     assert_eq!(
-        (
-            att.aos_x,
-            att.aoa_y,
-            att.pitch_y,
-            att.compass_x,
-            att.compass_y
-        ),
+        (o.aos_x, o.aoa_y, o.pitch_y, o.compass_x, o.compass_y),
         (0, 0, 0, 0, 0)
     );
     assert_eq!(
-        (att.aoa_limit_u, att.aoa_limit_d),
+        (o.aoa_limit_u, o.aoa_limit_d),
         (AOA_LIMIT_OFF, AOA_LIMIT_OFF)
     );
-    assert!(att.p_t.iter().all(|&p| p == (0, 0)), "姿态点集清空");
-    assert!(att.is_dirty(), "重置标脏 (强制下一帧重绘)");
-    let geo_after = (
-        att.x_width,
-        att.x_height,
-        att.show_direction,
-        att.show_aoa_limits,
-    );
+    assert!(o.p_t.iter().all(|&p| p == (0, 0)), "姿态点集清空");
+    assert!(o.is_dirty(), "重置标脏 (强制下一帧重绘)");
+    let geo_after = (o.x_width, o.x_height, o.show_direction, o.show_aoa_limits);
     assert_eq!(geo_before, geo_after, "几何保留 (reinit 面不动)");
 }

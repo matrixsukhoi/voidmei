@@ -6,33 +6,18 @@ fn fonts_dir() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts")
 }
 
-fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParams>> {
-    let mut p = ReinitParams::default();
-    // W-D: 行定义走 cfg (与生产同源)
-    p.flight.rows = std::sync::Arc::new(cfg_rows("飞行信息"));
-    p.power.rows = std::sync::Arc::new(cfg_rows("动力信息"));
-    mutate(&mut p);
-    Rc::new(RefCell::new(p))
-}
-
-/// 工厂最小面: preview 行数 = FIELDS 数, 尺寸与 ctx 度量一致, 渲染闭包可跑
-/// (PixCanvas 合成 + 灰底保留)
-#[test]
-fn spec_renders_preview_rows_to_pixcanvas() {
-    let (handle, mut spec) =
-        flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).expect("字体目录应可用");
-    assert_eq!(spec.id, "flightInfoSwitch");
-    assert_eq!(handle.borrow().rows().len(), cfg_rows("飞行信息").len());
-    assert!(spec.width > 0 && spec.height > 0);
-
-    // 渲染闭包: 先铺 host 预览灰底再合成 (host 渲染循环同序)
-    let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
-    cv.clear(spec.width, spec.height);
-    cv.fill_rect(0, 0, spec.width, spec.height, [0, 0, 0, 0x0A]);
-    (spec.render)(&mut cv);
-    // 灰底被保留 (左上角像素 alpha 仍 ≥ 灰底底色, 不会被整帧替换清零)
-    let px = cv.pixmap().data();
-    assert!(px[3] >= 0x0A, "预览灰底应经 SrcOver 合成保留");
+/// state 直装 (fields_grid 工厂同款: ctx + FontTriple + preview 行落位)
+fn state_of() -> FlightInfoState {
+    let ctx = RenderCtx::new(0, 1, default_num_height(0));
+    let fonts =
+        crate::render::fields::FontTriple::load(&fonts_dir(), &ctx).expect("字体目录应可用");
+    let mut st = FlightInfoState::with_resources(
+        std::sync::Arc::new(cfg_rows("飞行信息")),
+        ctx,
+        fonts,
+    );
+    st.reset_preview_rows();
+    st
 }
 
 /// live 喂数: update 覆写 rows, visible-when 过滤生效 (Mach>0 才显示的行,
@@ -49,9 +34,9 @@ impl vm_core::formula::registry::FormulaView for ZeroView {
 }
 #[test]
 fn update_applies_visibility() {
-    let (handle, _spec) = flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
-    handle.borrow_mut().update(&ZeroView);
-    let n_zero = handle.borrow().rows().len();
+    let mut handle = state_of();
+    handle.update(&ZeroView);
+    let n_zero = handle.rows().len();
     // 全零值: Mach (>0) 等条件行被滤; 至少 IAS 等直通行保留
     assert!(n_zero > 0 && n_zero <= cfg_rows("飞行信息").len());
 
@@ -66,14 +51,14 @@ fn update_applies_visibility() {
             }
         }
     }
-    handle.borrow_mut().update(&MachView);
-    let n_live = handle.borrow().rows().len();
+    handle.update(&MachView);
+    let n_live = handle.rows().len();
     assert!(
         n_live >= n_zero,
         "非零帧可见行应不少于全零帧 ({n_live} vs {n_zero})"
     );
     // Mach 行真的回来了 (值 0.72 → 文本 "0.72") — 行存 def 索引, 经 FIELDS 回查 label
-    let rows = handle.borrow().rows().to_vec();
+    let rows = handle.rows().to_vec();
     let defs = cfg_rows("飞行信息");
     let labels: Vec<&str> = rows.iter().map(|(i, _)| defs[*i].label.as_str()).collect();
     assert!(
@@ -103,32 +88,32 @@ fn flight_info_targets_all_reachable() {
     }
 }
 
-/// WYSIWYG reinit: fontadd 0→6 → 高度变大; live rows 保留 (字段行绑定独立于字体)
+/// WYSIWYG reinit (state 资源重建段): fontadd 0→6 → 高度变大; rows 回 preview
+/// 初值 (行开关变更即时生效的回填面; 字段行绑定独立于字体)
 #[test]
 fn reinit_grows_with_font_add_and_keeps_rows() {
-    let cell = params_cell(|_| {});
-    let (handle, mut spec) = flight_info_overlay_spec(&fonts_dir(), &cell).unwrap();
-    // 行集保持 preview 全行 (字号断言与行过滤无关; live 行为另测)
-    let rows_before = handle.borrow().rows().to_vec();
-    let h0 = spec.height;
-    cell.borrow_mut().flight.font_add = 6;
-    let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+    let mut handle = state_of();
+    let rows_before = handle.rows().to_vec();
+    let h0 = handle.ctx.total_height(handle.rows().len() as i32);
+    let (w1, h1) = handle
+        .reinit(&fonts_dir(), 6, 1, std::sync::Arc::new(cfg_rows("飞行信息")))
+        .expect("reinit 应成功");
     assert!(h1 > h0, "字号增量后高度应变大 ({} → {})", h0, h1);
     assert!(w1 > 0);
     assert_eq!(
-        handle.borrow().rows(),
+        handle.rows(),
         rows_before.as_slice(),
-        "reinit 不动字段行数据"
+        "reinit 后行集回 preview 全量 (cfg 行定义未变)"
     );
 }
 
-/// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
+/// CloseAllOverlays 数据面重置 (组件 reset_preview 的 state 面):
 /// live 行残留 (visible-when 过滤 + live 格式化值) → reset_preview_rows →
 /// FIELDS 全量 preview 静态行。场景: 托盘 live→preview 后重开的预览窗
 /// 不得显示上次 live 数值
 #[test]
 fn reset_preview_rows_restores_statics() {
-    let (handle, _spec) = flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
+    let mut handle = state_of();
     // live 残留: 非零 Mach/IAS 帧 (行集与 preview 静态不同)
     struct MachView;
     impl vm_core::formula::registry::FormulaView for MachView {
@@ -140,10 +125,10 @@ fn reset_preview_rows_restores_statics() {
             }
         }
     }
-    handle.borrow_mut().update(&MachView);
+    handle.update(&MachView);
     // 重置 → preview 行: FIELDS 全量 + preview_text 原样
-    handle.borrow_mut().reset_preview_rows();
-    let rows = handle.borrow().rows().to_vec();
+    handle.reset_preview_rows();
+    let rows = handle.rows().to_vec();
     let defs = cfg_rows("飞行信息");
     assert_eq!(rows.len(), defs.len(), "回全量行 (visible-when 过滤清除)");
     for (row, f) in rows.iter().zip(defs.iter()) {
@@ -152,3 +137,7 @@ fn reset_preview_rows_restores_statics() {
         assert_eq!(row.1, f.preview_value, "值列回 preview 静态: {}", f.label);
     }
 }
+
+// 旧 flight_info_overlay_spec 工厂的渲染闭包测试已随工厂退役删除
+// (W3: host 挂载面 = widgets::fields_grid 直通管线, 数据推进链断言见
+//  vm-app render_feeds::feed_overlays_live_updates_all_handles)。

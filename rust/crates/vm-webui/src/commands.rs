@@ -21,7 +21,7 @@ pub struct IpcState {
 }
 
 /// 发送并等待回执的公共路径 (所有 command 复用)
-async fn roundtrip(tx: &mpsc::Sender<IpcRequest>, kind: RequestKind) -> Result<Value, String> {
+pub(crate) async fn roundtrip(tx: &mpsc::Sender<IpcRequest>, kind: RequestKind) -> Result<Value, String> {
     let (rtx, rrx) = tokio::sync::oneshot::channel::<IpcReply>();
     tx.send(IpcRequest {
         kind,

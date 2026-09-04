@@ -177,6 +177,16 @@ impl PixCanvas {
         &self.pm
     }
 
+    /// 直通 RGBA 帧只读访问 (W3B 复合组件的伴画布桥入源;
+    /// 形状绘制过预乘存储时先整体重构直通域再借出)
+    pub fn straight_frame(&mut self) -> &[u8] {
+        if !self.straight_valid {
+            rebuild_straight(self.pm.data(), &mut self.straight);
+            self.straight_valid = true;
+        }
+        &self.straight
+    }
+
     /// 整帧直通 RGBA 以 SrcOver 合入 (POC font::Canvas → PixCanvas 桥,
     /// FlightInfo 专径渲染栈产出直通帧)。逐像素式与 font.rs Canvas.blit_glyph
     /// 同源: 直通域 SrcOver 合成 + 截断式镜像预乘 — host 预览灰底 (fill_rect
@@ -219,6 +229,67 @@ impl PixCanvas {
                 m[c] = (d[c] as u32 * out_a_u8 as u32 / 255) as u8;
             }
             m[3] = out_a_u8;
+        }
+        true
+    }
+
+    /// [`composite_straight_frame`] 的带偏移形态 (组件化 W3: fields 直通管线
+    /// 在页面内非原点时桥入; 越界裁剪, 帧宽 ≠ 画布宽亦可 — 逐行搬运)。
+    pub fn composite_straight_frame_at(&mut self, dx: i32, dy: i32, rgba_direct: &[u8], fw: i32, fh: i32, aa_on: bool) -> bool {
+        if !self.straight_valid {
+            rebuild_straight(self.pm.data(), &mut self.straight);
+            self.straight_valid = true;
+        }
+        let (cw, ch) = (self.pm.width() as i32, self.pm.height() as i32);
+        if dx >= cw || dy >= ch || dx + fw <= 0 || dy + fh <= 0 {
+            return true; // 完全出界 = 空操作
+        }
+        let pm = self.pm.data_mut();
+        let st = &mut self.straight;
+        let blend = |s: &[u8], d: &mut [u8], m: &mut [u8]| {
+            let sa = s[3] as u32;
+            if sa == 0 {
+                return;
+            }
+            let fa = sa as f32 / 255.0;
+            let fda = d[3] as f32 / 255.0;
+            let out_a = fa + fda * (1.0 - fa);
+            if out_a <= 0.0 {
+                return;
+            }
+            let out_a_u8 = (out_a * 255.0 + 0.5) as u8;
+            for c in 0..3 {
+                let out_c = (s[c] as f32 * fa + d[c] as f32 * fda * (1.0 - fa)) / out_a;
+                d[c] = out_c.min(255.0).round() as u8;
+            }
+            d[3] = out_a_u8;
+            for c in 0..3 {
+                m[c] = (d[c] as u32 * out_a_u8 as u32 / 255) as u8;
+            }
+            m[3] = out_a_u8;
+        };
+        let _ = aa_on; // SrcOver 与 aa 无关 (对位 composite_straight_frame)
+        for row in 0..fh {
+            let y = dy + row;
+            if y < 0 || y >= ch {
+                continue;
+            }
+            for col in 0..fw {
+                let x = dx + col;
+                if x < 0 || x >= cw {
+                    continue;
+                }
+                let si = ((row * fw + col) * 4) as usize;
+                let di = ((y * cw + x) * 4) as usize;
+                if si + 4 > rgba_direct.len() {
+                    return false; // 帧尺寸与缓冲不符
+                }
+                blend(
+                    &rgba_direct[si..si + 4],
+                    &mut pm[di..di + 4],
+                    &mut st[di..di + 4],
+                );
+            }
         }
         true
     }

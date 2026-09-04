@@ -4,6 +4,8 @@
 //!   + pitch/侧滑双值文本; 随体/离体双模式仅翻转符号表。
 //! - AttitudeOverlay — 独立地平仪窗: 橙色地面多边形 (±2 宽被窗口裁剪) + 4 条 pitch
 //!   刻度 + 中线/下半圆 + 侧滑球十字 + 攻角极限线 + 航向指针对。
+//!   W3 起 host 挂载面 = widgets::gauges_composite 的 AttitudeWidget
+//!   (包 AttitudeOverlay, 喂入节流组件化), 旧 spec 工厂已退役。
 //!
 //! Graphics2D 变换的复刻策略 (D7: 矢量基元走 tiny-skia):
 //! - **旋转 marks** (IndicatorGauge): Java setTransform(rotate(θ, target)) 后连续光栅化。
@@ -21,17 +23,12 @@
 //! 颜色 = 全局静态色直通 RGBA (与 gauges_bars 同源)。
 
 use crate::render::font::LoadedFont;
-use crate::render::palette::{aa, colors};
+use crate::render::palette::colors;
 use vm_core::base::format::java_round;
 use vm_core::base::format::java_round_f64;
 
-use crate::overlays::spec_common::keyed_spec;
-use crate::platform::host::{OverlaySpec, ReinitFn};
-use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::{LineCapStyle, PixCanvas};
 use crate::render::primitives::{arc_stroke_outline, line_stroke_outline, text_shaded_auto};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 /// AffineTransform.getRotateInstance(θ, ax, ay) 的点映射 (屏幕 y 向下, 正 θ = 视觉顺时针):
 /// p' = anchor + R(θ)·(p − anchor), R = [[cos, −sin],[sin, cos]]
@@ -821,70 +818,6 @@ impl Default for AttitudeOverlay {
     fn default() -> Self {
         Self::new()
     }
-}
-
-// ---------------------------------------------------------------------------
-// OverlayHost 挂载 (注册键 enableAttitudeIndicator)
-// ---------------------------------------------------------------------------
-
-/// 地平仪共享句柄 (minihud_overlay_spec 先例: render 闭包与喂入方共享 state)
-pub type AttitudeOverlayHandle = Rc<RefCell<AttitudeOverlay>>;
-
-/// 参数仓 → reinitConfig 绘制面 (工厂初建与 reinit 闭包共用一份读取):
-/// base 宽高 = attitudeIndicatorWidth/Height (cfg 缺省 150/300), 此处完成 DPI
-/// 缩放 (round(base·dpiScale), §2.3 floor(x+0.5));
-/// show_direction/show_aoa_limits = attitudeIndicatorDisplayDirection (false) /
-/// ...DisplayAoALimits (true)
-fn attitude_geom(p: &ReinitParams) -> (i32, i32, bool, bool) {
-    let dpi = p.dpi_scale;
-    (
-        (p.attitude.width as f64 * dpi + 0.5).floor() as i32,
-        (p.attitude.height as f64 * dpi + 0.5).floor() as i32,
-        p.attitude.show_direction,
-        p.attitude.show_aoa_limits,
-    )
-}
-
-/// 地平仪 OverlaySpec + live 句柄。参数为 reinitConfig 的配置面,
-/// 经 [`ReinitParams`] 仓读取 (换算见 [`attitude_geom`])。
-/// PORT(边框不承载): Java totalWidth = xWidth+4+sw·2 的 sw 边距是 WebLaF 窗口装饰
-/// (enableAttitudeIndicatorEdge, 默认 false), host 无边框层 — spec 尺寸 = 内容区
-/// x_width×x_height (draw 的画布断言钉内容尺寸, 裁剪语义)。
-/// 初始态 = 未飞形态 (AoA/AoS/Pitch 0, drawTick 未跑), 预览/游戏共用; live 由喂入方
-/// update_telemetry 推进 (40ms 节流归组装层, Java onFlightData freqMili)。
-/// PORT(WYSIWYG): reinit 闭包 = reinit_config 的绘制相关子集 (宽高/开关), 喂入
-/// 节流 freqMili 由组装层随参数仓同步 (app_shell ReinitOverlays 处理点)
-pub fn attitude_overlay_spec(
-    params: &Rc<RefCell<ReinitParams>>,
-) -> Result<(AttitudeOverlayHandle, OverlaySpec), String> {
-    let (x_width, x_height, show_direction, show_aoa_limits) = attitude_geom(&params.borrow());
-    let mut overlay = AttitudeOverlay::new();
-    overlay.reinit(x_width, x_height, show_direction, show_aoa_limits);
-    let handle: AttitudeOverlayHandle = Rc::new(RefCell::new(overlay));
-    let render_handle = Rc::clone(&handle);
-    // reinit 闭包: DPI 缩放后的新宽高 + 开关族 → state reinit + 新尺寸 (setBounds)
-    let reinit_handle = Rc::clone(&handle);
-    let reinit_params = Rc::clone(params);
-    let reinit: ReinitFn = Box::new(move || {
-        let (xw, xh, dir, aoa) = attitude_geom(&reinit_params.borrow());
-        reinit_handle.borrow_mut().reinit(xw, xh, dir, aoa);
-        Some((xw, xh))
-    });
-    Ok((
-        handle,
-        // keyed_spec 键 = configKey (注册开关名)
-        keyed_spec(
-            "enableAttitudeIndicator",
-            x_width,
-            x_height,
-            Box::new(move |cv: &mut PixCanvas| {
-                // aa = 运行时全局仓 (cfg AAEnable 可关 — Java 默认 true 仅是
-                // 声明默认, 审查轮 1-A 曾误当生产不变式钉死 true)
-                render_handle.borrow_mut().draw(cv, aa());
-            }),
-            Some(reinit),
-        ),
-    ))
 }
 
 #[cfg(test)]

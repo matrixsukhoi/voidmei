@@ -39,6 +39,19 @@ pub enum RequestKind {
     /// 打开对比 web 窗口 (批3: FMLIST 行 对比按钮 — Java FMListRowRenderer View,
     /// 选中机型单机视图 fm1=None; 窗口创建必须主线程, 故走 dispatcher 而非直算)
     OpenComparisonWindow { fm0: String, fm1: Option<String> },
+    // ---- W4 HUD 布局编辑器 ----
+    /// 组件目录 (注册表序列化: palette 分组/复合标记/属性 schema)
+    GetComponentCatalog,
+    /// 页面列表 (id/name/switchKey + 升级提示)
+    GetPages,
+    /// 页面快照求解 (布局矩形 + PNG 预览; 与真窗同管线)
+    SolvePage { page: serde_json::Value },
+    /// 页面保存 (出厂 id → owned 提升; 用户 id → upsert)
+    SavePage { page: serde_json::Value },
+    /// 页面删除 (owned 删除 = 回跟随出厂; user 删除; 出厂本体不可删)
+    DeletePage { id: String },
+    /// 页面恢复出厂
+    ResetPageToFactory { id: String },
 }
 
 /// 一条 IPC 请求 (含回执通道; 单向通知类 reply=None)
@@ -156,7 +169,14 @@ pub fn dispatch(kind: RequestKind, rt: &mut FormRuntime) -> IpcReply {
         | RequestKind::GetFmList
         | RequestKind::ImportConfig { .. }
         | RequestKind::GetAssetRoot
-        | RequestKind::OpenComparisonWindow { .. } => {
+        | RequestKind::OpenComparisonWindow { .. }
+        // W4 布局编辑器域 (同上: vm-app dispatcher 承担)
+        | RequestKind::GetComponentCatalog
+        | RequestKind::GetPages
+        | RequestKind::SolvePage { .. }
+        | RequestKind::SavePage { .. }
+        | RequestKind::DeletePage { .. }
+        | RequestKind::ResetPageToFactory { .. } => {
             IpcReply::Err("壳形态 dispatcher 不支持数据面请求 (应由 vm-app 注入)".to_string())
         }
     }

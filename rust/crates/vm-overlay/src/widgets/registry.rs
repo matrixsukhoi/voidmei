@@ -11,7 +11,7 @@ use crate::layout::minihud_layout::HasVisibility;
 use crate::render::canvas::PixCanvas;
 
 use super::env::{FactoryCtx, MiniHudTemplates, StyleEnv, UpdateEnv};
-use super::minihud;
+use super::{fields_grid, fm_sidecar, gauges_composite, minihud};
 
 // =====================================================================
 // 组件契约
@@ -39,6 +39,17 @@ pub trait HudWidget {
 
     /// 具体类型借出 (测试断言的 downcast 面)
     fn as_any(&self) -> &dyn std::any::Any;
+
+    /// FM 黑盒组件的特殊数据面 (W3C: tick 由渲染线程节拍驱动,
+    /// 非 FormulaView 喂数; 普通组件恒 None。
+    /// 组件全为 owned 数据 → dyn 钉 'static, 免 &mut trait 对象不变性冲突)
+    fn sidecar(&mut self) -> Option<&mut (dyn super::fm_sidecar::WidgetSidecar + 'static)> {
+        None
+    }
+
+    /// preview 复位 (live 会话残留值清回 preview 静态; 默认空 —
+    /// 有状态组件覆写, 对位旧 reset_preview 族)
+    fn reset_preview(&mut self) {}
 }
 
 /// 页面字体档别名 (widgets 域不依赖 minihud 内部类型名的边界缝合)
@@ -119,11 +130,24 @@ impl WidgetCell {
         self.0.borrow_mut().inner.on_data_update(env);
     }
 
+    pub fn reset_preview(&self) {
+        self.0.borrow_mut().inner.reset_preview();
+    }
+
     /// 测试断言面: 借出内件具体类型 (生产勿用 — 组件自治原则;
     /// downcast 失败 = 组件类型不符, None)
     pub fn downcast_ref<T: 'static>(&self) -> Option<std::cell::Ref<'_, T>> {
         let borrow = self.0.borrow();
         std::cell::Ref::filter_map(borrow, |b| b.inner.as_any().downcast_ref::<T>()).ok()
+    }
+
+    /// sidecar 面借出 (渲染线程 tick 驱动; 返回的 RefMut 守卫期内完成 tick 调用 —
+    /// 守卫存活期间不得再借本 cell)
+    pub fn sidecar(
+        &self,
+    ) -> Option<std::cell::RefMut<'_, dyn super::fm_sidecar::WidgetSidecar + 'static>> {
+        let borrow = self.0.borrow_mut();
+        std::cell::RefMut::filter_map(borrow, |b| b.inner.sidecar()).ok()
     }
 
     pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, aa: bool) {
@@ -202,12 +226,22 @@ pub struct WidgetMeta {
     pub factory: WidgetFactory,
 }
 
-/// 组件注册表 (编译期已知集合)
-pub fn widget_registry() -> &'static [WidgetMeta] {
-    minihud::REGISTRY_ENTRIES
+/// 组件注册表 (编译期已知集合; 各族表拼接 — palette 展示序)
+pub fn widget_registry() -> &'static [&'static WidgetMeta] {
+    static REGISTRY: std::sync::OnceLock<Vec<&'static WidgetMeta>> = std::sync::OnceLock::new();
+    REGISTRY
+        .get_or_init(|| {
+            minihud::REGISTRY_ENTRIES
+                .iter()
+                .chain(std::iter::once(&fields_grid::FIELDS_GRID_META))
+                .chain(gauges_composite::REGISTRY_ENTRIES.iter())
+                .chain(fm_sidecar::REGISTRY_ENTRIES.iter())
+                .collect()
+        })
+        .as_slice()
 }
 
 /// type_name 查表
 pub fn lookup_widget(type_name: &str) -> Option<&'static WidgetMeta> {
-    widget_registry().iter().find(|m| m.type_name == type_name)
+    widget_registry().iter().find(|m| m.type_name == type_name).copied()
 }

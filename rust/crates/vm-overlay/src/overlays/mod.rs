@@ -1,6 +1,7 @@
 //! overlay 组件域 (波10 分域: 原 45 顶层平铺模块按五域归组, 组件剥 gauge_/overlay_
-//! 前缀迁此)。每个组件 = "数据 struct + 内容绘制" 模块, 经 [`crate::platform::host`]
-//! 的 OverlaySpec 挂入窗口宿主; `*_overlay_spec` 工厂给出 live 形态闭包。
+//! 前缀迁此)。每个组件 = "数据 struct + 内容绘制" 模块; W3 组件化后 host 挂载面
+//! = widgets 域复合组件 (包本域 state), 各旧 `*_overlay_spec` 工厂已退役
+//! (minihud 编排器工厂除外 — widgets::minihud 消费)。
 //! 单一真相路径: 符号一律 `vm_overlay::overlays::<组件>::<符号>`, 域级转发面
 //! (原 field1/2 壳残留) 已随波16 裁撤。
 

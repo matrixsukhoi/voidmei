@@ -13,7 +13,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::base::logger;
-use crate::config::json_model::{AppConfig, ConfigValue, GroupConfig, RowConfig};
+use crate::config::json_model::{AppConfig, ConfigValue, GroupConfig, PageDoc, RowConfig};
 
 /// 出厂默认 (构建期内嵌 — 代码版本即模板版本)
 const FACTORY_DEFAULT_JSON: &str = include_str!("factory_default.json");
@@ -34,6 +34,12 @@ pub struct UserDelta {
     pub version: u32,
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub panels: HashMap<String, PanelDelta>,
+    /// 用户改过的出厂页 (整页提升; 记 baseContentVersion 供升级提示)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub owned_factory_pages: Vec<PageDoc>,
+    /// 用户新建页面
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub user_pages: Vec<PageDoc>,
 }
 
 /// 单个 panel 的 delta
@@ -69,9 +75,55 @@ pub fn factory() -> &'static AppConfig {
     CACHE.get_or_init(factory_default)
 }
 
+/// 页面合成: 出厂页 ⊕ owned (同 id 整页覆盖) + user_pages 追加。
+/// owned 页记录 baseContentVersion (拷贝时的出厂版本), 出厂 contentVersion
+/// 更新且用户仍持有 → W4 编辑器启动时提示"保留我的 / 采用新版"。
+pub fn synthesize_pages(factory: &[PageDoc], delta: &UserDelta) -> Vec<PageDoc> {
+    let mut out: Vec<PageDoc> = factory.to_vec();
+    for owned in &delta.owned_factory_pages {
+        if let Some(slot) = out.iter_mut().find(|p| p.id == owned.id) {
+            *slot = owned.clone();
+        } else {
+            // 出厂已删除该页 — 保留用户版本 (宽容)
+            out.push(owned.clone());
+        }
+    }
+    out.extend(delta.user_pages.iter().cloned());
+    out
+}
+
+/// 页面升级提示面: (id, 用户 baseContentVersion, 出厂 contentVersion) —
+/// base < 出厂 且用户持有该页 → 编辑器提示
+pub fn page_upgrade_hints(factory: &[PageDoc], delta: &UserDelta) -> Vec<(String, u32, u32)> {
+    delta
+        .owned_factory_pages
+        .iter()
+        .filter_map(|owned| {
+            factory
+                .iter()
+                .find(|p| p.id == owned.id)
+                .filter(|f| f.content_version > owned.content_version)
+                .map(|f| (owned.id.clone(), owned.content_version, f.content_version))
+        })
+        .collect()
+}
+
 /// 出厂 pages 的共享句柄便捷面 (OverlayInputs/测试用)
 pub fn factory_pages_arc() -> std::sync::Arc<Vec<crate::config::json_model::PageDoc>> {
     std::sync::Arc::new(factory().pages.clone())
+}
+
+/// 页面在 delta 中的位置 (owned/user 两区查址)
+pub enum PageSlot {
+    Owned(usize),
+    User(usize),
+}
+
+pub fn find_page_slot(delta: &UserDelta, id: &str) -> Option<PageSlot> {
+    if let Some(i) = delta.owned_factory_pages.iter().position(|p| p.id == id) {
+        return Some(PageSlot::Owned(i));
+    }
+    delta.user_pages.iter().position(|p| p.id == id).map(PageSlot::User)
 }
 
 // =====================================================================

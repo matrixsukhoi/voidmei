@@ -769,7 +769,16 @@ fn build_page(
 ) -> BuiltPageLayout {
     let ctx = MinimalHudContext::create(&page_snap(), 1.0, &page_font_path()).unwrap();
     let fonts = Rc::new(ctx.fonts.clone());
-    let fctx = FactoryCtx { ctx: &ctx, fonts };
+    let fctx = FactoryCtx {
+        minihud_ctx: Some(&ctx),
+        fonts,
+        rows: &EMPTY_TEST_ROWS,
+        engine_disables: None,
+        lang: None,
+        fonts_dir: None,
+        fields_cfg: None,
+        gauge_cfg: None,
+    };
     let inputs = PageBuildInputs {
         doc,
         fctx: &fctx,
@@ -939,3 +948,6 @@ fn page_layout_empty_components_no_sizing() {
     assert!(built.engine.get_node("row0").is_none());
     assert!(built.sizing.is_none());
 }
+
+static EMPTY_TEST_ROWS: std::sync::LazyLock<std::collections::HashMap<String, std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>>> =
+    std::sync::LazyLock::new(std::collections::HashMap::new);

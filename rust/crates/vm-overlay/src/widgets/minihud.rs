@@ -30,7 +30,7 @@ impl HudWidget for HUDAkbRow {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        let ctx = env.ctx;
+        let ctx = env.minihud_ctx.expect("minihud 族组件需 minihud_ctx");
         self.set_style(ctx.right_draw, ctx.line_width, ctx.aoa_length as i32);
         // 原 update_row_visibility 的 Row0 段 (master = drawHudText)
         let master = env.settings.draw_hud_text;
@@ -77,7 +77,7 @@ impl HudWidget for HUDEnergyRow {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        self.set_style(env.ctx.right_draw);
+        self.set_style(env.minihud_ctx.expect("minihud 族组件需 minihud_ctx").right_draw);
         let master = env.settings.draw_hud_text;
         self.set_show_altitude(master && env.settings.show_hud_altitude);
         self.set_show_energy(master && env.settings.show_hud_energy);
@@ -109,7 +109,7 @@ impl HudWidget for HUDMechanizationRow {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        self.base.set_style(env.ctx.hud_font_size);
+        self.base.set_style(env.minihud_ctx.expect("minihud ctx").hud_font_size);
         let master = env.settings.draw_hud_text;
         self.set_show_flaps(master && env.settings.show_hud_flaps);
         self.set_show_airbrake(master && env.settings.show_hud_airbrake);
@@ -142,7 +142,7 @@ impl HudWidget for HUDTextRow {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        self.set_style(env.ctx.hud_font_size);
+        self.set_style(env.minihud_ctx.expect("minihud ctx").hud_font_size);
         // Row3 无行内细粒度开关 (可见性 = master, WidgetBox 层)
         let _ = env.settings.draw_hud_text;
     }
@@ -173,7 +173,7 @@ impl HudWidget for HUDManeuverRow {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        let ctx = env.ctx;
+        let ctx = env.minihud_ctx.expect("minihud 族组件需 minihud_ctx");
         self.set_style(
             ctx.hud_font_size,
             ctx.right_draw,
@@ -225,7 +225,7 @@ impl HudWidget for FlapAngleBar {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        let ctx = env.ctx;
+        let ctx = env.minihud_ctx.expect("minihud 族组件需 minihud_ctx");
         // Dynamic width
         let responsive_width = (ctx.hud_font_size as f64 * 6.0) as i32;
         self.set_style_context(responsive_width, ctx.line_width + 2);
@@ -263,7 +263,7 @@ impl HudWidget for SpeedRatioBar {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        let ctx = env.ctx;
+        let ctx = env.minihud_ctx.expect("minihud 族组件需 minihud_ctx");
         let mut w = (ctx.hud_font_size as f64 * 0.25) as i32;
         let h = (ctx.hud_font_size as f64 * 5.5) as i32;
         if w < 6 {
@@ -300,7 +300,7 @@ impl HudWidget for LinearGauge {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        let ctx = env.ctx;
+        let ctx = env.minihud_ctx.expect("minihud 族组件需 minihud_ctx");
         // Standardizing to relative size: 4.8 lines high (原注)
         let responsive_height = (ctx.hud_font_size as f64 * 4.8) as i32;
         self.set_style_context(responsive_height, ctx.bar_width);
@@ -336,7 +336,7 @@ impl HudWidget for AttitudeIndicatorGauge {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        let ctx = env.ctx;
+        let ctx = env.minihud_ctx.expect("minihud 族组件需 minihud_ctx");
         self.set_style_context(
             ctx.compass_diameter,
             ctx.compass_radius,
@@ -370,7 +370,7 @@ impl HudWidget for CompassGauge {
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
-        let ctx = env.ctx;
+        let ctx = env.minihud_ctx.expect("minihud 族组件需 minihud_ctx");
         self.set_style_context(
             ctx.round_compass,
             ctx.line_width,
@@ -456,72 +456,72 @@ const ROW2_KEYS: &[&str] = &["drawHUDtext", "showHUDFlaps", "showHUDAirbrake", "
 const ROW3_KEYS: &[&str] = &["drawHUDtext", "showHUDSep"];
 const ROW4_KEYS: &[&str] = &["drawHUDtext", "showHUDGLoad", "showHUDManeuverBar"];
 
-fn f_row0(_props: &serde_json::Value, ctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_row0(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(HUDAkbRow::new(
         0,
-        ctx.ctx.hud_font_size,
-        ctx.ctx.right_draw,
-        ctx.ctx.line_width,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").right_draw,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").line_width,
     )))
 }
 
-fn f_row1(_props: &serde_json::Value, ctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_row1(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(HUDEnergyRow::new(
         1,
-        ctx.ctx.hud_font_size,
-        ctx.ctx.right_draw,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").right_draw,
     )))
 }
 
-fn f_row2(_props: &serde_json::Value, ctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(HUDMechanizationRow::new(2, ctx.ctx.hud_font_size)))
+fn f_row2(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    Ok(Box::new(HUDMechanizationRow::new(2, fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size)))
 }
 
-fn f_row3(_props: &serde_json::Value, ctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(HUDTextRow::new(3, ctx.ctx.hud_font_size)))
+fn f_row3(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    Ok(Box::new(HUDTextRow::new(3, fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size)))
 }
 
-fn f_row4(_props: &serde_json::Value, ctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_row4(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(HUDManeuverRow::new(
         4,
-        ctx.ctx.hud_font_size,
-        ctx.ctx.right_draw,
-        ctx.ctx.half_line,
-        ctx.ctx.line_width,
-        ctx.ctx.stroke_thick_w,
-        ctx.ctx.stroke_thin_w,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").right_draw,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").half_line,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").line_width,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").stroke_thick_w,
+        fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").stroke_thin_w,
     )))
 }
 
-fn f_flap(_props: &serde_json::Value, _ctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_flap(_props: &serde_json::Value, _fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(FlapAngleBar::new()))
 }
 
-fn f_speed(_props: &serde_json::Value, _ctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_speed(_props: &serde_json::Value, _fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(SpeedRatioBar::new()))
 }
 
 fn f_throttle(
     _props: &serde_json::Value,
-    _ctx: &FactoryCtx,
+    _fctx: &FactoryCtx,
 ) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(LinearGauge::new("ThrottleBar", 110, true)))
 }
 
 fn f_attitude(
     _props: &serde_json::Value,
-    _ctx: &FactoryCtx,
+    _fctx: &FactoryCtx,
 ) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(AttitudeIndicatorGauge::new()))
 }
 
-fn f_compass(_props: &serde_json::Value, ctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(CompassGauge::new(ctx.ctx.round_compass)))
+fn f_compass(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    Ok(Box::new(CompassGauge::new(fctx.minihud_ctx.expect("minihud 族组件需 minihud_ctx").round_compass)))
 }
 
 fn f_crosshair(
     _props: &serde_json::Value,
-    _ctx: &FactoryCtx,
+    _fctx: &FactoryCtx,
 ) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(CrosshairGauge::new()))
 }

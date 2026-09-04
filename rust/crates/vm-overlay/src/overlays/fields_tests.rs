@@ -2,17 +2,13 @@
 //! 壳下 tests.rs 迁此 — 共享 bold/px/字体助手与跨组件用例, 先例 fm::store_tests)。
 //! 取数面 = 下方显式 use (波16 裁撤 mod.rs 转发面, 单一真相路径)。
 
-use super::control_surfaces::{control_surfaces_overlay_spec, ControlSurfacesOverlay, CsFonts};
-use super::engine_control::{engine_control_overlay_spec, EngineControlState};
-use super::fm_unpacked::{
-    add_lines, fm_unpacked_data_overlay_spec, generate_lines, FmUnpackedDataOverlay, FmUnpackedFeed,
-};
+use super::control_surfaces::{ControlSurfacesOverlay, CsFonts};
+use super::engine_control::EngineControlState;
+use super::fm_unpacked::{add_lines, generate_lines, FmUnpackedDataOverlay};
 use super::gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
-use super::gear_flaps::{gear_flaps_overlay_spec, GearFlapsState};
-use super::power_info::{power_info_overlay_spec, PowerInfoState};
+use super::gear_flaps::GearFlapsState;
+use super::power_info::PowerInfoState;
 use crate::layout::ui_constants::ENGINE_DEFAULT_REFRESH_MS;
-use crate::platform::host::OverlayHost;
-use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::{aa, colors};
@@ -21,13 +17,11 @@ use crate::render::primitives::butt_line;
 use crate::render::renderers::{BosStyleRenderer, RenderContext};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
 use vm_core::base::event::EventPayload;
 use vm_core::base::format::{fmt_f, java_string_format, FmtArg};
 use vm_core::config::config_api::ConfigProvider;
 use vm_core::fm::data::{FmData, FmParts};
-use vm_core::fm::FMManager;
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 
@@ -1090,159 +1084,9 @@ fn gear_flaps_draw_pixels() {
     assert!(warn_zone, "起落架告警文本存在");
 }
 
-// ---- live 喂数形态工厂 (句柄共享: render 闭包与喂入方同一 state) ----
-
-/// 测试参数仓 (缺省值 + 覆写便捷)
-fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParams>> {
-    let mut p = ReinitParams::default();
-    // W-D: 行定义走 cfg (与生产同源)
-    p.flight.rows = std::sync::Arc::new(crate::overlays::flight_info::cfg_rows("飞行信息"));
-    p.power.rows = std::sync::Arc::new(crate::overlays::flight_info::cfg_rows("动力信息"));
-    mutate(&mut p);
-    Rc::new(RefCell::new(p))
-}
-
-/// 三工厂: 句柄喂入后 render 闭包画到新值 (共享 state 生效); 尺寸与 preview 工厂一致
-#[test]
-fn live_spec_handles_share_state_with_render() {
-    let l = lang();
-    let fonts = std::path::Path::new(FONTS);
-    // PowerInfo: 功率 1200 → 首字段 buffer
-    let (h_power, mut spec) =
-        power_info_overlay_spec(fonts, &params_cell(|p| p.power.columns = 2)).unwrap();
-    let t = MockTele {
-        horse_power: 1200.0,
-        ..MockTele::default()
-    };
-    assert!(h_power.borrow_mut().update(100, &t));
-    assert_eq!(h_power.borrow().fields()[0].buffer, "1200");
-    let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
-    (spec.render)(&mut cv);
-    assert!(cv.pixmap().data().iter().any(|&b| b != 0));
-
-    // EngineControl: throttle 80 → gauge 值; render 走 &mut 通道不 panic
-    let lang_rc = Rc::new(lang());
-    let (h_engine, mut spec2) = engine_control_overlay_spec(
-        fonts,
-        Rc::clone(&lang_rc),
-        &params_cell(|p| p.service_loop_interval_ms = 50),
-    )
-    .unwrap();
-    assert_eq!(
-        (spec2.width, spec2.height),
-        (192, 306),
-        "尺寸与 preview 工厂一致"
-    );
-
-    // disable 键实效 (审查轮 1-B): 7 仪表全关 → 布局窗口显著变矮
-    // (EngineControlState::new 的 calculateLayout 按存活仪表数算高)
-    let (_h, spec_off) = engine_control_overlay_spec(
-        fonts,
-        Rc::clone(&lang_rc),
-        &params_cell(|p| {
-            p.service_loop_interval_ms = 50;
-            p.engine.disables = [true; 7];
-        }),
-    )
-    .unwrap();
-    assert!(
-        spec_off.height < 306,
-        "全关 ({}) 应矮于全开 (306) — 曾 never-wired 恒显全部 7 条",
-        spec_off.height
-    );
-    // dataPollIntervalMs=50 → refreshInterval=100 (loadRefreshInterval ×2)
-    assert_eq!(h_engine.borrow().refresh_interval, 100);
-    let t2 = MockTele {
-        throttle: 80.0,
-        ..MockTele::default()
-    };
-    assert!(h_engine
-        .borrow_mut()
-        .update(200, &t2, &payload(false, false, -1), None));
-    assert_eq!(
-        h_engine
-            .borrow()
-            .gauge_by_key("throttle")
-            .unwrap()
-            .gauge
-            .gauge
-            .cur_value,
-        80
-    );
-    let mut cv2 = PixCanvas::new(spec2.width, spec2.height).unwrap();
-    (spec2.render)(&mut cv2);
-    assert!(cv2.pixmap().data().iter().any(|&b| b != 0));
-
-    // GearFlaps: gear=100/flaps=25 → 告警文本 + flap_pix
-    let (h_gear, mut spec3) = gear_flaps_overlay_spec(fonts, &params_cell(|_| {})).unwrap();
-    let t3 = MockTele {
-        gear: 100.0,
-        flaps: 25.0,
-        ..MockTele::default()
-    };
-    assert!(h_gear.borrow_mut().update_tick(100, &l, &t3));
-    assert_eq!(h_gear.borrow().flap_pix, 24);
-    let mut cv3 = PixCanvas::new(spec3.width, spec3.height).unwrap();
-    (spec3.render)(&mut cv3);
-    assert!(cv3.pixmap().data().iter().any(|&b| b != 0));
-}
-
-// ---- WYSIWYG reinit (Java reinitConfig → 新 preferred_size/setBounds) ----
-
-/// PowerInfo: fontadd 0→6 → reinit 闭包返回更大高度 (host 侧走 resize_entry)
-#[test]
-fn power_info_reinit_grows_with_font_add() {
-    let fonts = std::path::Path::new(FONTS);
-    let cell = params_cell(|_| {});
-    let (_h, mut spec) = power_info_overlay_spec(fonts, &cell).unwrap();
-    let h0 = spec.height;
-    cell.borrow_mut().power.font_add = 6;
-    let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
-    assert!(h1 > h0, "字号增量 0→6 后高度应变大 ({} → {})", h0, h1);
-    assert!(w1 > 0);
-}
-
-/// EngineControl: fontadd 0→6 → 高度变大; 7 仪表全关 → 显著变矮 (disable 生效)
-#[test]
-fn engine_control_reinit_resizes_for_font_and_disables() {
-    let fonts = std::path::Path::new(FONTS);
-    let cell = params_cell(|_| {});
-    let (h, mut spec) = engine_control_overlay_spec(fonts, Rc::new(lang()), &cell).unwrap();
-    let h0 = spec.height;
-    cell.borrow_mut().engine.font_add = 6;
-    let (_, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
-    assert!(h1 > h0, "字号增量后高度应变大 ({} → {})", h0, h1);
-    // 全关: 存活仪表 0 → 布局显著变矮 (state 已重建, live 值复位为预览半量程)
-    cell.borrow_mut().engine.disables = [true; 7];
-    let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
-    assert!(h2 < h1, "全关仪表后应显著变矮 ({} → {})", h1, h2);
-    assert!(
-        h.borrow().gauge_by_key("throttle").is_none(),
-        "全关后 throttle 仪表移除"
-    );
-}
-
-/// GearFlaps: fontadd 0→6 → 总尺寸变大; 边缘开关 → sw=10 外扩 (Java sw·2)
-#[test]
-fn gear_flaps_reinit_grows_with_font_and_edge() {
-    let fonts = std::path::Path::new(FONTS);
-    let cell = params_cell(|_| {});
-    let (h, mut spec) = gear_flaps_overlay_spec(fonts, &cell).unwrap();
-    let (w0, h0) = (spec.width, spec.height);
-    cell.borrow_mut().gear.show_edge = true;
-    let (we, _) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
-    assert_eq!(we - w0, 20, "enablegearAndFlapsEdge → sw=10 双侧外扩");
-    // 字号 0→6: 更高 (state 重建, 预览复位: flap 50%)
-    cell.borrow_mut().gear.font_add = 6;
-    cell.borrow_mut().gear.show_edge = false;
-    let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
-    assert!(h2 > h0, "字号增量后高度应变大 ({} → {})", h0, h2);
-    assert_eq!(
-        h.borrow().flap_pix,
-        h.borrow().bar_height * 50 / 100,
-        "reinit 复位预览 50%"
-    );
-}
+// ---- live 喂数形态工厂测试已随旧 spec 工厂退役删除 (W3 组件化: 句柄共享/
+// ---- reinit 语义由 widgets 域组件 + page_overlay_spec.refresh 面承载, 数据推进
+// ---- 断言见 vm-app render_feeds::feed_overlays_live_updates_all_handles) ----
 
 /// 守卫: overlay 层全部 var_value 消费名经生产双通道 (公式槽 getter 别名 +
 /// registry getter 索引) 可达 — 断链即面板行消失/恒 0/仪表恒零
@@ -2097,70 +1941,25 @@ fn five_overlays_mount_into_overlay_host() {
     assert!(host.active_ids().is_empty());
 }
 
-/// live 工厂: 尺寸 = 内容区 (fontAdd 0/dpi 1 → fs=24, w=144, twidth=240,
-/// theight=180), has_service 初值 false (init_preview), 喂入侧置 true 后
-/// on_flight_data 才推数据; render 闭包共享句柄画到新值
-#[test]
-fn control_surfaces_overlay_spec_shared_state() {
-    let fonts_dir = std::path::Path::new("../../../fonts");
-    let cell = Rc::new(RefCell::new(ReinitParams::default()));
-    let (h, mut spec) = control_surfaces_overlay_spec(fonts_dir, &cell).unwrap();
-    assert_eq!(
-        (spec.width, spec.height),
-        (240, 180),
-        "内容区尺寸 (无 sw 边框)"
-    );
-    assert_eq!(
-        (spec.id.as_str(), spec.config_key.as_str()),
-        ("enableAxis", "enableAxis")
-    );
-    // 初值 px = width/2 = 72 (游标居中, Java init :108)
-    assert_eq!(h.borrow().px, 72);
-    // has_service=false: 数据不更新 (preview 形态)
-    assert!(h
-        .borrow_mut()
-        .on_flight_data(100, 100.0, 0.0, 0.0, 0.0, false));
-    assert_eq!(h.borrow().px, 72, "preview 门控: 数据保持");
-    // 游戏形态 (喂入方切换 has_service, app_shell 承载): aileron=100 → px=144
-    h.borrow_mut().has_service = true;
-    assert!(h
-        .borrow_mut()
-        .on_flight_data(200, 100.0, 0.0, 0.0, 0.0, false));
-    assert_eq!(h.borrow().px, 144);
-    assert_eq!(h.borrow().aileron_num, "100");
-    let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
-    (spec.render)(&mut cv);
-    assert!(cv.pixmap().data().iter().any(|&b| b != 0));
+// live 工厂共享态/reinit 测试已随旧 spec 工厂退役删除 (W3 组件化: gauges_
+// composite 的 AxesWidget 包本 state, WYSIWYG 重建走 page_overlay_spec.refresh;
+// 数据推进/reinit 链断言见 vm-app render_feeds)
 
-    // WYSIWYG reinit: fontAdd 0→6 → fs=30 → w=180, twidth=300, theight=225
-    cell.borrow_mut().axis.font_add = 6;
-    let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
-    assert_eq!((w1, h1), (300, 225), "字号 6 的内容区 (fs=30)");
-    assert_eq!(h.borrow().font_size, 30, "state 已换新几何");
-    // reinit 后 render 闭包可画 (共享字体单元已更新, 不 panic)
-    let mut cv2 = PixCanvas::new(w1, h1).unwrap();
-    (spec.render)(&mut cv2);
-    assert!(cv2.pixmap().data().iter().any(|&b| b != 0));
-}
-
-/// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
+/// CloseAllOverlays 数据面重置 (reset_preview 语义, 组件 reset_preview 的 state 面):
 /// live 残留 (num 串 + 游标/舵条) → reset_preview → initPreview 的
 /// "Initial Values (50)" + 游标居中。场景: 托盘 live→preview 后重开的
 /// 预览窗不得显示上次 live 舵面值
 #[test]
 fn control_surfaces_reset_preview_restores_initial_values() {
-    let fonts_dir = std::path::Path::new("../../../fonts");
-    let cell = Rc::new(RefCell::new(ReinitParams::default()));
-    let (h, _spec) = control_surfaces_overlay_spec(fonts_dir, &cell).unwrap();
+    let mut cs = ControlSurfacesOverlay::new();
+    cs.init_preview(0, 1.0, false, 0, 0);
+    assert_eq!((cs.width, cs.height), (144, 144), "fontAdd 0/dpi 1 几何");
     // live 残留: has_service=true 喂非 50 值 (副翼 100/升降 -80/舵 60/翼扫 40)
-    h.borrow_mut().has_service = true;
-    assert!(h
-        .borrow_mut()
-        .on_flight_data(200, 100.0, -80.0, 60.0, 40.0, true));
-    assert_eq!(h.borrow().aileron_num, "100");
+    cs.has_service = true;
+    assert!(cs.on_flight_data(200, 100.0, -80.0, 60.0, 40.0, true));
+    assert_eq!(cs.aileron_num, "100");
     // 重置 → 初值段: 四 num 串 "50" + 游标/舵条回几何中心 (init :91-94/:108-111)
-    h.borrow_mut().reset_preview();
-    let cs = h.borrow();
+    cs.reset_preview();
     assert_eq!(
         (
             cs.elevator_num.as_str(),
@@ -2177,203 +1976,17 @@ fn control_surfaces_reset_preview_restores_initial_values() {
     );
 }
 
-// ---- FmUnpackedData spec 工厂 + FmUnpackedFeed (P5 组装契约 (a)(b)(c) 销号面) ----
-
-/// 最小 mock 窗口: 只记 set_visible/set_size 调用序 (host/tests.rs MockWindow 同款形态)
-struct FeedMockWin {
-    log: Rc<RefCell<Vec<String>>>,
-}
-
-impl crate::platform::OverlayWindow for FeedMockWin {
-    fn present(&mut self, _buf: &[u8]) -> Result<(), String> {
-        Ok(())
-    }
-    fn set_position(&mut self, _x: i32, _y: i32) {}
-    fn position(&self) -> (i32, i32) {
-        (60, 100)
-    }
-    fn set_click_through(&mut self, _on: bool) {}
-    fn set_topmost(&mut self, _on: bool) {}
-    fn set_visible(&mut self, visible: bool) {
-        self.log.borrow_mut().push(format!("set_visible:{visible}"));
-    }
-    fn set_size(&mut self, w: i32, h: i32) {
-        self.log.borrow_mut().push(format!("set_size:{w},{h}"));
-    }
-    fn poll_event(&mut self) -> Option<crate::platform::OverlayEvent> {
-        None
-    }
-    fn screen_size(&self) -> (i32, i32) {
-        (1920, 1080)
-    }
-}
-
-fn feed_host(log: &Rc<RefCell<Vec<String>>>) -> OverlayHost {
-    let log = Rc::clone(log);
-    OverlayHost::with_factory(Box::new(move |_cfg| {
-        Ok(Box::new(FeedMockWin {
-            log: Rc::clone(&log),
-        }) as Box<dyn crate::platform::OverlayWindow>)
-    }))
-}
-
-fn feed_fm() -> Arc<FMManager> {
-    Arc::new(FMManager::new(
-        Arc::new(vm_core::base::bus::EventBus::new()),
-    ))
-}
-
-/// 工厂初态 = initPreview 形态 (恒可见 + 空数据 — 注册期 = Java 无实例形态;
-/// 数据装载见 [`fm_unpacked_preview_session_pumps_data`] — Java 预览实例的
-/// run 线程同样在跑, 审查 B2-2); spec 尺寸 = init 几何
-/// (logicalHeight 1080/dpi 1 → scaleFactor 0.75 → 324×864, BaseOverlay.java:94-95)
-#[test]
-fn fm_unpacked_spec_preview_shape_and_render() {
-    let (h, mut spec) = fm_unpacked_data_overlay_spec(
-        std::path::Path::new("../../../fonts"),
-        1080,
-        &Rc::new(RefCell::new(ReinitParams::default())),
-        None,
-        &feed_fm(),
-    )
-    .unwrap();
-    assert_eq!(
-        (spec.id.as_str(), spec.config_key.as_str()),
-        ("enableFMPrint", "enableFMPrint")
-    );
-    assert_eq!(
-        (spec.width, spec.height),
-        (324, 864),
-        "init 几何 (round(12·36·0.75) × 12·72)"
-    );
-    {
-        let fm = h.borrow();
-        assert!(fm.visible, "preview: always visible (:113)");
-        assert!(fm.base.is_preview, "preview: isPreview=true (:110)");
-        assert_eq!(fm.base.width, 324);
-    }
-    // 空数据渲染: dataPanel 底色铺满 (非零像素), 无文本行
-    let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
-    (spec.render)(&mut cv);
-    assert!(cv.pixmap().data().iter().any(|&b| b != 0), "panel 底色");
-}
-
-/// 预览会话数据装载 (审查 B2-2 回归锚): Java needsThread=true — 预览实例同样
-/// 起 run() 线程 (OverlayManager.refreshPreview :326-331), isPreview 分支每
-/// 200ms generateLines → 预览窗显示 FM 字段行 (非空面板)。Rust 对位 = 泵不做
-/// 会话门控: preview 形态 tick 取数 → dirty → adjustPosition 高度自适应。
-#[test]
-fn fm_unpacked_preview_session_pumps_data() {
-    let log = Rc::new(RefCell::new(Vec::new()));
-    let mut host = feed_host(&log);
-    let (h, spec) = fm_unpacked_data_overlay_spec(
-        std::path::Path::new("../../../fonts"),
-        1080,
-        &Rc::new(RefCell::new(ReinitParams::default())),
-        None,
-        &feed_fm(),
-    )
-    .unwrap();
-    host.register(spec);
-    // 预览物化 (Java refreshPreview: 工厂 initPreview + 起线程)
-    host.refresh_preview().unwrap();
-    // 预览期的 FM 装载面 (Java previewInitializer 的 setBlkx(current) /
-    // reinitConfig 直读 — 事件订阅仅游戏 init, reload 不走)
-    h.borrow_mut()
-        .reinit_config(Some(Arc::new(full_fmdata())), &font(REGULAR, 14));
-    let mut feed = FmUnpackedFeed::new();
-    log.borrow_mut().clear();
-    // 泵 (无会话门控): preview 取数 → 高度自适应 resize + 拉起 (幂等可见)
-    feed.pump(&mut host, "enableFMPrint", &h, 1_000);
-    let row_h = crate::overlays::list::ZebraList::row_height(&font(REGULAR, 14));
-    let lines = h.borrow().generate_lines().len() as i32;
-    assert!(lines >= 44, "预览装载 FM 行清单 (实测 {lines})");
-    assert_eq!(
-        h.borrow().base.height,
-        lines * row_h,
-        "preview 首轮高度自适应 (非 864 初始空面板)"
-    );
-    assert!(
-        h.borrow().base.window_visible,
-        "preview isPreview 绕过可见门控"
-    );
-    // 数据稳定零冗余
-    feed.pump(&mut host, "enableFMPrint", &h, 1_300);
-    assert_eq!(log.borrow().len(), 1, "稳定期仅首帧 resize 一次");
-}
-
-/// 游戏会话全链 (Java run() 循环 + FM_OVERLAY_TOGGLE/FM_CHANGED 的组装面驱动):
-/// 隐藏起步 → FM_CHANGED 重载 + 热键切换 → tick 取数 → 高度自适应落 resize +
-/// 可见拉起 → 数据稳定零冗余调用 (脏检查/幂等守卫) → 再切换隐藏
-#[test]
-fn fm_unpacked_feed_game_flow() {
-    let log = Rc::new(RefCell::new(Vec::new()));
-    let mut host = feed_host(&log);
-    let (h, spec) = fm_unpacked_data_overlay_spec(
-        std::path::Path::new("../../../fonts"),
-        1080,
-        &Rc::new(RefCell::new(ReinitParams::default())),
-        None,
-        &feed_fm(),
-    )
-    .unwrap();
-    host.register(spec);
-    host.open_all().unwrap();
-    // 游戏形态 (渲染线程 OpenAllOverlays 处理点同款): isPreview=false + 隐藏起步
-    {
-        let mut fm = h.borrow_mut();
-        fm.base.is_preview = false;
-        fm.visible = false;
-    }
-    host.set_entry_visible("enableFMPrint", false);
-    let mut feed = FmUnpackedFeed::new();
-    log.borrow_mut().clear();
-    // ① 隐藏态 tick (else 分支): 不取数, 窗口保持隐藏, 高度不动
-    feed.pump(&mut host, "enableFMPrint", &h, 1_000);
-    assert_eq!(
-        h.borrow().base.height,
-        864,
-        "隐藏分支不取数, 高度保持 init 值"
-    );
-    assert!(log.borrow().is_empty(), "无窗口动作 (幂等守卫)");
-    // ② FM_CHANGED reload + 热键切换可见
-    h.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
-    h.borrow_mut().toggle();
-    // ③ 可见分支首 tick: 取数 → dirty → adjustPosition → resize + 拉起窗口
-    feed.pump(&mut host, "enableFMPrint", &h, 1_300);
-    let row_h = crate::overlays::list::ZebraList::row_height(&font(REGULAR, 14));
-    let lines = h.borrow().generate_lines().len() as i32;
-    assert!(lines >= 44, "全字段行数 (实测 {lines})");
-    assert_eq!(
-        h.borrow().base.height,
-        lines * row_h,
-        "高度 = 行数×行高 (adjustPosition, 未触 1040 钳制)"
-    );
-    assert_eq!(
-        *log.borrow(),
-        vec![
-            "set_visible:true".to_string(),
-            format!("set_size:324,{}", lines * row_h)
-        ],
-        "拉起 + resize 各恰一次"
-    );
-    // ④ 数据稳定: 脏检查 + 幂等 → 零窗口动作
-    feed.pump(&mut host, "enableFMPrint", &h, 1_600);
-    assert_eq!(log.borrow().len(), 2, "稳定期零冗余调用 (Issue #54 防抖)");
-    // ⑤ 再切换: 隐藏 (else 分支 setVisible(false), 幂等记录拦重复)
-    h.borrow_mut().toggle();
-    feed.pump(&mut host, "enableFMPrint", &h, 1_900);
-    assert_eq!(log.borrow().last().unwrap(), "set_visible:false");
-}
+// ---- FmUnpackedData (spec 工厂/Feed 泵测试已随 W3 组件化退役:
+// ---- 挂载面 = widgets::fm_sidecar FmListWidget 的 sidecar tick, 数据推进
+// ---- 链断言见 vm-app render_feeds; 本段保留 state 面语义测试) ----
 
 /// show* 开关实效 (engine_disables 实效测试先例): config 全关 → 仅 FM 版本行
 /// (最小面) vs 全开 (None = 默认启用) → 显著更高
-// PORT(allow): MapConfig 含 RefCell (!Sync) — 工厂签名的 Arc<dyn ConfigProvider>
+// PORT(allow): MapConfig 含 RefCell (!Sync) — init 签名的 Arc<dyn ConfigProvider>
 // 无 Send 约束 (Rc 句柄恒留本线程), 与 Java 引用共享同构
 #[test]
 #[allow(clippy::arc_with_non_send_sync)]
 fn fm_unpacked_field_switches_change_height() {
-    let fm = feed_fm();
     let row_h = crate::overlays::list::ZebraList::row_height(&font(REGULAR, 14));
     // 全关 (16 键 "false" → 仅 fmVersion 恒显行)
     let cfg_off = MapConfig::new();
@@ -2397,65 +2010,41 @@ fn fm_unpacked_field_switches_change_height() {
     ] {
         cfg_off.set(key, "false");
     }
-    let (h_off, _) = fm_unpacked_data_overlay_spec(
-        std::path::Path::new("../../../fonts"),
-        1080,
-        &Rc::new(RefCell::new(ReinitParams::default())),
-        Some(Arc::new(cfg_off)),
-        &fm,
-    )
-    .unwrap();
-    h_off
-        .borrow_mut()
-        .reload_fm_data(Some(Arc::new(full_fmdata())));
-    h_off.borrow_mut().tick();
+    let mut h_off = FmUnpackedDataOverlay::new(1080, 1.0, 12);
+    h_off.init_preview(Some(Arc::new(cfg_off)), &font(REGULAR, 14));
+    h_off.reload_fm_data(Some(Arc::new(full_fmdata())));
+    h_off.tick();
     assert_eq!(
-        h_off.borrow().base.height,
-        row_h,
+        h_off.base.height, row_h,
         "全关 = 仅 FM 版本一行的高度"
     );
     // 全开 (config None → isFieldEnabled 默认启用)
-    let (h_on, _) = fm_unpacked_data_overlay_spec(
-        std::path::Path::new("../../../fonts"),
-        1080,
-        &Rc::new(RefCell::new(ReinitParams::default())),
-        None,
-        &fm,
-    )
-    .unwrap();
-    h_on.borrow_mut()
-        .reload_fm_data(Some(Arc::new(full_fmdata())));
-    h_on.borrow_mut().tick();
+    let mut h_on = FmUnpackedDataOverlay::new(1080, 1.0, 12);
+    h_on.init_preview(None, &font(REGULAR, 14));
+    h_on.reload_fm_data(Some(Arc::new(full_fmdata())));
+    h_on.tick();
     assert!(
-        h_on.borrow().base.height > 20 * row_h,
+        h_on.base.height > 20 * row_h,
         "全开显著更高 (实测 {} vs 最小 {})",
-        h_on.borrow().base.height,
+        h_on.base.height,
         row_h
     );
 }
 
-/// reset_preview (渲染线程 CloseAllOverlays → reset_handles_preview_values 调用面):
+/// reset_preview (渲染线程 CloseAllOverlays → 组件 reset_preview 的 state 面):
 /// live 行残留 → 预览重开为空面板 (Java closeAll 销毁实例 + 预览工厂新建)
 #[test]
 fn fm_unpacked_reset_preview_clears_live_lines() {
-    let (h, mut spec) = fm_unpacked_data_overlay_spec(
-        std::path::Path::new("../../../fonts"),
-        1080,
-        &Rc::new(RefCell::new(ReinitParams::default())),
-        None,
-        &feed_fm(),
-    )
-    .unwrap();
+    let f_list = font(REGULAR, 14);
+    let mut fm = FmUnpackedDataOverlay::new(1080, 1.0, 12);
+    fm.init_preview(None, &f_list);
+    let (w0, h0) = (fm.base.width, fm.base.height.min(200));
     // live 会话残留: 游戏形态 + FM 数据 + 可见
-    {
-        let mut fm = h.borrow_mut();
-        fm.base.is_preview = false;
-        fm.visible = true;
-        fm.reload_fm_data(Some(Arc::new(full_fmdata())));
-        assert!(fm.tick(), "数据到达 (dirty)");
-    }
+    fm.base.is_preview = false;
+    fm.visible = true;
+    fm.reload_fm_data(Some(Arc::new(full_fmdata())));
+    assert!(fm.tick(), "数据到达 (dirty)");
     // 行内容入画: 文本带存在白色墨迹 (斑马行白字)
-    let (w0, h0) = (spec.width, spec.height.min(200));
     let has_ink = |c: &PixCanvas| {
         c.pixmap()
             .data()
@@ -2463,47 +2052,12 @@ fn fm_unpacked_reset_preview_clears_live_lines() {
             .any(|p| p[3] > 200 && p[0] > 200 && p[1] > 200 && p[2] > 200)
     };
     let mut cv = PixCanvas::new(w0, h0).unwrap();
-    (spec.render)(&mut cv);
+    fm.render(&mut cv, &f_list, aa());
     assert!(has_ink(&cv), "live 行文本墨迹");
     // 重置: 可见/预览态/lastData 清空 → 空面板
-    h.borrow_mut().reset_preview();
-    {
-        let fm = h.borrow();
-        assert!(fm.visible && fm.base.is_preview, "preview 形态");
-    }
+    fm.reset_preview();
+    assert!(fm.visible && fm.base.is_preview, "preview 形态");
     let mut cv2 = PixCanvas::new(w0, h0).unwrap();
-    (spec.render)(&mut cv2);
+    fm.render(&mut cv2, &f_list, aa());
     assert!(!has_ink(&cv2), "重置后无文本行 (Java 新实例空面板)");
-}
-
-/// reinit 闭包 (Java reinitConfig): setBlkx(FMManager.current().blkx) — 未就绪
-/// 句柄 blkx=None → 清空 (占位容忍); 返回 None (无 setBounds, 高度待下次数据
-/// 变更自纠); 清指纹后 render 通道可用
-#[test]
-fn fm_unpacked_reinit_clears_fmdata_and_keeps_render() {
-    let (h, mut spec) = fm_unpacked_data_overlay_spec(
-        std::path::Path::new("../../../fonts"),
-        1080,
-        &Rc::new(RefCell::new(ReinitParams::default())),
-        None,
-        &feed_fm(),
-    )
-    .unwrap();
-    h.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
-    assert!(h.borrow().generate_lines().len() >= 44, "重载后有数据");
-    assert!(
-        (spec.reinit.as_mut().unwrap())().is_none(),
-        "reinitConfig 无 setBounds (Java 同 — 返回 None 仅清指纹)"
-    );
-    assert_eq!(
-        h.borrow().generate_lines(),
-        vec![
-            "FM Data Preview".to_string(),
-            "[No Data Loaded]".to_string()
-        ],
-        "setBlkx(current=None) 清空 → 占位清单"
-    );
-    let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
-    (spec.render)(&mut cv);
-    assert!(cv.pixmap().data().iter().any(|&b| b != 0));
 }

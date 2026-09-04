@@ -20,28 +20,15 @@ use vm_core::base::event::flight_data_event::FlightDataEvent;
 use vm_core::base::event::ui_state_events;
 use vm_core::base::java_compat::{current_time_millis, java_parse_boolean};
 use vm_core::base::logger;
-use vm_core::config::config_api::{ConfigProvider, HudSettingsSnapshot};
+use vm_core::config::config_api::HudSettingsSnapshot;
 use vm_core::derived::hud_calculator::HudColors;
 use vm_core::fm::{FMHandle, FMManager};
-use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口 (W10 后 TelemetrySource 已删)
+use vm_core::formula::registry::FormulaView; // var_value 取数唯一接口 (W10 后 TelemetrySource 已删)
 use vm_core::lang::Lang;
 
-use vm_overlay::overlays::attitude::{attitude_overlay_spec, AttitudeOverlayHandle};
-use vm_overlay::overlays::control_surfaces::{
-    control_surfaces_overlay_spec, ControlSurfacesHandle,
-};
-use vm_overlay::overlays::draw_frame_simpl::{
-    draw_frame_simpl_spec, DfsFlight, DrawFrameSimplFeed, DrawFrameSimplHandle,
-};
-use vm_overlay::overlays::engine_control::{engine_control_overlay_spec, EngineControlHandle};
-use vm_overlay::overlays::flight_info::{flight_info_overlay_spec, FlightInfoHandle};
-use vm_overlay::overlays::fm_unpacked::{
-    fm_unpacked_data_overlay_spec, FmUnpackedDataHandle, FmUnpackedFeed,
-};
-use vm_overlay::overlays::gear_flaps::{gear_flaps_overlay_spec, GearFlapsHandle};
 use vm_overlay::overlays::minihud::{minihud_overlay_spec, MiniHudHandle};
-use vm_overlay::overlays::power_info::{power_info_overlay_spec, PowerInfoHandle};
 use vm_overlay::platform::host::{OverlayHost, OverlaySpec};
+use vm_overlay::widgets::{page_font_size, page_overlay_spec, PageHandle, PageSpecParams};
 use vm_overlay::platform::hotkey::HotkeyEvent;
 
 #[cfg(target_os = "windows")]
@@ -53,8 +40,7 @@ use crate::env::Env;
 use crate::keys::{FM_UNPACKED_INTEREST_KEYS, MINIHUD_INTEREST_KEYS, OVERLAY_SECTIONS};
 use crate::overlay_inputs::{ActivationCache, OverlayInputs};
 use crate::voice_setup::{
-    open_voice_warning, voice_warn_refresh_reaches, ConfigSnapshots, SnapshotConfigProvider,
-    VoiceWarnSession,
+    open_voice_warning, voice_warn_refresh_reaches, ConfigSnapshots, VoiceWarnSession,
 };
 
 /// 渲染线程装配输入 (全部 Send; 配置以快照形态入线程, 见模块头)
@@ -84,24 +70,9 @@ pub struct RenderThreadConfig {
 pub(crate) struct OverlayHandles {
     /// MiniHUD live 喂入口 (对位 Java onFlightData 的 UI 线程单线程派发面)
     pub(crate) minihud: Option<MiniHudHandle>,
-    /// 动力信息 (Java PowerInfoOverlay.onFlightData 50ms 节流)
-    pub(crate) power_info: Option<PowerInfoHandle>,
-    /// 引擎控制 (Java EngineControlOverlay.onFlightData, 间隔配置驱动 ×2)
-    pub(crate) engine_control: Option<EngineControlHandle>,
-    /// 起落襟翼 (Java GearFlapsOverlay.onFlightData 100ms 节流)
-    pub(crate) gear_flaps: Option<GearFlapsHandle>,
-    /// 地平仪 (Java AttitudeOverlay.drawTick, freqMili 节流归喂入侧)
-    pub(crate) attitude: Option<AttitudeOverlayHandle>,
-    /// 操纵面 (Java ControlSurfacesOverlay.onFlightData 50ms 节流)
-    pub(crate) control_surfaces: Option<ControlSurfacesHandle>,
-    /// 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行; POC 专径收编批接入)
-    pub(crate) flight_info: Option<FlightInfoHandle>,
-    /// FM拆包数据 (Java FMUnpackedDataOverlay: FM_CHANGED 重载 + 热键切换自管可见;
-    /// 无 FlightDataBus 订阅 — 不进 feed_overlays_live, 事件面在渲染线程循环驱动)
-    pub(crate) fm_unpacked: Option<FmUnpackedDataHandle>,
-    /// 推力曲线 (Java DrawFrameSimpl: FM_CHANGED 重载 (两会话) + 热键切换自管可见
-    /// (仅游戏); run 循环含 displayFmKey==0 收腿退场 — DrawFrameSimplFeed 驱动)
-    pub(crate) draw_frame_simpl: Option<DrawFrameSimplHandle>,
+    /// W3 通用页面 (doc_id → 编排器句柄; 喂数经 UpdateEnv 统一分发,
+    /// FM 黑盒页的数据面走 WidgetSidecar)
+    pub(crate) pages: Vec<(String, PageHandle)>,
 }
 
 /// CloseAllOverlays 时数据面回 preview 静态初值 (渲染线程命令处理点调用)。
@@ -116,23 +87,12 @@ pub(crate) struct OverlayHandles {
 /// 推力曲线同族 (reset_preview: visible=true / is_preview=true — Java closeAll
 /// 销毁 + 预览工厂新建 initPreview 恒可见)。
 pub(crate) fn reset_handles_preview_values(handles: &OverlayHandles) {
-    if let Some(h) = handles.power_info.as_ref() {
-        h.borrow_mut().reset_preview();
-    }
-    if let Some(h) = handles.flight_info.as_ref() {
-        h.borrow_mut().reset_preview_rows();
-    }
-    if let Some(h) = handles.control_surfaces.as_ref() {
-        h.borrow_mut().reset_preview();
-    }
-    if let Some(h) = handles.attitude.as_ref() {
-        h.borrow_mut().reset_preview();
-    }
-    if let Some(h) = handles.fm_unpacked.as_ref() {
-        h.borrow_mut().reset_preview();
-    }
-    if let Some(h) = handles.draw_frame_simpl.as_ref() {
-        h.borrow_mut().reset_preview();
+    // W3 页面: 组件级 preview 复位 (trait reset_preview, 有状态组件覆写)
+    for (_, page) in &handles.pages {
+        let p = page.borrow_mut();
+        for cell in p.cells.values() {
+            cell.reset_preview();
+        }
     }
 }
 
@@ -244,13 +204,13 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
 /// 注册键 10/10 落位 (P6 收口 + 人工验收补口 + enableFMPrint/thrustdFS):
 /// - 窗口条目 9 = keys.rs [`OVERLAY_SECTIONS`] 的 8 键 (本函数逐键注册; 位置组
 ///   映射/main.rs 冒烟断言集同源该表, 新增窗口条目只改 keys.rs 一处) +
-///   thrustdFS (DrawFrameSimpl — vm-overlay draw_frame_simpl.rs: 激活策略
+///   thrustdFS (DrawFrameSimpl — thrust-chart 页组件 fm.thrust_chart: 激活策略
 ///   config("enableFMPrint").and(jetOnly) 经 [`strategy_for`] 实际生效,
 ///   固定几何 (0, screenH-500, 900, 500) 经 host set_entry_fixed_pos,
-///   run 循环 (自管可见性 + displayFmKey==0 收腿退场) 经 DrawFrameSimplFeed)。
-/// - 特注 enableFMPrint (FMUnpackedData, 8 键之一) — P5 组装契约三点销号:
-///   动态窗口高经 FmUnpackedFeed pump 落 resize_entry, 逐条目可见性经 host
-///   set_entry_visible, spec 工厂 vm-overlay fm_unpacked_data_overlay_spec。
+///   run 循环 (自管可见性 + displayFmKey==0 收腿退场) 经 sidecar tick)。
+/// - 特注 enableFMPrint (FMUnpackedData, 8 键之一) — 动态窗口高/逐条目可见性
+///   经 fm.list 组件 sidecar tick 的动作返回值落 host (resize_entry/
+///   set_entry_visible)。
 /// - 非窗口 1 (键在激活缓存 ACTIVATION_KEYS / strategy_for 留有映射, 不建窗口):
 ///   - enableVoiceWarn: VoiceWarning 为线程形态非窗口 — 装配在 OpenAllOverlays/
 ///     CloseAllOverlays 命令处理点 ([`open_voice_warning`]/VoiceWarnSession,
@@ -269,27 +229,8 @@ pub(crate) fn register_live_overlays(
         params,
         lang,
         shared,
-        fm,
-        fm_field_config,
     } = setup;
     let fonts = &env.fonts_dir;
-    // 引擎控制 (键 enableEngineControl); dataPollIntervalMs 经
-    // loadRefreshInterval ×2 → refreshInterval (preview 工厂传不了此参恒默认 100)
-    handles.engine_control = register_one(
-        host,
-        shared,
-        "引擎控制",
-        &["disableEngineInfo", "fontSize"],
-        || engine_control_overlay_spec(fonts, Rc::clone(lang), params),
-    );
-    // 动力信息 (键 engineInfoSwitch)
-    handles.power_info = register_one(
-        host,
-        shared,
-        "动力信息",
-        &["fontName", "fontSize", "hudColumns", "S."],
-        || power_info_overlay_spec(fonts, params),
-    );
     // MiniHUD (键 crosshairSwitch; HUDSettings 经快照)
     // service_present=false (注册时 Service 尚未建; 该标志影响 preview 行为集,
     // live 重接线批次随 spec 工厂参数化回收)
@@ -303,74 +244,245 @@ pub(crate) fn register_live_overlays(
             params,
         )
     });
-    // 飞行信息 (键 flightInfoSwitch) — POC window.rs 专径收编
-    // (渲染栈复用 fields/layout/render 对拍三件套, 见 vm-overlay flight_info.rs)
-    handles.flight_info = register_one(
-        host,
-        shared,
-        "飞行信息",
-        &["flightInfo", "fontSize", "disableFlightInfo"],
-        || flight_info_overlay_spec(fonts, params),
-    );
-    // 起落襟翼 (键 enablegearAndFlaps)
-    handles.gear_flaps = register_one(
-        host,
-        shared,
-        "起落襟翼",
-        &["enablegearAndFlapsEdge", "fontSize"],
-        || gear_flaps_overlay_spec(fonts, params),
-    );
-    // 操纵面 (键 enableAxis) — 本批补齐 (批十四 A-W5 备案收口)
-    handles.control_surfaces = register_one(
-        host,
-        shared,
-        "操纵面",
-        &["enableAxisEdge", "fontSize"],
-        || control_surfaces_overlay_spec(fonts, params),
-    );
-    // 地平仪 (键 enableAttitudeIndicator) — 本批补齐 (同上)
-    handles.attitude = register_one(
-        host,
-        shared,
-        "地平仪",
-        &["attitudeIndicator", "enableAttitudeIndicator"],
-        || attitude_overlay_spec(params),
-    );
-    // FM拆包数据 (键 enableFMPrint, previewEnabled=true) — 本批补齐
-    // (P5 组装契约三点销号; 事件面/tick 泵在渲染线程循环驱动, 见 render_thread_main)
-    handles.fm_unpacked = register_one(
-        host,
-        shared,
-        "FM拆包数据",
-        &FM_UNPACKED_INTEREST_KEYS,
-        || {
-            fm_unpacked_data_overlay_spec(
-                fonts,
-                env.dpi.get_logical_screen_height(),
-                params,
-                // 原 FmFieldConfigSnapshot (FM show* 快照) — SnapshotConfigProvider 三合一
-                Some(
-                    Arc::new(SnapshotConfigProvider::new(Arc::clone(fm_field_config)))
-                        as Arc<dyn ConfigProvider>,
-                ),
-                fm,
-            )
-        },
-    );
-    // 推力曲线 (Java registerWithStrategy("thrustdFS"), 键 =
-    // enableFMPrint && jetOnly, previewEnabled=true/needsThread) — 本批补齐
-    // (D8 降级清单 P6 尾巴收口; 事件面/run 泵在渲染线程循环驱动)。
-    // 无 with_interest 追加键 (键集为空, Java 同); 固定几何在注册成功后落
-    handles.draw_frame_simpl = register_one(host, shared, "推力曲线", &[], || {
-        draw_frame_simpl_spec(fonts, fm)
-    });
-    // Java init/initPreview 的 setBounds(0, screenH-500, 900, 500) — 每次
-    // 实例化固定几何 (thrustdFSX/Y 只写不读, 不参与定位)。
-    // Java Toolkit.getScreenSize() 在生产 JVM 标志 -Dsun.java2d.
-    // uiScale=1 下与 DPIHelper 逻辑高同值 (恒等), 取逻辑高
-    if handles.draw_frame_simpl.is_some() {
+    // W3 通用页 (flight/power/engine/gear/axis/attitude + fm 两页 sidecar)
+    for doc in inputs.pages.iter().filter(|d| is_paged_overlay(&d.id)) {
+        if let Some(handle) = register_one(host, shared, &doc.name, page_interest_keys(&doc.id), || {
+            page_overlay_spec(assemble_page_spec(doc.clone(), env, lang, params))
+        }) {
+            handles.pages.push((doc.id.clone(), handle));
+        }
+    }
+    // FM 两页 (fm-list/thrust-chart) 已并入上方 pages 循环 (sidecar 数据面
+    // 在渲染节拍块驱动 — FM_OVERLAY_TOGGLE/FM_CHANGED 事件脉冲 + tick)
+    // 推力曲线固定几何: setBounds(0, screenH-500, 900, 500) 每次实例化恒定
+    if handles.pages.iter().any(|(id, _)| id == "thrust-chart-default") {
         host.set_entry_fixed_pos("thrustdFS", 0, env.dpi.get_logical_screen_height() - 500);
     }
+}
+
+/// W3 走通用页面编排的出厂页 (fm 两页 sidecar 接线后并入)
+fn is_paged_overlay(id: &str) -> bool {
+    matches!(
+        id,
+        "flight-info-default"
+            | "power-info-default"
+            | "engine-control-default"
+            | "gear-flaps-default"
+            | "axis-default"
+            | "attitude-default"
+            | "fm-list-default"
+            | "thrust-chart-default"
+    )
+}
+
+/// per-page WYSIWYG 兴趣键 (对位原 with_interest 键集)
+fn page_interest_keys(id: &str) -> &'static [&'static str] {
+    match id {
+        "flight-info-default" => &["flightInfo", "fontSize", "disableFlightInfo"],
+        "power-info-default" => &["fontName", "fontSize", "hudColumns", "S."],
+        "engine-control-default" => &["disableEngineInfo", "fontSize"],
+        "gear-flaps-default" => &["enablegearAndFlapsEdge", "fontSize"],
+        "axis-default" => &["enableAxisEdge", "fontSize"],
+        "attitude-default" => &["attitudeIndicator", "enableAttitudeIndicator"],
+        "fm-list-default" => &FM_UNPACKED_INTEREST_KEYS,
+        // thrustdFS 无追加键 (Java 同; 激活策略 = config(enableFMPrint)∧jetOnly)
+        "thrust-chart-default" => &[],
+        _ => &[],
+    }
+}
+
+/// PageSpecParams 组装 (per-page 参数差异的集中点; refresh 闭包重取参数仓)
+fn assemble_page_spec(
+    doc: vm_core::config::json_model::PageDoc,
+    env: &crate::env::Env,
+    lang: &Rc<Lang>,
+    params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
+) -> PageSpecParams {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    // 参数仓快照 (per-page 分差)
+    let p = params.borrow();
+    let dpi = env.dpi.get_scale();
+    let gauge = vm_overlay::widgets::GaugeCfg {
+        dpi_scale: dpi,
+        service_loop_interval_ms: p.service_loop_interval_ms,
+        engine_font_add: p.engine.font_add,
+        gear: (p.gear.font_add, p.gear.show_edge),
+        axis: (p.axis.font_add, p.axis.show_edge),
+        attitude: (
+            p.attitude.width,
+            p.attitude.height,
+            p.attitude.show_direction,
+            p.attitude.show_aoa_limits,
+        ),
+        attitude_freq_ms: p.attitude_freq_ms,
+        fm_font_add: p.fm.font_add,
+        logical_height: env.dpi.get_logical_screen_height(),
+    };
+    let (font_size, fields_cfg, mut rows, engine_disables) = match doc.id.as_str() {
+        "flight-info-default" => (
+            24,
+            Some((p.flight.font_add, p.flight.columns)),
+            Some(Arc::clone(&p.flight.rows)),
+            None,
+        ),
+        "power-info-default" => (
+            24,
+            Some((p.power.font_add, p.power.columns)),
+            Some(Arc::clone(&p.power.rows)),
+            None,
+        ),
+        "engine-control-default" => (
+            page_font_size(24, p.engine.font_add, dpi),
+            None,
+            None,
+            Some(p.engine.disables),
+        ),
+        "gear-flaps-default" => (
+            page_font_size(24, p.gear.font_add, dpi),
+            None,
+            None,
+            None,
+        ),
+        "axis-default" => (
+            page_font_size(24, p.axis.font_add, dpi),
+            None,
+            None,
+            None,
+        ),
+        "fm-list-default" | "thrust-chart-default" => (24, None, None, None),
+        // 地平仪: 矢量绘制, 页面字体仅占位
+        _ => (24, None, None, None),
+    };
+    let hud = p.hud.clone();
+    drop(p);
+
+    // fields.grid 行源表 ("飞行信息"/"动力信息" 两键)
+    let mut row_map: HashMap<String, Arc<Vec<vm_core::ui_support::row_def::RowDef>>> =
+        HashMap::new();
+    if let Some(arc) = rows.take() {
+        let key = match doc.id.as_str() {
+            "flight-info-default" => "飞行信息",
+            "power-info-default" => "动力信息",
+            _ => unreachable!(),
+        };
+        row_map.insert(key.to_string(), arc);
+    }
+
+    // refresh 闭包: 重取参数仓 (reinit 语义 — CONFIG_CHANGED 后 ReinitOverlays 覆写)
+    let refresh_params = Rc::clone(params);
+    let refresh_env_dpi = env.dpi.get_scale();
+    let refresh_doc = doc.clone();
+    let refresh_lang = (**lang).clone();
+    let refresh: Box<dyn Fn() -> PageSpecParams> = Box::new(move || {
+        let p = refresh_params.borrow();
+        let (fs, fc, mut rw, ed) = match refresh_doc.id.as_str() {
+            "flight-info-default" => (
+                24,
+                Some((p.flight.font_add, p.flight.columns)),
+                Some(Arc::clone(&p.flight.rows)),
+                None,
+            ),
+            "power-info-default" => (
+                24,
+                Some((p.power.font_add, p.power.columns)),
+                Some(Arc::clone(&p.power.rows)),
+                None,
+            ),
+            "engine-control-default" => (
+                page_font_size(24, p.engine.font_add, refresh_env_dpi),
+                None,
+                None,
+                Some(p.engine.disables),
+            ),
+            "gear-flaps-default" => (
+                page_font_size(24, p.gear.font_add, refresh_env_dpi),
+                None,
+                None,
+                None,
+            ),
+            "axis-default" => (
+                page_font_size(24, p.axis.font_add, refresh_env_dpi),
+                None,
+                None,
+                None,
+            ),
+            _ => (24, None, None, None),
+        };
+        let hud = p.hud.clone();
+        drop(p);
+        let mut rm: HashMap<String, Arc<Vec<vm_core::ui_support::row_def::RowDef>>> =
+            HashMap::new();
+        if let Some(arc) = rw.take() {
+            let key = match refresh_doc.id.as_str() {
+                "flight-info-default" => "飞行信息",
+                "power-info-default" => "动力信息",
+                _ => unreachable!(),
+            };
+            rm.insert(key.to_string(), arc);
+        }
+        PageSpecParams {
+            entry_key: refresh_doc.entry_key.clone(),
+            gauge_cfg: refresh_gauge(&refresh_params, refresh_env_dpi),
+            doc: refresh_doc.clone(),
+            font_path: refresh_font_path(&refresh_doc),
+            font_size: fs,
+            rows: rm,
+            engine_disables: ed.unwrap_or([false; 7]),
+            lang: refresh_lang.clone(),
+            settings: hud,
+            debug: false,
+            fields_cfg: fc,
+            refresh: Box::new(|| unreachable!("refresh 的 refresh 不可达")),
+        }
+    });
+
+    PageSpecParams {
+        entry_key: doc.entry_key.clone(),
+        gauge_cfg: gauge,
+        doc,
+        font_path: env.fonts_dir.join("sarasa-mono-sc-bold.ttf"),
+        font_size,
+        rows: row_map,
+        engine_disables: engine_disables.unwrap_or([false; 7]),
+        lang: (**lang).clone(),
+        settings: hud,
+        debug: false,
+        fields_cfg,
+        refresh,
+    }
+}
+
+/// refresh 闭包的 GaugeCfg 重取 (参数仓 + dpi 快照)
+fn refresh_gauge(
+    params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
+    dpi: f64,
+) -> vm_overlay::widgets::GaugeCfg {
+    let p = params.borrow();
+    vm_overlay::widgets::GaugeCfg {
+        dpi_scale: dpi,
+        service_loop_interval_ms: p.service_loop_interval_ms,
+        engine_font_add: p.engine.font_add,
+        gear: (p.gear.font_add, p.gear.show_edge),
+        axis: (p.axis.font_add, p.axis.show_edge),
+        attitude: (
+            p.attitude.width,
+            p.attitude.height,
+            p.attitude.show_direction,
+            p.attitude.show_aoa_limits,
+        ),
+        attitude_freq_ms: p.attitude_freq_ms,
+        fm_font_add: p.fm.font_add,
+        logical_height: 1080,
+    }
+}
+
+/// refresh 闭包的字体路径 (捕获 env 不可 Clone 的 PathBuf 重取)
+fn refresh_font_path(_doc: &vm_core::config::json_model::PageDoc) -> std::path::PathBuf {
+    crate::env::Env::probe(&Lang::init_lang(), false)
+        .fonts_dir
+        .join("sarasa-mono-sc-bold.ttf")
 }
 
 /// [`register_live_overlays`] 的装配上下文 (原 9 参收敛的参数包, 对位 Java
@@ -383,10 +495,6 @@ pub(crate) struct OverlayRegSetup<'a> {
     pub(crate) params: &'a Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
     pub(crate) lang: &'a Rc<Lang>,
     pub(crate) shared: &'a ControllerShared,
-    /// FM拆包数据: reinit 闭包的 blkx 直读源 (Java FMManager.getInstance())
-    pub(crate) fm: &'a Arc<FMManager>,
-    /// FM show* 配置键快照 (generate_lines 逐 tick 读面, 配置 !Send 的跨线程桥)
-    pub(crate) fm_field_config: &'a Arc<Mutex<HashMap<String, String>>>,
 }
 
 /// 单条窗口 overlay 的注册样板收敛 (原 9 段同构 match 的公共面):
@@ -448,12 +556,6 @@ fn drain_latest<T>(rx: &Receiver<T>) -> Option<T> {
     Some(latest)
 }
 
-/// 地平仪喂入节流状态 (Java AttitudeOverlay 的 freqMili + freqCheckMili 双参;
-/// update_telemetry 无节流闩 — 组件头注 "40ms 节流在 onFlightData 组装层")
-pub(crate) struct AttitudeFeedState {
-    pub(crate) freq_ms: i64,
-    pub(crate) last_ms: i64,
-}
 
 /// 全部窗口 overlay 的 live 喂入 (Java 各 overlay init(S) 时自订 FlightDataBus 的
 /// 单点对位; Rust 订阅生命周期由 OpenAllOverlays/CloseAllOverlays 承载, 本函数在
@@ -489,7 +591,6 @@ pub(crate) fn feed_overlays_live(
     fm: &FMManager,
     settings: &HudSettingsSnapshot,
     lang: &Lang,
-    attitude_feed: &mut AttitudeFeedState,
 ) {
     // preview 门控 (见函数头注 PORT(preview 门控))
     if shared.overlay_ctx_preview.load(Ordering::SeqCst) {
@@ -530,57 +631,23 @@ pub(crate) fn feed_overlays_live(
                 &colors,
             );
         }
-        // 2. 动力信息 (Java FieldOverlay.onFlightData 50ms 节流闩内置)
-        if let Some(h) = handles.power_info.as_ref() {
-            h.borrow_mut().update(now, &*frame);
-        }
-        // 3. 引擎控制 (节流闩 = refreshInterval 配置驱动; compressorStages 档位数 =
-        //    Java FMManager.current().compressorStages, 非 READY/喷气机 → None)
-        if let Some(h) = handles.engine_control.as_ref() {
-            let stages = fm_handle.compressor_stages.as_ref().map(|v| v.len() as i32);
-            h.borrow_mut().update(now, &*frame, payload, stages);
-        }
-        // 4. 起落襟翼 (100ms 节流闩内置)
-        if let Some(h) = handles.gear_flaps.as_ref() {
-            h.borrow_mut().update_tick(now, lang, &*frame);
-        }
-        // 5. 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行更新, 无节流 —
-        //    host 50ms 渲染节拍 + 像素指纹兜底; W2: 数据 = TelemetrySource 散字段)
-        if let Some(h) = handles.flight_info.as_ref() {
-            h.borrow_mut().update(&*frame);
-        }
-        // 6. 操纵面 (50ms 节流内置; has_service = Java init(S) 的 xs!=null 数据门控,
-        //    单实例形态下由喂入点随游戏窗口形态置位 — 见工厂头注 PORT(数据门控))
-        if let Some(h) = handles.control_surfaces.as_ref() {
-            let mut cs = h.borrow_mut();
-            cs.has_service = true;
-            // W7: var_value 桥取值 (getter 实现已消解)
-            cs.on_flight_data(
-                now,
-                frame.var_value("aileron").unwrap_or(0.0),
-                frame.var_value("elevator").unwrap_or(0.0),
-                frame.var_value("rudder").unwrap_or(0.0),
-                frame.var_value("wing_sweep").unwrap_or(0.0),
-                frame.var_value("wing_sweep_valid").unwrap_or(0.0) != 0.0,
-            );
-        }
-        // 7. 地平仪 (节流 = freqMili 40ms 配置驱动, 喂入侧承载;
-        //    aoa_limits = blkx.NoFlapsWing.AoACritHigh/Low, 无 FM → None 不显示)
-        if let Some(h) = handles.attitude.as_ref() {
-            if now - attitude_feed.last_ms > attitude_feed.freq_ms {
-                attitude_feed.last_ms = now;
-                let aoa_limits = fmdata
-                    .and_then(|b| b.no_flaps_wing.as_ref())
-                    .map(|w| (w.aoa_crit_high, w.aoa_crit_low));
-                h.borrow_mut().update_telemetry(
-                    frame.var_value("aoa").unwrap_or(0.0),
-                    frame.var_value("aos").unwrap_or(0.0),
-                    frame.var_value("aviahorizon_pitch").unwrap_or(0.0),
-                    frame.var_value("aviahorizon_roll").unwrap_or(0.0),
-                    frame.var_value("compass").unwrap_or(0.0),
-                    aoa_limits,
-                );
-            }
+        // 2. W3 通用页 (six pages): UpdateEnv 统一组装 → 组件自取
+        //    (节流闩在组件内; preview 门控已在函数头拦截)
+        let empty_data = vm_core::derived::hud_data::HUDData::empty();
+        let env = vm_overlay::widgets::UpdateEnv {
+            data: &empty_data, // HUDData 是 minihud 页派生, 通用页不消费
+            frame: Some(&*frame),
+            fmdata,
+            payload: Some(payload),
+            // compressorStages 档位数 = Java FMManager.current().compressorStages
+            compressor_stages: fm_handle.compressor_stages.as_ref().map(|v| v.len() as i32),
+            now_ms: now,
+            maneuver_len: 0,
+            maneuver_ticks: Default::default(),
+            lang: Some(lang),
+        };
+        for (_, page) in &handles.pages {
+            page.borrow_mut().feed(&env);
         }
     }));
     if result.is_err() {
@@ -652,88 +719,97 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                     &session.fm,
                     &session.hud_settings,
                     &session.lang,
-                    &mut session.attitude_feed,
                 );
             }
-            // FMUnpackedData 事件面 + run 泵 (Java: 游戏实例订阅 toggle/FM_CHANGED —
-            // initPreview 不订阅, 保持 fm_live 门控; run 线程 needsThread=true 两会话
-            // 均在跑 (OverlayManager.refreshPreview :326-331, 审查 B2-2 修正 — 原
-            // "预览实例无 run 线程" 为假前提), 泵不再门控, 仅条目未激活 (Java 无
-            // 实例 = host 槽位空) 时跳过。事件恒排空防积压跨会话误触发)
+            // FM 事件面 (恒排空防积压跨会话误触发) → 脉冲收集,
+            // 由 sidecar tick 在本节拍内消费 (W3C: 组件自管数据面)
             let fm_live = !session.shared.overlay_ctx_preview.load(Ordering::SeqCst);
+            let mut toggle_pulse = false;
             while session.fm_toggle_rx.try_recv().is_ok() {
-                if fm_live {
-                    if let Some(h) = session.handles.fm_unpacked.as_ref() {
-                        h.borrow_mut().toggle(); // FM_OVERLAY_TOGGLE handler
-                    }
-                    // DrawFrameSimpl toggle handler (仅游戏 init 挂接 —
-                    // Java 双订阅方之二)
-                    if let Some(h) = session.handles.draw_frame_simpl.as_ref() {
-                        h.borrow_mut().toggle();
-                    }
-                }
+                toggle_pulse = true;
             }
+            let mut fm_changed: Option<Arc<vm_core::fm::data::FmData>> = None;
             while let Ok(fmdata) = session.fm_data_rx.try_recv() {
                 if fm_live {
-                    if let Some(h) = session.handles.fm_unpacked.as_ref() {
-                        // FM_CHANGED handler reloadFMData (:130-136)
-                        h.borrow_mut().reload_fm_data(fmdata.clone().map(Arc::new));
+                    fm_changed = fmdata.map(Arc::new);
+                }
+            }
+            if toggle_pulse
+                || fm_changed.is_some()
+                || session.host.is_active("enableFMPrint")
+                || session.host.is_active("thrustdFS")
+            {
+                let display_fm_key = session
+                    .shared
+                    .flags
+                    .lock()
+                    .expect("flags 锁中毒")
+                    .current_fm_hotkey_code;
+                let live_frame = session
+                    .shared
+                    .live
+                    .read()
+                    .expect("live 锁中毒")
+                    .as_ref()
+                    .and_then(|frames| frames.latest());
+                let now_ms = current_time_millis();
+                let fm_field = session.fm_field_snapshot.clone();
+                for (page_id, page) in &session.handles.pages {
+                    if !matches!(page_id.as_str(), "fm-list-default" | "thrust-chart-default") {
+                        continue;
+                    }
+                    let entry = if page_id == "fm-list-default" {
+                        "enableFMPrint"
+                    } else {
+                        "thrustdFS"
+                    };
+                    if !session.host.is_active(entry) {
+                        continue; // 条目未激活 (Java 无实例 = host 槽位空)
+                    }
+                    let fm_field_ref = &fm_field;
+                    let mut sctx = vm_overlay::widgets::SidecarCtx {
+                        now_ms,
+                        page_id,
+                        fm: &session.fm,
+                        fm_field_config: &move |k: &str| -> Option<String> {
+                            fm_field_ref
+                                .lock()
+                                .ok()
+                                .and_then(|m| m.get(k).cloned())
+                        },
+                        display_fm_key,
+                        frame: live_frame.as_deref().map(|f| f as &dyn FormulaView),
+                        is_jet: false, // jetOnly 策略由 host 激活探测承载
+                        toggle_pulse,
+                        game_mode_pulse: session.fm_game_mode_pending,
+                        fm_changed: fm_changed.clone(),
+                    };
+                    let action = {
+                        let page_ref = page.borrow();
+                        let Some(cell) = page_ref.cells.values().next() else {
+                            continue;
+                        };
+                        let Some(mut sc) = cell.sidecar() else { continue };
+                        sc.tick(&mut sctx)
+                    };
+                    match action {
+                        vm_overlay::widgets::SidecarAction::None => {}
+                        vm_overlay::widgets::SidecarAction::Resize(w, h) => {
+                            let _ = session.host.resize_entry(entry, w, h);
+                        }
+                        vm_overlay::widgets::SidecarAction::SetVisible(v) => {
+                            session.host.set_entry_visible(entry, v);
+                        }
+                        vm_overlay::widgets::SidecarAction::SetVisibleResize(v, w, h) => {
+                            session.host.set_entry_visible(entry, v);
+                            let _ = session.host.resize_entry(entry, w, h);
+                        }
+                        vm_overlay::widgets::SidecarAction::Close => {
+                            let _ = session.host.close(entry);
+                        }
                     }
                 }
-                // DrawFrameSimpl 的 FM_CHANGED (Java initFmHandleCache :79-88 被
-                // init 与 initPreview 共用) — 两会话均刷新缓存 (预览实例同样订阅,
-                // repaint 由渲染节拍脏检查承接)
-                if let Some(h) = session.handles.draw_frame_simpl.as_ref() {
-                    h.borrow_mut().reload_fm(fmdata.map(Arc::new));
-                }
-            }
-            if session.host.is_active("enableFMPrint") {
-                if let Some(h) = session.handles.fm_unpacked.as_ref() {
-                    session.fm_unpacked_feed.pump(
-                        &mut session.host,
-                        "enableFMPrint",
-                        h,
-                        current_time_millis(),
-                    );
-                }
-            }
-            // DrawFrameSimpl run 泵: displayFmKey = Application.displayFmKey 的
-            // ControllerShared.flags 对位 (bind/handleFmHotkeyConfigChange 同步);
-            // flight = live Service 快照 (None = 预览无 Service — Java NPE 杀线程
-            // 的对位为冻结判定, 见 pump 头注)
-            if session.host.is_active("thrustdFS") {
-                if let Some(h) = session.handles.draw_frame_simpl.as_ref() {
-                    let display_fm_key = session
-                        .shared
-                        .flags
-                        .lock()
-                        .expect("flags 锁中毒")
-                        .current_fm_hotkey_code;
-                    let flight = session
-                        .shared
-                        .live
-                        .read()
-                        .expect("live 锁中毒")
-                        .as_ref()
-                        .and_then(|frames| frames.latest())
-                        .map(|f| {
-                            // Java sState 恒非 null (Service 构造即建) — None 轮按
-                            // 缺省 0 (同 Java State 字段初值)
-                            DfsFlight {
-                                gear: f.s_state.as_ref().map(|s| s.gear).unwrap_or(0),
-                                speedv: f.var_value("speedv").unwrap_or(0.0),
-                                throttle: f.s_state.as_ref().map(|s| s.throttle).unwrap_or(0),
-                            }
-                        });
-                    session.dfs_feed.pump(
-                        &mut session.host,
-                        "thrustdFS",
-                        h,
-                        current_time_millis(),
-                        display_fm_key,
-                        flight,
-                    );
-                }
+                session.fm_game_mode_pending = false;
             }
         }
         // UI 命令 (生命周期/WYSIWYG 的渲染线程属主面; 重分支见 RenderSession::on_*)
@@ -804,18 +880,16 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
 /// 分支注; 依赖段 (Arc 克隆/接收端) 无 Drop 契约。
 struct RenderSession {
     // ---- 序敏感段 (字段序 = Drop 序, 见头注) ----
-    /// DrawFrameSimpl 的 run() 循环泵 (1000ms 节流 + 自管可见性 +
-    /// displayFmKey==0 收腿退场, 见 DrawFrameSimplFeed 头注)
-    dfs_feed: DrawFrameSimplFeed,
-    /// FMUnpackedData 的 run() 轮询泵 (200ms 节流 + 可见门控 + 高度自适应,
-    /// 见 FmUnpackedFeed 头注)
-    fm_unpacked_feed: FmUnpackedFeed,
     /// FM_CHANGED 订阅 (RAII 保活: 持有即订阅, Drop 即退订 — 原局部
     /// `_fm_changed_sub` 同义; 载荷经通道中转, 句柄本身不读)
     #[allow(dead_code)] // RAII 订阅句柄, 生命周期面 (序敏感段成员)
     fm_changed_sub: Subscription<FMHandle>,
     /// FM_CHANGED 中转通道接收端 (载荷 = blkx 深拷)
     fm_data_rx: Receiver<Option<vm_core::fm::data::FmData>>,
+    /// FM show* 开关快照 (sidecar tick 的 generate_lines 读面; 注册期借用之外的自持)
+    fm_field_snapshot: Arc<Mutex<HashMap<String, String>>>,
+    /// openpad 的 FM 会话脉冲 (on_open_all 置位, 下一节拍 sidecar 消费后清除)
+    fm_game_mode_pending: bool,
     /// FM_OVERLAY_TOGGLE 订阅 (RAII 保活, 同上; 热键切换经通道中转)
     #[allow(dead_code)] // RAII 订阅句柄, 生命周期面 (序敏感段成员)
     fm_toggle_sub: Subscription<UiStateEvent>,
@@ -832,8 +906,6 @@ struct RenderSession {
     /// 托盘 (创建线程亲和; None = 创建失败继续运行)
     #[cfg(target_os = "windows")]
     tray: Option<TrayIcon>,
-    /// 地平仪 40ms 喂入节流 (freqMili 配置快照, ReinitOverlays 同步刷新)
-    attitude_feed: AttitudeFeedState,
     /// live 喂入用设置快照 (ReinitOverlays 命令同步覆写)
     hud_settings: HudSettingsSnapshot,
     /// WYSIWYG reinit 参数仓 (各 spec 工厂 reinit 闭包读取)
@@ -906,14 +978,7 @@ impl RenderSession {
         }));
         let mut handles = OverlayHandles {
             minihud: None,
-            power_info: None,
-            engine_control: None,
-            gear_flaps: None,
-            attitude: None,
-            control_surfaces: None,
-            flight_info: None,
-            fm_unpacked: None,
-            draw_frame_simpl: None,
+            pages: Vec::new(),
         };
         // Lang 一次构造 (GearFlaps update_tick 的标签源; 注册面与喂入共用)。
         // Rc 共享: engine 工厂的 reinit 闭包重建 state 需要标签源 (Lang !Clone)
@@ -932,8 +997,6 @@ impl RenderSession {
                 params: &params,
                 lang: &lang,
                 shared: &shared,
-                fm: &fm,
-                fm_field_config: &snapshots.fm_field,
             },
         );
         // live 喂入用设置快照 (注册面同源; ReinitOverlays 命令同步覆写 — MiniHUD
@@ -941,11 +1004,6 @@ impl RenderSession {
         let hud_settings = inputs.hud;
         // 地平仪 40ms 喂入节流 (freqMili 配置快照; last_ms=0 = 首帧放行;
         // ReinitOverlays 命令同步刷新 freq_ms)
-        let attitude_feed = AttitudeFeedState {
-            freq_ms: inputs.attitude_freq_ms,
-            last_ms: 0,
-        };
-
         // ---- 托盘 (Java initSystemTray: 失败继续运行) ----
         #[cfg(target_os = "windows")]
         let tray = {
@@ -989,18 +1047,13 @@ impl RenderSession {
         let fm_changed_sub = fm.fm_changed_bus().subscribe(move |h| {
             let _ = fm_data_tx.send(h.fmdata.clone());
         });
-        // FMUnpackedData 的 run() 轮询泵 (Java BaseOverlay.run 线程的单线程驱动侧,
-        // 200ms 节流 + 可见门控 + 高度自适应, 见 FmUnpackedFeed 头注)
-        let fm_unpacked_feed = FmUnpackedFeed::new();
-        // DrawFrameSimpl 的 run() 循环泵 (1000ms 节流 + 自管可见性 +
-        // displayFmKey==0 收腿 10s 退场, 见 DrawFrameSimplFeed 头注)
-        let dfs_feed = DrawFrameSimplFeed::new();
+        // FM 两页的数据泵已组件化 (WidgetSidecar tick, 渲染节拍驱动)
 
         Self {
-            dfs_feed,
-            fm_unpacked_feed,
             fm_changed_sub,
             fm_data_rx,
+            fm_field_snapshot: snapshots.fm_field.clone(),
+            fm_game_mode_pending: false,
             fm_toggle_sub,
             fm_toggle_rx,
             voice_warn,
@@ -1009,7 +1062,6 @@ impl RenderSession {
             flight_sub,
             #[cfg(target_os = "windows")]
             tray,
-            attitude_feed,
             hud_settings,
             params,
             lang,
@@ -1052,27 +1104,10 @@ impl RenderSession {
         self.shared
             .overlay_ctx_preview
             .store(false, Ordering::SeqCst); // for_live (Java forGameMode)
-                                             // 操纵面数据门控 (overlays_field2.rs PORT(数据门控)): Java init(S)
-                                             // 的 xs!=null 在此翻转 — openpad 即游戏形态 (has_service=true)
-        if let Some(h) = self.handles.control_surfaces.as_ref() {
-            h.borrow_mut().has_service = true;
-        }
-        // FM拆包数据游戏形态 (Java init :57-94 的单实例对位):
-        // :730 fmDataAdapter.setBlkx(current().blkx) + :64 isPreview=false
-        // + :67 Game mode: initially hidden (表头谓词/setupFont 与
-        // preview 形态同值, 免重设)
-        if let Some(h) = self.handles.fm_unpacked.as_ref() {
-            let mut fmov = h.borrow_mut();
-            fmov.base.is_preview = false;
-            fmov.visible = false;
-            fmov.reload_fm_data(self.fm.current().fmdata.clone().map(Arc::new));
-        }
-        // 推力曲线游戏形态 (Java init :514-528 的单实例对位):
-        // initFmHandleCache (current 快照) + isPreview=false + 隐藏起步
-        if let Some(h) = self.handles.draw_frame_simpl.as_ref() {
-            h.borrow_mut()
-                .init(self.fm.current().fmdata.clone().map(Arc::new));
-        }
+                                             // 操纵面数据门控已随 W3 组件化消解 (组件按 env.frame 在场性自判)
+        // FM 两页的游戏形态脉冲 (sidecar 下一节拍消费:
+        // isPreview=false + 隐藏起步 + FM 缓存直读)
+        self.fm_game_mode_pending = true;
         if let Err(e) = self.host.open_all() {
             logger::error("OverlayHost", &format!("open_all: {}", e));
         }
@@ -1130,18 +1165,11 @@ impl RenderSession {
         self.shared
             .overlay_ctx_preview
             .store(true, Ordering::SeqCst);
-        // 操纵面门控同步复位 (Java preview 实例 xs=null 恒显静态值)
-        if let Some(h) = self.handles.control_surfaces.as_ref() {
-            h.borrow_mut().has_service = false;
-        }
         // 数据面重置 (同上"实例销毁"语义的另一半): Java close 即实例
         // 死亡, preview 重开经工厂全新实例 + initPreview 静态值; Rust
         // handle 跨 close 存活 (render 闭包持同一 Rc), 不重置则下次
         // preview 窗渲染上次 live 残留值 (托盘 live→preview 复现)
         reset_handles_preview_values(&self.handles);
-        // 推力曲线 run 循环复位 (Java closeAll → 实例/线程销毁; 下次
-        // open/refreshPreview 重建 — 自动退场后的重生入口)
-        self.dfs_feed.reset();
         self.host.close_all(); // close 销毁链 (存位置 → drop)
                                // Java overlay dispose → Bus.unregister (drop 槽位即退订)
         drop(std::mem::take(&mut self.flight_sub));
@@ -1205,7 +1233,7 @@ impl RenderSession {
 
     /// ReinitOverlays 命令处理: WYSIWYG reinit 参数仓覆写 (不直接触发刷新)
     fn on_reinit_overlays(&mut self, new_params: Box<vm_overlay::platform::reinit::ReinitParams>) {
-        self.attitude_feed.freq_ms = new_params.attitude_freq_ms;
+        // 地平仪节流已组件化 (AttitudeWidget 内闩, GaugeCfg.attitude_freq_ms 注入)
         self.hud_settings = new_params.hud.clone();
         *self.params.borrow_mut() = *new_params;
     }

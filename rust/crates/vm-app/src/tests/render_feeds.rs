@@ -112,14 +112,7 @@ fn register_live_overlays_nine_window_entries() {
     }));
     let mut handles = OverlayHandles {
         minihud: None,
-        power_info: None,
-        engine_control: None,
-        gear_flaps: None,
-        attitude: None,
-        control_surfaces: None,
-        flight_info: None,
-        fm_unpacked: None,
-        draw_frame_simpl: None,
+        pages: Vec::new(),
     };
     let shell = fixture();
     let lang = Rc::new(Lang::init_lang());
@@ -136,8 +129,6 @@ fn register_live_overlays_nine_window_entries() {
             params: &params,
             lang: &lang,
             shared: &shell.shared,
-            fm: &shell.fm,
-            fm_field_config: &shell.config_snapshots.fm_field,
         },
     );
     // 注册面逐窗计数落键: 9 键全部以 0 落位 (present 计数起点)
@@ -150,35 +141,15 @@ fn register_live_overlays_nine_window_entries() {
         .cloned()
         .collect();
     assert_eq!(reg_keys.len(), 9, "注册落键应恰为 9 键 (实测 {reg_keys:?})");
-    // 9 个共享句柄全部登记 (spec 工厂成功)
+    // 9 个共享句柄全部登记 (spec 工厂成功): minihud + 6 通用页 + fm 两旧形态
     assert!(handles.minihud.is_some(), "MiniHUD 句柄");
-    assert!(handles.power_info.is_some(), "动力信息句柄");
-    assert!(handles.engine_control.is_some(), "引擎控制句柄");
-    assert!(handles.flight_info.is_some(), "飞行信息句柄");
-    assert!(handles.gear_flaps.is_some(), "起落襟翼句柄");
-    assert!(handles.attitude.is_some(), "地平仪句柄");
-    assert!(handles.control_surfaces.is_some(), "操纵面句柄");
-    assert!(handles.fm_unpacked.is_some(), "FM拆包数据句柄");
-    assert!(handles.draw_frame_simpl.is_some(), "推力曲线句柄");
-    // 初始形态 = preview (恒可见 + 空面板, Java initPreview; spec 尺寸 = init 几何)
-    {
-        let fm = handles.fm_unpacked.as_ref().unwrap().borrow();
-        assert!(fm.visible && fm.base.is_preview, "preview 形态起步");
-        assert_eq!(
-            (fm.base.width, fm.base.height),
-            (spec_fm_size(&shell)),
-            "init 几何"
-        );
-    }
-    // 推力曲线: initPreview 形态恒可见 (setBounds 900×500 几何在 vm-overlay
-    // draw_frame_simpl/tests.rs 锁定, 此处锁注册面)
-    {
-        let d = handles.draw_frame_simpl.as_ref().unwrap().borrow();
-        assert!(
-            d.is_preview && d.visible && d.should_show(),
-            "preview 形态恒可见"
-        );
-    }
+    assert_eq!(
+        handles.pages.len(),
+        8,
+        "W3 八页句柄 (实测 {:?})",
+        handles.pages.iter().map(|(id, _)| id.clone()).collect::<Vec<_>>()
+    );
+
     host.open_all().expect("全激活 open_all");
     let mut ids: Vec<String> = host.active_ids();
     ids.sort();
@@ -199,8 +170,58 @@ fn register_live_overlays_nine_window_entries() {
     );
 }
 
-/// live 喂数全链: 一帧 payload 喂 6 个 overlay, 各 state 推进到遥测值
-/// (ServiceData 的引擎数组必须非空 — get_pitch/get_thrust 的保真 panic 点,
+/// W3 测试页面句柄集: 出厂 PageDoc (minihud 除外) → PageOverlay 编排器
+/// (参数组装 = render_thread::assemble_page_spec 的简化形态;
+/// gauge 相关组件参数当前生产走 GaugeCfg::default — page_overlay build_page
+/// 的 FactoryCtx.gauge_cfg=None 收口形态, 测试同源)
+fn test_pages(
+    fonts: &Path,
+    inputs: &OverlayInputs,
+) -> Vec<(String, vm_overlay::widgets::PageHandle)> {
+    use vm_overlay::widgets::{page_overlay_spec, GaugeCfg, PageSpecParams};
+
+    let mut pages = Vec::new();
+    for doc in inputs.pages.iter() {
+        if doc.id == "minihud-default" {
+            continue; // minihud 走编排器 spec (测试单独构造)
+        }
+        // fields.grid 两页参数 (rows 行源 + (字号增量, 列数))
+        let mut rows = std::collections::HashMap::new();
+        let mut fields_cfg = None;
+        match doc.id.as_str() {
+            "flight-info-default" => {
+                rows.insert("飞行信息".to_string(), std::sync::Arc::clone(&inputs.flight_rows));
+                fields_cfg = Some((inputs.font_add_flight, inputs.flight_columns));
+            }
+            "power-info-default" => {
+                rows.insert("动力信息".to_string(), std::sync::Arc::clone(&inputs.power_rows));
+                fields_cfg = Some((inputs.font_add_power, inputs.power_columns));
+            }
+            _ => {}
+        }
+        let params = PageSpecParams {
+            doc: doc.clone(),
+            entry_key: doc.entry_key.clone(),
+            font_path: fonts.join("sarasa-mono-sc-bold.ttf"),
+            font_size: 24,
+            rows,
+            engine_disables: inputs.engine_disables,
+            lang: Lang::init_lang(),
+            settings: inputs.hud.clone(),
+            debug: false,
+            fields_cfg,
+            gauge_cfg: GaugeCfg::default(),
+            refresh: Box::new(|| unreachable!("测试不触发 reinit")),
+        };
+        let (handle, _) = page_overlay_spec(params).expect("页面 spec 构造");
+        pages.push((doc.id.clone(), handle));
+    }
+    pages
+}
+
+/// live 喂数全链: 一帧 payload 喂全部页面, 各组件 state 推进到遥测值
+/// (W3 改写: 旧六段 spec 工厂直调断言 → pages + cells downcast 组件 state;
+/// ServiceData 的引擎数组必须非空 — get_pitch/get_thrust 的保真 panic 点,
 /// 真实链路由 State.update 填满; catch_unwind 吞帧路径由 malformed 变体覆盖)
 #[test]
 fn feed_overlays_live_updates_all_handles() {
@@ -219,57 +240,11 @@ fn feed_overlays_live_updates_all_handles() {
         })),
     )
     .unwrap();
-    let (h_power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(
-        &fonts,
-        &Rc::new(RefCell::new(
-            vm_overlay::platform::reinit::ReinitParams::from(&inputs),
-        )),
-    )
-    .unwrap();
-    let (h_engine, _) = vm_overlay::overlays::engine_control::engine_control_overlay_spec(
-        &fonts,
-        Rc::clone(&lang),
-        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams {
-            service_loop_interval_ms: 50,
-            ..Default::default()
-        })),
-    )
-    .unwrap();
-    let (h_gear, _) = vm_overlay::overlays::gear_flaps::gear_flaps_overlay_spec(
-        &fonts,
-        &Rc::new(RefCell::new(
-            vm_overlay::platform::reinit::ReinitParams::default(),
-        )),
-    )
-    .unwrap();
-    let (h_att, _) = vm_overlay::overlays::attitude::attitude_overlay_spec(&Rc::new(RefCell::new(
-        vm_overlay::platform::reinit::ReinitParams::default(),
-    )))
-    .unwrap();
-    let (h_cs, _) = vm_overlay::overlays::control_surfaces::control_surfaces_overlay_spec(
-        &fonts,
-        &Rc::new(RefCell::new(
-            vm_overlay::platform::reinit::ReinitParams::default(),
-        )),
-    )
-    .unwrap();
-    let (h_fi, _) = vm_overlay::overlays::flight_info::flight_info_overlay_spec(
-        &fonts,
-        &Rc::new(RefCell::new(
-            vm_overlay::platform::reinit::ReinitParams::from(&inputs),
-        )),
-    )
-    .unwrap();
+    let pages = test_pages(&fonts, &inputs);
+    assert_eq!(pages.len(), 8, "W3 八页 (6 通用页 + fm 两页)");
     let handles = OverlayHandles {
         minihud: Some(h_mini),
-        power_info: Some(h_power),
-        engine_control: Some(h_engine),
-        gear_flaps: Some(h_gear),
-        attitude: Some(h_att),
-        control_surfaces: Some(h_cs),
-        flight_info: Some(h_fi),
-        fm_unpacked: None,
-        draw_frame_simpl: None,
+        pages,
     };
 
     // live 快照: throttle 55 / flaps 25 / gear 100 / aileron 100 / aoa 10 /
@@ -293,7 +268,7 @@ fn feed_overlays_live_updates_all_handles() {
     d.s_indic.as_mut().unwrap().aviahorizon_pitch = 5.0;
     d.engine.total_hp = 1200;
     // W-E 后 warn_vne 只走公式槽 — 槽注入 1.0 作喂通哨 (state 经 guard 直传已由
-    // throttle/airbrake 各 handle 断言覆盖)
+    // throttle/airbrake 各组件断言覆盖)
     {
         let mut slots = std::collections::HashMap::new();
         slots.insert("warn_vne".to_string(), 0u16);
@@ -306,10 +281,6 @@ fn feed_overlays_live_updates_all_handles() {
     let fm = FMManager::new(Arc::new(EventBus::new()));
     let settings = inputs.hud.clone();
     let payload = EventPayload::builder().build();
-    let mut attitude_feed = AttitudeFeedState {
-        freq_ms: 40,
-        last_ms: 0,
-    };
 
     feed_overlays_live(
         &handles,
@@ -318,35 +289,95 @@ fn feed_overlays_live_updates_all_handles() {
         &fm,
         &settings,
         &lang,
-        &mut attitude_feed,
     );
 
-    // 动力信息: 功率 1200 → 首字段 buffer (50ms 节流: now-0 恒放行)
-    let p = handles.power_info.as_ref().unwrap().borrow();
-    assert_eq!(p.fields()[0].buffer, "1200", "PowerInfo 功率字段");
-    drop(p);
-    // 引擎控制: throttle 55 (refreshInterval=100, 首帧放行)
-    let e = handles.engine_control.as_ref().unwrap().borrow();
-    assert_eq!(
-        e.gauge_by_key("throttle").unwrap().gauge.gauge.cur_value,
-        55
-    );
-    drop(e);
-    // 起落襟翼: gear=100 + airbrake=100 → "起落架 减速板" 告警; flaps=25 → flap_pix
-    let g = handles.gear_flaps.as_ref().unwrap().borrow();
-    assert_eq!(g.warn_text, "起落架 减速板");
-    assert_eq!(g.flap_pix, 24);
-    drop(g);
-    // 操纵面: aileron=100 → px = (100+100)*144/200 = 144 (has_service 喂入点置位)
-    let cs = handles.control_surfaces.as_ref().unwrap().borrow();
-    assert_eq!(cs.px, 144);
-    drop(cs);
-    // 地平仪: aoa=10 → AoA = round((10+30)·300/60) = 200
-    let a = handles.attitude.as_ref().unwrap().borrow();
-    assert_eq!(a.aoa_y, 200);
-    drop(a);
-    // 地平仪节流: 40ms 窗口内第二帧不重算 (last_ms 已推进)
-    assert!(attitude_feed.last_ms > 0);
+    // 页句柄定位助手 (借用期内完成组件 state 断言)
+    let page_of = |handles: &OverlayHandles, id: &str| {
+        handles
+            .pages
+            .iter()
+            .find(|(pid, _)| pid == id)
+            .map(|(_, h)| h.clone())
+            .unwrap_or_else(|| panic!("页面 {id} 应在 pages"))
+    };
+    use vm_overlay::widgets::fields_grid::FieldsGridWidget;
+    use vm_overlay::widgets::gauges_composite::{
+        AttitudeWidget, AxesWidget, EnginePanelWidget, GearFlapsWidget,
+    };
+
+    // 动力信息页: 功率 1200 → BOS 管线首字段 buffer (50ms 节流: now-0 恒放行)
+    {
+        let h = page_of(&handles, "power-info-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("grid")
+            .unwrap()
+            .downcast_ref::<FieldsGridWidget>()
+            .expect("power 页 grid = FieldsGridWidget (BOS)");
+        let bos = w.bos().expect("动力信息走 BOS 管线");
+        assert_eq!(bos.fields()[0].buffer, "1200", "PowerInfo 功率字段");
+    }
+    // 引擎控制页: throttle 55 (refreshInterval = 50×2 = 100, 首帧放行)
+    {
+        let h = page_of(&handles, "engine-control-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("panel")
+            .unwrap()
+            .downcast_ref::<EnginePanelWidget>()
+            .expect("engine 页 panel = EnginePanelWidget");
+        assert_eq!(
+            w.state()
+                .gauge_by_key("throttle")
+                .unwrap()
+                .gauge
+                .gauge
+                .cur_value,
+            55
+        );
+    }
+    // 起落襟翼页: gear=100 + airbrake=100 → "起落架 减速板" 告警; flaps=25 → flap_pix
+    // (fontAdd 0/dpi 1 → fs=24, barHeight=96, 25·96/100 = 24)
+    {
+        let h = page_of(&handles, "gear-flaps-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("status")
+            .unwrap()
+            .downcast_ref::<GearFlapsWidget>()
+            .expect("gear 页 status = GearFlapsWidget");
+        assert_eq!(w.state().warn_text, "起落架 减速板");
+        assert_eq!(w.state().flap_pix, 24);
+    }
+    // 操纵面页: aileron=100 → px = (100+100)·144/200 = 144 (frame 在场 = live 形态)
+    {
+        let h = page_of(&handles, "axis-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("cross")
+            .unwrap()
+            .downcast_ref::<AxesWidget>()
+            .expect("axis 页 cross = AxesWidget");
+        assert_eq!(w.state().px, 144);
+    }
+    // 地平仪页: aoa=10 → AoA = round((10+30)·300/60) = 200 (默认几何 150×300)
+    {
+        let h = page_of(&handles, "attitude-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("gauge")
+            .unwrap()
+            .downcast_ref::<AttitudeWidget>()
+            .expect("attitude 页 gauge = AttitudeWidget");
+        assert_eq!(w.state().aoa_y, 200);
+        // 40ms 节流闩 (组件化): last_ms 已推进, 窗口内第二帧不重算
+        assert!(w.last_ms() > 0);
+    }
     // MiniHUD: 公式槽 warn_vne=1.0 → 置真 (喂通回归哨: 槽值经 feed 链到达 HUD)
     assert!(
         handles.minihud.as_ref().unwrap().borrow().warn_vne,
@@ -369,51 +400,48 @@ fn feed_overlays_live_updates_all_handles() {
         &fm,
         &settings,
         &lang,
-        &mut attitude_feed,
     );
-    let e = handles.engine_control.as_ref().unwrap().borrow();
-    assert_eq!(
-        e.gauge_by_key("throttle").unwrap().gauge.gauge.cur_value,
-        55,
-        "preview 期不喂入 (Java initPreview 不订阅)"
-    );
+    {
+        let h = page_of(&handles, "engine-control-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("panel")
+            .unwrap()
+            .downcast_ref::<EnginePanelWidget>()
+            .unwrap();
+        assert_eq!(
+            w.state()
+                .gauge_by_key("throttle")
+                .unwrap()
+                .gauge
+                .gauge
+                .cur_value,
+            55,
+            "preview 期不喂入 (Java initPreview 不订阅)"
+        );
+    }
 }
 
 /// 畸形 s_state (引擎数组空, update 未跑) 的保真 panic 点: catch_unwind 吞帧不杀线程
+/// (W3 改写: 8 页组件全在场 — 比"PowerInfo 句柄悬空"的旧形态覆盖更宽的
+/// 组件消费面, 断言面不变: 不 panic 即通过)
 #[test]
 fn feed_overlays_live_swallows_malformed_frame() {
     let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
     let lang = Lang::init_lang();
-    // 只接 PowerInfo (get_pitch 空 Vec panic 点; 其余 handle 缺省 None)
-    let (h_power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(
-        &fonts,
-        &Rc::new(RefCell::new(
-            vm_overlay::platform::reinit::ReinitParams::from(&test_overlay_inputs()),
-        )),
-    )
-    .unwrap();
+    let inputs = test_overlay_inputs();
     let handles = OverlayHandles {
         minihud: None,
-        power_info: Some(h_power),
-        engine_control: None,
-        gear_flaps: None,
-        attitude: None,
-        control_surfaces: None,
-        flight_info: None,
-        fm_unpacked: None,
-        draw_frame_simpl: None,
+        pages: test_pages(&fonts, &inputs),
     };
     let shared = ControllerShared::new();
     shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
-    // State::new() 的 pitch/thrust 空 Vec — get_pitch 的 s.pitch[0] panic (保真)
+    // State::new() 的 pitch/thrust 空 Vec — 取数链的保真 panic 点
     *shared.live.write().unwrap() = Some(frame_store_of(&live_service_data("bad")));
     let fm = FMManager::new(Arc::new(EventBus::new()));
-    let settings = test_overlay_inputs().hud;
+    let settings = inputs.hud;
     let payload = EventPayload::builder().build();
-    let mut attitude_feed = AttitudeFeedState {
-        freq_ms: 40,
-        last_ms: 0,
-    };
     // 不 panic 即通过 (吞帧 + ERROR 留痕; Java NPE 由 EDT 吞的同位形态)
     feed_overlays_live(
         &handles,
@@ -422,7 +450,6 @@ fn feed_overlays_live_swallows_malformed_frame() {
         &fm,
         &settings,
         &lang,
-        &mut attitude_feed,
     );
 }
 
@@ -534,109 +561,173 @@ fn overlay_sections_hit_factory_default() {
 }
 
 /// 渲染线程 CloseAllOverlays 数据面重置 (reset_handles_preview_values 接线面):
-/// 四个 reinit 闭包不重建数据态的 overlay, live 残留 → preview 静态初值。
-/// 语义断言在 vm-overlay 各单测, 此处锁渲染线程处理点的调用面 (托盘 live→preview
-/// 后重开的预览窗不得显示上次 live 数据 — TODO 项根治的回归面)
+/// 组件 reset_preview 的页面级接线 — live 残留 → preview 静态初值。
+/// (W3 改写: 旧 handle 直灌 → pages 构造 + UpdateEnv/sidecar 喂 live 残留,
+/// 重置后经组件 downcast 断言回 preview 态; 托盘 live→preview 后重开的预览窗
+/// 不得显示上次 live 数据 — TODO 项根治的回归面)
 #[test]
 fn reset_handles_preview_values_clears_live_residue() {
     let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
-    let cell = Rc::new(RefCell::new(
-        vm_overlay::platform::reinit::ReinitParams::default(),
-    ));
-    let (power, _) =
-        vm_overlay::overlays::power_info::power_info_overlay_spec(&fonts, &cell).unwrap();
-    let (flight, _) =
-        vm_overlay::overlays::flight_info::flight_info_overlay_spec(&fonts, &cell).unwrap();
-    let (axis, _) =
-        vm_overlay::overlays::control_surfaces::control_surfaces_overlay_spec(&fonts, &cell)
-            .unwrap();
-    let (att, _) = vm_overlay::overlays::attitude::attitude_overlay_spec(&cell).unwrap();
-    let (fm_unpacked, _) = vm_overlay::overlays::fm_unpacked::fm_unpacked_data_overlay_spec(
-        &fonts,
-        1080,
-        &cell,
-        None,
-        &Arc::new(FMManager::new(Arc::new(EventBus::new()))),
-    )
-    .unwrap();
+    let lang = Lang::init_lang();
+    let inputs = test_overlay_inputs();
     let handles = OverlayHandles {
         minihud: None,
-        power_info: Some(power),
-        engine_control: None,
-        gear_flaps: None,
-        attitude: Some(att),
-        control_surfaces: Some(axis),
-        flight_info: Some(flight),
-        fm_unpacked: Some(fm_unpacked),
-        draw_frame_simpl: None,
+        pages: test_pages(&fonts, &inputs),
     };
-    // live 残留注入 (各 handle 公开喂入面)
+    let page_of = |id: &str| {
+        handles
+            .pages
+            .iter()
+            .find(|(pid, _)| pid == id)
+            .map(|(_, h)| h.clone())
+            .unwrap_or_else(|| panic!("页面 {id} 应在 pages"))
+    };
+    use vm_overlay::widgets::fields_grid::FieldsGridWidget;
+    use vm_overlay::widgets::gauges_composite::{AttitudeWidget, AxesWidget};
+    use vm_overlay::widgets::fm_sidecar::FmListWidget;
+
+    // ---- live 残留注入 (喂入面与生产同源: 通用页 UpdateEnv / fm 页 sidecar tick) ----
+    let mut d = live_service_data("residue-plane");
     {
-        let mut cs = handles.control_surfaces.as_ref().unwrap().borrow_mut();
-        cs.has_service = true;
-        assert!(cs.on_flight_data(200, 100.0, -80.0, 60.0, 40.0, true));
+        let st = d.s_state.as_mut().unwrap();
+        st.aileron = 100; // 操纵面: 游标偏离中心
+        st.aoa = 10.0; // 地平仪: 姿态点集非零
+        st.pitch = [0.0; 16];
+        st.thrust = [0; 16];
     }
-    // FM拆包数据 live 残留: 游戏形态 + 隐藏中 (OpenAll 处理点同款翻转)
-    {
-        let mut fm = handles.fm_unpacked.as_ref().unwrap().borrow_mut();
-        fm.base.is_preview = false;
-        fm.visible = false;
-    }
-    handles
-        .attitude
-        .as_ref()
-        .unwrap()
-        .borrow_mut()
-        .update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
-    let mut v = vm_data::service_fields::ServiceData::default();
-    // W-C: 派生量唯一真相 = 公式槽 (mach 经槽 0 注入)
+    d.engine.total_hp = 1200; // 动力信息: buffer 进 live 值 + 节流基准推进
+    // W-C: 派生量唯一真相 = 公式槽 (mach 经槽 0 注入 → 飞行信息行进 live 值)
     {
         let mut slots = std::collections::HashMap::new();
         slots.insert("mach".to_string(), 0u16);
-        v.formula_slots = std::sync::Arc::new(slots);
-        v.formula_values = vm_core::formula::FormulaResults { values: vec![0.72] };
+        d.formula_slots = std::sync::Arc::new(slots);
+        d.formula_values = vm_core::formula::FormulaResults { values: vec![0.72] };
     }
-    let v = &v as &dyn vm_core::formula::registry::FormulaView;
-    handles.flight_info.as_ref().unwrap().borrow_mut().update(v);
-    handles
-        .power_info
-        .as_ref()
-        .unwrap()
-        .borrow_mut()
-        .last_refresh_time = 999;
+    let frame = vm_data::frame::Frame::from_service_data(&d);
+    let payload = EventPayload::builder().build();
+    let empty_data = vm_core::derived::hud_data::HUDData::empty();
+    let env = vm_overlay::widgets::UpdateEnv {
+        data: &empty_data,
+        frame: Some(&frame),
+        fmdata: None,
+        payload: Some(&payload),
+        compressor_stages: None,
+        now_ms: 10_000,
+        maneuver_len: 0,
+        maneuver_ticks: Default::default(),
+        lang: Some(&lang),
+    };
+    for (_, page) in &handles.pages {
+        page.borrow_mut().feed(&env);
+    }
+    // fm-list live 残留: 游戏形态脉冲 (渲染线程 OpenAll 处理点同款 game_mode_pulse)
+    {
+        let fm_mgr = FMManager::new(Arc::new(EventBus::new()));
+        let h = page_of("fm-list-default");
+        let page = h.borrow();
+        let cell = page.cells.get("list").expect("fm-list 页 list 组件");
+        let mut sctx = vm_overlay::widgets::SidecarCtx {
+            now_ms: 10_000,
+            page_id: "fm-list-default",
+            fm: &fm_mgr,
+            fm_field_config: &|_| None,
+            display_fm_key: 0,
+            frame: None,
+            is_jet: false,
+            toggle_pulse: false,
+            game_mode_pulse: true,
+            fm_changed: None,
+        };
+        let mut sc = cell.sidecar().expect("fm.list sidecar 面");
+        sc.tick(&mut sctx);
+    }
+    // 残留到位自检 (注入确实生效 — 否则后续复位断言平凡通过)
+    {
+        let h = page_of("axis-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("cross")
+            .unwrap()
+            .downcast_ref::<AxesWidget>()
+            .unwrap();
+        assert_eq!(w.state().px, 144, "live 残留: 游标已偏离中心");
+    }
+    {
+        let h = page_of("power-info-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("grid")
+            .unwrap()
+            .downcast_ref::<FieldsGridWidget>()
+            .unwrap();
+        let bos = w.bos().unwrap();
+        assert_eq!(bos.fields()[0].buffer, "1200", "live 残留: buffer 已进 live 值");
+        assert!(bos.last_refresh_time > 0, "live 残留: 节流基准已推进");
+    }
+
     // 重置 (渲染线程 CloseAllOverlays 处理点同款)
     reset_handles_preview_values(&handles);
-    // 四路断言: 全部回 preview 态
+    // 五路断言: 全部回 preview 态
     {
-        let p = handles.power_info.as_ref().unwrap().borrow();
-        assert_eq!(p.last_refresh_time, 0, "动力信息节流基准复位");
+        let h = page_of("power-info-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("grid")
+            .unwrap()
+            .downcast_ref::<FieldsGridWidget>()
+            .unwrap();
+        let bos = w.bos().unwrap();
+        assert_eq!(bos.last_refresh_time, 0, "动力信息节流基准复位");
         assert!(
-            p.fields().iter().all(|f| f.length == 0),
+            bos.fields().iter().all(|f| f.length == 0),
             "动力信息 buffer 清空"
         );
     }
     {
-        let cs = handles.control_surfaces.as_ref().unwrap().borrow();
+        let h = page_of("axis-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("cross")
+            .unwrap()
+            .downcast_ref::<AxesWidget>()
+            .unwrap();
+        let cs = w.state();
         assert_eq!(
             (cs.px, cs.py),
             (cs.width / 2, cs.height / 2),
             "舵面值游标回几何中心 (live 位置清除)"
         );
     }
-    assert_eq!(
-        handles.attitude.as_ref().unwrap().borrow().pitch_y,
-        0,
-        "地平仪姿态点集复位"
-    );
     {
-        let rows = handles
-            .flight_info
-            .as_ref()
+        let h = page_of("attitude-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("gauge")
             .unwrap()
-            .borrow()
-            .rows()
-            .to_vec();
-        let defs = handles.flight_info.as_ref().unwrap().borrow().defs.clone();
+            .downcast_ref::<AttitudeWidget>()
+            .unwrap();
+        assert_eq!(w.state().pitch_y, 0, "地平仪姿态点集复位");
+    }
+    {
+        // 行源 = 出厂编译行 (cfg_test_rows), 断言非平凡 (旧形态 ReinitParams::default
+        // 空行表曾退化至此断言平凡通过 — 本次改写实心化)
+        let h = page_of("flight-info-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("grid")
+            .unwrap()
+            .downcast_ref::<FieldsGridWidget>()
+            .unwrap();
+        let st = w.straight().expect("飞行信息走直通管线");
+        let rows = st.rows().to_vec();
+        let defs = st.defs.clone();
+        assert!(!defs.is_empty(), "出厂飞行信息行非空 (断言非平凡)");
         assert_eq!(rows.len(), defs.len(), "飞行信息回全量行");
         for (row, f) in rows.iter().zip(defs.iter()) {
             // (波22: 行形态 = def 索引 + 值文本)
@@ -648,9 +739,16 @@ fn reset_handles_preview_values_clears_live_residue() {
         }
     }
     {
-        let fm = handles.fm_unpacked.as_ref().unwrap().borrow();
+        let h = page_of("fm-list-default");
+        let page = h.borrow();
+        let w = page
+            .cells
+            .get("list")
+            .unwrap()
+            .downcast_ref::<FmListWidget>()
+            .unwrap();
         assert!(
-            fm.visible && fm.base.is_preview,
+            w.state().visible && w.state().base.is_preview,
             "FM拆包数据回 preview 形态 (恒可见)"
         );
     }

@@ -59,6 +59,10 @@ use crate::widgets::{
     WidgetCell,
 };
 
+/// fields.grid 行源空表 (minihud 页无数据行; FactoryCtx 形参占位)
+static EMPTY_ROWS: std::sync::LazyLock<HashMap<String, std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>>> =
+    std::sync::LazyLock::new(HashMap::new);
+
 // ---------------------------------------------------------------------------
 // Java Math / printf 复刻
 // ---------------------------------------------------------------------------
@@ -307,8 +311,14 @@ impl MiniHudOverlay {
         templates: &MiniHudTemplates,
     ) {
         let fctx = FactoryCtx {
-            ctx: &self.ctx,
+            minihud_ctx: Some(&self.ctx),
             fonts: Rc::clone(&self.fonts),
+            rows: &EMPTY_ROWS,
+            engine_disables: None,
+            lang: None,
+            fonts_dir: None,
+            fields_cfg: None,
+            gauge_cfg: None,
         };
         // visibleWhen 求值源: HUDSettings 快照键 (displayCrosshair; W3 泛化
         // 为 config bool + 遥测短名)
@@ -341,7 +351,7 @@ impl MiniHudOverlay {
         let style = StyleEnv {
             fonts: Rc::clone(&self.fonts),
             settings,
-            ctx: &self.ctx,
+            minihud_ctx: Some(&self.ctx),
         };
         for cell in self.cells.values() {
             cell.apply_style(&style);
@@ -453,8 +463,14 @@ impl MiniHudOverlay {
         // Dispatch to Reactive Components (W2: trait 分发, 细粒度开关在组件内)
         let env = UpdateEnv {
             data: &data,
+            frame: None, // HUDData 已含全部 minihud 派生量
+            fmdata: None,
+            payload: None,
+            compressor_stages: None,
+            now_ms: 0,
             maneuver_len: self.maneuver_index_len,
             maneuver_ticks: self.tick_scale,
+            lang: None,
         };
         for cell in self.cells.values() {
             cell.on_data_update(&env);

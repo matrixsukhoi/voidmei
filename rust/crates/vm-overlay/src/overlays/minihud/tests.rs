@@ -529,8 +529,14 @@ fn sample_data() -> HUDData {
 fn dispatch_data(o: &mut MiniHudOverlay, data: &HUDData, fatal: bool) {
     let env = UpdateEnv {
         data,
+        frame: None,
+        fmdata: None,
+        payload: None,
+        compressor_stages: None,
+        now_ms: 0,
         maneuver_len: o.maneuver_index_len,
         maneuver_ticks: o.tick_scale,
+        lang: None,
     };
     for cell in o.cells.values() {
         cell.on_data_update(&env);

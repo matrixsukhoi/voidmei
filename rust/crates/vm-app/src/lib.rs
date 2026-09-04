@@ -104,7 +104,7 @@ pub use crate::voice_setup::ConfigSnapshots; // AppShell pub 字段类型 (E9b)
 #[cfg(test)]
 use crate::render_thread::{
     feed_overlays_live, register_live_overlays, reset_handles_preview_values, strategy_for,
-    AttitudeFeedState, ChannelFocusBridge, HostActivationCtx, OverlayHandles, OverlayRegSetup,
+    ChannelFocusBridge, HostActivationCtx, OverlayHandles, OverlayRegSetup,
 };
 #[cfg(test)]
 use crate::voice_setup::open_voice_warning;

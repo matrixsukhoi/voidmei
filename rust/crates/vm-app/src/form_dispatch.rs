@@ -68,6 +68,104 @@ fn dispatch_form(
             .map(|p| IpcReply::Ok(serde_json::json!(p.to_string_lossy())))
             .unwrap_or_else(|e| IpcReply::Err(e.to_string())),
         RequestKind::FormMessage(dto) => form_message(dto, shell, cell, rt),
+        // ---- W4 HUD 布局编辑器 ----
+        RequestKind::GetComponentCatalog => {
+            let catalog: Vec<_> = vm_overlay::widgets::widget_registry()
+                .iter()
+                .map(|m| {
+                    serde_json::json!({
+                        "typeName": m.type_name,
+                        "displayZh": m.display_zh,
+                        "category": format!("{:?}", m.category),
+                        "composite": m.composite,
+                        "configKeys": m.config_keys,
+                        "dataShorts": m.data_shorts,
+                    })
+                })
+                .collect();
+            serde_json::to_value(catalog)
+                .map(IpcReply::Ok)
+                .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+        }
+        RequestKind::GetPages => {
+            let s = shell.borrow();
+            let config = s
+                .controller
+                .as_ref()
+                .map(|c| c.config.clone())
+                .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
+            let pages = config.pages();
+            let factory_ids: Vec<String> = vm_core::config::json_store::factory()
+                .pages
+                .iter()
+                .map(|p| p.id.clone())
+                .collect();
+            let hints = config.page_upgrade_hints();
+            let list: Vec<_> = pages
+                .iter()
+                .map(|p| {
+                    serde_json::json!({
+                        "id": p.id,
+                        "name": p.name,
+                        "switchKey": p.switch_key,
+                        "isFactory": factory_ids.contains(&p.id),
+                        "componentCount": p.components.len(),
+                        "upgradeAvailable": hints.iter().any(|(id, _, _)| *id == p.id),
+                    })
+                })
+                .collect();
+            serde_json::to_value(serde_json::json!({
+                "pages": list,
+                // 文档全量 (编辑器前端全量编辑面)
+                "docs": pages.iter().map(|p| serde_json::to_value(p).unwrap_or_default()).collect::<Vec<_>>(),
+                "upgradeHints": hints.iter().map(|(id, base, cur)| serde_json::json!({
+                    "id": id, "userVersion": base, "factoryVersion": cur,
+                })).collect::<Vec<_>>(),
+            }))
+            .map(IpcReply::Ok)
+            .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+        }
+        RequestKind::SolvePage { page } => solve_page_ipc(page, shell),
+        RequestKind::SavePage { page } => {
+            let doc: Result<_, _> = serde_json::from_value(page);
+            let s = shell.borrow();
+            let config = s
+                .controller
+                .as_ref()
+                .map(|c| c.config.clone())
+                .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
+            match doc {
+                Ok(doc) => {
+                    config.save_page(doc);
+                    IpcReply::Ok(serde_json::json!({ "ok": true }))
+                }
+                Err(e) => IpcReply::Err(format!("页面解析失败: {e}")),
+            }
+        }
+        RequestKind::DeletePage { id } => {
+            let s = shell.borrow();
+            let config = s
+                .controller
+                .as_ref()
+                .map(|c| c.config.clone())
+                .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
+            match config.delete_page(&id) {
+                Ok(()) => IpcReply::Ok(serde_json::json!({ "ok": true })),
+                Err(e) => IpcReply::Err(e),
+            }
+        }
+        RequestKind::ResetPageToFactory { id } => {
+            let s = shell.borrow();
+            let config = s
+                .controller
+                .as_ref()
+                .map(|c| c.config.clone())
+                .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
+            match config.reset_page_to_factory(&id) {
+                Ok(()) => IpcReply::Ok(serde_json::json!({ "ok": true })),
+                Err(e) => IpcReply::Err(e),
+            }
+        }
         RequestKind::OpenComparisonWindow { fm0, fm1 } => {
             // FMLIST 行 对比按钮 (批3): Java FMListRowRenderer 的 View 键 —
             // 选中机型单机视图 (fm1 恒 null) 开对比窗; 参数由前端显式传 (对位 Java
@@ -125,6 +223,78 @@ fn dispatch_form(
                 IpcReply::Err(format!("导入失败: {path} (解析错误, 原配置未动)"))
             }
         }
+    }
+}
+
+
+/// W4 编辑器快照求解 (主线程 — Rc 渲染面): PageDoc → 布局矩形 + PNG。
+/// 字体 = 仓库 fonts (编辑器基准字号); rows = 出厂两面板的编译行 (fields.grid)。
+fn solve_page_ipc(
+    page: serde_json::Value,
+    shell: &Rc<RefCell<AppShell>>,
+) -> IpcReply {
+    use std::collections::HashMap;
+    let doc: Result<vm_core::config::json_model::PageDoc, _> = serde_json::from_value(page);
+    let Ok(doc) = doc else {
+        return IpcReply::Err("页面解析失败".to_string());
+    };
+    let fonts_dir = {
+        let s = shell.borrow();
+        s.env.fonts_dir.clone()
+    };
+    let font = match vm_overlay::render::font::LoadedFont::new(
+        &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
+        24,
+    ) {
+        Ok(f) => Rc::new(f),
+        Err(e) => return IpcReply::Err(format!("字体加载失败: {e}")),
+    };
+    let fonts = Rc::new(vm_overlay::overlays::minihud::MiniHudFonts {
+        draw: Rc::clone(&font),
+        small: Rc::clone(&font),
+        s_small: font,
+    });
+    // fields.grid 行源 (两出厂面板编译)
+    let mut rows: HashMap<String, std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>> =
+        HashMap::new();
+    for panel in ["飞行信息", "动力信息"] {
+        let groups = vm_core::config::json_store::factory().panels.clone();
+        if let Some(gc) = groups.iter().find(|g| g.title == panel) {
+            let compiled = vm_core::ui_support::row_def::rows_from_group(gc, &|_| false);
+            rows.insert(panel.to_string(), std::sync::Arc::new(compiled));
+        }
+    }
+    let fctx = vm_overlay::widgets::FactoryCtx {
+        minihud_ctx: None,
+        fonts,
+        rows: &rows,
+        engine_disables: None,
+        lang: None,
+        fonts_dir: Some(fonts_dir),
+        fields_cfg: None,
+        gauge_cfg: None,
+    };
+    let settings = vm_core::config::config_api::HudSettingsSnapshot::default();
+    match vm_overlay::widgets::solve_page_snapshot(&doc, &fctx, &settings) {
+        Ok(r) => {
+            let items: Vec<_> = r
+                .items
+                .iter()
+                .map(|(id, x, y, w, h)| {
+                    serde_json::json!({ "id": id, "x": x, "y": y, "w": w, "h": h })
+                })
+                .collect();
+            serde_json::to_value(serde_json::json!({
+                "lineHeightPx": r.line_height_px,
+                "pageW": r.page_w,
+                "pageH": r.page_h,
+                "items": items,
+                "png": r.png,
+            }))
+            .map(IpcReply::Ok)
+            .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+        }
+        Err(e) => IpcReply::Err(e),
     }
 }
 

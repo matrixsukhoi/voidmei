@@ -18,6 +18,7 @@ import { getAppVersion, getAssetRoot, getLayoutTree, importConfig, sendFormMessa
 import { RowRenderer } from './rows'
 import { AppDialogs } from './dialogs'
 import { FORMULA_TAB, FormulaTab } from './formulas/FormulaTab'
+import { LAYOUT_TAB_KEY, LayoutTab } from './layout_editor/LayoutTab'
 
 const { Title, Text } = Typography
 
@@ -139,7 +140,9 @@ export default function App() {
       setValues({})
       // 手工 "公式" tab 不在 cfg 树里, 但同样是合法停留位 (config-changed 重拉不踢出)
       setActiveTab((cur) =>
-        tree.some((p) => p.title === cur) || cur === FORMULA_TAB ? cur : tree[0]?.title ?? '',
+        tree.some((p) => p.title === cur) || cur === FORMULA_TAB || cur === LAYOUT_TAB_KEY
+          ? cur
+          : tree[0]?.title ?? '',
       )
       setLoadErr('')
     } catch (e) {
@@ -161,8 +164,20 @@ export default function App() {
   }
 
   // 动态窗口高度 (Java MainForm.updateDynamicSize: 按 tab 内容高度, min=tab×30+180,
-  // max=屏-80) — 300ms 防抖, 高度差 >16px 才调 (防抖动)
+  // max=屏-80) — 300ms 防抖, 高度差 >16px 才调 (防抖动)。
+  // 布局编辑器 tab 例外: 固定大窗 1280×800 (三栏工作区), 用户可拖拽调节,
+  // 尺寸记忆经 localStorage (重启还原)
   useEffect(() => {
+    if (activeTab === LAYOUT_TAB_KEY) {
+      const saved = localStorage.getItem('vm-layout-win-size')
+      const [w, h] = saved ? JSON.parse(saved) : [1280, 800]
+      appWindow.innerSize().then(({ width, height }) => {
+        if (Math.abs(width - w) > 16 || Math.abs(height - h) > 16) {
+          appWindow.setSize(new LogicalSize(w, h)).catch(() => undefined)
+        }
+      }).catch(() => undefined)
+      return
+    }
     const t = setTimeout(() => {
       const el = measureRef.current
       if (!el) return
@@ -288,6 +303,16 @@ export default function App() {
           <FormulaTab />
         </div>
         {watermark && <img className="watermark" src={watermark} alt="" />}
+      </div>
+    ),
+  }).concat({
+    // 手工 tab: "HUD 布局"编辑器 (W4 三栏: palette/画布/inspector —
+    // 页面数据驱动编辑, 桌面真窗实时预览经既有 WYSIWYG 链)
+    key: LAYOUT_TAB_KEY,
+    label: 'HUD 布局',
+    children: (
+      <div style={{ padding: '6px 10px 12px', height: 'calc(100vh - 36px - 52px)', overflow: 'hidden' }}>
+        <LayoutTab />
       </div>
     ),
   })

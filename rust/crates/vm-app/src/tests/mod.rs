@@ -256,17 +256,8 @@ fn test_overlay_inputs() -> OverlayInputs {
     }
 }
 
-/// FM拆包数据 init 几何期望 (BaseOverlay.java:92-95 公式复算, 输入 = fixture
-/// 探测的真实 logicalHeight/dpiScale — 验证工厂正确接线屏幕快照):
-/// width = round(12·36·scaleFactor), height = 12·72 (首帧, adjustPosition 前)
-fn spec_fm_size(shell: &AppShell) -> (i32, i32) {
-    let lh = shell.env.dpi.get_logical_screen_height();
-    let scale = (lh as f64 / 1440.0) * shell.env.dpi.get_scale();
-    (
-        ((12 * 36) as f32 * scale as f32 + 0.5).floor() as i32,
-        12 * 72,
-    )
-}
+// (FM拆包数据 init 几何期望助手 spec_fm_size 已随旧 spec 工厂退役删除
+//  — W3: 尺寸面迁 widgets::fm_sidecar 组件 preferred_size)
 
 /// 计数 mock 播放器: start() 按告警键 (wav 文件名去扩展) 计数 — 装配面
 /// "告警键触发 play 路径" 的观测探针 (vm-core voice_warning tests 的

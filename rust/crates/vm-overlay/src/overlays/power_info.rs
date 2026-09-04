@@ -3,16 +3,9 @@
 //!
 //! BOS 字段网格: 常量表快照 (ui_layout.cfg "动力信息" 段) + FieldOverlay.
 //! onFlightData 50ms 节流 + 零 GC 更新路径 + BosStyleRenderer 绘制。
-//! "数据 struct + 内容绘制 fn" 形态: 上层把 state 与画布闭包捕获进
-//! [`crate::platform::host::OverlaySpec`] 的 render 即挂入 OverlayHost; 文件尾的
-//! `*_overlay_spec` 工厂给出 live 喂入形态的现成闭包。
+//! "数据 struct + 内容绘制 fn" 形态: W3 起 host 挂载面 = widgets::fields_grid
+//! 的 BOS 管线 (包本 state), 旧 spec 工厂已退役。
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use crate::overlays::spec_common::{keyed_spec, log_font_reload_failed};
-use crate::platform::host::{OverlaySpec, ReinitFn};
-use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
 use crate::render::renderers::{BosStyleRenderer, Field, OverlayRenderer, RenderContext};
 use crate::ui_model::DataField;
@@ -74,11 +67,6 @@ impl PowerInfoState {
     /// (字体/列度量), 不动数据面, 故此处显式重置。
     pub fn reset_preview(&mut self) {
         let defs = std::sync::Arc::clone(&self.defs);
-        *self = Self::new(defs);
-    }
-
-    /// reinit 链: 换行定义并按 preview 值重建 fields (可见态随 update 恢复)
-    pub fn rebind_defs(&mut self, defs: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>) {
         *self = Self::new(defs);
     }
 
@@ -161,86 +149,4 @@ impl PowerInfoState {
         let mut offset = [0, 0];
         OverlayRenderer::render(renderer, cv, &fields, ctx, &mut offset);
     }
-}
-
-// ---------------------------------------------------------------------------
-// live 喂数形态工厂 (minihud_overlay_spec 先例: render 闭包与喂入方共享句柄)
-// ---------------------------------------------------------------------------
-// PORT(重构波2): POC 时代的三个 preview_spec 工厂 (state move 进闭包的静态
-// 预览专径) 已退役 — 生产预览/live 统一走下方 overlay_spec 工厂 (host 单条目
-// 双形态), 测试面经手工 OverlaySpec 顶位。
-// Java 各 overlay init(S) 时自订 FlightDataBus, preview 实例
-// (initPreview) 不订阅保持 previewValue 静态。Rust host 单条目跨 open/refresh_preview
-// 存活 (D8), 两形态共用一份 state — live 喂入由渲染线程持句柄执行, preview 期
-// 喂入门控见 app_shell 的 feed_overlays_live (overlay_ctx_preview 标志)。
-
-/// 动力信息共享句柄 (render 闭包 + 喂入方各持克隆)
-pub type PowerInfoHandle = Rc<RefCell<PowerInfoState>>;
-
-/// 动力信息 OverlaySpec + live 句柄 (Java Controller 注册键 engineInfoSwitch)。
-/// 初始态 = previewValue (PowerInfoState::new), 游戏模式由喂入方 update 推进。
-/// PORT(WYSIWYG): 字号/列数随 [`ReinitParams`] 仓 — render 闭包经共享 ctx 单元
-/// 读取, reinit 闭包重建 RenderContext (Java reinitConfig 的 super 段: 字体 +
-/// 列布局重载) 并返回新 preferred_size (setBounds 副作用)
-pub fn power_info_overlay_spec(
-    fonts_dir: &std::path::Path,
-    params: &Rc<RefCell<ReinitParams>>,
-) -> Result<(PowerInfoHandle, OverlaySpec), String> {
-    let (font_add, column_num) = {
-        let p = params.borrow();
-        (p.power.font_add, p.power.columns)
-    };
-    let ctx = Rc::new(RefCell::new(RenderContext::load(
-        fonts_dir, font_add, column_num,
-    )?));
-    let state = PowerInfoState::new({
-        let p = params.borrow();
-        std::sync::Arc::clone(&p.power.rows)
-    });
-    let (w, h) = state.preferred_size(&ctx.borrow());
-    let handle: PowerInfoHandle = Rc::new(RefCell::new(state));
-    let render_handle = Rc::clone(&handle);
-    let mut renderer = BosStyleRenderer::default();
-    // reinit 闭包: 重建 ctx (字体/列度量) → 新 preferred_size (Java setBounds)
-    let reinit_handle = Rc::clone(&handle);
-    let reinit_ctx = Rc::clone(&ctx);
-    let reinit_fonts = fonts_dir.to_path_buf();
-    let reinit_params = Rc::clone(params);
-    let reinit: ReinitFn = Box::new(move || {
-        let (fa, col, defs) = {
-            let p = reinit_params.borrow();
-            (
-                p.power.font_add,
-                p.power.columns,
-                std::sync::Arc::clone(&p.power.rows),
-            )
-        };
-        // 行定义随包更新 (行开关变更即时生效); preview 值回填, live 下一帧覆写
-        reinit_handle.borrow_mut().rebind_defs(defs);
-        let new_ctx = match RenderContext::load(&reinit_fonts, fa, col) {
-            Ok(c) => c,
-            Err(e) => {
-                // 字体重载失败: 保持旧 ctx (Java 字体族随包分发, 此路径不可达;
-                // 显式留痕不静默)
-                log_font_reload_failed("PowerInfo", &e);
-                return None;
-            }
-        };
-        *reinit_ctx.borrow_mut() = new_ctx;
-        Some(reinit_handle.borrow().preferred_size(&reinit_ctx.borrow()))
-    });
-    Ok((
-        handle,
-        keyed_spec(
-            "engineInfoSwitch",
-            w,
-            h,
-            Box::new(move |cv: &mut PixCanvas| {
-                render_handle
-                    .borrow()
-                    .draw(cv, &ctx.borrow(), &mut renderer);
-            }),
-            Some(reinit),
-        ),
-    ))
 }

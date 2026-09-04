@@ -94,6 +94,11 @@ pub struct HUDData {
 }
 
 impl HUDData {
+    /// 空数据 (W3 通用页 UpdateEnv 占位 — HUDData 是 minihud 页派生, 通用页不消费)
+    pub fn empty() -> Self {
+        Self::from_builder(&Builder::default())
+    }
+
     /// 对应 Java 包私有构造器 `HUDData(Builder builder)`: 按原赋值顺序逐字段拷贝。
     fn from_builder(builder: &Builder) -> Self {
         HUDData {

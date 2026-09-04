@@ -4,20 +4,16 @@
 //! LabeledLinearGauge 条形仪表 (竖条 throttle/pitch/power + 横条 mixture/radiator/
 //! compressor/fuel), COMPRESSOR 走 MarkedGauge 画 optimal 档标记; onFlightData
 //! 节流间隔配置驱动 (loadRefreshInterval)。
-
-use std::cell::RefCell;
-use std::rc::Rc;
+//! W3 起 host 挂载面 = widgets::gauges_composite 的 EnginePanelWidget
+//! (包本 state), 旧 spec 工厂已退役。
 
 use crate::overlays::bars::LabeledLinearGauge;
 use crate::overlays::gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
-use crate::overlays::spec_common::{keyed_spec, FontSlot};
-use crate::platform::host::{OverlaySpec, ReinitFn};
-use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
-use crate::render::palette::{aa, colors};
+use crate::render::palette::colors;
 use vm_core::base::event::EventPayload;
-use vm_core::base::format::{self, java_round_f32, java_round_f64};
+use vm_core::base::format::{self, java_round_f64};
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 // EngineControlOverlay DEFAULT_REFRESH_INTERVAL 的既有移植 (单一来源, 勿重复定义)
@@ -557,110 +553,4 @@ impl EngineControlState {
             }
         }
     }
-}
-
-// ---------------------------------------------------------------------------
-// live 喂数形态工厂 (minihud_overlay_spec 先例: render 闭包与喂入方共享句柄)
-// ---------------------------------------------------------------------------
-
-/// 引擎控制共享句柄
-pub type EngineControlHandle = Rc<RefCell<EngineControlState>>;
-
-/// 引擎控制 OverlaySpec + live 句柄 (注册键 enableEngineControl)。
-/// `lang` 以 Rc 共享 (reinit 闭包重建 state 需要标签源; Lang !Clone)。
-/// PORT(WYSIWYG): 字号/7 仪表 disable/轮询间隔随 [`ReinitParams`] 仓 — reinit
-/// 闭包整体重建 EngineControlState + fontLabel (Java reinitConfig: loadFontConfig +
-/// loadRefreshInterval + initGaugeFields + calculateLayout + updateGaugesPreview),
-/// 返回新 (width, height) (Java setLocation 尺寸面)
-pub fn engine_control_overlay_spec(
-    fonts_dir: &std::path::Path,
-    lang: Rc<Lang>,
-    params: &Rc<RefCell<ReinitParams>>,
-) -> Result<(EngineControlHandle, OverlaySpec), String> {
-    let (font_add, dpi_scale, interval_ms, disables) = {
-        let p = params.borrow();
-        (
-            p.engine.font_add,
-            p.dpi_scale,
-            p.service_loop_interval_ms,
-            p.engine.disables,
-        )
-    };
-    let interval_str = interval_ms.to_string();
-    // init 链 (game 实例): initGaugeFields + calculateLayout + updateGaugesPreview
-    // (半量程初值, 首个有效事件前的显示态; initPreview 的二次调用是 preview 专属)
-    // cfg_true 按键名查 disables 表 (Java "true".equals(getConfigSafe(key));
-    // 曾恒 false — 7 个 disable 开关从未生效, 启动首帧即与 Java 不一致)
-    let state = build_engine_state(&lang, font_add, dpi_scale, &interval_str, &disables);
-    // fontLabel = BOLD(round(fontSize/2.0f)) (loadFontConfig)
-    let half = java_round_f32(state.font_size as f32 / 2.0);
-    let bold_path = fonts_dir.join("sarasa-mono-sc-bold.ttf");
-    let font_label = FontSlot::new("EngineControl", &bold_path, half)?;
-    let (w, h) = (state.width, state.height);
-    let handle: EngineControlHandle = Rc::new(RefCell::new(state));
-    let render_handle = Rc::clone(&handle);
-    let render_font = font_label.clone();
-    // reinit 闭包: 状态整体重建 (Java initGaugeFields 全量重排) + fontLabel 重载
-    // (字体热换失败 → 日志 + None, state 同步保持旧值)
-    let reinit_handle = Rc::clone(&handle);
-    let reinit_font = font_label;
-    let reinit_lang = Rc::clone(&lang);
-    let reinit_params = Rc::clone(params);
-    let reinit_bold = bold_path;
-    let reinit: ReinitFn = Box::new(move || {
-        let (fa, dpi, iv, dis) = {
-            let p = reinit_params.borrow();
-            (
-                p.engine.font_add,
-                p.dpi_scale,
-                p.service_loop_interval_ms,
-                p.engine.disables,
-            )
-        };
-        let new_state = build_engine_state(&reinit_lang, fa, dpi, &iv.to_string(), &dis);
-        let half = java_round_f32(new_state.font_size as f32 / 2.0);
-        if !reinit_font.reload(&reinit_bold, half) {
-            return None;
-        }
-        let (w, h) = (new_state.width, new_state.height);
-        *reinit_handle.borrow_mut() = new_state;
-        Some((w, h))
-    });
-    Ok((
-        handle,
-        keyed_spec(
-            "enableEngineControl",
-            w,
-            h,
-            Box::new(move |cv: &mut PixCanvas| {
-                // aa = 运行时仓 (cfg AAEnable 可关 — 审查轮 1-A 第 7 处钉死点)
-                let font = render_font.get();
-                render_handle.borrow_mut().draw(cv, &font, aa());
-            }),
-            Some(reinit),
-        ),
-    ))
-}
-
-/// EngineControlState::new 的 interval/disables 参数打包 (工厂初建与 reinit 共用)
-fn build_engine_state(
-    lang: &Lang,
-    font_add: i32,
-    dpi_scale: f64,
-    interval_str: &str,
-    disables: &[bool; 7],
-) -> EngineControlState {
-    EngineControlState::new(
-        lang,
-        font_add,
-        dpi_scale,
-        &|key: &str| {
-            ENGINE_DISABLE_KEYS
-                .iter()
-                .position(|k| *k == key)
-                .map(|i| disables[i])
-                .unwrap_or(false)
-        },
-        &|_| interval_str.to_string(),
-    )
 }

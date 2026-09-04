@@ -3,38 +3,33 @@
 //! - [`DrawFrameSimpl`] — 推力-真空速曲线透明 overlay: FM 句柄缓存直绘
 //!   (panel paintComponent), 自管可见性 (preview 恒显 / 游戏模式热键切换),
 //!   run() 循环 = 1000ms 节流 + displayFmKey==0 收腿 10s 自动退场。
+//!   W3 起 host 挂载面 = widgets::fm_sidecar 的 ThrustChartWidget
+//!   (包本 state + tick 泵), 旧 spec 工厂与 DrawFrameSimplFeed 泵已退役。
 //!
 //! 死代码不搬 (P5 getdata 先例): `paintAction` (全工程无调用, 与 panel
 //! paintComponent 内联块重复) / `drawCoordinates`×2 + `searchMin/searchMax`×4 (依赖
 //! 恒 null 的 `FlightAnalyzer fA` 字段, 调用即 NPE) / 死字段 pixIndex/Index/useBlkx/
 //! ggx4/ggy4/Blkx/fX/fY (声明后无读写点)。
 //!
-//! 组装契约 (overlays_field2.rs 同款):
+//! 组装契约 (W3 形态):
 //! - 窗口/拖动归 host; 固定几何 (0, screenH-500, 900, 500) 经
 //!   [`OverlayHost::set_entry_fixed_pos`] 每次 materialize 重 applying (Java 每次
 //! init/initPreview 的 setBounds 字面量; 位置存档键 thrustdFSX/Y 只写不读, 不参与
 //! 定位 — Rust 侧 host 内存档同样不回读, 等价死数据);
 //! - UIStateBus 订阅 (FM_OVERLAY_TOGGLE 仅游戏 init 挂接 / FM_CHANGED 两会话均挂
 //!   — initFmHandleCache 被 init 与 initPreview 共用) 对应
-//!   [`DrawFrameSimpl::toggle`]/[`DrawFrameSimpl::reload_fm`], 由组装层事件循环驱动;
-//!   dispose 的退订由所有权 Drop 根治;
-//! - run() 线程循环 (needsThread=true: OverlayEntry.open 与 refreshPreview 均起线程)
-//!   由 [`DrawFrameSimplFeed`] 单线程驱动。
+//!   [`DrawFrameSimpl::toggle`]/[`DrawFrameSimpl::reload_fm`], 由组装层事件循环驱动
+//!   (渲染线程节拍收集脉冲 → sidecar tick 消费);
+//!   dispose 的退订由所有权 Drop 根治。
 //!
 //! 对拍备案 (审查 W3): rustcmp 套件现覆盖 FlightInfo/gauges/MiniHUD, 本组件渲染
 //! 证据 = 单测级几何 基线 + 像素墨迹断言 (Java 语义逐式复算); FMUnpacked 同款。
 
-use crate::overlays::spec_common::{keyed_spec, FontSlot};
-use crate::platform::host::{OverlayHost, OverlaySpec};
 use crate::render::canvas::{LineCapStyle, PixCanvas};
 use crate::render::font::LoadedFont;
-use crate::render::palette::aa;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::Arc;
 use vm_core::base::format::{fmt_f, java_round_f32};
 use vm_core::fm::data::FmData;
-use vm_core::fm::FMManager;
 
 // ---------------------------------------------------------------------------
 // 几何/绘制原语 (Java findMin/findMax + drawXY/drawPoint/drawExample)
@@ -140,7 +135,7 @@ pub fn chart_geometry(b: &FmData) -> ChartGeom {
 /// 三档字号字体组 (Java Application.defaultFontName / defaultNumfontName 的 PLAIN
 /// 族: 标题 fontsize+6 / 轴单位 fontsize+4 / 刻度数字与图例 fontsize=12。
 /// Java 字族 YaHei/Roboto → Rust 固定 sarasa regular —
-/// fm_unpacked_data_overlay_spec 同款先例, cfg 缺省字体名时零偏差)
+/// 各 overlay 字体面同款先例 (cfg 缺省 "Sarasa Mono SC" 时零偏差)
 pub struct DfsFonts<'a> {
     /// 刻度数字 (defaultNumfontName PLAIN 12)
     pub num12: &'a LoadedFont,
@@ -465,167 +460,6 @@ impl DrawFrameSimpl {
 }
 
 // ---------------------------------------------------------------------------
-// OverlayHost 挂载 (Java Controller registerWithStrategy("thrustdFS"))
-// ---------------------------------------------------------------------------
-
-/// 推力曲线共享句柄 (flight_info/control_surfaces 先例: render 闭包与事件循环
-/// 共享 state; Rc 恒留渲染线程)
-pub type DrawFrameSimplHandle = Rc<RefCell<DrawFrameSimpl>>;
-
-/// 推力曲线 OverlaySpec + live 句柄 (Java Controller: 键 thrustdFS,
-/// 激活策略 config("enableFMPrint").and(jetOnly), previewEnabled=true)。
-///
-/// 初始态 = initPreview 形态 (恒可见 — Java 预览工厂); 游戏形态 (is_preview=false +
-/// 隐藏起步 + 句柄重读) 由组装层在 OpenAllOverlays 处置 (单实例会话翻转模式,
-/// ControlSurfaces/FmUnpacked 同款)。尺寸恒 900×500 (setBounds 字面量, 无 reinit 面
-/// — Java reinitConfig  空实现); 定位经 host `set_entry_fixed_pos`。
-pub fn draw_frame_simpl_spec(
-    fonts_dir: &std::path::Path,
-    fm: &Arc<FMManager>,
-) -> Result<(DrawFrameSimplHandle, OverlaySpec), String> {
-    let regular = fonts_dir.join("sarasa-mono-sc-regular.ttf");
-    let f12 = FontSlot::new("DrawFrameSimpl", &regular, 12)?;
-    let f16 = FontSlot::new("DrawFrameSimpl", &regular, 16)?;
-    let f18 = FontSlot::new("DrawFrameSimpl", &regular, 18)?;
-    let mut dfs = DrawFrameSimpl::new();
-    // initFmHandleCache: fmHandle = FMManager.current() 快照
-    dfs.init_preview(fm.current().fmdata.clone().map(Arc::new));
-    let handle: DrawFrameSimplHandle = Rc::new(RefCell::new(dfs));
-    let render_handle = Rc::clone(&handle);
-    let (r12, r16, r18) = (f12, f16, f18);
-    Ok((
-        handle,
-        // Java registerWithStrategy("thrustdFS", ...) — LinkedHashMap 键
-        keyed_spec(
-            "thrustdFS",
-            900,
-            500,
-            Box::new(move |cv: &mut PixCanvas| {
-                // aa = 运行时仓 (cfg AAEnable 可关)
-                let (n12, n16, n18) = (r12.get(), r16.get(), r18.get());
-                let fonts = DfsFonts {
-                    num12: &n12,
-                    text16: &n16,
-                    text18: &n18,
-                    text12: &n12,
-                };
-                // PORT(panic 边界): 畸形 FM 短行的索引 panic (Java AIOOBE 由事件线程吞,
-                // 窗口存活) 不许毒化 host 槽位锁 — catch_unwind 吞帧留空画布
-                // (FmUnpackedFeed tick 包 catch_unwind 的同族契约, )
-                let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    render_handle.borrow().draw(cv, &fonts, aa());
-                }));
-                if r.is_err() {
-                    vm_core::base::logger::error(
-                        "DrawFrameSimpl",
-                        "paint panic 已吞 (畸形 FM 推力表), 本帧空画布",
-                    );
-                }
-            }),
-            None,
-        ),
-    ))
-}
-
-// ---------------------------------------------------------------------------
-// run() 循环驱动
-// ---------------------------------------------------------------------------
-
-/// run() 退出分支的遥测输入 (直读 `xc.S.sState.gear != 100 ||
-/// (xc.S.speedv > 10 && xc.S.sState.throttle > 0)`)
-pub struct DfsFlight {
-    pub gear: i32,
-    pub speedv: f64,
-    pub throttle: i32,
-}
-
-/// DrawFrameSimpl 的 run() 循环驱动侧 (单线程对位, 渲染线程循环调用)。
-///
-/// 每轮: 自管可见性落窗 (`shouldShow = isPreview || visible` 的 setVisible 拉起/
-/// 隐藏 + repaint — repaint 归 host 渲染节拍脏检查) → `displayFmKey != 0` 时
-/// sleepQuietly(1000) = 1000ms 泵节流。`displayFmKey == 0` 分支 Java 无睡眠热自旋
-/// (Java bug — 项目先例 flight_log sleep 修复, 不保真), Rust 以渲染节拍 (~50ms)
-/// 轮询判定; 条件命中 → sleep 10s → break → dispose (Rust: 10s 等待后 host.close
-/// 走销毁链 — 存位置 + drop 窗口)。
-pub struct DrawFrameSimplFeed {
-    /// 1000ms 节流基准 (displayFmKey != 0 路径; 0 = 首轮放行)
-    last_ms: i64,
-    /// 10s 退场等待起点 (Some = 已命中退出条件, 线程沉睡中)
-    exit_wait_start: Option<i64>,
-    /// run 线程已终止 (dispose 后; CloseAll 会话收尾时复位)
-    exited: bool,
-}
-
-impl Default for DrawFrameSimplFeed {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl DrawFrameSimplFeed {
-    pub fn new() -> Self {
-        DrawFrameSimplFeed {
-            last_ms: 0,
-            exit_wait_start: None,
-            exited: false,
-        }
-    }
-
-    /// 单轮驱动。`id` = host 注册键 ("thrustdFS"), `display_fm_key` = Application.
-    /// displayFmKey 的 Rust 对位 (ControllerShared.flags.current_fm_hotkey_code,
-    /// bind/handleFmHotkeyConfigChange 同步), `flight` = live Service 快照
-    /// (None = 无 Service 的预览形态 — Java 此处 NPE 杀线程, Rust 冻结判定保窗口)。
-    pub fn pump(
-        &mut self,
-        host: &mut OverlayHost,
-        id: &str,
-        handle: &DrawFrameSimplHandle,
-        now_ms: i64,
-        display_fm_key: i32,
-        flight: Option<DfsFlight>,
-    ) {
-        if self.exited {
-            return; // run 线程已终止 (Java dispose 后实例僵在 entry 里直至 closeAll)
-        }
-        if let Some(start) = self.exit_wait_start {
-            // sleepQuietly(10000) 等待期: 线程沉睡不再迭代; 到点 break → dispose
-            if now_ms.saturating_sub(start) >= 10_000 {
-                vm_core::base::logger::info("DrawFrameSimpl", "Exiting run loop, disposing");
-                host.close(id); // 销毁链 (Java dispose: 注销 + 窗口销毁)
-                                // openAll 跳过 / refreshPreviews 只跑 reinit, 死窗口不复活; 直到
-                                // closeAll (entry.close → instance=null) 才允许重建
-                host.set_entry_zombie(id, true);
-                self.exited = true;
-            }
-            return;
-        }
-        // 如果配置了热键: sleepQuietly(1000) 节流
-        if display_fm_key != 0 && now_ms.saturating_sub(self.last_ms) < 1000 {
-            return;
-        }
-        self.last_ms = now_ms;
-        // Self-managed visibility: preview always visible, game mode uses toggle state
-        let should_show = handle.borrow().should_show();
-        host.set_entry_visible(id, should_show);
-        if display_fm_key == 0 {
-            if let Some(f) = flight {
-                // 如果收起落架则关闭break (sState 缺省 gear/throttle=0 同判收起)
-                if f.gear != 100 || (f.speedv > 10.0 && f.throttle > 0) {
-                    self.exit_wait_start = Some(now_ms);
-                }
-            }
-        }
-    }
-
-    /// CloseAllOverlays 会话收尾复位 (Java closeAll → 实例销毁; 下次 open/
-    /// refreshPreview 重建新实例新线程 — 对位 feed 侧 run 循环重生)
-    pub fn reset(&mut self) {
-        self.last_ms = 0;
-        self.exit_wait_start = None;
-        self.exited = false;
-    }
-}
-
 // ---------------------------------------------------------------------------
 // 测试: 几何 基线 / 像素墨迹 / run 泵 (toggle + 自动退场) / host 固定几何
 // ---------------------------------------------------------------------------
