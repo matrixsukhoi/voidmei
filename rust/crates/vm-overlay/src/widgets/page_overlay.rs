@@ -65,16 +65,21 @@ impl PageOverlay {
         debug: bool,
         edit_view: bool,
     ) -> Self {
+        // 生产: visibleWhen 的配置键求值 = settings.bools 全键面; 键不在快照
+        // (数据条件/未知键) 宽容建成 — 数据条件由组件 props.visibleWhen
+        // 运行时承担; 编辑器: 全显
         let visible: &dyn Fn(&str) -> Option<bool> = if edit_view {
             &|_: &str| Some(true)
         } else {
-            &|_: &str| None
+            &|k: &str| settings.bools.get(k).copied()
         };
+        let visible_default = !edit_view;
         let (canvas_w, canvas_h, line_height) = page_canvas(doc, fctx);
         let inputs = PageBuildInputs {
             doc,
             fctx,
-            visible_src: visible, // 生产: W3 出厂页键控门控在编排器; 编辑器: 全显
+            visible_src: visible,
+            visible_default,
             canvas_w,
             canvas_h,
             line_height,

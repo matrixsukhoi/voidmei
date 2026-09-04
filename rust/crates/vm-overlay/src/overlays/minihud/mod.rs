@@ -294,6 +294,7 @@ impl MiniHudOverlay {
             doc,
             fctx: &fctx,
             visible_src: &visible_src,
+            visible_default: false, // 整树缺失关准星的 Java getBool 兜底
             canvas_w: layout_width,
             canvas_h: self.ctx.height,
             // lineHeight from font size for responsive scaling (原注)

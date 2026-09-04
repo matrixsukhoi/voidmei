@@ -1,6 +1,6 @@
 // W4 布局编辑器命令封装 (六命令 + 快照 PNG 转换)
 import type {
-  ComponentCatalogEntry,
+  CatalogResponse,
   PageDoc,
   PageSummary,
   SolveResult,
@@ -9,7 +9,7 @@ import type {
 
 import { invoke } from '@tauri-apps/api/core'
 
-export async function getComponentCatalog(): Promise<ComponentCatalogEntry[]> {
+export async function getComponentCatalog(): Promise<CatalogResponse> {
   return invoke('get_component_catalog');
 }
 

@@ -107,9 +107,29 @@ fn dispatch_form(
                     })
                 })
                 .collect();
-            serde_json::to_value(catalog)
-                .map(IpcReply::Ok)
-                .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+            // 常用字段预设 (出厂页 data.field 组件原样导出 — palette 直接列
+            // 「表速」「真空速」…, 点击即完整配置组件; 单一数据源)
+            let field_presets: Vec<_> = vm_core::config::json_store::factory()
+                .pages
+                .iter()
+                .filter(|p| {
+                    p.id == "flight-info-default" || p.id == "power-info-default"
+                })
+                .flat_map(|p| p.components.iter())
+                .filter(|c| c.r#type == "core.data.field")
+                .map(|c| {
+                    serde_json::json!({
+                        "label": c.props.get("label").and_then(|v| v.as_str()).unwrap_or(&c.id),
+                        "props": c.props,
+                    })
+                })
+                .collect();
+            serde_json::to_value(serde_json::json!({
+                "components": catalog,
+                "fieldPresets": field_presets,
+            }))
+            .map(IpcReply::Ok)
+            .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
         }
         RequestKind::GetPages => {
             let s = shell.borrow();

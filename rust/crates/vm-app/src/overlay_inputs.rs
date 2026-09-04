@@ -99,9 +99,13 @@ impl OverlayInputs {
         let fm_print = config.get_overlay_settings("FM拆包数据");
         let attitude = config.get_overlay_settings("地平仪");
         let flight = config.get_overlay_settings("飞行信息");
+        // bool 全键面 (页面组件 visibleWhen 的配置键求值源 — 只靠 build 的
+        // enableLayoutDebug 单键会令带条件的组件在真窗恒消失/恒显)
+        let mut hud = HudSettingsSnapshot::build(&config.get_hud_settings());
+        hud.bools = all_bool_rows(config);
         OverlayInputs {
             dpi_scale: env.dpi.get_scale(),
-            hud: HudSettingsSnapshot::build(&config.get_hud_settings()),
+            hud,
             pages: config.pages(),
             font_add_engine: engine.get_font_size_add(),
             font_add_power: power.get_font_size_add(),
@@ -128,6 +132,32 @@ impl OverlayInputs {
             }),
         }
     }
+}
+
+/// 配置树全部 bool 行收集 (property → value; 嵌套 HEADER 递归) —
+/// 面板标题集 = 出厂标题 (面板集固定, 用户不可增删)
+fn all_bool_rows(config: &ConfigurationService) -> HashMap<String, bool> {
+    let mut out = HashMap::new();
+    fn walk(rows: &[vm_core::config::json_model::RowConfig], out: &mut HashMap<String, bool>) {
+        for r in rows {
+            if let (Some(key), Some(vm_core::config::json_model::ConfigValue::Bool(v))) =
+                (&r.property, &r.value)
+            {
+                out.insert(key.clone(), *v);
+            }
+            walk(&r.children, out);
+        }
+    }
+    for title in vm_core::config::json_store::factory()
+        .panels
+        .iter()
+        .map(|p| p.title.clone())
+    {
+        if let Some(gc) = config.get_overlay_settings(&title).get_group_config() {
+            walk(&gc.rows, &mut out);
+        }
+    }
+    out
 }
 
 /// 注册快照 → WYSIWYG reinit 参数包 (同源配置键的子集投影; 颜色/AA 有专命令不入包)。

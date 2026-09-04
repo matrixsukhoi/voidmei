@@ -1,7 +1,7 @@
-/** W4 palette: 组件目录分组列表 (点击添加到画布) */
+/** W4 palette: 常用字段预设 (出厂数据字段, 点击即完整配置) + 组件目录分组 */
 import React, { useEffect, useMemo, useState } from 'react'
 import { Tag } from 'antd'
-import type { ComponentCatalogEntry } from './types'
+import type { CatalogResponse, ComponentCatalogEntry, FieldPreset } from './types'
 import { getComponentCatalog } from './api'
 
 const CATEGORY_ZH: Record<string, string> = {
@@ -13,13 +13,26 @@ const CATEGORY_ZH: Record<string, string> = {
   Decor: '装饰',
 }
 
-export const Palette: React.FC<{ onAdd: (typeName: string, displayZh: string) => void }> = ({
-  onAdd,
-}) => {
+interface PaletteProps {
+  onAdd: (typeName: string, displayZh: string) => void
+  /** 常用字段预设添加 (props 完整配置) */
+  onAddField: (preset: FieldPreset) => void
+}
+
+export const Palette: React.FC<PaletteProps> = ({ onAdd, onAddField }) => {
   const [catalog, setCatalog] = useState<ComponentCatalogEntry[]>([])
+  const [presets, setPresets] = useState<FieldPreset[]>([])
 
   useEffect(() => {
-    getComponentCatalog().then(setCatalog).catch(() => setCatalog([]))
+    getComponentCatalog()
+      .then((r: CatalogResponse) => {
+        setCatalog(r.components ?? [])
+        setPresets(r.fieldPresets ?? [])
+      })
+      .catch(() => {
+        setCatalog([])
+        setPresets([])
+      })
   }, [])
 
   const groups = useMemo(() => {
@@ -41,6 +54,35 @@ export const Palette: React.FC<{ onAdd: (typeName: string, displayZh: string) =>
         paddingRight: 6,
       }}
     >
+      {/* 常用字段 (出厂预设 — 表速/真空速/马赫数… 点一下就是完整组件) */}
+      {presets.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: '#888', margin: '6px 0 4px' }}>常用字段</div>
+          {presets.map((p, i) => (
+            <div
+              key={`${p.label}-${i}`}
+              onClick={() => onAddField(p)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 6px',
+                cursor: 'pointer',
+                borderRadius: 4,
+                fontSize: 13,
+              }}
+              className="palette-item"
+              title={String(p.props.target ?? '')}
+            >
+              <span style={{ fontSize: 10, color: '#999' }}>＋</span>
+              <span style={{ flex: 1 }}>{p.label}</span>
+              {p.props.unit ? (
+                <span style={{ fontSize: 10, color: '#999' }}>{String(p.props.unit)}</span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
       {groups.map(([cat, items]) => (
         <div key={cat} style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 12, color: '#888', margin: '6px 0 4px' }}>

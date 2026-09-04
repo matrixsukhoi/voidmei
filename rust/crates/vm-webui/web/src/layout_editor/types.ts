@@ -19,6 +19,17 @@ export interface ComponentCatalogEntry {
   propsSchema: PropSchemaEntry[];
 }
 
+/** 常用字段预设 (出厂页 data.field 原样导出 — 点击即完整配置) */
+export interface FieldPreset {
+  label: string
+  props: Record<string, unknown>
+}
+
+export interface CatalogResponse {
+  components: ComponentCatalogEntry[]
+  fieldPresets: FieldPreset[]
+}
+
 export interface PageSummary {
   id: string;
   name: string;

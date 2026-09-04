@@ -40,6 +40,9 @@ pub struct PageBuildInputs<'a> {
     pub fctx: &'a FactoryCtx<'a>,
     /// visibleWhen 求值源 (配置 bool 快照优先, 遥测后继)
     pub visible_src: &'a dyn Fn(&str) -> Option<bool>,
+    /// 求值源 None 时的兜底: minihud = false (整树缺失关准星 Java 兜底),
+    /// 通用页 = true (宽容建成 — 数据条件归组件 props.visibleWhen 运行时)
+    pub visible_default: bool,
     /// 画布宽 (crosshair 在右半区时 = 基宽×2, 原 layoutWidth 语义)
     pub canvas_w: i32,
     pub canvas_h: i32,
@@ -121,7 +124,9 @@ fn build_component(comp: &ComponentDoc, inputs: &PageBuildInputs) -> Option<Widg
         return None;
     }
     if let Some(cond) = &comp.visible_when {
-        let on = (inputs.visible_src)(cond).unwrap_or(false);
+        // None 兜底语义归编排器: minihud = false (整树缺失关准星的 Java 兜底),
+        // 通用页 = true (宽容建成 — 数据条件由组件 props.visibleWhen 运行时承担)
+        let on = (inputs.visible_src)(cond).unwrap_or(inputs.visible_default);
         if !on {
             return None; // 原语义: 条件不满足 → 节点不建
         }

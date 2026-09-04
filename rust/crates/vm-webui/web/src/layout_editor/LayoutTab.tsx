@@ -96,6 +96,25 @@ export const LayoutTab: React.FC = () => {
     [active, patchPage],
   )
 
+  /** palette 常用字段预设添加 (props 完整配置, 链式追加到页尾) */
+  const addFieldPreset = useCallback(
+    (preset: { label: string; props: Record<string, unknown> }) => {
+      if (!active) return
+      const comp: ComponentDoc = {
+        id: `${String(preset.props.target ?? 'field')}-${active.components.length + 1}`,
+        type: 'core.data.field',
+        pos: [0, 0],
+        anchor: ['TopLeft', 'BottomLeft'],
+        parent: null, // 布局引擎: 父缺席退化根 — 链式改由用户在 Inspector 挂
+        enabled: true,
+        props: { ...preset.props },
+      }
+      patchPage(d => ({ ...d, components: [...d.components, comp] }))
+      setSelectedComp(comp.id)
+    },
+    [active, patchPage],
+  )
+
   const patchComponent = useCallback(
     (id: string, mut: (c: ComponentDoc) => ComponentDoc) => {
       patchPage(d => ({
@@ -172,7 +191,7 @@ export const LayoutTab: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: 8, height: 'calc(100vh - 132px)', minHeight: 480 }}>
       {/* palette */}
-      <Palette onAdd={addComponent} />
+      <Palette onAdd={addComponent} onAddField={addFieldPreset} />
 
       {/* 画布 + 工具栏 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>

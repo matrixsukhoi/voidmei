@@ -760,10 +760,22 @@ fn page_snap() -> HudSettingsSnapshot {
     }
 }
 
-/// 建树助手 (lh=24, 画布显式传 — 对齐原 build 测试的 300x200/600x200 口径)
+/// 建树助手 (lh=24, 画布显式传 — 对齐原 build 测试的 300x200/600x200 口径;
+/// visible_default = minihud 编排器兜底 false)
 fn build_page(
     doc: &PageDoc,
     visible_src: &dyn Fn(&str) -> Option<bool>,
+    canvas_w: i32,
+    canvas_h: i32,
+) -> BuiltPageLayout {
+    build_page_default(doc, visible_src, false, canvas_w, canvas_h)
+}
+
+/// 建树助手 (visible_default 参数化 — 通用页 true 宽容语义的测试面)
+fn build_page_default(
+    doc: &PageDoc,
+    visible_src: &dyn Fn(&str) -> Option<bool>,
+    visible_default: bool,
     canvas_w: i32,
     canvas_h: i32,
 ) -> BuiltPageLayout {
@@ -781,6 +793,7 @@ fn build_page(
         doc,
         fctx: &fctx,
         visible_src,
+        visible_default,
         canvas_w,
         canvas_h,
         line_height: 24.0,
@@ -872,6 +885,21 @@ fn page_layout_without_crosshair() {
     let built2 = build_page(&doc, &|_| None, 300, 200);
     assert_eq!(built2.cells.len(), 10);
     assert!(built2.engine.get_node("crosshair").is_none());
+}
+
+/// visibleWhen 三态的通用页语义 (PageOverlay 生产路径):
+/// Some(true) 建 / Some(false) 裁 / None (键不在 bools — 数据条件或未知键)
+/// 宽容建成 — 设了条件的组件在真窗恒消失的断链回归锚。
+#[test]
+fn page_layout_visible_default_true_keeps_unknown_cond() {
+    let doc = factory_page();
+    // Some(false): 裁 (与 minihud 语义共享)
+    let cut = build_page_default(&doc, &|k| (k == "displayCrosshair").then_some(false), true, 300, 200);
+    assert!(!cut.cells.contains_key("crosshair"));
+    // None + default=true: 宽容建成 (通用页)
+    let kept = build_page_default(&doc, &|_| None, true, 600, 200);
+    assert!(kept.cells.contains_key("crosshair"));
+    assert_eq!(kept.cells.len(), 11);
 }
 
 /// 父组件缺席 (用户编辑删父) → 子组件退化根, 不无故消失 (W2 宽容裁决;

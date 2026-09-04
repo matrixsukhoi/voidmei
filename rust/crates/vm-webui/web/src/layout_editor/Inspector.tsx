@@ -46,29 +46,33 @@ export const Inspector: React.FC<InspectorProps> = ({
 }) => {
   const [schema, setSchema] = useState<Record<string, PropSchemaEntry[]>>({})
   const [varNames, setVarNames] = useState<{ value: string; label: string }[]>([])
+  const [unitByName, setUnitByName] = useState<Record<string, string>>({})
 
   // 目录一次拉取 (组件类型 → propsSchema)
   useEffect(() => {
     getComponentCatalog()
-      .then(list => {
+      .then(r => {
         const m: Record<string, PropSchemaEntry[]> = {}
-        for (const e of list) m[e.typeName] = e.propsSchema ?? []
+        for (const e of r.components ?? []) m[e.typeName] = e.propsSchema ?? []
         setSchema(m)
       })
       .catch(() => setSchema({}))
   }, [])
 
-  // 公式目录 (Target 下拉数据源; 懒加载一次)
+  // 公式目录 (Target 下拉数据源 + unit 自动带出表; 懒加载一次)
   useEffect(() => {
     getVarCatalog()
-      .then(vs =>
+      .then(vs => {
         setVarNames(
           vs.map(v => ({
             value: v.name,
             label: v.unit ? `${v.name} (${v.unit})` : v.name,
           })),
-        ),
-      )
+        )
+        const u: Record<string, string> = {}
+        for (const v of vs) if (v.unit) u[v.name] = v.unit
+        setUnitByName(u)
+      })
       .catch(() => setVarNames([]))
   }, [])
 
@@ -230,7 +234,15 @@ export const Inspector: React.FC<InspectorProps> = ({
                       filterOption={(input, opt) =>
                         (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
                       }
-                      onChange={val => patchProp(p.key, val)}
+                      onChange={val => {
+                        patch(c => {
+                          const props = { ...c.props, [p.key]: val }
+                          // 选中目录变量且单位非空 → 自动带出 (仅未手填时)
+                          const u = unitByName[val]
+                          if (u && !props.unit) props.unit = u
+                          return { ...c, props }
+                        })
+                      }}
                     />
                   </Field>
                 )
