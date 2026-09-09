@@ -144,12 +144,15 @@ impl OverlayEntry {
 }
 
 /// 全局配置键/前缀: 命中则所有条目都刷新 (与条目兴趣无关)
-const GLOBAL_CONFIG_KEYS: [&str; 5] = [
+/// ("voidmei_config.json" = 编辑器 save/delete/reset 的广播键 — 页面数据
+/// 变更影响任意页, 必须全条目刷新)
+const GLOBAL_CONFIG_KEYS: [&str; 6] = [
     "AAEnable",
     "simpleFont",
     "Interval",
     "voiceVolume",
     "ui_layout.cfg",
+    "voidmei_config.json",
 ];
 const GLOBAL_CONFIG_PREFIXES: [&str; 2] = ["Global", "font"];
 

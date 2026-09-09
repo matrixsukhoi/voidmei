@@ -175,7 +175,7 @@ export const LayoutTab: React.FC = () => {
     try {
       await savePage(active)
       setDirty(false)
-      message.success(`页面「${active.name}」已保存 (桌面预览窗已实时更新)`)
+      message.success(`页面「${active.name}」已保存 (桌面预览窗实时更新)`)
     } catch (e) {
       message.error(`保存失败: ${e}`)
     }
@@ -216,6 +216,7 @@ export const LayoutTab: React.FC = () => {
             onConfirm={async () => {
               await resetPageToFactory(activeId)
               message.success('已恢复出厂版本')
+              refreshList()
             }}
           >
             <Button >恢复出厂</Button>

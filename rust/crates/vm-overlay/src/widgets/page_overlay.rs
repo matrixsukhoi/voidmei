@@ -218,9 +218,8 @@ fn build_page(p: &PageSpecParams) -> Result<(PageOverlay, i32, i32), String> {
         fonts,
         lang: Some(&p.lang),
         fonts_dir: Some(p.font_path.parent().map(|x| x.to_path_buf()).unwrap_or_default()),
-        // W3B/W3C 复合组件参数 (主线收口: 从 ReinitParams 各组随 refresh 闭包注入;
-        // 当前 None → 组件工厂走 GaugeCfg::default 的 Java 回退缺省)
-        gauge_cfg: None,
+        // 复合组件参数真值 (dpi/组字号/节流 — assemble 装配; 缺席仅测试/兜底)
+        gauge_cfg: Some(&p.gauge_cfg),
     };
     let page = PageOverlay::build(&p.doc, &fctx, &p.settings, p.debug, false);
     let (w, h) = match page.sizing() {

@@ -247,6 +247,8 @@ impl HudWidget for EngineGaugeWidget {
         self.last_refresh = 0;
         self.is_jet = false;
         self.jet_latched = false;
+        // compressor 量程闩同步复位 (跨会话残留的 FM 档位量程一并清)
+        self.compressor_max_set = false;
     }
 
     fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, _fonts: &PageFonts, aa: bool) {

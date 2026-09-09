@@ -391,7 +391,7 @@ fn overlay_settings_flight_info_factory() {
     // 组内行读取 (flightInfoColumn 滑条已随字段原子化退役 — 行开关/列数
     // 由画布编辑器组件管理)
     assert!(v.get_bool("flightInfoSwitch", false));
-    assert!(!v.get_bool("flightInfoEdge", true));
+    // flightInfoEdge/字体选择行已随字段原子化退役 (页面字体钉 PageDoc.family)
     assert_eq!(v.get_int("fontSize", -99), 0);
 
     // trait 借出面

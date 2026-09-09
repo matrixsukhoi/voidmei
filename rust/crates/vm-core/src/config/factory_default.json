@@ -1541,54 +1541,6 @@
           "naWhen": null,
           "children": [
             {
-              "label": "玻璃边框",
-              "type": "SWITCH",
-              "property": "flightInfoEdge",
-              "targetName": null,
-              "value": false,
-              "defaultValue": false,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "为飞行数据面板添加玻璃质感边框",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "字体",
-              "type": "COMBO",
-              "property": "flightInfoFontC",
-              "targetName": null,
-              "value": "Sarasa Mono SC",
-              "defaultValue": "Sarasa Mono SC",
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": "_FONTS_",
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "选择用于显示飞行参数的字体",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
               "label": "大小",
               "type": "SLIDER",
               "property": "fontSize",
@@ -1700,30 +1652,6 @@
           "visibleWhen": null,
           "naWhen": null,
           "children": [
-            {
-              "label": "字体",
-              "type": "COMBO",
-              "property": "fontName",
-              "targetName": null,
-              "value": "Sarasa Mono SC",
-              "defaultValue": "Sarasa Mono SC",
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": "_FONTS_",
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "选择用于显示引擎参数的字体",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
             {
               "label": "大小",
               "type": "SLIDER",
@@ -2172,30 +2100,6 @@
           "naWhen": null,
           "children": [
             {
-              "label": "显示边框",
-              "type": "SWITCH",
-              "property": "enableAttitudeIndicatorEdge",
-              "targetName": null,
-              "value": false,
-              "defaultValue": false,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "为姿态仪面板添加玻璃质感边框",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
               "label": "显示航向",
               "type": "SWITCH",
               "property": "attitudeIndicatorDisplayDirection",
@@ -2314,30 +2218,6 @@
               "visibleWhen": null,
               "naWhen": null,
               "children": []
-            },
-            {
-              "label": "使用状态颜色",
-              "type": "SWITCH",
-              "property": "attitudeIndicatorUseNumColor",
-              "targetName": null,
-              "value": false,
-              "defaultValue": false,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "姿态仪线条颜色跟随全局状态色",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
             }
           ]
         }
@@ -2426,32 +2306,7 @@
           "precisionSource": null,
           "visibleWhen": null,
           "naWhen": null,
-          "children": [
-            {
-              "label": "字体",
-              "type": "COMBO",
-              "property": "fontName",
-              "targetName": null,
-              "value": "Sarasa Mono SC",
-              "defaultValue": "Sarasa Mono SC",
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": "_FONTS_",
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "数据显示字体",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            }
-          ]
+          "children": []
         },
         {
           "label": "数据选择",
@@ -4281,32 +4136,7 @@
           "precisionSource": null,
           "visibleWhen": null,
           "naWhen": null,
-          "children": [
-            {
-              "label": "软件渲染模式",
-              "type": "SWITCH",
-              "property": "gpuCompatibilityMode",
-              "targetName": null,
-              "value": false,
-              "defaultValue": false,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "禁用GPU硬件解码，使用纯CPU渲染，开启后voidmei帧率会显著下降。适用于VoidMei与游戏GPU冲突以至只剩个位数帧率的问题。开启后需要重启程序生效。",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            }
-          ]
+          "children": []
         },
         {
           "label": "调试",
@@ -5557,7 +5387,7 @@
           "id": "pitch",
           "type": "core.engine.gauge",
           "pos": [
-            2.5,
+            0.5,
             0
           ],
           "anchor": [
@@ -5575,7 +5405,7 @@
           "id": "power",
           "type": "core.engine.gauge",
           "pos": [
-            2.5,
+            0.5,
             0
           ],
           "anchor": [

@@ -275,12 +275,13 @@ fn is_paged_overlay(id: &str) -> bool {
     )
 }
 
-/// per-page WYSIWYG 兴趣键 (对位原 with_interest 键集)
+/// per-page WYSIWYG 兴趣键 (对位原 with_interest 键集; 死键已清 —
+/// 行开关/列数类随字段原子化退役)
 fn page_interest_keys(id: &str) -> &'static [&'static str] {
     match id {
-        "flight-info-default" => &["flightInfo", "fontSize", "disableFlightInfo"],
-        "power-info-default" => &["fontName", "fontSize", "hudColumns", "S."],
-        "engine-control-default" => &["disableEngineInfo", "fontSize"],
+        "flight-info-default" => &["flightInfo", "fontSize"],
+        "power-info-default" => &["fontSize"],
+        "engine-control-default" => &["fontSize", "dataPollIntervalMs"],
         "gear-flaps-default" => &["enablegearAndFlapsEdge", "fontSize"],
         "axis-default" => &["enableAxisEdge", "fontSize"],
         "attitude-default" => &["attitudeIndicator", "enableAttitudeIndicator"],
@@ -324,8 +325,8 @@ fn assemble_page_spec(
         "gear-flaps-default" => page_font_size(24, p.gear.font_add, dpi),
         "axis-default" => page_font_size(24, p.axis.font_add, dpi),
         "fm-list-default" | "thrust-chart-default" => 24,
-        // 地平仪: 矢量绘制, 页面字体仅占位
-        _ => 24,
+        // 用户页/其余: 页文档自身字号增量 (PageDoc.font.sizeAdd 落地)
+        _ => page_font_size(24, doc.font.size_add, dpi),
     };
     let hud = p.hud.clone();
     drop(p);
@@ -337,21 +338,31 @@ fn assemble_page_spec(
     let refresh_lang = (**lang).clone();
     let refresh: Box<dyn Fn() -> PageSpecParams> = Box::new(move || {
         let p = refresh_params.borrow();
-        let fs = match refresh_doc.id.as_str() {
+        // 重取最新页面文档 (CONFIG_CHANGED 时 ReinitParams.pages 被主线程
+        // 覆写 — minihud reinit 同款; 不重取则编辑器改 props/增删组件游戏态
+        // 不生效)
+        let doc = p
+            .pages
+            .iter()
+            .find(|d| d.id == refresh_doc.id)
+            .cloned()
+            .unwrap_or_else(|| refresh_doc.clone());
+        let fs = match doc.id.as_str() {
             "flight-info-default" => page_font_size(24, p.flight.font_add, refresh_env_dpi),
             "power-info-default" => page_font_size(24, p.power.font_add, refresh_env_dpi),
             "engine-control-default" => page_font_size(24, p.engine.font_add, refresh_env_dpi),
             "gear-flaps-default" => page_font_size(24, p.gear.font_add, refresh_env_dpi),
             "axis-default" => page_font_size(24, p.axis.font_add, refresh_env_dpi),
-            _ => 24,
+            // 用户页/其余: 页文档自身字号增量 (PageDoc.font.sizeAdd 落地)
+            _ => page_font_size(24, doc.font.size_add, refresh_env_dpi),
         };
         let hud = p.hud.clone();
         drop(p);
         PageSpecParams {
-            entry_key: refresh_doc.entry_key.clone(),
+            entry_key: doc.entry_key.clone(),
             gauge_cfg: refresh_gauge(&refresh_params, refresh_env_dpi),
-            doc: refresh_doc.clone(),
-            font_path: refresh_font_path(&refresh_doc),
+            doc: doc.clone(),
+            font_path: refresh_font_path(&doc),
             font_size: fs,
             lang: refresh_lang.clone(),
             settings: hud,
