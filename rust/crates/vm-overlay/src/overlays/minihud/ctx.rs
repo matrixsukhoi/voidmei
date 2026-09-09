@@ -35,8 +35,6 @@ pub struct MinimalHudContext {
     pub height: i32,
     pub hud_font_size: i32,
     pub hud_font_size_small: i32,
-    pub window_x: i32,
-    pub window_y: i32,
 
     // --- Component Metrics ---
     pub cross_scale: i32,
@@ -111,8 +109,7 @@ impl MinimalHudContext {
         // 两个独立 (int) 强转后再相加 (Java 原样, 不合并为一个表达式)
         let height = (cross_scale as f64 * 1.5) as i32 + (hud_font_size as f64 * 3.5) as i32;
 
-        let window_x = settings.get_window_x(width);
-        let window_y = settings.get_window_y(height);
+        // 窗口位置字段已随 R2 位置链重构退役 (定位归 host / PageDoc.pos)
 
         let cross_x = width / 2;
         let cross_y = height / 2;
@@ -172,8 +169,6 @@ impl MinimalHudContext {
             height,
             hud_font_size,
             hud_font_size_small,
-            window_x,
-            window_y,
             cross_scale,
             cross_x,
             cross_y,

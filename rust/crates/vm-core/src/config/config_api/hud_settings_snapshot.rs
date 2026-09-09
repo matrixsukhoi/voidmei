@@ -103,15 +103,7 @@ impl HudSettingsSnapshot {
 
 impl OverlaySettings for HudSettingsSnapshot {
     type GroupConfig = ();
-    fn get_window_x(&self, _width: i32) -> i32 {
-        0 // 定位归 host 位置存档 (见类型注)
-    }
-    fn get_window_y(&self, _height: i32) -> i32 {
-        0
-    }
-    fn save_window_position(&self, _x: f64, _y: f64) {
-        // host.saved_positions 接管 (host.rs close 链), 无回写面
-    }
+    // 位置面已随 R2 位置链重构退役 (窗口位置唯一真源 = PageDoc.pos)
     fn get_font_name(&self) -> String {
         self.font_name.clone()
     }

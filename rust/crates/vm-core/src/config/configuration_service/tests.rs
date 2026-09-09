@@ -304,46 +304,36 @@ fn import_failure_paths() {
 #[test]
 fn reset_to_factory_clears_delta() {
     let (s, log, _sub) = svc_tree_bus(vec![GroupConfig {
-        x: 0.1,
-        y: 0.1,
         rows: vec![row("a", "SWITCH", Some("k1"), Some(ConfigValue::Bool(false)))],
         ..panel("P", vec![])
     }]);
     s.set_config("k1", "true");
-    s.save_group_position("P", 0.9, 0.9);
+    s.save_page_position("p1", 0.9, 0.9);
     assert!(s.reset_to_factory());
     assert_eq!(s.get_config("k1"), Some("false".to_string()));
-    assert_eq!(s.group_position("P"), Some((0.1, 0.1)));
+    // 位置轻量区随 delta 清空 (页文档 pos 回出厂)
+    let delta = s.inner.delta.read().expect(DELTA_LOCK_MSG);
+    assert!(delta.page_positions.is_empty());
     let events = log.lock().unwrap();
     assert_eq!(events.last().unwrap().data.as_deref(), Some("RESET_COMPLETED"));
 }
 
-// ---- 组装层位置桥 (group_position / save_group_position) ----
+// ---- 组装层位置桥 (page_position / save_page_position — R2: 真源 = 页文档 pos) ----
 
 #[test]
-fn group_position_read_write_roundtrip() {
-    let s = svc_tree(vec![GroupConfig {
-        x: 0.0602,
-        y: 0.1188,
-        ..panel("飞行信息", vec![])
-    }]);
-    // 读: 归一化原值 (忽略大小写, 对齐视图 getGroupConfig 语义)
-    assert_eq!(s.group_position("飞行信息"), Some((0.0602, 0.1188)));
-    assert_eq!(s.group_position("FLIGHT 信息"), None); // 未命中 → None (host 居中兜底)
-                                                       // 写: 归一化直写 + 回读一致
-    assert!(s.save_group_position("飞行信息", 0.25, 0.75));
-    assert_eq!(s.group_position("飞行信息"), Some((0.25, 0.75)));
-    // delta 同步登记 (持久真相)
+fn page_position_read_write_roundtrip() {
+    let s = svc_factory();
+    // 读: 出厂页按 host 条目键查合成页 pos
+    assert_eq!(s.page_position("flightInfoSwitch"), Some((0.0602, 0.1188)));
+    assert_eq!(s.page_position("zzz"), None); // 未命中 → None (host 居中兜底)
+    // 写: 出厂未提升页 → page_positions 轻量区 (拖一下窗不整页提升)
+    s.save_page_position("flight-info-default", 0.25, 0.75);
+    assert_eq!(s.page_position("flightInfoSwitch"), Some((0.25, 0.75)));
     let delta = s.inner.delta.read().expect(DELTA_LOCK_MSG);
     assert_eq!(
-        delta.panels.get("飞行信息").and_then(|p| p.pos),
-        Some([0.25, 0.75])
+        delta.page_positions.get("flight-info-default"),
+        Some(&[0.25, 0.75])
     );
-    // 未命中写: false 不 panic
-    assert!(!s.save_group_position("不存在", 0.1, 0.1));
-    // 与视图像素面一致性: 写归一化后 get_window_x 跟随 (同源字段)
-    s.set_screen_size(1920, 1080);
-    assert_eq!(s.get_overlay_settings("飞行信息").get_window_x(0), 480); // round(0.25*1920)
 }
 
 // ---- findGroupByTitle (大小写敏感) vs 视图 getGroupConfig (忽略大小写) ----
@@ -352,8 +342,6 @@ fn group_position_read_write_roundtrip() {
 fn find_group_by_title_case_sensitive() {
     let s = svc_tree(vec![
         GroupConfig {
-            x: 0.5,
-            y: 0.25,
             ..panel("Alpha", vec![])
         },
         panel("beta", vec![]),
@@ -361,13 +349,6 @@ fn find_group_by_title_case_sensitive() {
     assert!(s.find_group_by_title("Alpha").is_some());
     assert!(s.find_group_by_title("alpha").is_none()); // equals 大小写敏感
     assert!(s.find_group_by_title("").is_none());
-    assert!((s.find_group_by_title("Alpha").unwrap().x - 0.5).abs() < 1e-12);
-
-    // 视图查找忽略大小写
-    s.set_screen_size(100, 100);
-    let v = s.get_overlay_settings("ALPHA");
-    assert_eq!(v.get_window_x(0), 50); // round(0.5*100)
-    assert_eq!(v.get_window_y(0), 25);
 }
 
 // ---- 出厂默认: 飞行信息视图 (原真实 ui_layout.cfg 用例的 JSON 版) ----
@@ -378,10 +359,7 @@ fn overlay_settings_flight_info_factory() {
     s.set_screen_size(1920, 1080);
     let v = s.get_overlay_settings("飞行信息");
 
-    // gc.x=0.0602 * 1920 = 115.584 → Math.round → 116
-    assert_eq!(v.get_window_x(300), 116);
-    // gc.y=0.1188 * 1080 = 128.304 → 128
-    assert_eq!(v.get_window_y(300), 128);
+    // 位置面已退役 (窗口位置真源 = PageDoc.pos, 见 page_position_roundtrip)
 
     // :font "Sarasa Mono SC" (面板级字体)
     assert_eq!(v.get_font_name(), "Sarasa Mono SC");
@@ -417,36 +395,6 @@ fn global_colors_read_factory() {
     assert_ne!(g, GlobalColors::JAVA_DEFAULT, "运行时值已覆盖静态初始值");
 }
 
-// ---- 视图回退分支 ----
-
-#[test]
-fn overlay_center_fallback_and_guard_branches() {
-    let s = svc_tree(vec![GroupConfig {
-        x: 0.9,
-        y: 0.9,
-        ..panel("A", vec![])
-    }]);
-    s.set_screen_size(1920, 1080);
-    // 分组不存在 → 居中回退 (int 除法)
-    let v = s.get_overlay_settings("Zzz");
-    assert_eq!(v.get_window_x(400), (1920 - 400) / 2);
-    assert_eq!(v.get_window_y(300), (1080 - 300) / 2);
-    // gc=null 分支 saveWindowPosition → warn (无保存、无崩溃)
-    v.save_window_position(10.0, 10.0);
-
-    // 分组存在但 screen<=0 → warn (不落 delta)
-    let s2 = svc_tree(vec![GroupConfig {
-        x: 0.9,
-        y: 0.9,
-        ..panel("A", vec![])
-    }]);
-    s2.set_screen_size(0, 0);
-    s2.get_overlay_settings("A").save_window_position(10.0, 10.0);
-
-    // screen=0 的读面: round(0.9*0)=0 (Java 同)
-    assert_eq!(s2.get_overlay_settings("A").get_window_x(50), 0);
-}
-
 // ---- 出厂默认: MiniHUD HUDSettings ----
 
 #[test]
@@ -454,10 +402,6 @@ fn hud_settings_factory_minihud() {
     let s = svc_factory();
     s.set_screen_size(1920, 1080);
     let h = s.get_hud_settings();
-
-    // gc.x=0.3891*1920=747.072 → 747; gc.y=0.7042*1080=760.536 → 761
-    assert_eq!(h.get_window_x(400), 747);
-    assert_eq!(h.get_window_y(400), 761);
 
     assert_eq!(h.get_crosshair_scale(), 113); // value 113
     assert_eq!(h.get_crosshair_name(), "软件渲染准星");
@@ -474,36 +418,6 @@ fn hud_settings_factory_minihud() {
     assert_eq!(h.get_num_font(), "Sarasa Mono SC");
     assert_eq!(h.get_num_font_name(), "Sarasa Mono SC");
     assert_eq!(h.get_font_size_add(), 0);
-}
-
-// ---- HUDSettings 准星回退分支 ----
-
-#[test]
-fn hud_crosshair_fallback_writeback() {
-    let s = svc_tree(vec![panel(
-        "Other",
-        vec![
-            row("cx", "SLIDER", Some("crosshairX"), Some(ConfigValue::Int(500))),
-            row("cy", "SLIDER", Some("crosshairY"), Some(ConfigValue::Int(300))),
-        ],
-    )]);
-    s.set_screen_size(1920, 1080);
-    let h = s.get_hud_settings();
-    // 无 "MiniHUD" 分组 → crosshairX/Y 行优先, 缺省才用居中默认
-    assert_eq!(h.get_window_x(400), 500);
-    assert_eq!(h.get_window_y(300), 300);
-
-    // 位置写回走 setConfig((int)x)
-    h.save_window_position(123.7, -45.9);
-    assert_eq!(s.get_config("crosshairX"), Some("123".to_string()));
-    assert_eq!(s.get_config("crosshairY"), Some("-45".to_string()));
-
-    // 行也不存在 → 居中默认 (int 除法)
-    let s2 = svc_tree(vec![panel("Other", vec![])]);
-    s2.set_screen_size(1920, 1080);
-    let h2 = s2.get_hud_settings();
-    assert_eq!(h2.get_window_x(400), (1920 - 400) / 2);
-    assert_eq!(h2.get_window_y(300), (1080 - 300) / 2);
 }
 
 // ---- AoA 比率归一 + getDoubleFromLayoutFirst ----
@@ -738,8 +652,6 @@ fn set_color_config_roundtrip() {
 #[test]
 fn dyn_trait_dispatch() {
     let s = svc_tree(vec![GroupConfig {
-        x: 0.5,
-        y: 0.5,
         rows: vec![row("sw", "SWITCH", Some("showSpeedBar"), Some(ConfigValue::Bool(false)))],
         ..panel("MiniHUD", vec![])
     }]);
@@ -754,9 +666,7 @@ fn dyn_trait_dispatch() {
     // Box<dyn HUDSettings> + 上转 &dyn OverlaySettings (单 vtable 槽)
     let h: Box<dyn HUDSettings<GroupConfig = GroupConfig>> = Box::new(s.get_hud_settings());
     assert!(h.show_speed_bar(), "setConfig 后视图重查应见新值");
-    assert_eq!(h.get_window_x(0), 50);
     let base: &dyn OverlaySettings<GroupConfig = GroupConfig> = &*h;
-    assert_eq!(base.get_window_x(0), 50);
     assert_eq!(base.get_font_size_add(), 0);
 }
 

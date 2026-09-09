@@ -37,7 +37,7 @@ use vm_overlay::platform::tray::{TrayConfig, TrayHandler, TrayIcon};
 use crate::commands::{MainEvent, TrayCommand, UiCommand};
 use crate::controller_shared::{is_stale_refresh, ControllerShared};
 use crate::env::Env;
-use crate::keys::{FM_UNPACKED_INTEREST_KEYS, MINIHUD_INTEREST_KEYS, OVERLAY_SECTIONS};
+use crate::keys::{FM_UNPACKED_INTEREST_KEYS, MINIHUD_INTEREST_KEYS};
 use crate::overlay_inputs::{ActivationCache, OverlayInputs};
 use crate::voice_setup::{
     open_voice_warning, voice_warn_refresh_reaches, ConfigSnapshots, VoiceWarnSession,
@@ -168,8 +168,9 @@ impl vm_core::platform::focus_monitor::AlwaysOnTopCoordinatorApi for ChannelFocu
 /// 位置存档后端 (渲染线程侧): 启动快照直读 + 保存经 MainEvent 回传主线程落盘。
 /// PORT(线程桥): Java overlay 直接持 OverlaySettings (UI 单线程单世界); Rust 配置树
 /// !Send 不能进渲染线程, 位置面拆成 读=启动快照 (位置仅拖拽改变, 而拖拽存档
-/// 双写快照, 快照不滞后) 写=回传 (PositionSaved → save_group_position 落盘,
-/// 对齐 Java saveWindowPosition 即时 saveLayoutConfig)。
+/// 双写快照, 快照不滞后) 写=回传 (PositionSaved → save_page_position 落盘)。
+/// R2: 真源 = PageDoc.pos (此前 OVERLAY_SECTIONS 8 键映射 — 用户页位置
+/// 永不持久化的旧缺陷根源), 快照键 = host 条目键。
 struct ChannelPositionStore {
     snapshot: HashMap<String, (f64, f64)>,
     tx: Sender<MainEvent>,
@@ -181,13 +182,11 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
     }
     fn store(&mut self, id: &str, x: f64, y: f64) {
         self.snapshot.insert(id.to_string(), (x, y));
-        if let Some((_, section)) = OVERLAY_SECTIONS.iter().find(|(sid, _)| *sid == id) {
-            let _ = self.tx.send(MainEvent::PositionSaved {
-                section: section.to_string(),
-                x,
-                y,
-            });
-        }
+        let _ = self.tx.send(MainEvent::PositionSaved {
+            host_key: id.to_string(),
+            x,
+            y,
+        });
     }
 }
 

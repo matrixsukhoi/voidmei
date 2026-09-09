@@ -58,8 +58,6 @@ struct TestSettings {
     show_g_load: bool,
     show_maneuver: bool,
     layout_debug: bool,
-    window_x: i32,
-    window_y: i32,
 }
 
 impl Default for TestSettings {
@@ -88,21 +86,12 @@ impl Default for TestSettings {
             show_g_load: true,
             show_maneuver: true,
             layout_debug: false,
-            window_x: 100,
-            window_y: 80,
         }
     }
 }
 
 impl OverlaySettings for TestSettings {
     type GroupConfig = GroupStub;
-    fn get_window_x(&self, _w: i32) -> i32 {
-        self.window_x
-    }
-    fn get_window_y(&self, _h: i32) -> i32 {
-        self.window_y
-    }
-    fn save_window_position(&self, _x: f64, _y: f64) {}
     fn get_font_name(&self) -> String {
         "text".into()
     }
@@ -267,8 +256,6 @@ fn ctx_metrics_match_java_math() {
     assert_eq!(ctx.line_width, 28 / 10); // 2 (非零分支)
     assert_eq!(ctx.width, (113.0 * 2.25) as i32); // 254 (crosshair on)
     assert_eq!(ctx.height, (113.0 * 1.5) as i32 + (28.0 * 3.5) as i32); // 169+98=267
-    assert_eq!(ctx.window_x, 100);
-    assert_eq!(ctx.window_y, 80);
     assert_eq!(ctx.cross_x, 127); // 254/2
     assert_eq!(ctx.cross_y, 133); // 267/2 (int 除截断)
     assert_eq!(ctx.round_compass, 22); // Math.round(28*0.8f)=round(22.4)

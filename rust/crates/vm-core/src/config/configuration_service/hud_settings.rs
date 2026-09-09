@@ -97,61 +97,8 @@ impl OverlaySettings for HUDSettingsImpl {
         self.get_num_font()
     }
 
-    /// Java: `@Override public int getWindowX(int canvasWidth)`
-    fn get_window_x(&self, canvas_width: i32) -> i32 {
-        let gc = self.base.get_group_config_snapshot();
-        let (screen_w, _) = self.base.service.screen_size();
-        if let Some(gc) = gc {
-            // (int) Math.round(gc.x * Application.screenWidth) — 双转窄化复刻
-            return ((gc.x * f64::from(screen_w) + 0.5).floor() as i64) as u32 as i32;
-        }
-        self.base
-            .get_int("crosshairX", (screen_w - canvas_width) / 2)
-    }
-
-    /// Java: `@Override public int getWindowY(int canvasHeight)`
-    fn get_window_y(&self, canvas_height: i32) -> i32 {
-        let gc = self.base.get_group_config_snapshot();
-        let (_, screen_h) = self.base.service.screen_size();
-        if let Some(gc) = gc {
-            return ((gc.y * f64::from(screen_h) + 0.5).floor() as i64) as u32 as i32;
-        }
-        self.base
-            .get_int("crosshairY", (screen_h - canvas_height) / 2)
-    }
-
-    /// Java: `@Override public void saveWindowPosition(double x, double y)`
-    fn save_window_position(&self, x: f64, y: f64) {
-        let gc = self.base.get_group_config_snapshot();
-        let (screen_w, screen_h) = self.base.service.screen_size();
-        if gc.is_some() {
-            // Rust f64 除零同义 — 与父类实现不同, 子类无 screen>0 守卫, 保真)
-            if let Some((rx, ry)) = self.base.service.set_group_position_ignore_case(
-                &self.base.section_name,
-                x / f64::from(screen_w),
-                y / f64::from(screen_h),
-            ) {
-                self.base
-                    .service
-                    .delta
-                    .write()
-                    .expect(DELTA_LOCK_MSG)
-                    .panels
-                    .entry(self.base.section_name.clone())
-                    .or_default()
-                    .pos = Some([rx, ry]);
-                let _ = self.base.service.save_layout_config();
-            }
-        } else {
-            // (int) double: JLS 5.1.3 (NaN→0/饱和/向零) ↔ Rust as i32 同义
-            self.base
-                .service
-                .set_config("crosshairX", &(x as i32).to_string());
-            self.base
-                .service
-                .set_config("crosshairY", &(y as i32).to_string());
-        }
-    }
+    // 位置面 (get_window_x/y, save_window_position) 已随 R2 位置链重构退役:
+    // 窗口位置唯一真源 = PageDoc.pos, host 侧 PagePositionStore 存档
 
     // ---- 以下为 GenericOverlaySettingsImpl 继承成员的委托 ----
 

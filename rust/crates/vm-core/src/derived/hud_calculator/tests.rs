@@ -144,13 +144,6 @@ impl Default for MockHud {
 impl OverlaySettings for MockHud {
     type GroupConfig = ();
 
-    fn get_window_x(&self, _width: i32) -> i32 {
-        0
-    }
-    fn get_window_y(&self, _height: i32) -> i32 {
-        0
-    }
-    fn save_window_position(&self, _x: f64, _y: f64) {}
     fn get_font_name(&self) -> String {
         "text".to_string()
     }

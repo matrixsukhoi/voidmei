@@ -11,24 +11,6 @@ pub trait OverlaySettings {
     /// 时指定 `type GroupConfig = crate::config::config_loader::GroupConfig`。
     type GroupConfig;
 
-    /// Get absolute X coordinate in pixels.
-    ///
-    /// - `width`: Window width for centering fallback (if applicable)
-    fn get_window_x(&self, width: i32) -> i32;
-
-    /// Get absolute Y coordinate in pixels.
-    ///
-    /// - `height`: Window height for centering fallback (if applicable)
-    fn get_window_y(&self, height: i32) -> i32;
-
-    /// Save absolute pixel coordinates back to the relative coordinate system.
-    ///
-    /// Java 写方法 → &self (非 &mut): Java 实现是 ConfigurationService 的内部类
-    /// 视图, 写回目标 gc.x/gc.y 位于共享的 layoutConfigs (ConfigurationService),
-    /// 视图自身无独占状态; Rust 侧视图持共享句柄, 与 ConfigProvider::set_config 同方向
-    ///, 写回由实现侧内部可变性完成。
-    fn save_window_position(&self, x: f64, y: f64);
-
     /// Get the font name for this overlay.
     fn get_font_name(&self) -> String;
 

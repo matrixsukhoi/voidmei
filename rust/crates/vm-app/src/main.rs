@@ -37,7 +37,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use vm_app::form_dispatch;
-use vm_app::{AppShell, SupervisorOutcome, OVERLAY_SECTIONS};
+use vm_app::{AppShell, SupervisorOutcome};
 
 use tauri::Emitter;
 use vm_core::base::bus::ui_state_bus::UIStateBus;
@@ -547,30 +547,27 @@ fn mock_smoke_main(debug: bool) -> i32 {
     if frames == 0 {
         return fail("overlay present 帧数为 0 (窗口未开/渲染未跑)".to_string());
     }
-    // live 模式注册全集 = keys.rs OVERLAY_SECTIONS 键列 (单一来源; 缺键 = 注册
-    // 失败)。enableFMPrint 默认开 (ui_layout.cfg:262 :value true) → 窗口条目在场;
-    // 游戏形态隐藏起步 (FMUnpackedData 自管可见性) 不影响 present 计数
+    // live 模式注册全集 = 出厂页 host 键列 (R2: 位置真源页化后 OVERLAY_SECTIONS
+    // 已退役, 键列从 factory_default.json pages 派生; 缺键 = 注册失败)。
+    // enableFMPrint 默认开 → 窗口条目在场; 游戏形态隐藏起步不影响 present 计数
     // (active 判定 = 槽位存在, 渲染节拍照常)
+    let wanted: Vec<String> = vm_core::config::json_store::factory()
+        .pages
+        .iter()
+        .map(|p| p.host_key())
+        .collect();
     let mut missing = Vec::new();
     let mut zero = Vec::new();
-    for id in OVERLAY_SECTIONS.iter().map(|(id, _)| *id) {
-        match overlay_counts.get(id) {
-            None => missing.push(id),
-            Some(0) => zero.push(id),
+    for id in &wanted {
+        match overlay_counts.get(id.as_str()) {
+            None => missing.push(id.as_str()),
+            Some(0) => zero.push(id.as_str()),
             Some(_) => {}
         }
     }
     if !missing.is_empty() || !zero.is_empty() {
         return fail(format!(
             "逐 overlay present 断言不过 (注册缺失: {missing:?}; present=0: {zero:?}; 全量计数 {overlay_counts:?})"
-        ));
-    }
-    // thrustdFS (DrawFrameSimpl, 本批注册面新增): 注册键必须落位; present 计数
-    // 可为 0 — 激活策略 enableFMPrint && jetOnly, 冒烟场景 s2 的 p-51d 为螺旋桨
-    // (is_jet=false 不激活, Java 同形态不建窗)
-    if !overlay_counts.contains_key("thrustdFS") {
-        return fail(format!(
-            "thrustdFS 注册缺失 (DrawFrameSimpl spec 工厂失败? 全量计数 {overlay_counts:?})"
         ));
     }
     println!("[mock-smoke] PASS: Service 收数 + present 帧数 = {frames} (逐 overlay: {overlay_counts:?})");

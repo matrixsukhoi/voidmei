@@ -286,52 +286,37 @@ impl ConfigurationService {
         }
     }
 
-    /// 组装层位置桥 (归一化直读): Java overlay init 时经 OverlaySettings.loadPosition
-    /// 取 gc.x/y (ConfigurationService 读的同一组字段)。Rust host 在
-    /// 渲染线程不碰 !Send 配置树 — 组装层启动时经此取快照 (vm-app
-    /// ChannelPositionStore); 返回归一化 (0..1) 坐标, 无同题分组 = None
-    /// (host 居中兜底, 对齐 Java gc=null 的 center 分支)。
-    pub fn group_position(&self, section: &str) -> Option<(f64, f64)> {
-        let configs = self.inner.layout_configs.read().expect(LC_LOCK_MSG);
-        let list = configs.as_ref()?;
-        group_index_by_title(list, section, true).map(|i| (list[i].x, list[i].y))
+    /// 组装层位置桥 (归一化直读): 窗口位置唯一真源 = 页文档 pos。
+    /// R2 前位置走 panels 组配置 (OVERLAY_SECTIONS 标题映射 — 用户页不在
+    /// 映射表里位置永不持久化的旧缺陷根源), 现按 host 条目键查合成页。
+    pub fn page_position(&self, host_key: &str) -> Option<(f64, f64)> {
+        let pages = self.pages();
+        let page = pages.iter().find(|p| p.host_key() == host_key)?;
+        Some((page.pos[0], page.pos[1]))
     }
 
-    /// 组装层位置桥 (归一化直写): 命中首个同题分组写回 + delta 登记 + 落盘。
-    pub fn save_group_position(&self, section: &str, nx: f64, ny: f64) -> bool {
-        let mut hit = false;
-        {
-            let mut configs = self.inner.layout_configs.write().expect(LC_LOCK_MSG);
-            if let Some(list) = configs.as_mut() {
-                // 命中首个同题分组写回 (Java 原状)
-                if let Some(i) = group_index_by_title(list, section, true) {
-                    list[i].x = nx;
-                    list[i].y = ny;
-                    hit = true;
-                }
+    /// 组装层位置桥 (归一化直写): owned/user 页直接写页 pos;
+    /// 出厂未提升页写 UserDelta.page_positions 轻量区 (拖一下窗不该整页提升)
+    pub fn save_page_position(&self, page_id: &str, nx: f64, ny: f64) {
+        let mut delta = self.inner.delta.write().expect(DELTA_LOCK_MSG);
+        match json_store::find_page_slot(&delta, page_id) {
+            Some(json_store::PageSlot::Owned(i)) => {
+                delta.owned_factory_pages[i].pos = [nx, ny]
+            }
+            Some(json_store::PageSlot::User(i)) => delta.user_pages[i].pos = [nx, ny],
+            None => {
+                delta
+                    .page_positions
+                    .insert(page_id.to_string(), [nx, ny]);
             }
         }
-        if hit {
-            self.inner
-                .delta
-                .write()
-                .expect(DELTA_LOCK_MSG)
-                .panels
-                .entry(section.to_string())
-                .or_default()
-                .pos = Some([nx, ny]);
-            logger::debug(
-                "OverlaySettings",
-                &format!("[{section}] saveGroupPosition: rel {nx:.4},{ny:.4}"),
-            );
-            self.save_layout_config();
-        } else {
-            logger::warn(
-                "OverlaySettings",
-                &format!("[{section}] CANNOT save position: gc=null"),
-            );
-        }
-        hit
+        drop(delta);
+        // 位置变化只落盘不广播 (窗口已就位, reinit 反而闪)
+        self.save_layout_config();
+        logger::debug(
+            "PagePosition",
+            &format!("[{page_id}] save: rel {nx:.4},{ny:.4}"),
+        );
     }
 
     /// 导入外部 delta 文件 (覆盖当前 delta 后重新合成 + 落盘)。
@@ -767,26 +752,6 @@ impl ServiceInner {
         configs.as_ref().and_then(|list| {
             group_index_by_title(list, section_name, true).map(|i| list[i].clone())
         })
-    }
-
-    /// 就地写回分组 x/y (saveWindowPosition 的写面), 返回新值供日志
-    fn set_group_position_ignore_case(
-        &self,
-        section_name: &str,
-        x: f64,
-        y: f64,
-    ) -> Option<(f64, f64)> {
-        let mut configs = self.layout_configs.write().expect(LC_LOCK_MSG);
-        let list = configs.as_mut()?;
-        let i = group_index_by_title(list, section_name, true)?;
-        list[i].x = x;
-        list[i].y = y;
-        Some((list[i].x, list[i].y))
-    }
-
-    fn screen_size(&self) -> (i32, i32) {
-        let app = self.app.read().expect(APP_LOCK_MSG);
-        (app.screen_width, app.screen_height)
     }
 
     fn app_default_numfont_name(&self) -> String {

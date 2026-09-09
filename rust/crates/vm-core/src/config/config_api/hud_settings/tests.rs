@@ -1,36 +1,19 @@
 use super::*;
-use std::cell::RefCell;
 
 struct GroupStub;
 
 // 最小 mock: 每个方法返回固定边界值, 全方法逐一验证契约
-struct FakeHud {
-    saved: RefCell<(f64, f64)>,
-}
+struct FakeHud;
 
 impl FakeHud {
     fn new() -> Self {
-        FakeHud {
-            saved: RefCell::new((0.0, 0.0)),
-        }
+        FakeHud
     }
 }
 
 // 父 trait 方法在 HUD 对象上唯一实现 (Java @Override 重声明对应的单 vtable 槽)
 impl OverlaySettings for FakeHud {
     type GroupConfig = GroupStub;
-
-    fn get_window_x(&self, _width: i32) -> i32 {
-        640
-    }
-
-    fn get_window_y(&self, _height: i32) -> i32 {
-        360
-    }
-
-    fn save_window_position(&self, x: f64, y: f64) {
-        *self.saved.borrow_mut() = (x, y);
-    }
 
     fn get_font_name(&self) -> String {
         "text".to_string()
@@ -230,16 +213,6 @@ fn test_misc_switches() {
     assert!(h.always_show_radar_altitude());
 }
 
-// Java @Override 重声明对应的三方法: 单一实现, 具体类型与 dyn 分发同值
-#[test]
-fn test_inherited_window_methods_single_slot() {
-    let h = FakeHud::new();
-    assert_eq!(h.get_window_x(1920), 640);
-    assert_eq!(h.get_window_y(900), 360);
-    h.save_window_position(1.25, -0.5);
-    assert_eq!(*h.saved.borrow(), (1.25, -0.5));
-}
-
 // 子 trait 到父 trait 的多态兼容: 泛型 T: OverlaySettings 接受 HUD 实现
 // (对应 Java "HUDSettings is-an OverlaySettings")
 #[test]
@@ -247,12 +220,8 @@ fn test_hud_usable_as_overlay_settings_generic() {
     fn via_generic<T: OverlaySettings>(s: &T) -> String {
         s.get_font_name()
     }
-    fn via_dyn(s: &dyn OverlaySettings<GroupConfig = GroupStub>) -> i32 {
-        s.get_window_x(100)
-    }
     let h = FakeHud::new();
     assert_eq!(via_generic(&h), "text");
-    assert_eq!(via_dyn(&h), 640);
 }
 
 // trait upcasting: Box<dyn HUDSettings> 可上转 &dyn OverlaySettings (Rust 1.86+),
@@ -262,7 +231,6 @@ fn test_trait_upcast_to_overlay_settings() {
     let h: Box<dyn HUDSettings<GroupConfig = GroupStub>> = Box::new(FakeHud::new());
     assert_eq!(h.get_num_font(), "DIN Pro 400");
     let base: &dyn OverlaySettings<GroupConfig = GroupStub> = &*h;
-    assert_eq!(base.get_window_x(1920), 640);
     assert_eq!(base.get_font_size_add(), 2);
     assert!(!base.auto_hide_on_focus_loss());
 }

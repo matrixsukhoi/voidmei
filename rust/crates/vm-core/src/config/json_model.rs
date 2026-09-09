@@ -152,14 +152,12 @@ impl RowConfig {
 // Panel
 // =====================================================================
 
-/// 一个设置 panel (= 旧 GroupConfig; HUD 页面化后仍是设置面板的容器)
+/// 一个设置 panel (= 旧 GroupConfig; HUD 页面化后仍是设置面板的容器)。
+/// R2 位置链重构: x/y (窗口归一化位置) 已删 — 位置唯一真源 = PageDoc.pos
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct GroupConfig {
     pub title: String,
-    /// 窗口归一化位置 (0..1)
-    pub x: f64,
-    pub y: f64,
     pub alpha: i32,
     /// switch_key 的开态 (panel 可见性)
     pub visible: bool,
@@ -179,8 +177,6 @@ impl Default for GroupConfig {
     fn default() -> Self {
         GroupConfig {
             title: String::new(),
-            x: 0.1,
-            y: 0.1,
             alpha: 150,
             visible: false,
             font_name: None,
@@ -268,8 +264,9 @@ pub struct PageDoc {
     pub entry_key: Option<String>,
     /// 激活策略扩展 ("jetOnly" 等; 渲染线程 strategy_for 特判)
     pub strategy_extra: Option<String>,
-    /// 归一化窗口位置 [x, y] (拖拽存档写回)
-    pub pos: Option<[f64; 2]>,
+    /// 归一化窗口位置 [x, y] — 窗口位置唯一真源 (拖拽存档写回;
+    /// R2 前是死字段, 位置走 panels 组配置旧链)
+    pub pos: [f64; 2],
     /// 包围盒 padding (窗口 = 内容包围盒 + 2×padding)
     pub padding: i32,
     /// 画布语义 (None/"free" = 4096 自由画布; "minihud" = ctx.width×2 派生画布 —
@@ -300,13 +297,24 @@ impl Default for PageDoc {
             switch_key: None,
             entry_key: None,
             strategy_extra: None,
-            pos: None,
+            pos: [0.5, 0.5],
             padding: 45,
             canvas: None,
             font: PageFont::default(),
             content_version: 0,
             components: Vec::new(),
         }
+    }
+}
+
+impl PageDoc {
+    /// host 条目键 (spec 实例 id / 位置存档键 / 激活探测键 三面合一的旧式;
+    /// R3 激活声明式后收敛为页 id)
+    pub fn host_key(&self) -> String {
+        self.entry_key
+            .clone()
+            .or_else(|| self.switch_key.clone())
+            .unwrap_or_else(|| self.id.clone())
     }
 }
 

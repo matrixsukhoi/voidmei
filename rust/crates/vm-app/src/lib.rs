@@ -91,7 +91,6 @@ pub use crate::debouncer::{ConfigDebouncer, CONFIG_DEBOUNCE_MS};
 pub use crate::env::Env;
 pub use crate::keys::{
     FM_FIELD_KEYS, FM_UNPACKED_INTEREST_KEYS, GLOBAL_COLOR_KEYS, MINIHUD_INTEREST_KEYS,
-    OVERLAY_SECTIONS,
 };
 pub use crate::overlay_inputs::{ActivationCache, OverlayInputs, ACTIVATION_KEYS};
 pub use crate::render_thread::{render_thread_main, RenderThreadConfig};
@@ -377,16 +376,12 @@ impl AppShell {
             .ok_or_else(|| "hotkey 接收端已移交".to_string())?;
         let controller = self.controller.as_ref().ok_or("controller 未构造")?;
         let inputs = OverlayInputs::build(&controller.config, &self.env, &self.shared);
-        // 初始位置快照 (Java overlay init 时 loadPosition 读 gc.x/y; 配置 !Send
+        // 初始位置快照 (R2: 真源 = 页文档 pos, 按 host 条目键索引; 配置 !Send
         // → 一次性快照进渲染线程, 保存经 MainEvent::PositionSaved 回传落盘)
-        let position_snapshot: HashMap<String, (f64, f64)> = OVERLAY_SECTIONS
+        let position_snapshot: HashMap<String, (f64, f64)> = inputs
+            .pages
             .iter()
-            .filter_map(|(id, section)| {
-                controller
-                    .config
-                    .group_position(section)
-                    .map(|p| (id.to_string(), p))
-            })
+            .map(|p| (p.host_key(), (p.pos[0], p.pos[1])))
             .collect();
         let cfg = RenderThreadConfig {
             env: self.env.clone(),
@@ -445,12 +440,19 @@ impl AppShell {
     /// 监督事件处理 (Controller 订阅转发 + 托盘动作的落地点; 主线程)
     pub fn handle_main_event(&mut self, ev: MainEvent) {
         match ev {
-            // overlay 位置存档落盘 (渲染线程拖拽松手/销毁链回传; Java
-            // DraggableOverlay.saveCurrentPosition → saveWindowPosition +
-            // saveLayoutConfig — 归一化直写, 免像素往返)
-            MainEvent::PositionSaved { section, x, y } => {
+            // overlay 位置存档落盘 (渲染线程拖拽松手/销毁链回传; R2: 按
+            // host 条目键反查页 id, 写 PageDoc.pos — 用户页位置同样持久化)
+            MainEvent::PositionSaved { host_key, x, y } => {
                 if let Some(c) = self.controller.as_ref() {
-                    c.config.save_group_position(&section, x, y);
+                    let page_id = c
+                        .config
+                        .pages()
+                        .iter()
+                        .find(|p| p.host_key() == host_key)
+                        .map(|p| p.id.clone());
+                    if let Some(page_id) = page_id {
+                        c.config.save_page_position(&page_id, x, y);
+                    }
                 }
             }
             // Java configChangedHandler

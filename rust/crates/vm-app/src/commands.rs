@@ -86,7 +86,12 @@ pub enum MainEvent {
     /// overlay 位置存档 (渲染线程拖拽松手/销毁链 → 主线程落盘)。
     /// section = 配置组标题 (Java OverlaySettings 按 sectionName 查 GroupConfig),
     /// 坐标归一化 (Java saveWindowPosition 的 gc.x/y 量纲)
-    PositionSaved { section: String, x: f64, y: f64 },
+    PositionSaved {
+        /// host 条目键 (主线程反查页 id)
+        host_key: String,
+        x: f64,
+        y: f64,
+    },
 }
 
 /// 分相监督循环 ([`crate::AppShell::run_supervisor_phase`]) 的退出形态

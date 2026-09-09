@@ -75,21 +75,5 @@ pub const FM_FIELD_KEYS: [&str; 16] = [
 pub const GLOBAL_COLOR_KEYS: [&str; 5] =
     ["fontNum", "fontLabel", "fontUnit", "fontWarn", "fontShade"];
 
-/// 窗口 overlay id → 配置组标题 (Java Controller 各 init 的 getOverlaySettings
-/// 字面量; MiniHUD 经 getHUDSettings → sectionName "MiniHUD")。位置持久化按此映射读写
-/// GroupConfig.x/y; 测试 overlay_sections_hit_ui_layout_cfg 以 cfg 为源核对。
-/// W3 注册面 doc 驱动后本表仅剩**位置映射**用途 (ChannelPositionStore +
-/// spawn_render_thread 的位置快照); 窗口条目集 = factory_default.json 的
-/// pages 清单 (render_thread.rs pages 循环)。
-/// (flightInfoSwitch 原走 POC window.rs 专径, 后收编为正式条目; enableVoiceWarn/
-/// thrustdFS 非常规窗口条目不列 — 见 render_thread.rs register_live_overlays 备案)
-pub const OVERLAY_SECTIONS: [(&str, &str); 8] = [
-    ("enableEngineControl", "引擎控制"),
-    ("engineInfoSwitch", "动力信息"),
-    ("crosshairSwitch", "MiniHUD"),
-    ("flightInfoSwitch", "飞行信息"),
-    ("enableAxis", "舵面值"),
-    ("enableAttitudeIndicator", "地平仪"),
-    ("enablegearAndFlaps", "起落襟翼"),
-    ("enableFMPrint", "FM拆包数据"),
-];
+// R2 位置链重构: OVERLAY_SECTIONS (id→panel 标题位置映射) 已删 —
+// 窗口位置唯一真源 = PageDoc.pos, host 条目键由 PageDoc::host_key() 派生

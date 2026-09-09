@@ -40,6 +40,10 @@ pub struct UserDelta {
     /// 用户新建页面
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub user_pages: Vec<PageDoc>,
+    /// 出厂未提升页的窗口位置轻量存档 (拖一下窗就整页提升太重;
+    /// owned/user 页的位置在页文档 pos 里, 本区只覆盖出厂页)
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub page_positions: HashMap<String, [f64; 2]>,
 }
 
 /// 单个 panel 的 delta
@@ -48,8 +52,6 @@ pub struct UserDelta {
 pub struct PanelDelta {
     /// switch_key 开态 (panel 可见性)
     pub visible: Option<bool>,
-    /// 归一化窗口位置 [x, y]
-    pub pos: Option<[f64; 2]>,
     /// 组字段名 → 值 (fontSize/fontName/panelColumns…)
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub fields: HashMap<String, ConfigValue>,
@@ -75,7 +77,8 @@ pub fn factory() -> &'static AppConfig {
     CACHE.get_or_init(factory_default)
 }
 
-/// 页面合成: 出厂页 ⊕ owned (同 id 整页覆盖) + user_pages 追加。
+/// 页面合成: 出厂页 ⊕ owned (同 id 整页覆盖) + user_pages 追加 +
+/// page_positions 轻量位置覆盖 (未提升的出厂页拖窗位置)。
 /// owned 页记录 baseContentVersion (拷贝时的出厂版本), 出厂 contentVersion
 /// 更新且用户仍持有 → W4 编辑器启动时提示"保留我的 / 采用新版"。
 pub fn synthesize_pages(factory: &[PageDoc], delta: &UserDelta) -> Vec<PageDoc> {
@@ -89,6 +92,18 @@ pub fn synthesize_pages(factory: &[PageDoc], delta: &UserDelta) -> Vec<PageDoc> 
         }
     }
     out.extend(delta.user_pages.iter().cloned());
+    // 位置轻量覆盖 (只作用未被 owned 提升的出厂页 — owned 页 pos 已是用户值)
+    for page in out.iter_mut() {
+        if let Some(pos) = delta.page_positions.get(&page.id) {
+            if !delta
+                .owned_factory_pages
+                .iter()
+                .any(|owned| owned.id == page.id)
+            {
+                page.pos = *pos;
+            }
+        }
+    }
     out
 }
 
@@ -152,10 +167,6 @@ fn apply_panel_delta(panel: &mut GroupConfig, pd: &PanelDelta) {
     if let Some(v) = pd.visible {
         panel.visible = v;
     }
-    if let Some([x, y]) = pd.pos {
-        panel.x = x;
-        panel.y = y;
-    }
     for (field, value) in &pd.fields {
         set_panel_field(panel, field, value.clone());
     }
@@ -169,8 +180,6 @@ fn apply_panel_delta(panel: &mut GroupConfig, pd: &PanelDelta) {
 pub fn set_panel_field(panel: &mut GroupConfig, field: &str, value: ConfigValue) -> bool {
     match field {
         "title" => as_str(&value).map(|s| panel.title = s).is_some(),
-        "x" => as_f64(&value).map(|v| panel.x = v).is_some(),
-        "y" => as_f64(&value).map(|v| panel.y = v).is_some(),
         "alpha" => as_i32(&value).map(|v| panel.alpha = v).is_some(),
         "visible" => as_bool_val(&value).map(|v| panel.visible = v).is_some(),
         "fontName" => {
@@ -192,8 +201,8 @@ pub fn set_panel_field(panel: &mut GroupConfig, field: &str, value: ConfigValue)
 pub fn is_panel_field(field: &str) -> bool {
     matches!(
         field,
-        "title" | "x" | "y" | "alpha" | "visible" | "fontName" | "fontSize" | "columns"
-            | "panelColumns" | "switchKey"
+        "title" | "alpha" | "visible" | "fontName" | "fontSize" | "columns" | "panelColumns"
+            | "switchKey"
     )
 }
 
@@ -208,14 +217,6 @@ fn as_i32(v: &ConfigValue) -> Option<i32> {
     match v {
         ConfigValue::Int(i) => Some(*i),
         ConfigValue::Double(d) => Some(*d as i32),
-        _ => None,
-    }
-}
-
-fn as_f64(v: &ConfigValue) -> Option<f64> {
-    match v {
-        ConfigValue::Int(i) => Some(f64::from(*i)),
-        ConfigValue::Double(d) => Some(*d),
         _ => None,
     }
 }

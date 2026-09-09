@@ -560,25 +560,16 @@ fn focus_bridge_sends_commands_and_mirrors_hidden() {
     );
 }
 
-/// 位置映射 ↔ ui_layout.cfg panel 标题核对: OVERLAY_SECTIONS 的 section 查不到
-/// GroupConfig → group_position 返回 None → 该 overlay 恒居中, 位置持久化静默失效
+/// 出厂页位置自检: 每页 pos 有值 (R2: 位置真源 = PageDoc.pos, host 条目键
+/// 由 host_key() 派生 — 快照/落盘链两端同一式)
 #[test]
-fn overlay_sections_hit_factory_default() {
+fn factory_pages_host_keys_unique() {
     let factory = vm_core::config::json_store::factory_default();
-    let titles: Vec<&str> = factory.panels.iter().map(|p| p.title.as_str()).collect();
-    assert!(
-        titles.len() >= 6,
-        "出厂 panel 数量自检 (实得 {})",
-        titles.len()
-    );
-    for (id, section) in OVERLAY_SECTIONS {
-        let section: &str = section;
-        assert!(
-            titles.contains(&section),
-            "overlay {id} 的 section {section} 不在 factory_default.json panel 标题中 — \
-                 位置读写将永远落空"
-        );
-    }
+    let keys: Vec<String> = factory.pages.iter().map(|p| p.host_key()).collect();
+    let uniq: std::collections::HashSet<&String> = keys.iter().collect();
+    assert_eq!(keys.len(), uniq.len(), "出厂页 host 键不得重复 (位置档将撞键)");
+    assert!(keys.contains(&"crosshairSwitch".to_string()));
+    assert!(keys.contains(&"thrustdFS".to_string()));
 }
 
 /// 渲染线程 CloseAllOverlays 数据面重置 (reset_handles_preview_values 接线面):
