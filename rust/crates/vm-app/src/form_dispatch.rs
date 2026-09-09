@@ -190,7 +190,6 @@ fn dispatch_form(
             .map(IpcReply::Ok)
             .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
         }
-        RequestKind::SolvePage { page } => solve_page_ipc(page, shell),
         RequestKind::SavePage { page } => {
             let doc: Result<_, _> = serde_json::from_value(page);
             let s = shell.borrow();
@@ -312,114 +311,7 @@ fn dispatch_form(
 }
 
 
-/// W4 编辑器快照求解 (主线程 — Rc 渲染面): PageDoc → 画布系矩形 + PNG。
-/// WYSIWYG: 参数与真窗注册面同源 — 主线程现取 OverlayInputs (真实用户设置 +
-/// 真实 DPI + 组字号/gauge 参数), 此前用出厂默认 + dpi 1.0 + 固定 24px,
-/// 编辑器与真窗大小天然不一致 (与"所见即所得"承诺直接冲突)。
-/// 现取 = 快照式一致视图: dispatcher 与配置写点同在主线程串行, 无撕裂面;
-/// 成本 = 数十次 cfg 树读, 100ms 防抖一次可忽略 (将来可 CONFIG_CHANGED 缓存)。
-fn solve_page_ipc(
-    page: serde_json::Value,
-    shell: &Rc<RefCell<AppShell>>,
-) -> IpcReply {
-    let doc: Result<vm_core::config::json_model::PageDoc, _> = serde_json::from_value(page);
-    let Ok(doc) = doc else {
-        return IpcReply::Err("页面解析失败".to_string());
-    };
-    let fonts_dir = {
-        let s = shell.borrow();
-        s.env.fonts_dir.clone()
-    };
-    // 真窗同源参数快照 (controller 缺席 = 托盘重建瞬间, 磁盘配置兜底)
-    let inputs = {
-        let s = shell.borrow();
-        let config = s
-            .controller
-            .as_ref()
-            .map(|c| c.config.clone())
-            .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
-        crate::overlay_inputs::OverlayInputs::build(&config, &s.env, &s.shared)
-    };
-    let params = vm_overlay::platform::reinit::ReinitParams::from(&inputs);
-    // minihud 族组件的 preview 派生 ctx (真实 settings + 真实 dpi)
-    let preview_ctx = match vm_overlay::overlays::minihud::MinimalHudContext::create(
-        &inputs.hud,
-        inputs.dpi_scale,
-        &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
-    ) {
-        Ok(c) => c,
-        Err(e) => return IpcReply::Err(format!("preview ctx 构造失败: {e}")),
-    };
-    // 页面字体: minihud 页 = ctx 三档 (行距/字高一致, 与真窗同源);
-    // 其余页 = resolve_page_font_size (出厂页按组 font_add / 用户页按
-    // doc.font.sizeAdd, dpi 后 — 线程本地缓存, 100ms 防抖 solve 高频)
-    let fonts = if doc.canvas.as_deref() == Some("minihud") {
-        Rc::new(preview_ctx.fonts.clone())
-    } else {
-        let fs = vm_overlay::widgets::page_font_size(24, doc.font.size_add, inputs.dpi_scale);
-        match vm_overlay::render::font::LoadedFont::new_cached(
-            &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
-            fs,
-        ) {
-            Ok(f) => Rc::new(vm_overlay::overlays::minihud::MiniHudFonts {
-                draw: Rc::clone(&f),
-                small: Rc::clone(&f),
-                s_small: f,
-            }),
-            Err(e) => return IpcReply::Err(format!("字体加载失败: {e}")),
-        }
-    };
-    // gauge 参数真值 (dpi/组字号/节流 — 此前 None 走 Java 回退缺省)
-    let gauge = vm_overlay::widgets::GaugeCfg::from_params(
-        &params,
-        inputs.dpi_scale,
-        {
-            let s = shell.borrow();
-            s.env.dpi.get_logical_screen_height()
-        },
-    );
-    let lang = vm_core::lang::Lang::init_lang();
-    let fctx = vm_overlay::widgets::FactoryCtx {
-        minihud_ctx: Some(&preview_ctx),
-        fonts,
-        lang: Some(&lang),
-        fonts_dir: Some(fonts_dir),
-        gauge_cfg: Some(&gauge),
-    };
-    match vm_overlay::widgets::solve_page_snapshot(&doc, &fctx, &inputs.hud) {
-        Ok(r) => {
-            let items: Vec<_> = r
-                .items
-                .iter()
-                .map(|(id, x, y, w, h)| {
-                    serde_json::json!({ "id": id, "x": x, "y": y, "w": w, "h": h })
-                })
-                .collect();
-            serde_json::to_value(serde_json::json!({
-                "lineHeightPx": r.line_height_px,
-                "pageW": r.page_w,
-                "pageH": r.page_h,
-                // 画布系元数据 (前端 PNG 以 −offset 反变换回画布视图)
-                "offsetX": r.offset_x,
-                "offsetY": r.offset_y,
-                "contentX": r.content_x,
-                "contentY": r.content_y,
-                "contentW": r.content_w,
-                "contentH": r.content_h,
-                "padding": r.padding,
-                "canvasW": r.canvas_w,
-                "canvasH": r.canvas_h,
-                "items": items,
-                // 构建错误回显 (类型未注册/工厂 Err — 此前仅 warn 日志静默失败)
-                "errors": r.errors,
-                "png": r.png,
-            }))
-            .map(IpcReply::Ok)
-            .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
-        }
-        Err(e) => IpcReply::Err(e),
-    }
-}
+// (R8: solve_page_ipc 快照链退役 — 真窗即画布, 编辑在渲染线程侧)
 
 /// 批3 open* 按钮的开窗请求 (Java ButtonRowRenderer 直接 new 窗口的入参面)
 #[derive(Debug, Clone, PartialEq)]

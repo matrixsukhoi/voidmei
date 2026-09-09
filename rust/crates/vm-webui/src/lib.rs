@@ -92,7 +92,6 @@ impl ShellForm {
                 commands_edit::edit_command,
                 commands_layout::get_component_catalog,
                 commands_layout::get_pages,
-                commands_layout::solve_page,
                 commands_layout::save_page,
                 commands_layout::delete_page,
                 commands_layout::reset_page_to_factory,

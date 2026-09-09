@@ -5,12 +5,13 @@
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import { Tooltip } from 'antd'
-import type { PageDoc, SolveResult } from './types'
+import type { PageDoc } from './types'
 import { getComponentCatalog } from './api'
 
 interface OutlineProps {
   page: PageDoc
-  solve: SolveResult | null
+  /** 旧快照链遗留位 (R8 退役; errors 经会话推送) */
+  solve?: unknown
   selectedIds: string[]
   onSelectionChange: (ids: string[]) => void
   /** 翻 enabled (大纲是禁用组件的唯一开关入口) */
@@ -51,7 +52,8 @@ export const Outline: React.FC<OutlineProps> = ({
 
   const errorById = useMemo(() => {
     const m: Record<string, string> = {}
-    for (const [id, reason] of solve?.errors ?? []) m[id] = reason
+    for (const [id, reason] of (solve as { errors?: [string, string][] } | null)?.errors ?? [])
+      m[id] = reason
     return m
   }, [solve])
 

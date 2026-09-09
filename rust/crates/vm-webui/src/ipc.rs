@@ -44,8 +44,6 @@ pub enum RequestKind {
     GetComponentCatalog,
     /// 页面列表 (id/name/switchKey + 升级提示)
     GetPages,
-    /// 页面快照求解 (布局矩形 + PNG 预览; 与真窗同管线)
-    SolvePage { page: serde_json::Value },
     /// 页面保存 (出厂 id → owned 提升; 用户 id → upsert)
     SavePage { page: serde_json::Value },
     /// 页面删除 (owned 删除 = 回跟随出厂; user 删除; 出厂本体不可删)
@@ -180,7 +178,6 @@ pub fn dispatch(kind: RequestKind, rt: &mut FormRuntime) -> IpcReply {
         // W4 布局编辑器域 (同上: vm-app dispatcher 承担)
         | RequestKind::GetComponentCatalog
         | RequestKind::GetPages
-        | RequestKind::SolvePage { .. }
         | RequestKind::SavePage { .. }
         | RequestKind::DeletePage { .. }
         | RequestKind::ResetPageToFactory { .. }

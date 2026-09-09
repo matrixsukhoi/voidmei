@@ -399,7 +399,7 @@ export const LayoutTab: React.FC = () => {
         <Palette onAdd={addComponent} onAddField={addFieldPreset} onDrop={() => undefined} />
         <Outline
           page={doc ?? EMPTY_PAGE}
-          solve={null}
+          solve={{ errors }}
           selectedIds={selection}
           onSelectionChange={ids => sendCmd('select', { ids }, false)}
           onToggleEnabled={(id, enabled) => {
