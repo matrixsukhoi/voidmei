@@ -18,35 +18,15 @@
 
 use vm_core::config::config_api::HudSettingsSnapshot;
 
-/// 引擎控制组 (getOverlaySettings("引擎控制"))。
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct EngineGroup {
-    /// 字号增量 (getFontSizeAdd)
-    pub font_add: i32,
-}
+// R4 字号合一: EngineGroup/ListGroup/FmGroup (纯字号增量投影) 退役 —
+// 页面字号统一 PageDoc.font.size_add (resolve_page_font_size 同批删除),
+// 组件字号 = 页面字号 + props.fontAdd
 
-/// 列表型面板组 (动力信息/飞行信息共用形态; 字段管理已原子化 — 列数/行定义
-/// 随 fields.grid 退役, 组只余字号增量供页面 font_size)
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ListGroup {
-    /// 字号增量 (getFontSizeAdd)
-    pub font_add: i32,
-}
-
-/// 边框开关组 (起落襟翼/操纵面共用形态): 字号增量 + 边缘模式。
+/// 边框开关组 (起落襟翼/操纵面共用形态)。
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct EdgeGroup {
-    /// 字号增量 (getFontSizeAdd)
-    pub font_add: i32,
     /// 边缘开关 (起落襟翼 enablegearAndFlapsEdge / 操纵面 enableAxisEdge, cfg 缺省 false)
     pub show_edge: bool,
-}
-
-/// FM拆包数据组: 字号增量 (getOverlaySettings("FM拆包数据").getFontSizeAdd;
-/// cfg 该组无字号滑条, 恒走 OverlaySettings 默认 0 — setupFont 的 14+add 面)
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct FmGroup {
-    pub font_add: i32,
 }
 
 /// 地平仪组 (getOverlaySettings("地平仪"))。喂入节流 freq_ms 在顶层 —
@@ -98,18 +78,10 @@ pub struct ReinitParams {
     pub service_loop_interval_ms: i64,
     /// 地平仪喂入节流 (attitudeIndicatorFreqMs; 宿主 attitude_feed 消费)
     pub attitude_freq_ms: i64,
-    /// 引擎控制组
-    pub engine: EngineGroup,
-    /// 动力信息组
-    pub power: ListGroup,
-    /// 飞行信息组
-    pub flight: ListGroup,
     /// 起落襟翼组
     pub gear: EdgeGroup,
     /// 操纵面组
     pub axis: EdgeGroup,
-    /// FM拆包数据组
-    pub fm: FmGroup,
     /// 地平仪组
     pub attitude: AttitudeGroup,
     /// MiniHUD 全量设置快照 (reinit_config 的 S: HUDSettings 实参)
@@ -126,12 +98,8 @@ impl Default for ReinitParams {
             dpi_scale: 1.0,
             service_loop_interval_ms: 50,
             attitude_freq_ms: 40,
-            engine: Default::default(),
-            power: Default::default(),
-            flight: Default::default(),
             gear: Default::default(),
             axis: Default::default(),
-            fm: Default::default(),
             attitude: Default::default(),
             hud: HudSettingsSnapshot::default(),
             pages: std::sync::Arc::new(Vec::new()),

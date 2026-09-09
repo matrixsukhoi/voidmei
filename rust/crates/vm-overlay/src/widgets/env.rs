@@ -84,25 +84,24 @@ impl<'a> UpdateEnv<'a> {
 
 /// W3B 图形族复合组件 (engine/gearflaps/axes/attitude) 与 FM 黑盒组件的
 /// reinit 参数快照 (源 = ReinitParams 各组; 页面编排器随 refresh 闭包注入,
-/// 缺席 = preview/测试走 [`GaugeCfg::default`] 的 Java 回退缺省)
+/// 缺席 = preview/测试走 [`GaugeCfg::default`] 的 Java 回退缺省)。
+/// R4 字号合一: 组字号增量 (engine/gear/axis/fm) 全部退役 — 组件字号 =
+/// 页面字号 (FactoryCtx.fonts.draw.size, 即 24 + doc.font.size_add, dpi 后)
+/// + props.fontAdd; 本结构只剩几何/节流/边缘开关
 #[derive(Debug, Clone, PartialEq)]
 pub struct GaugeCfg {
-    /// Application.dpiScale (各组件字号/DPI 几何共用)
+    /// Application.dpiScale (DPI 几何换算共用)
     pub dpi_scale: f64,
     /// Service 轮询间隔 (引擎控制 loadRefreshInterval 的 dataPollIntervalMs 源)
     pub service_loop_interval_ms: i64,
-    /// 引擎控制组字号增量
-    pub engine_font_add: i32,
-    /// 起落襟翼组 (字号增量, 边缘开关)
-    pub gear: (i32, bool),
-    /// 操纵面组 (字号增量, 边缘开关)
-    pub axis: (i32, bool),
+    /// 起落襟翼组边缘开关
+    pub gear_show_edge: bool,
+    /// 操纵面组边缘开关
+    pub axis_show_edge: bool,
     /// 地平仪组 (宽, 高, 航向指针, 攻角极限线)
     pub attitude: (i32, i32, bool, bool),
     /// 地平仪数据节流 ms (attitudeIndicatorFreqMs)
     pub attitude_freq_ms: i64,
-    /// FM拆包数据组字号增量 (setupFont 的 14+add 面)
-    pub fm_font_add: i32,
     /// 屏幕逻辑高 (FM 列表高度自适应的钳制上限)
     pub logical_height: i32,
 }
@@ -113,12 +112,10 @@ impl Default for GaugeCfg {
         GaugeCfg {
             dpi_scale: 1.0,
             service_loop_interval_ms: 50,
-            engine_font_add: 0,
-            gear: (0, false),
-            axis: (0, false),
+            gear_show_edge: false,
+            axis_show_edge: false,
             attitude: (150, 300, false, true),
             attitude_freq_ms: 40,
-            fm_font_add: 0,
             logical_height: 1080,
         }
     }
@@ -126,8 +123,7 @@ impl Default for GaugeCfg {
 
 impl GaugeCfg {
     /// ReinitParams → GaugeCfg 组装 (真窗注册面 / refresh 闭包 / 编辑器快照
-    /// 三处同源的收敛点)。logical_height 由调用方传入: 初装配用
-    /// dpi.get_logical_screen_height(), refresh 链历史硬编码 1080 (P3 备案)
+    /// 三处同源的收敛点)。logical_height 由调用方传入 (env.dpi 真值)
     pub fn from_params(
         p: &crate::platform::reinit::ReinitParams,
         dpi: f64,
@@ -136,9 +132,8 @@ impl GaugeCfg {
         GaugeCfg {
             dpi_scale: dpi,
             service_loop_interval_ms: p.service_loop_interval_ms,
-            engine_font_add: p.engine.font_add,
-            gear: (p.gear.font_add, p.gear.show_edge),
-            axis: (p.axis.font_add, p.axis.show_edge),
+            gear_show_edge: p.gear.show_edge,
+            axis_show_edge: p.axis.show_edge,
             attitude: (
                 p.attitude.width,
                 p.attitude.height,
@@ -146,7 +141,6 @@ impl GaugeCfg {
                 p.attitude.show_aoa_limits,
             ),
             attitude_freq_ms: p.attitude_freq_ms,
-            fm_font_add: p.fm.font_add,
             logical_height,
         }
     }

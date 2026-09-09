@@ -336,7 +336,7 @@ fn solve_page_ipc(
     let fonts = if doc.canvas.as_deref() == Some("minihud") {
         Rc::new(preview_ctx.fonts.clone())
     } else {
-        let fs = vm_overlay::widgets::resolve_page_font_size(&doc, &params, inputs.dpi_scale);
+        let fs = vm_overlay::widgets::page_font_size(24, doc.font.size_add, inputs.dpi_scale);
         match vm_overlay::render::font::LoadedFont::new_cached(
             &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
             fs,

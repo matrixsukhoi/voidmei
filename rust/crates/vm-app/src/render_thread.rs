@@ -366,7 +366,7 @@ fn assemble_page_spec(
     let dpi = env.dpi.get_scale();
     let gauge =
         vm_overlay::widgets::GaugeCfg::from_params(&p, dpi, env.dpi.get_logical_screen_height());
-    let font_size = vm_overlay::widgets::resolve_page_font_size(&doc, &p, dpi);
+    let font_size = vm_overlay::widgets::page_font_size(24, doc.font.size_add, dpi);
     let hud = p.hud.clone();
     drop(p);
 
@@ -388,7 +388,7 @@ fn assemble_page_spec(
             .find(|d| d.id == refresh_doc.id)
             .cloned()
             .unwrap_or_else(|| refresh_doc.clone());
-        let fs = vm_overlay::widgets::resolve_page_font_size(&doc, &p, refresh_env_dpi);
+        let fs = vm_overlay::widgets::page_font_size(24, doc.font.size_add, refresh_env_dpi);
         let hud = p.hud.clone();
         drop(p);
         PageSpecParams {

@@ -47,21 +47,10 @@ pub struct OverlayInputs {
     pub hud: HudSettingsSnapshot,
     /// HUD 页面清单 (PageDoc 驱动建树; 主线程出厂 ⊕ delta 后快照)
     pub pages: std::sync::Arc<Vec<vm_core::config::json_model::PageDoc>>,
-    /// 引擎控制面板字号增量 (getOverlaySettings("引擎控制").get_font_size_add)
-    pub font_add_engine: i32,
-    /// 动力信息字号增量 (getOverlaySettings("动力信息"))
-    pub font_add_power: i32,
-    /// 飞行信息字号增量 (getOverlaySettings("飞行信息"))
-    pub font_add_flight: i32,
-    /// 起落襟翼字号增量 + 边缘模式 (getOverlaySettings("起落襟翼"))
-    pub font_add_gear: i32,
+    /// 起落襟翼边缘模式 (getOverlaySettings("起落襟翼"))
     pub gear_show_edge: bool,
-    /// 舵面值字号增量 + 边缘模式 (getOverlaySettings("舵面值"))
-    pub font_add_axis: i32,
+    /// 舵面值边缘模式 (getOverlaySettings("舵面值"))
     pub axis_show_edge: bool,
-    /// FM拆包数据字号增量 (getOverlaySettings("FM拆包数据");
-    /// cfg 该组无字号滑条, 恒默认 0, setupFont 的 14+add 面)
-    pub font_add_fm: i32,
     /// 地平仪几何/开关 (getOverlaySettings("地平仪"); 缺省 = Java reinitConfig 默认:
     /// 150×300 / 40ms / direction false / AoA 极限 true)
     pub attitude_width: i32,
@@ -87,13 +76,11 @@ impl OverlayInputs {
             .lock()
             .expect("intervals 锁中毒")
             .service_loop_interval_ms;
-        let engine = config.get_overlay_settings("引擎控制");
-        let power = config.get_overlay_settings("动力信息");
+        // R4 字号合一: 各组字号增量投影退役 (页面字号统一 PageDoc.font.size_add);
+        // 按中文标题取组的面只剩边缘开关/地平仪几何
         let gear = config.get_overlay_settings("起落襟翼");
         let axis = config.get_overlay_settings("舵面值");
-        let fm_print = config.get_overlay_settings("FM拆包数据");
         let attitude = config.get_overlay_settings("地平仪");
-        let flight = config.get_overlay_settings("飞行信息");
         // bool 全键面 (页面组件 visibleWhen 的配置键求值源 — 只靠 build 的
         // enableLayoutDebug 单键会令带条件的组件在真窗恒消失/恒显)
         let mut hud = HudSettingsSnapshot::build(&config.get_hud_settings());
@@ -102,14 +89,8 @@ impl OverlayInputs {
             dpi_scale: env.dpi.get_scale(),
             hud,
             pages: config.pages(),
-            font_add_engine: engine.get_font_size_add(),
-            font_add_power: power.get_font_size_add(),
-            font_add_flight: flight.get_font_size_add(),
-            font_add_gear: gear.get_font_size_add(),
             gear_show_edge: gear.get_bool("enablegearAndFlapsEdge", false),
-            font_add_axis: axis.get_font_size_add(),
             axis_show_edge: axis.get_bool("enableAxisEdge", false),
-            font_add_fm: fm_print.get_font_size_add(),
             attitude_width: attitude.get_int("attitudeIndicatorWidth", 150),
             attitude_height: attitude.get_int("attitudeIndicatorHeight", 300),
             attitude_freq_ms: attitude.get_int("attitudeIndicatorFreqMs", 40) as i64,
@@ -153,32 +134,16 @@ fn all_bool_rows(config: &ConfigurationService) -> HashMap<String, bool> {
 /// F15: ReinitParams 分组嵌套, 本快照保持平铺 (spawn 期一次性构建, 无分组收益)
 impl From<&OverlayInputs> for vm_overlay::platform::reinit::ReinitParams {
     fn from(i: &OverlayInputs) -> Self {
-        use vm_overlay::platform::reinit::{
-            AttitudeGroup, EdgeGroup, EngineGroup, FmGroup, ListGroup,
-        };
+        use vm_overlay::platform::reinit::{AttitudeGroup, EdgeGroup};
         vm_overlay::platform::reinit::ReinitParams {
             dpi_scale: i.dpi_scale,
             service_loop_interval_ms: i.service_loop_interval_ms,
             attitude_freq_ms: i.attitude_freq_ms,
-            engine: EngineGroup {
-                font_add: i.font_add_engine,
-            },
-            power: ListGroup {
-                font_add: i.font_add_power,
-            },
-            flight: ListGroup {
-                font_add: i.font_add_flight,
-            },
             gear: EdgeGroup {
-                font_add: i.font_add_gear,
                 show_edge: i.gear_show_edge,
             },
             axis: EdgeGroup {
-                font_add: i.font_add_axis,
                 show_edge: i.axis_show_edge,
-            },
-            fm: FmGroup {
-                font_add: i.font_add_fm,
             },
             attitude: AttitudeGroup {
                 width: i.attitude_width,

@@ -58,8 +58,10 @@ fn f_engine_gauge(
         .fonts_dir
         .as_deref()
         .ok_or("engine.gauge 需要 FactoryCtx.fonts_dir")?;
-    let font_size =
-        vm_core::base::format::java_round_f64((24.0 + cfg.engine_font_add as f64) * cfg.dpi_scale);
+    // R4 字号合一: 组件字号 = 页面字号 (含 doc.font.size_add + dpi) + props 增量
+    let props_add = props.get("fontAdd").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+    let font_size = fctx.fonts.draw.size
+        + vm_core::base::format::java_round_f64(props_add as f64 * cfg.dpi_scale);
     let label = (def.label)(lang);
     let gauge = LabeledLinearGauge::new(label, def.max_value, !def.is_horizontal);
     let mut marked = None;

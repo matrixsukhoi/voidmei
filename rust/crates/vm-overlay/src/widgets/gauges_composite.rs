@@ -70,10 +70,11 @@ pub struct AxesWidget {
 
 fn f_axes(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     let cfg = cfg_of(fctx);
-    let (font_add, edge) = cfg.axis;
+    // R4 字号合一: 组增量退役 → 页面字号折回加量域 (init_preview 的 add 参数)
+    let font_add = fctx.fonts.draw.size - 24;
     let mut cs = ControlSurfacesOverlay::new();
     // win_x/win_y = 0: 定位归页面布局 (旧工厂同款)
-    cs.init_preview(font_add, cfg.dpi_scale, edge, 0, 0);
+    cs.init_preview(font_add, cfg.dpi_scale, cfg.axis_show_edge, 0, 0);
     let canvas = PixCanvas::new(cs.width, cs.width)?;
     Ok(Box::new(AxesWidget { state: cs, canvas }))
 }

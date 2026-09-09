@@ -25,7 +25,7 @@ use crate::render::canvas::PixCanvas;
 use crate::render::fields::FontTriple;
 use crate::render::palette::colors;
 
-use super::env::{FactoryCtx, GaugeCfg, MiniHudTemplates, StyleEnv, UpdateEnv};
+use super::env::{FactoryCtx, MiniHudTemplates, StyleEnv, UpdateEnv};
 use super::fm_sidecar::{SidecarAction, SidecarCtx, WidgetSidecar};
 use super::registry::PageFonts;
 use super::registry::{HudWidget, PropKind, PropSchema, WidgetCategory, WidgetMeta};
@@ -341,7 +341,7 @@ impl FmFieldCore {
 }
 
 /// 工厂共通: 字号 (原列表 setupFont 的 14+add 面: 页面主字号基准 24 →
-/// -10 折算 + fm_font_add 组增量 + props.fontAdd)
+/// -10 折算; R4 组增量退役 → 页 doc.font.size_add 已含 + props.fontAdd)
 fn core_of(
     props: &serde_json::Value,
     fctx: &FactoryCtx,
@@ -349,8 +349,7 @@ fn core_of(
     fetch: FmFetch,
     preview: String,
 ) -> Result<FmFieldCore, String> {
-    let cfg: GaugeCfg = fctx.gauge_cfg.cloned().unwrap_or_default();
-    let font_add = fctx.fonts.draw.size - 24 - 10 + cfg.fm_font_add
+    let font_add = fctx.fonts.draw.size - 24 - 10
         + props.get("fontAdd").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
     // column=2: FM 字段行 label 较长 (阻力系数类), 双列宽容纳
     let ctx = RenderCtx::new(font_add, 2, default_num_height(font_add));

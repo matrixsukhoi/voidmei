@@ -40,9 +40,10 @@ fn f_rudder_bar(
     fctx: &FactoryCtx,
 ) -> Result<Box<dyn HudWidget>, String> {
     let cfg: GaugeCfg = fctx.gauge_cfg.cloned().unwrap_or_default();
-    let font_add =
-        cfg.axis.0 + props.get("fontAdd").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-    let font_size = java_round_f64((24.0 + font_add as f64) * cfg.dpi_scale);
+    // R4 字号合一: 页面字号 (doc.font.size_add + dpi 已含) + props 增量 × dpi
+    let props_add = props.get("fontAdd").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+    let font_size =
+        fctx.fonts.draw.size + java_round_f64(props_add as f64 * cfg.dpi_scale);
     let fonts_dir = fctx
         .fonts_dir
         .as_deref()

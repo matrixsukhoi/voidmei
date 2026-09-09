@@ -28,9 +28,10 @@ fn font_add_of(props: &serde_json::Value) -> i32 {
     props.get("fontAdd").and_then(|v| v.as_i64()).unwrap_or(0) as i32
 }
 
-/// 字号 = round((24 + 组增量 + props 增量) × dpi)
-fn font_size_of(cfg: &GaugeCfg, props: &serde_json::Value) -> i32 {
-    java_round_f64((24.0 + (cfg.gear.0 + font_add_of(props)) as f64) * cfg.dpi_scale)
+/// 字号 = 页面字号 (R4 字号合一: 组增量退役, 页 doc.font.size_add + dpi 已含)
+/// + props 增量 × dpi
+fn font_size_of(fctx: &FactoryCtx, cfg: &GaugeCfg, props: &serde_json::Value) -> i32 {
+    fctx.fonts.draw.size + java_round_f64(font_add_of(props) as f64 * cfg.dpi_scale)
 }
 
 /// BOLD 字体路径 (各旧工厂同款: fonts_dir/sarasa-mono-sc-bold.ttf)
@@ -64,7 +65,7 @@ pub struct FlapBarWidget {
 
 fn f_flap_bar(props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     let cfg: GaugeCfg = fctx.gauge_cfg.cloned().unwrap_or_default();
-    let font_size = font_size_of(&cfg, props);
+    let font_size = font_size_of(fctx, &cfg, props);
     let font_num = LoadedFont::new(&bold_path(fctx)?, font_size)?;
     let bar_height = 4 * font_size;
     // preview 初值: 襟翼 50%
@@ -173,7 +174,7 @@ pub struct GearWarnWidget {
 
 fn f_gear_warn(props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     let cfg: GaugeCfg = fctx.gauge_cfg.cloned().unwrap_or_default();
-    let font_size = font_size_of(&cfg, props);
+    let font_size = font_size_of(fctx, &cfg, props);
     let half = vm_core::base::format::java_round_f32(font_size as f32 / 2.0);
     let font_label = LoadedFont::new(&bold_path(fctx)?, half)?;
     let w = GearWarnWidget {

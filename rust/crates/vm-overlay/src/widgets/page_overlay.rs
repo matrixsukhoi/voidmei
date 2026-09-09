@@ -259,24 +259,8 @@ pub fn page_font_size(base: i32, add: i32, dpi: f64) -> i32 {
 // W4 编辑器快照面 (solve_page): 布局求解 + PNG 预览 — 与真窗同管线
 // =====================================================================
 
-/// 页面主字号解析 (真窗注册面与编辑器快照同源): 出厂页按组 font_add
-/// (panels 行值), fm 两页 24 基准, 用户页按页文档 font.sizeAdd — dpi 后 px
-pub fn resolve_page_font_size(
-    doc: &PageDoc,
-    p: &crate::platform::reinit::ReinitParams,
-    dpi: f64,
-) -> i32 {
-    match doc.id.as_str() {
-        "flight-info-default" => page_font_size(24, p.flight.font_add, dpi),
-        "power-info-default" => page_font_size(24, p.power.font_add, dpi),
-        "engine-control-default" => page_font_size(24, p.engine.font_add, dpi),
-        "gear-flaps-default" => page_font_size(24, p.gear.font_add, dpi),
-        "axis-default" => page_font_size(24, p.axis.font_add, dpi),
-        "fm-list-default" | "thrust-chart-default" => 24,
-        // 用户页/其余: 页文档自身字号增量 (PageDoc.font.sizeAdd)
-        _ => page_font_size(24, doc.font.size_add, dpi),
-    }
-}
+// R4 字号合一: resolve_page_font_size (按页 id match 组 font_add 的双轨) 删除 —
+// 页面字号统一 page_font_size(24, doc.font.size_add, dpi), 调用方直接算
 
 /// solve 产物 (编辑器画布的数据面: 画布系矩形 + 像素快照 + 派生元数据)。
 /// 编辑器语义 = 编辑画布内容布局: items 用画布系 (锚点求解原生坐标),

@@ -1405,30 +1405,6 @@
               "children": []
             },
             {
-              "label": "hud读数和指示器字体大小",
-              "type": "SLIDER",
-              "property": "fontSize",
-              "targetName": null,
-              "value": 0,
-              "defaultValue": 0,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": -10,
-              "maxVal": 10,
-              "groupColumns": 0,
-              "desc": "微调HUD上文字大小的偏差值",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
               "label": "等宽字体",
               "type": "COMBO",
               "property": "MonoNumFont",
@@ -1539,32 +1515,7 @@
           "precisionSource": null,
           "visibleWhen": null,
           "naWhen": null,
-          "children": [
-            {
-              "label": "大小",
-              "type": "SLIDER",
-              "property": "fontSize",
-              "targetName": null,
-              "value": 0,
-              "defaultValue": 0,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": -6,
-              "maxVal": 20,
-              "groupColumns": 0,
-              "desc": "调整飞行信息面板文字的相对大小",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            }
-          ]
+          "children": []
         }
       ]
     },
@@ -1651,32 +1602,7 @@
           "precisionSource": null,
           "visibleWhen": null,
           "naWhen": null,
-          "children": [
-            {
-              "label": "大小",
-              "type": "SLIDER",
-              "property": "fontSize",
-              "targetName": null,
-              "value": 0,
-              "defaultValue": 0,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": -6,
-              "maxVal": 18,
-              "groupColumns": 0,
-              "desc": "调整引擎信息面板文字的相对大小",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            }
-          ]
+          "children": []
         }
       ]
     },
@@ -1850,30 +1776,6 @@
               "visibleWhen": null,
               "naWhen": null,
               "children": []
-            },
-            {
-              "label": "大小",
-              "type": "SLIDER",
-              "property": "fontSize",
-              "targetName": null,
-              "value": 0,
-              "defaultValue": 0,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": -6,
-              "maxVal": 20,
-              "groupColumns": 0,
-              "desc": "调整舵面行程条的显示尺寸",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
             }
           ]
         }
@@ -1978,30 +1880,6 @@
               "maxVal": 100,
               "groupColumns": 0,
               "desc": "为襟翼/起落架面板添加玻璃质感边框",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "大小",
-              "type": "SLIDER",
-              "property": "fontSize",
-              "targetName": null,
-              "value": 0,
-              "defaultValue": 0,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": -6,
-              "maxVal": 20,
-              "groupColumns": 0,
-              "desc": "调整起落架面板的显示尺寸",
               "descImg": null,
               "previewValue": null,
               "fgColor": null,
