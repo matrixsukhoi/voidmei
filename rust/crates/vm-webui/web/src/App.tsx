@@ -197,6 +197,32 @@ export default function App() {
     return () => clearTimeout(t)
   }, [activeTab, panels])
 
+  // 布局 tab 窗口尺寸写回 (修复只读不写 — 记忆从未生效过): onResized 防抖
+  // 500ms 落 localStorage; onResized 载荷是物理像素, 存逻辑像素 (读回走
+  // setSize(LogicalSize), DPI≠1 时两口径一致)
+  useEffect(() => {
+    if (activeTab !== LAYOUT_TAB_KEY) return
+    let timer = 0
+    const unlisten = appWindow.onResized(({ payload }) => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        appWindow
+          .scaleFactor()
+          .then(scale => {
+            localStorage.setItem(
+              'vm-layout-win-size',
+              JSON.stringify([Math.round(payload.width / scale), Math.round(payload.height / scale)]),
+            )
+          })
+          .catch(() => undefined)
+      }, 500)
+    })
+    return () => {
+      window.clearTimeout(timer)
+      unlisten.then(f => f()).catch(() => undefined)
+    }
+  }, [activeTab])
+
   useEffect(() => {
     // 就绪 = 监听注册后再上报 (Rust show+emit 与 listen 注册的竞态, 见阶段①记录)
     listen('window-echo', () => {
