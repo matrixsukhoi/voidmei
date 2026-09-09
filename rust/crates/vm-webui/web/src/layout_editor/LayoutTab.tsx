@@ -4,11 +4,10 @@
  * 矩形 + PNG 底图 (布局求解唯一真相在 Rust); 保存走 save_page (delta)。
  * 桌面真窗的实时预览经既有 WYSIWYG 链 (save 后 CONFIG_CHANGED → reinit)。
  *
- * P0 数据流修复: 脏页集 (per-page dirty — 此前单布尔跨页泄漏);
- * refreshList 仅 mount + 显式调用 (此前依赖 [activeId] 每次切页整包重拉,
- * 未保存编辑被静默覆盖); 删除当前页自动落到剩余页 (此前卡死在空态早退);
- * 组件 id 生成递增查重 (此前 数量+1 / 固定 -copy 后缀删改后会撞 id);
- * Inspector 改名经 renameComponent 收口 (唯一性校验 + parent 引用重指)。
+ * P0 数据流: 脏页集 per-page dirty / refreshList 显式调用+脏页保留 /
+ * 删页自动落剩余页 / uid 递增查重 / 改名收口 (唯一性+parent 重指)。
+ * C4 交互层: 多选 (selectedIds + 框选 + 成组拖) / 缩放 (zoom + fit) /
+ * 键盘 (方向键微调 Shift 大步 / Delete / Escape)。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Popconfirm, Select, Space, message } from 'antd'
@@ -47,16 +46,21 @@ const nextComponentId = (page: PageDoc, base: string) => {
   return `${base}-${n}`
 }
 
+const roundSnap = (v: number) => Math.round(v / SNAP) * SNAP
+
 export const LayoutTab: React.FC = () => {
   const [pages, setPages] = useState<PageSummary[]>([])
   const [pageDocs, setPageDocs] = useState<Record<string, PageDoc>>({})
   const [activeId, setActiveId] = useState<string>('')
-  const [selectedComp, setSelectedComp] = useState<string>('')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [solve, setSolve] = useState<SolveResult | null>(null)
   /** 脏页集 (per-page; 切页不丢、refreshList 不覆盖) */
   const [dirty, setDirty] = useState<Set<string>>(new Set())
   /** 首次加载完成 (区分 "加载中" 与 "无页面" 空态) */
   const [loaded, setLoaded] = useState(false)
+  /** 画布缩放 (Canvas Ctrl+滚轮 / 工具栏) + fit 触发计数 */
+  const [zoom, setZoom] = useState(1)
+  const [fitTick, setFitTick] = useState(0)
   /** 升级提示已表态页 (本会话不再弹) */
   const [upgradeDismissed, setUpgradeDismissed] = useState<Set<string>>(new Set())
   const solveTimer = useRef<number>(0)
@@ -100,9 +104,10 @@ export const LayoutTab: React.FC = () => {
     refreshList()
   }, [refreshList])
 
-  // 切页清旧快照 (避免上一页 PNG 闪帧)
+  // 切页清旧快照与选择 (避免上一页 PNG 闪帧/跨页选中)
   useEffect(() => {
     setSolve(null)
+    setSelectedIds([])
   }, [activeId])
 
   // 防抖 solve
@@ -132,7 +137,7 @@ export const LayoutTab: React.FC = () => {
   const addComponent = useCallback(
     (typeName: string, displayZh: string, defaultProps?: Record<string, unknown>) => {
       if (!active) return
-      const cx = Math.round((active.components.length ? 2 : 1) / SNAP) * SNAP
+      const cx = roundSnap(active.components.length ? 2 : 1)
       // 初值 = Rust defaultProps (工厂必填项) ⊕ 显示层预设 (同名覆盖)
       const props = { ...(defaultProps ?? {}), ...(PRESET_DEFAULT_PROPS[typeName] ?? {}) }
       const comp: ComponentDoc = {
@@ -145,7 +150,7 @@ export const LayoutTab: React.FC = () => {
         props,
       }
       patchPage(d => ({ ...d, components: [...d.components, comp] }))
-      setSelectedComp(comp.id)
+      setSelectedIds([comp.id])
     },
     [active, patchPage],
   )
@@ -166,7 +171,7 @@ export const LayoutTab: React.FC = () => {
         props: { ...preset.props },
       }
       patchPage(d => ({ ...d, components: [...d.components, comp] }))
-      setSelectedComp(comp.id)
+      setSelectedIds([comp.id])
     },
     [active, patchPage],
   )
@@ -195,25 +200,26 @@ export const LayoutTab: React.FC = () => {
             : { ...c, parent: c.parent === oldId ? newName : c.parent },
         ),
       }))
-      setSelectedComp(newName)
+      setSelectedIds([newName])
       return true
     },
     [active, patchPage],
   )
 
-  const removeComponent = useCallback(
-    (id: string) => {
+  const removeComponents = useCallback(
+    (ids: string[]) => {
       patchPage(d => ({
         ...d,
         components: d.components
-          .filter(c => c.id !== id)
+          .filter(c => !ids.includes(c.id))
           // 悬空 parent 重指根 (布局引擎同样宽容退化, 这里显式落盘防困惑)
-          .map(c => (c.parent === id ? { ...c, parent: null } : c)),
+          .map(c => (c.parent && ids.includes(c.parent) ? { ...c, parent: null } : c)),
       }))
-      setSelectedComp('')
+      setSelectedIds([])
     },
     [patchPage],
   )
+  const removeComponent = useCallback((id: string) => removeComponents([id]), [removeComponents])
 
   const duplicateComponent = useCallback(
     (id: string) => {
@@ -226,25 +232,86 @@ export const LayoutTab: React.FC = () => {
         pos: [src.pos[0] + SNAP * 5, src.pos[1] + SNAP * 5],
       }
       patchPage(d => ({ ...d, components: [...d.components, copy] }))
-      setSelectedComp(copy.id)
+      setSelectedIds([copy.id])
     },
     [active, patchPage],
   )
 
-  /** 画布拖拽落点 (px → unit; 吸附) */
-  const onDragComponent = useCallback(
-    (id: string, dPx: [number, number]) => {
+  /** 画布拖拽落点 (画布 px → unit, 吸附; 成组位移) */
+  const onDragCommit = useCallback(
+    (ids: string[], dPx: [number, number]) => {
       if (!solve) return
       const lh = solve.lineHeightPx || 1
-      patchComponent(id, c => ({
-        ...c,
-        pos: [
-          Math.round((c.pos[0] + dPx[0] / lh) / SNAP) * SNAP,
-          Math.round((c.pos[1] + dPx[1] / lh) / SNAP) * SNAP,
-        ],
+      patchPage(d => ({
+        ...d,
+        components: d.components.map(c =>
+          ids.includes(c.id)
+            ? {
+                ...c,
+                pos: [
+                  roundSnap(c.pos[0] + dPx[0] / lh),
+                  roundSnap(c.pos[1] + dPx[1] / lh),
+                ],
+              }
+            : c,
+        ),
       }))
     },
-    [solve, patchComponent],
+    [solve, patchPage],
+  )
+
+  /** 键盘: 方向键微调 (Shift 大步) / Delete 删除 / Escape 清选 */
+  const nudge = useCallback(
+    (dxUnit: number, dyUnit: number) => {
+      patchPage(d => ({
+        ...d,
+        components: d.components.map(c =>
+          selectedIds.includes(c.id)
+            ? { ...c, pos: [roundSnap(c.pos[0] + dxUnit), roundSnap(c.pos[1] + dyUnit)] }
+            : c,
+        ),
+      }))
+    },
+    [patchPage, selectedIds],
+  )
+  const onRootKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      // 表单控件聚焦时不拦截
+      const t = e.target as HTMLElement
+      if (t.closest('input, textarea, [contenteditable="true"]')) return
+      if (e.key === 'Escape') {
+        setSelectedIds([])
+        return
+      }
+      if (!selectedIds.length || !active) return
+      const step = e.shiftKey ? 1 : SNAP
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault()
+          nudge(-step, 0)
+          break
+        case 'ArrowRight':
+          e.preventDefault()
+          nudge(step, 0)
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          nudge(0, -step)
+          break
+        case 'ArrowDown':
+          e.preventDefault()
+          nudge(0, step)
+          break
+        case 'Delete':
+        case 'Backspace':
+          e.preventDefault()
+          removeComponents(selectedIds)
+          break
+        default:
+          break
+      }
+    },
+    [selectedIds, active, nudge, removeComponents],
   )
 
   /** 新建/本地注入页 (标记脏 — 此前新页不置 dirty, 保存按钮恒禁用无法保存) */
@@ -252,7 +319,7 @@ export const LayoutTab: React.FC = () => {
     (doc: PageDoc) => {
       setPageDocs(prev => ({ ...prev, [doc.id]: doc }))
       setActiveId(doc.id)
-      setSelectedComp('')
+      setSelectedIds([])
       markDirty(doc.id)
     },
     [markDirty],
@@ -269,9 +336,13 @@ export const LayoutTab: React.FC = () => {
     }
   }, [active, activeId, clearDirty])
 
+  /** 单选语义面 (Inspector); 多选批量栏 C5 接入 */
   const selected = useMemo(
-    () => active?.components.find(c => c.id === selectedComp) ?? null,
-    [active, selectedComp],
+    () =>
+      selectedIds.length === 1
+        ? active?.components.find(c => c.id === selectedIds[0]) ?? null
+        : null,
+    [active, selectedIds],
   )
 
   if (!loaded) {
@@ -305,7 +376,11 @@ export const LayoutTab: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 8, height: '100%', minHeight: 480 }}>
+    <div
+      style={{ display: 'flex', gap: 8, height: '100%', minHeight: 480, outline: 'none' }}
+      tabIndex={0}
+      onKeyDown={onRootKeyDown}
+    >
       {/* palette */}
       <Palette onAdd={addComponent} onAddField={addFieldPreset} />
 
@@ -353,7 +428,7 @@ export const LayoutTab: React.FC = () => {
               refreshList()
             }}
           >
-            <Button >恢复出厂</Button>
+            <Button>恢复出厂</Button>
           </Popconfirm>
           <Popconfirm
             title="删除页面"
@@ -397,6 +472,16 @@ export const LayoutTab: React.FC = () => {
           }}>
             新建页
           </Button>
+          {/* 缩放控制 (替代硬编码 ZOOM=1.6) */}
+          <Space.Compact>
+            <Button size="small" onClick={() => setZoom(z => Math.max(0.2, z / 1.2))}>−</Button>
+            <Button size="small" style={{ pointerEvents: 'none', width: 52 }}>
+              {Math.round(zoom * 100)}%
+            </Button>
+            <Button size="small" onClick={() => setZoom(z => Math.min(3, z * 1.2))}>＋</Button>
+          </Space.Compact>
+          <Button size="small" onClick={() => setFitTick(t => t + 1)}>适应画布</Button>
+          <Button size="small" onClick={() => setZoom(1)}>100%</Button>
         </Space>
         {/* 构建错误回显 (类型未注册/工厂 Err — 此前仅 Rust warn 日志静默失败) */}
         {solve && solve.errors.length > 0 && (
@@ -410,9 +495,12 @@ export const LayoutTab: React.FC = () => {
         <Canvas
           solve={solve}
           page={active}
-          selectedId={selectedComp}
-          onSelect={setSelectedComp}
-          onDrag={onDragComponent}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          onDragCommit={onDragCommit}
+          zoom={zoom}
+          onZoom={setZoom}
+          fitTick={fitTick}
         />
       </div>
 
