@@ -478,7 +478,7 @@ export const LayoutTab: React.FC = () => {
               switchKey: null,
               pos: [0.5, 0.5],
               padding: 20,
-              font: { family: '', sizeAdd: 0, scaleSource: '' },
+              font: { sizeAdd: 0 },
               contentVersion: 0,
               components: [],
             })
@@ -597,7 +597,7 @@ export const LayoutTab: React.FC = () => {
               switchKey: null,
               pos: [0.5, 0.5],
               padding: 20,
-              font: { family: '', sizeAdd: 0, scaleSource: '' },
+              font: { sizeAdd: 0 },
               contentVersion: 0,
               components: [],
             })

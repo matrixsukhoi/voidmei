@@ -45,9 +45,10 @@ fn render_frames_advance_with_active_overlays() {
         changed_key: None,
         generation: gen,
     });
-    // 泵消费 (10ms 节拍) + 窗口物化 + 至少数个 50ms 渲染节拍
-    std::thread::sleep(Duration::from_millis(800));
-    let frames = shell.shared.render_frames.load(Ordering::SeqCst);
+    // 轮询等 present 帧 (固定 sleep 在并发负载下不够 → flaky; 上限 10s)
+    let frames = poll_until(Duration::from_secs(10), || {
+        shell.shared.render_frames.load(Ordering::SeqCst)
+    });
     shell.send_ui(UiCommand::Shutdown);
     let join = shell.render.take().unwrap();
     assert!(join.join().is_ok());
@@ -75,8 +76,29 @@ fn render_overlay_present_counts_per_registered_overlay() {
     let mut shell = fixture_full(30, all_on_cfg);
     shell.spawn_render_thread().expect("渲染线程启动");
     shell.send_ui(UiCommand::OpenAllOverlays);
-    // 泵消费 (10ms 节拍) + 6 窗物化 + 至少数个 50ms 渲染节拍
-    std::thread::sleep(Duration::from_millis(1200));
+    // 轮询等 6 窗全部 present (固定 sleep 在并发负载下不够 → flaky; 上限 10s)
+    let wanted = [
+        "enableEngineControl",
+        "engineInfoSwitch",
+        "crosshairSwitch",
+        "enablegearAndFlaps",
+        "enableAxis",
+        "enableAttitudeIndicator",
+    ];
+    poll_until(Duration::from_secs(10), || {
+        let counts = shell
+            .shared
+            .overlay_present
+            .lock()
+            .expect("overlay_present 锁中毒")
+            .clone();
+        let min = wanted
+            .iter()
+            .map(|id| counts.get(*id).copied().unwrap_or(0))
+            .min()
+            .unwrap_or(0);
+        min
+    });
     let counts = shell
         .shared
         .overlay_present
@@ -86,19 +108,24 @@ fn render_overlay_present_counts_per_registered_overlay() {
     shell.send_ui(UiCommand::Shutdown);
     let join = shell.render.take().unwrap();
     assert!(join.join().is_ok());
-    for id in [
-        "enableEngineControl",
-        "engineInfoSwitch",
-        "crosshairSwitch",
-        "enablegearAndFlaps",
-        "enableAxis",
-        "enableAttitudeIndicator",
-    ] {
+    for id in wanted {
         let c = counts.get(id).copied().unwrap_or(0);
         assert!(
             c > 0,
             "overlay {id} present 应 >0 (实测 {c}, 全量 {counts:?})"
         );
+    }
+}
+
+/// 轮询直到样本 >0 或超时 (返回最后样本) — 渲染节拍类断言的负载无关等待
+fn poll_until(timeout: Duration, mut sample: impl FnMut() -> u64) -> u64 {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        let v = sample();
+        if v > 0 || std::time::Instant::now() >= deadline {
+            return v;
+        }
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 

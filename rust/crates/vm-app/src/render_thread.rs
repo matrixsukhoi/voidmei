@@ -349,6 +349,8 @@ fn assemble_page_spec(
     // refresh 闭包: 重取参数仓 (reinit 语义 — CONFIG_CHANGED 后 ReinitOverlays 覆写)
     let refresh_params = Rc::clone(params);
     let refresh_env_dpi = env.dpi.get_scale();
+    // 屏幕逻辑高与初装配同源 (原硬编码 1080 — reinit 后 fm-list 钳制基准错位)
+    let refresh_env_logical_h = env.dpi.get_logical_screen_height();
     let refresh_doc = doc.clone();
     let refresh_lang = (**lang).clone();
     let refresh: Box<dyn Fn() -> PageSpecParams> = Box::new(move || {
@@ -372,7 +374,7 @@ fn assemble_page_spec(
             gauge_cfg: vm_overlay::widgets::GaugeCfg::from_params(
                 &refresh_params.borrow(),
                 refresh_env_dpi,
-                1080,
+                refresh_env_logical_h,
             ),
             doc: doc.clone(),
             font_path: refresh_font_path(&doc),

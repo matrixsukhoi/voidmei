@@ -206,15 +206,14 @@ impl GroupConfig {
 // HUD 页面 (画布即窗口; 出厂页与用户页同构)
 // =====================================================================
 
-/// 页面级字体语义 (坐标 = line_height 倍数的换算基)
+/// 页面级字体语义 (坐标 = line_height 倍数的换算基)。
+/// 死字段清理: family/scale_source 已删 (字体路径编译期定, crosshairScale 走
+/// HudSettingsSnapshot; 两字段全库零读取)
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PageFont {
-    pub family: String,
     /// 字号微调 (cfg fontSize 行同源)
     pub size_add: i32,
-    /// 整页缩放源键 ("crosshairScale"; 缺省 100 = 不缩放)
-    pub scale_source: String,
 }
 
 /// 一个组件实例 (页面 components 数组序 = 拓扑建树序 = z 序)

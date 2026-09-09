@@ -4347,9 +4347,7 @@
       "padding": 45,
       "canvas": "minihud",
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": "crosshairScale"
+        "sizeAdd": 0
       },
       "contentVersion": 2,
       "components": [
@@ -4606,9 +4604,7 @@
       ],
       "padding": 0,
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": ""
+        "sizeAdd": 0
       },
       "contentVersion": 2,
       "components": [
@@ -4979,9 +4975,7 @@
       ],
       "padding": 0,
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": ""
+        "sizeAdd": 0
       },
       "contentVersion": 2,
       "components": [
@@ -5434,9 +5428,7 @@
       ],
       "padding": 0,
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": ""
+        "sizeAdd": 0
       },
       "contentVersion": 2,
       "components": [
@@ -5578,9 +5570,7 @@
       ],
       "padding": 0,
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": ""
+        "sizeAdd": 0
       },
       "contentVersion": 2,
       "components": [
@@ -5628,9 +5618,7 @@
       ],
       "padding": 0,
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": ""
+        "sizeAdd": 0
       },
       "contentVersion": 2,
       "components": [
@@ -5766,9 +5754,7 @@
       ],
       "padding": 0,
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": ""
+        "sizeAdd": 0
       },
       "contentVersion": 1,
       "components": [
@@ -5799,9 +5785,7 @@
       ],
       "padding": 0,
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": ""
+        "sizeAdd": 0
       },
       "contentVersion": 2,
       "components": [
@@ -7395,9 +7379,7 @@
       ],
       "padding": 0,
       "font": {
-        "family": "Sarasa Mono SC",
-        "sizeAdd": 0,
-        "scaleSource": ""
+        "sizeAdd": 0
       },
       "contentVersion": 1,
       "components": [
