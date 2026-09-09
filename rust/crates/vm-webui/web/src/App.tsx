@@ -19,6 +19,7 @@ import { RowRenderer } from './rows'
 import { AppDialogs } from './dialogs'
 import { FORMULA_TAB, FormulaTab } from './formulas/FormulaTab'
 import { LAYOUT_TAB_KEY, LayoutTab } from './layout_editor/LayoutTab'
+import { beginEditSession, endEditSession } from './layout_editor/editApi'
 
 const { Title, Text } = Typography
 
@@ -125,6 +126,8 @@ export default function App() {
   const [loadErr, setLoadErr] = useState('')
   // tab 记忆 (Java UIStateStorage.saveLastTab 的本地等价)
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('vm-last-tab') ?? '')
+  /** 真窗编辑会话态 (R7: footer 编辑按钮/开始按钮门控) */
+  const [editSession, setEditSession] = useState(false)
   const [ctrlState, setCtrlState] = useState('Init')
   const [watermark, setWatermark] = useState<string | null>(null)
   const [version, setVersion] = useState('')
@@ -241,6 +244,9 @@ export default function App() {
     }).catch(console.error)
     // 核状态徽标 (Init/Preview/Connected/InGame)
     listen<string>('controller-state', (e) => setCtrlState(e.payload)).catch(console.error)
+    // 真窗编辑会话起止 (渲染线程桥; footer 按钮态/开始门控)
+    listen<string>('hud-edit-session', (e) => setEditSession(e.payload === 'begin')).catch(console.error)
+    listen<string>('hud-edit-error', (e) => message.error(e.payload || '编辑会话失败')).catch(console.error)
     // FM 缺失/损坏 toast (对位 Java NotificationService; 其余状态静默)
     listen<FmChangedPayload>('fm-changed', (e) => {
       const { name, status } = e.payload
@@ -383,12 +389,44 @@ export default function App() {
           >
             导入配置
           </Button>
+          {/* 真窗编辑入口 (常驻 footer, 任意 tab 可见): 进入并切到编辑控制台 */}
+          {!editSession ? (
+            <Button
+              type="text"
+              className="footer-btn"
+              onClick={() => {
+                beginEditSession()
+                  .then(() => setActiveTab(LAYOUT_TAB_KEY))
+                  .catch(e => message.error(`${e}`))
+              }}
+            >
+              编辑HUD
+            </Button>
+          ) : (
+            <Button
+              type="text"
+              className="footer-btn"
+              onClick={() => {
+                endEditSession(true)
+                  .then(() => message.success('编辑已保存'))
+                  .catch(e => message.error(`${e}`))
+              }}
+            >
+              保存编辑
+            </Button>
+          )}
         </Space>
         <Space.Compact>
           <Button danger onClick={() => act({ kind: 'EndGame' })} style={{ height: 32 }}>
             退　出
           </Button>
-          <Button type="primary" onClick={() => act({ kind: 'StartGame' })} style={{ height: 32 }}>
+          <Button
+            type="primary"
+            disabled={editSession}
+            title={editSession ? '编辑会话中 — 先保存/放弃编辑' : undefined}
+            onClick={() => act({ kind: 'StartGame' })}
+            style={{ height: 32 }}
+          >
             开　始
           </Button>
         </Space.Compact>
