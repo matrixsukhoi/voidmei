@@ -190,7 +190,6 @@ fn test_pages(
             entry_key: doc.entry_key.clone(),
             font_path: fonts.join("sarasa-mono-sc-bold.ttf"),
             font_size: 24,
-            engine_disables: inputs.engine_disables,
             lang: Lang::init_lang(),
             settings: inputs.hud.clone(),
             debug: false,
@@ -285,9 +284,8 @@ fn feed_overlays_live_updates_all_handles() {
             .unwrap_or_else(|| panic!("页面 {id} 应在 pages"))
     };
     use vm_overlay::widgets::data_field::DataFieldWidget;
-    use vm_overlay::widgets::gauges_composite::{
-        AttitudeWidget, AxesWidget, EnginePanelWidget, GearFlapsWidget,
-    };
+    use vm_overlay::widgets::engine_gauge::EngineGaugeWidget;
+    use vm_overlay::widgets::gauges_composite::{AttitudeWidget, AxesWidget, GearFlapsWidget};
 
     // 动力信息页: 功率 1200 → horse_power 原子字段值文本 (无节流 — 组件每帧)
     {
@@ -301,25 +299,18 @@ fn feed_overlays_live_updates_all_handles() {
             .expect("power 页 horse_power = DataFieldWidget");
         assert_eq!(w.value_text(), "1200", "PowerInfo 功率字段");
     }
-    // 引擎控制页: throttle 55 (refreshInterval = 50×2 = 100, 首帧放行)
+    // 引擎控制页: throttle 55 (refreshInterval = 50×2 = 100, 首帧放行;
+    // 原子仪表组件 — 面板拆解后逐仪表断言)
     {
         let h = page_of(&handles, "engine-control-default");
         let page = h.borrow();
         let w = page
             .cells
-            .get("panel")
+            .get("throttle")
             .unwrap()
-            .downcast_ref::<EnginePanelWidget>()
-            .expect("engine 页 panel = EnginePanelWidget");
-        assert_eq!(
-            w.state()
-                .gauge_by_key("throttle")
-                .unwrap()
-                .gauge
-                .gauge
-                .cur_value,
-            55
-        );
+            .downcast_ref::<EngineGaugeWidget>()
+            .expect("engine 页 throttle = EngineGaugeWidget");
+        assert_eq!(w.cur_value(), 55);
     }
     // 起落襟翼页: gear=100 + airbrake=100 → "起落架 减速板" 告警; flaps=25 → flap_pix
     // (fontAdd 0/dpi 1 → fs=24, barHeight=96, 25·96/100 = 24)
@@ -389,17 +380,12 @@ fn feed_overlays_live_updates_all_handles() {
         let page = h.borrow();
         let w = page
             .cells
-            .get("panel")
+            .get("throttle")
             .unwrap()
-            .downcast_ref::<EnginePanelWidget>()
+            .downcast_ref::<EngineGaugeWidget>()
             .unwrap();
         assert_eq!(
-            w.state()
-                .gauge_by_key("throttle")
-                .unwrap()
-                .gauge
-                .gauge
-                .cur_value,
+            w.cur_value(),
             55,
             "preview 期不喂入 (Java initPreview 不订阅)"
         );

@@ -1812,223 +1812,6 @@
               "children": []
             }
           ]
-        },
-        {
-          "label": "发动机元素",
-          "type": "HEADER",
-          "property": null,
-          "targetName": null,
-          "value": true,
-          "defaultValue": null,
-          "unit": "",
-          "precision": 0,
-          "format": "%s",
-          "source": null,
-          "minVal": 0,
-          "maxVal": 100,
-          "groupColumns": 0,
-          "desc": null,
-          "descImg": null,
-          "previewValue": null,
-          "fgColor": null,
-          "unitSource": null,
-          "precisionSource": null,
-          "visibleWhen": null,
-          "naWhen": null,
-          "children": [
-            {
-              "label": "油门",
-              "type": "SWITCH_INV",
-              "property": "disableEngineInfoThrottle",
-              "targetName": null,
-              "value": true,
-              "defaultValue": true,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "油门杆/节流阀位置百分比",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "桨距",
-              "type": "SWITCH_INV",
-              "property": "disableEngineInfoPitch",
-              "targetName": null,
-              "value": true,
-              "defaultValue": true,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "螺旋桨桨距控制状态",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "动力量",
-              "type": "SWITCH_INV",
-              "property": "disableEngineInfoPower",
-              "targetName": null,
-              "value": true,
-              "defaultValue": true,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "当前推力/功率与发动机极限的比值，对螺旋桨与喷气有效",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "混合比",
-              "type": "SWITCH_INV",
-              "property": "disableEngineInfoMixture",
-              "targetName": null,
-              "value": true,
-              "defaultValue": true,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "油气混合比控制状态",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "散热器",
-              "type": "SWITCH_INV",
-              "property": "disableEngineInfoRadiator",
-              "targetName": null,
-              "value": true,
-              "defaultValue": true,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "主散热器开度状态",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "增压器",
-              "type": "SWITCH_INV",
-              "property": "disableEngineInfoCompressor",
-              "targetName": null,
-              "value": true,
-              "defaultValue": true,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "多档机械增压器此时的理想档位，与当前实际档位",
-              "descImg": "SuperchargerBar.png",
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "燃油",
-              "type": "SWITCH_INV",
-              "property": "disableEngineInfoLFuel",
-              "targetName": null,
-              "value": true,
-              "defaultValue": true,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": 0,
-              "maxVal": 100,
-              "groupColumns": 0,
-              "desc": "当前燃油量占最大燃油量（含副油箱）的百分比",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            },
-            {
-              "label": "大小",
-              "type": "SLIDER",
-              "property": "fontSize",
-              "targetName": null,
-              "value": 0,
-              "defaultValue": 0,
-              "unit": "",
-              "precision": 0,
-              "format": "%s",
-              "source": null,
-              "minVal": -6,
-              "maxVal": 20,
-              "groupColumns": 0,
-              "desc": "调整引擎控制面板文字的相对大小",
-              "descImg": null,
-              "previewValue": null,
-              "fgColor": null,
-              "unitSource": null,
-              "precisionSource": null,
-              "visibleWhen": null,
-              "naWhen": null,
-              "children": []
-            }
-          ]
         }
       ]
     },
@@ -5750,22 +5533,133 @@
         "sizeAdd": 0,
         "scaleSource": ""
       },
-      "contentVersion": 1,
+      "contentVersion": 2,
       "components": [
         {
-          "id": "panel",
-          "type": "core.engine.panel",
+          "id": "throttle",
+          "type": "core.engine.gauge",
           "pos": [
-            0,
-            0
+            0.5,
+            3.0
           ],
           "anchor": [
             "TopLeft",
             "TopLeft"
           ],
           "parent": null,
+          "visibleWhen": null,
           "enabled": true,
-          "props": {}
+          "props": {
+            "kind": "throttle"
+          }
+        },
+        {
+          "id": "pitch",
+          "type": "core.engine.gauge",
+          "pos": [
+            2.5,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopRight"
+          ],
+          "parent": "throttle",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "kind": "pitch"
+          }
+        },
+        {
+          "id": "power",
+          "type": "core.engine.gauge",
+          "pos": [
+            2.5,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopRight"
+          ],
+          "parent": "pitch",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "kind": "power"
+          }
+        },
+        {
+          "id": "mixture",
+          "type": "core.engine.gauge",
+          "pos": [
+            0.5,
+            7.5
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "kind": "mixture"
+          }
+        },
+        {
+          "id": "radiator",
+          "type": "core.engine.gauge",
+          "pos": [
+            0,
+            0.25
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "mixture",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "kind": "radiator"
+          }
+        },
+        {
+          "id": "compressor",
+          "type": "core.engine.gauge",
+          "pos": [
+            0,
+            0.25
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "radiator",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "kind": "compressor"
+          }
+        },
+        {
+          "id": "fuel",
+          "type": "core.engine.gauge",
+          "pos": [
+            0,
+            0.25
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "compressor",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "kind": "fuel"
+          }
         }
       ]
     },

@@ -784,7 +784,6 @@ fn build_page_default(
     let fctx = FactoryCtx {
         minihud_ctx: Some(&ctx),
         fonts,
-        engine_disables: None,
         lang: None,
         fonts_dir: None,
         gauge_cfg: None,

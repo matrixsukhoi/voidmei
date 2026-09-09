@@ -5,6 +5,7 @@
 //! sidecar (FM 黑盒组件)。
 
 pub mod data_field;
+pub mod engine_gauge;
 pub mod env;
 pub mod fm_sidecar;
 pub mod gauges_composite;

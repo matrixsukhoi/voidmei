@@ -128,8 +128,6 @@ pub struct FactoryCtx<'a> {
     /// MiniHUD 派生上下文 (仅 minihud 族组件; W3 页面 None)
     pub minihud_ctx: Option<&'a MinimalHudContext>,
     pub fonts: Rc<MiniHudFonts>,
-    /// 引擎控制的 7 仪表 disable 集 (cfg 跨线程快照)
-    pub engine_disables: Option<[bool; 7]>,
     /// 本地化文案源 (起落襟翼等)
     pub lang: Option<&'a Lang>,
     /// 字体目录 (data.field 等自管字体加载)

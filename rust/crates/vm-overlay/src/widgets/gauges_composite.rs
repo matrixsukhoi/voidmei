@@ -9,15 +9,13 @@
 //! 整帧桥入页面 (满足 ControlSurfaces/Attitude 的画布尺寸防呆断言 —
 //! 它们的窗口裁剪语义钉内容尺寸)。
 
-use vm_core::base::format::java_round_f32;
 use vm_core::fm::data::FmData;
 use vm_core::formula::registry::FormulaView;
-use vm_core::lang::Lang;
 
 use crate::layout::hud_layout_node::Dimension;
+use vm_core::base::format::java_round_f32;
 use crate::overlays::attitude::AttitudeOverlay;
 use crate::overlays::control_surfaces::{ControlSurfacesOverlay, CsFonts};
-use crate::overlays::engine_control::{EngineControlState, ENGINE_DISABLE_KEYS};
 use crate::overlays::gear_flaps::GearFlapsState;
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
@@ -71,113 +69,6 @@ fn blit(cv: &mut PixCanvas, canvas: &mut PixCanvas, x: i32, y: i32, aa: bool) {
     let frame = canvas.straight_frame();
     if !cv.composite_straight_frame_at(x, y, frame, w, h, aa) {
         vm_core::base::logger::warn("gauges_composite", "伴画布尺寸与缓冲不符, 本帧丢弃");
-    }
-}
-
-// =====================================================================
-// core.engine.panel — 引擎控制面板
-// =====================================================================
-
-/// 引擎控制面板复合组件 (包 [`EngineControlState`])。
-/// 构造参数口径 (旧 spec 工厂同源, W3 组件化继承):
-/// 字号 = (24+fontadd)×dpi, 7 仪表 disable 表, 轮询间隔 ×2 节流,
-/// fontLabel = BOLD(round(fontSize/2))。
-pub struct EnginePanelWidget {
-    state: EngineControlState,
-    /// BOLD(round(font_size/2)) — 旧 render 闭包的 fontLabel 口径
-    font_label: LoadedFont,
-    /// 伴画布 (state.width × state.height)
-    canvas: PixCanvas,
-}
-
-/// EngineControlState::new 的 interval/disables 参数打包
-/// (旧 engine_control 工厂同式复刻)
-fn build_engine_state(
-    lang: &Lang,
-    font_add: i32,
-    dpi_scale: f64,
-    interval_str: &str,
-    disables: &[bool; 7],
-) -> EngineControlState {
-    EngineControlState::new(
-        lang,
-        font_add,
-        dpi_scale,
-        &|key: &str| {
-            ENGINE_DISABLE_KEYS
-                .iter()
-                .position(|k| *k == key)
-                .map(|i| disables[i])
-                .unwrap_or(false)
-        },
-        &|_| interval_str.to_string(),
-    )
-}
-
-fn f_engine_panel(
-    _props: &serde_json::Value,
-    fctx: &FactoryCtx,
-) -> Result<Box<dyn HudWidget>, String> {
-    let cfg = cfg_of(fctx);
-    let lang = fctx.lang.ok_or("engine.panel 需要 FactoryCtx.lang")?;
-    let disables = fctx
-        .engine_disables
-        .ok_or("engine.panel 需要 FactoryCtx.engine_disables")?;
-    let interval_str = cfg.service_loop_interval_ms.to_string();
-    let state = build_engine_state(lang, cfg.engine_font_add, cfg.dpi_scale, &interval_str, &disables);
-    let half = java_round_f32(state.font_size as f32 / 2.0);
-    let font_label = LoadedFont::new(&bold_path(fctx)?, half)?;
-    let canvas = PixCanvas::new(state.width, state.height)?;
-    Ok(Box::new(EnginePanelWidget {
-        state,
-        font_label,
-        canvas,
-    }))
-}
-
-impl EnginePanelWidget {
-    /// 内部 state 只读借出 (测试断言面: 数据推进经 downcast 后读; 生产勿用)
-    pub fn state(&self) -> &EngineControlState {
-        &self.state
-    }
-}
-
-impl HudWidget for EnginePanelWidget {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn apply_style(&mut self, _env: &StyleEnv) {
-        // 无风格注入面 (几何/字体构造期定, 配置变化走 reinit 整体重建)
-    }
-
-    fn push_templates(&mut self, _t: &MiniHudTemplates) {
-        // 预览初值已由 EngineControlState::new 末尾 update_preview 落位
-    }
-
-    fn on_data_update(&mut self, env: &UpdateEnv) {
-        // preview (frame/payload 缺席) 保持半量程静态 — 对位 feed_overlays_live 门控
-        let (Some(frame), Some(payload)) = (env.frame, env.payload) else {
-            return;
-        };
-        self.state
-            .update(env.now_ms, frame, payload, env.compressor_stages);
-    }
-
-    fn reset_preview(&mut self) {
-        self.state.update_preview();
-    }
-
-    fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, _fonts: &PageFonts, aa: bool) {
-        if !self.canvas.clear(self.state.width, self.state.height) {
-            return;
-        }
-        self.state.draw(&mut self.canvas, &self.font_label, aa);
-        blit(cv, &mut self.canvas, x, y, aa);
-    }
-
-    fn preferred_size(&self, _fonts: &PageFonts) -> Dimension {
-        Dimension::new(self.state.width, self.state.height)
     }
 }
 
@@ -485,22 +376,6 @@ const fn meta(
 
 /// W3B 注册表 (顺序 = palette 展示序)
 pub(super) const REGISTRY_ENTRIES: &[WidgetMeta] = &[
-    meta(
-        "core.engine.panel",
-        "引擎控制面板",
-        WidgetCategory::Gauge,
-        &["enableEngineControl", "disableEngineInfo", "fontSize", "dataPollIntervalMs"],
-        &[
-            "throttle",
-            "rpm_throttle",
-            "power_percent",
-            "mixture_state",
-            "radiator",
-            "compressor_stage",
-            "fuel_percent",
-        ],
-        f_engine_panel,
-    ),
     meta(
         "core.gearflaps.status",
         "起落架/襟翼状态",

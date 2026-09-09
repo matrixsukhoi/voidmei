@@ -317,18 +317,15 @@ fn assemble_page_spec(
         fm_font_add: p.fm.font_add,
         logical_height: env.dpi.get_logical_screen_height(),
     };
-    let (font_size, engine_disables) = match doc.id.as_str() {
-        "flight-info-default" => (page_font_size(24, p.flight.font_add, dpi), None),
-        "power-info-default" => (page_font_size(24, p.power.font_add, dpi), None),
-        "engine-control-default" => (
-            page_font_size(24, p.engine.font_add, dpi),
-            Some(p.engine.disables),
-        ),
-        "gear-flaps-default" => (page_font_size(24, p.gear.font_add, dpi), None),
-        "axis-default" => (page_font_size(24, p.axis.font_add, dpi), None),
-        "fm-list-default" | "thrust-chart-default" => (24, None),
+    let font_size = match doc.id.as_str() {
+        "flight-info-default" => page_font_size(24, p.flight.font_add, dpi),
+        "power-info-default" => page_font_size(24, p.power.font_add, dpi),
+        "engine-control-default" => page_font_size(24, p.engine.font_add, dpi),
+        "gear-flaps-default" => page_font_size(24, p.gear.font_add, dpi),
+        "axis-default" => page_font_size(24, p.axis.font_add, dpi),
+        "fm-list-default" | "thrust-chart-default" => 24,
         // 地平仪: 矢量绘制, 页面字体仅占位
-        _ => (24, None),
+        _ => 24,
     };
     let hud = p.hud.clone();
     drop(p);
@@ -340,19 +337,13 @@ fn assemble_page_spec(
     let refresh_lang = (**lang).clone();
     let refresh: Box<dyn Fn() -> PageSpecParams> = Box::new(move || {
         let p = refresh_params.borrow();
-        let (fs, ed) = match refresh_doc.id.as_str() {
-            "flight-info-default" => (page_font_size(24, p.flight.font_add, refresh_env_dpi), None),
-            "power-info-default" => (page_font_size(24, p.power.font_add, refresh_env_dpi), None),
-            "engine-control-default" => (
-                page_font_size(24, p.engine.font_add, refresh_env_dpi),
-                Some(p.engine.disables),
-            ),
-            "gear-flaps-default" => (
-                page_font_size(24, p.gear.font_add, refresh_env_dpi),
-                None,
-            ),
-            "axis-default" => (page_font_size(24, p.axis.font_add, refresh_env_dpi), None),
-            _ => (24, None),
+        let fs = match refresh_doc.id.as_str() {
+            "flight-info-default" => page_font_size(24, p.flight.font_add, refresh_env_dpi),
+            "power-info-default" => page_font_size(24, p.power.font_add, refresh_env_dpi),
+            "engine-control-default" => page_font_size(24, p.engine.font_add, refresh_env_dpi),
+            "gear-flaps-default" => page_font_size(24, p.gear.font_add, refresh_env_dpi),
+            "axis-default" => page_font_size(24, p.axis.font_add, refresh_env_dpi),
+            _ => 24,
         };
         let hud = p.hud.clone();
         drop(p);
@@ -362,7 +353,6 @@ fn assemble_page_spec(
             doc: refresh_doc.clone(),
             font_path: refresh_font_path(&refresh_doc),
             font_size: fs,
-            engine_disables: ed.unwrap_or([false; 7]),
             lang: refresh_lang.clone(),
             settings: hud,
             debug: false,
@@ -376,7 +366,6 @@ fn assemble_page_spec(
         doc,
         font_path: env.fonts_dir.join("sarasa-mono-sc-bold.ttf"),
         font_size,
-        engine_disables: engine_disables.unwrap_or([false; 7]),
         lang: (**lang).clone(),
         settings: hud,
         debug: false,

@@ -150,8 +150,6 @@ pub struct PageSpecParams {
     pub font_path: std::path::PathBuf,
     /// 页面主字号 (px, dpi 后)
     pub font_size: i32,
-    /// 引擎控制 7 仪表 disable 集
-    pub engine_disables: [bool; 7],
     pub lang: Lang,
     pub settings: HudSettingsSnapshot,
     pub debug: bool,
@@ -218,7 +216,6 @@ fn build_page(p: &PageSpecParams) -> Result<(PageOverlay, i32, i32), String> {
     let fctx = FactoryCtx {
         minihud_ctx: minihud_ctx.as_ref(),
         fonts,
-        engine_disables: Some(p.engine_disables),
         lang: Some(&p.lang),
         fonts_dir: Some(p.font_path.parent().map(|x| x.to_path_buf()).unwrap_or_default()),
         // W3B/W3C 复合组件参数 (主线收口: 从 ReinitParams 各组随 refresh 闭包注入;

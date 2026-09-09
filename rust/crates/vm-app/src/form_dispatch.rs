@@ -107,8 +107,14 @@ fn dispatch_form(
                     })
                 })
                 .collect();
-            // 常用字段预设 (出厂页 data.field 组件原样导出 — palette 直接列
-            // 「表速」「真空速」…, 点击即完整配置组件; 单一数据源)
+            // 常用字段预设 (出厂页 data.field/engine.gauge 组件原样导出 — palette
+            // 直接列「表速」「节流阀」…, 点击即完整配置组件; 单一数据源)
+            let lang = vm_core::lang::Lang::init_lang();
+            let engine_names: std::collections::HashMap<&str, String> =
+                vm_overlay::overlays::engine_control::ENGINE_GAUGE_DEFS
+                    .iter()
+                    .map(|def| (def.key, (def.label)(&lang).to_string()))
+                    .collect();
             let field_presets: Vec<_> = vm_core::config::json_store::factory()
                 .pages
                 .iter()
@@ -123,6 +129,17 @@ fn dispatch_form(
                         "props": c.props,
                     })
                 })
+                .chain(
+                    // 引擎仪表预设 (7 仪表中文名; 出厂引擎页同款 props)
+                    vm_overlay::overlays::engine_control::ENGINE_GAUGE_DEFS
+                        .iter()
+                        .map(|def| {
+                            serde_json::json!({
+                                "label": engine_names.get(def.key).cloned().unwrap_or_else(|| def.key.to_string()),
+                                "props": serde_json::json!({ "kind": def.key }),
+                            })
+                        }),
+                )
                 .collect();
             serde_json::to_value(serde_json::json!({
                 "components": catalog,
@@ -314,13 +331,12 @@ fn solve_page_ipc(
         }
     };
     // 编辑器 preview 参数面: lang (OnceLock 缓存) + 出厂默认兜底
-    // (engine_disables 全启用; 用户实际配置经真窗 WYSIWYG 链反映,
+    // 用户实际配置经真窗 WYSIWYG 链反映,
     // 编辑器快照为布局示意)
     let lang = vm_core::lang::Lang::init_lang();
     let fctx = vm_overlay::widgets::FactoryCtx {
         minihud_ctx: Some(&preview_ctx),
         fonts,
-        engine_disables: Some([false; 7]),
         lang: Some(&lang),
         fonts_dir: Some(fonts_dir),
         gauge_cfg: None,

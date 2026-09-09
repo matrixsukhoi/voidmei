@@ -352,7 +352,6 @@ mod tests {
         let fctx = FactoryCtx {
             minihud_ctx: None,
             fonts,
-            engine_disables: None,
             lang: None,
             fonts_dir: Some(fonts_dir()),
             gauge_cfg: None,

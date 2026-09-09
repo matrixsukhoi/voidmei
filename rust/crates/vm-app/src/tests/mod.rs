@@ -236,7 +236,6 @@ fn test_overlay_inputs() -> OverlayInputs {
         service_loop_interval_ms: 50,
         colors: GlobalColors::JAVA_DEFAULT,
         aa: true,
-        engine_disables: [false; 7],
     }
 }
 

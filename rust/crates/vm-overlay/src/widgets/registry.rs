@@ -11,7 +11,7 @@ use crate::layout::minihud_layout::HasVisibility;
 use crate::render::canvas::PixCanvas;
 
 use super::env::{FactoryCtx, MiniHudTemplates, StyleEnv, UpdateEnv};
-use super::{data_field, fm_sidecar, gauges_composite, minihud};
+use super::{data_field, engine_gauge, fm_sidecar, gauges_composite, minihud};
 
 // =====================================================================
 // 组件契约
@@ -236,6 +236,7 @@ pub fn widget_registry() -> &'static [&'static WidgetMeta] {
             minihud::REGISTRY_ENTRIES
                 .iter()
                 .chain(std::iter::once(&data_field::DATA_FIELD_META))
+                .chain(std::iter::once(&engine_gauge::ENGINE_GAUGE_META))
                 .chain(gauges_composite::REGISTRY_ENTRIES.iter())
                 .chain(fm_sidecar::REGISTRY_ENTRIES.iter())
                 .collect()

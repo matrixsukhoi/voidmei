@@ -96,13 +96,15 @@ export const LayoutTab: React.FC = () => {
     [active, patchPage],
   )
 
-  /** palette 常用字段预设添加 (props 完整配置, 链式追加到页尾) */
+  /** palette 常用预设添加 (字段/引擎仪表; props 完整配置, 链式追加到页尾) */
   const addFieldPreset = useCallback(
     (preset: { label: string; props: Record<string, unknown> }) => {
       if (!active) return
+      const type = preset.props.kind ? 'core.engine.gauge' : 'core.data.field'
+      const idBase = String(preset.props.target ?? preset.props.kind ?? 'field')
       const comp: ComponentDoc = {
-        id: `${String(preset.props.target ?? 'field')}-${active.components.length + 1}`,
-        type: 'core.data.field',
+        id: `${idBase}-${active.components.length + 1}`,
+        type,
         pos: [0, 0],
         anchor: ['TopLeft', 'BottomLeft'],
         parent: null, // 布局引擎: 父缺席退化根 — 链式改由用户在 Inspector 挂

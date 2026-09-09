@@ -23,8 +23,6 @@ use vm_core::config::config_api::HudSettingsSnapshot;
 pub struct EngineGroup {
     /// 字号增量 (getFontSizeAdd)
     pub font_add: i32,
-    /// 7 仪表 disable 开关 (ENGINE_DISABLE_KEYS 序)
-    pub disables: [bool; 7],
 }
 
 /// 列表型面板组 (动力信息/飞行信息共用形态; 字段管理已原子化 — 列数/行定义

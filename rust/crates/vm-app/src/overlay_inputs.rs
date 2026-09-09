@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use vm_core::base::java_compat::java_parse_boolean;
 use vm_core::config::config_api::{ConfigProvider, HudSettingsSnapshot, OverlaySettings};
 use vm_core::config::configuration_service::{ConfigurationService, GlobalColors};
 
@@ -79,9 +78,6 @@ pub struct OverlayInputs {
     pub colors: GlobalColors,
     /// AA 开关快照 (cfg AAEnable, Java cfg 缺省 false; → global_aa 仓)
     pub aa: bool,
-    /// 引擎控制 7 仪表 disable 开关 (ENGINE_DISABLE_KEYS 序; 曾 never-wired
-    /// 恒 false — 用户关仪表 Rust 恒显全部, 启动首帧即错, 审查轮 1-B)
-    pub engine_disables: [bool; 7],
 }
 
 impl OverlayInputs {
@@ -124,12 +120,6 @@ impl OverlayInputs {
             service_loop_interval_ms: if interval > 0 { interval } else { 50 },
             colors: config.global_colors(),
             aa: config.application_state().aa_enable,
-            engine_disables: std::array::from_fn(|i| {
-                config
-                    .get_config(vm_overlay::overlays::engine_control::ENGINE_DISABLE_KEYS[i])
-                    .map(|v| java_parse_boolean(&v))
-                    .unwrap_or(false)
-            }),
         }
     }
 }
@@ -173,7 +163,6 @@ impl From<&OverlayInputs> for vm_overlay::platform::reinit::ReinitParams {
             attitude_freq_ms: i.attitude_freq_ms,
             engine: EngineGroup {
                 font_add: i.font_add_engine,
-                disables: i.engine_disables,
             },
             power: ListGroup {
                 font_add: i.font_add_power,

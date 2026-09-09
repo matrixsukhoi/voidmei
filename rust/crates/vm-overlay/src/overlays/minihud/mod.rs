@@ -271,7 +271,6 @@ impl MiniHudOverlay {
         let fctx = FactoryCtx {
             minihud_ctx: Some(&self.ctx),
             fonts: Rc::clone(&self.fonts),
-            engine_disables: None,
             lang: None,
             fonts_dir: None,
             gauge_cfg: None,
