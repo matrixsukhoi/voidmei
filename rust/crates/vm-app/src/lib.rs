@@ -75,6 +75,7 @@ mod controller_shared;
 // Controller 本体, vm-core 根留清零)
 mod controller_state;
 mod debouncer;
+mod edit_session;
 mod env;
 mod keys;
 mod overlay_inputs;
@@ -442,6 +443,38 @@ impl AppShell {
         match ev {
             // overlay 位置存档落盘 (渲染线程拖拽松手/销毁链回传; R2: 按
             // host 条目键反查页 id, 写 PageDoc.pos — 用户页位置同样持久化)
+            // R6 编辑会话: 提交 = 逐页落盘 + 删除页 + 广播 (既有 CONFIG_CHANGED 链重建);
+            // 丢弃 = 全量重建外部真相
+            MainEvent::EditCommitted { pages, deleted } => {
+                if let Some(c) = self.controller.as_ref() {
+                    for id in &deleted {
+                        let _ = c.config.delete_page(id);
+                    }
+                    for doc in &pages {
+                        // save_page 内含落盘 + CONFIG_CHANGED 广播 (每页一次,
+                        // 最后写胜出 — 渲染线程防抖链收敛为一次重建)
+                        c.config.save_page(doc.clone());
+                    }
+                }
+            }
+            MainEvent::EditDiscarded => {
+                // 外部真相全量重建 (编辑态已被渲染线程退出时丢弃)
+                if let Some(c) = self.controller.as_ref() {
+                    let inputs = OverlayInputs::build(&c.config, &self.env, &self.shared);
+                    let params = vm_overlay::platform::reinit::ReinitParams::from(&inputs);
+                    self.send_ui(UiCommand::ReinitOverlays {
+                        params: Box::new(params),
+                    });
+                    self.send_ui(UiCommand::RefreshPreviews {
+                        changed_key: None,
+                        generation: self.shared.preview_generation.load(std::sync::atomic::Ordering::SeqCst),
+                    });
+                }
+            }
+            MainEvent::EditRejected(msg) => {
+                logger::warn("EditSession", &msg);
+                self.ui_bus.publish("HUD_EDIT_ERROR", Some("EditSession"), Some(&msg));
+            }
             MainEvent::PositionSaved { host_key, x, y } => {
                 if let Some(c) = self.controller.as_ref() {
                     let page_id = c

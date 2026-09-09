@@ -15,7 +15,7 @@ use crate::render::palette::colors;
 /// "负尺寸时 4 条 drawLine 反向仍可见"的假设已证伪); 零宽/零高退化 1px 线
 /// (drawRect 的 4 条边线中零长度段无输出, 剩两段共线: 基线 drawRect(50,10,0,20)
 /// = 列 50 行 10..30 的 1px 竖线; 双零则 4 段全零长度, 无输出)。
-pub(crate) fn ring1px(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
+fn ring1px_impl(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
     if w < 0 || h < 0 {
         return; // PORT: Java drawRect 负宽/负高不绘制 (镜像归一化假设已证伪)
     }
@@ -44,6 +44,51 @@ pub(crate) fn vline_1px(cv: &mut PixCanvas, x: i32, y0: i32, y1: i32, color: [u8
     cv.fill_rect(x, ya, 1, yb - ya + 1, color);
 }
 
+// ---------------------------------------------------------------------------
+// R6 编辑装饰基元 (真窗即画布: 选中框/手柄/参考线 画进 overlay 帧)
+// pub: vm-app 编辑会话绘制面消费 (render 模块 re-export)
+// ---------------------------------------------------------------------------
+
+/// 1px 环 (编辑 hover 框等)
+pub fn ring1px(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
+    ring1px_impl(cv, x, y, w, h, color);
+}
+
+/// 2px 选中框 (编辑面; ring1px 双圈)
+pub fn ring2px(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
+    ring1px_impl(cv, x, y, w, h, color);
+    ring1px_impl(cv, x + 1, y + 1, w.saturating_sub(2), h.saturating_sub(2), color);
+}
+
+/// 1px 虚线竖参考线 (4 亮 3 灭, 编辑对齐线)
+pub fn dash_vline(cv: &mut PixCanvas, x: i32, y0: i32, y1: i32, color: [u8; 4]) {
+    let (ya, yb) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
+    let mut y = ya;
+    while y <= yb {
+        let seg = (yb - y + 1).min(4);
+        cv.fill_rect(x, y, 1, seg, color);
+        y += 7; // 4 亮 + 3 灭
+    }
+}
+
+/// 1px 虚线横参考线 (4 亮 3 灭)
+pub fn dash_hline(cv: &mut PixCanvas, y: i32, x0: i32, x1: i32, color: [u8; 4]) {
+    let (xa, xb) = if x0 <= x1 { (x0, x1) } else { (x1, x0) };
+    let mut x = xa;
+    while x <= xb {
+        let seg = (xb - x + 1).min(4);
+        cv.fill_rect(x, y, seg, 1, color);
+        x += 7;
+    }
+}
+
+/// 6×6 resize 手柄方块 (白底 + 色边; 中心 = (cx, cy))
+pub fn handle6(cv: &mut PixCanvas, cx: i32, cy: i32, color: [u8; 4]) {
+    let (x, y) = (cx - 3, cy - 3);
+    cv.fill_rect(x, y, 6, 6, [255, 255, 255, 230]);
+    ring1px_impl(cv, x, y, 5, 5, color);
+}
+
 /// UIBaseElements.drawHRect: shade 1px 外框环 +
 /// 内缩 borderwidth 填充条。width<0 时框/条翻转到起点右侧 (Java 原样分支)。
 /// borderwidth 调用点恒 1 (AoaGauge / drawVBarTextNum), 参数保留
@@ -61,7 +106,7 @@ pub(crate) fn draw_h_rect(
     if width >= 0 {
         // UIBaseElements drawRect(x,y,width-1,height-1) 环 +
         // fillRect(x+bw, y+bw, width-2*bw, height-2*bw) 内芯
-        ring1px(cv, x, y, width - 1, height - 1, colors().shade_shape);
+        ring1px_impl(cv, x, y, width - 1, height - 1, colors().shade_shape);
         cv.fill_rect(
             x + borderwidth,
             y + borderwidth,
@@ -71,7 +116,7 @@ pub(crate) fn draw_h_rect(
         );
     } else {
         // UIBaseElements 负宽分支: 环自 x+width 起, 填充同步翻转
-        ring1px(
+        ring1px_impl(
             cv,
             x + width,
             y,

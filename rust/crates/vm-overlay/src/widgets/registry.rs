@@ -66,6 +66,9 @@ pub struct WidgetBox {
     pub inner: Box<dyn HudWidget>,
     visible: bool,
     fonts: Rc<PageFonts>,
+    /// 尺寸覆盖 (R6 编辑面 resize 手柄): Some 时 preferred_size 钉此值,
+    /// hidden 塌缩语义仍优先 (不可见 = 0×0, 链式补位不受遮蔽)
+    size_override: Option<(i32, i32)>,
 }
 
 impl WidgetBox {
@@ -74,6 +77,7 @@ impl WidgetBox {
             inner,
             visible: true, // AbstractHUDComponent.visible 初始 true
             fonts,
+            size_override: None,
         }
     }
 
@@ -88,6 +92,14 @@ impl WidgetBox {
     /// 字体档换新 (reinit 重建 ctx 后整体换新; Java setStyle 的 Font 形参)
     pub fn set_fonts(&mut self, fonts: Rc<PageFonts>) {
         self.fonts = fonts;
+    }
+
+    pub fn set_size_override(&mut self, size: Option<(i32, i32)>) {
+        self.size_override = size;
+    }
+
+    pub fn size_override(&self) -> Option<(i32, i32)> {
+        self.size_override
     }
 }
 
@@ -116,6 +128,11 @@ impl WidgetCell {
 
     pub fn set_fonts(&self, fonts: Rc<PageFonts>) {
         self.0.borrow_mut().set_fonts(fonts);
+    }
+
+    /// 尺寸覆盖 (R6 编辑面 resize; None = 恢复内容自适应)
+    pub fn set_size_override(&self, size: Option<(i32, i32)>) {
+        self.0.borrow_mut().set_size_override(size);
     }
 
     pub fn apply_style(&self, env: &StyleEnv) {
@@ -160,8 +177,15 @@ impl HasPreferredSize for WidgetCell {
     fn preferred_size(&self) -> Dimension {
         // 与节点图的 RefCell 相互独立 (组件内省不回指节点图);
         // 字体从外壳注入 (trait 带参签名的无参桥)
-        let f = Rc::clone(&self.0.borrow().fonts);
-        self.0.borrow().inner.preferred_size(&f)
+        let b = self.0.borrow();
+        if !b.is_visible() {
+            return Dimension::new(0, 0); // hidden 塌缩优先于 override
+        }
+        if let Some((w, h)) = b.size_override() {
+            return Dimension::new(w, h);
+        }
+        let f = Rc::clone(&b.fonts);
+        b.inner.preferred_size(&f)
     }
 }
 

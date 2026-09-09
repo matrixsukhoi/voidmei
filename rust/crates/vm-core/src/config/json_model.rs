@@ -231,6 +231,8 @@ pub struct ComponentDoc {
     pub visible_when: Option<String>,
     /// 硬开关 (false = 组件不建)
     pub enabled: bool,
+    /// 尺寸覆盖 (物理 px; None = 内容自适应 — R6 编辑面 resize 手柄写回)
+    pub size: Option<[i32; 2]>,
     /// 类型静态属性 (注册表 props_schema 校验)
     pub props: serde_json::Value,
 }
@@ -245,6 +247,7 @@ impl Default for ComponentDoc {
             parent: None,
             visible_when: None,
             enabled: true,
+            size: None,
             props: serde_json::Value::Null,
         }
     }

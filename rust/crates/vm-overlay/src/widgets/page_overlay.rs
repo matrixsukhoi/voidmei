@@ -147,6 +147,23 @@ impl PageOverlay {
         self.layout.sizing = Some(plan);
         Some((w, h))
     }
+
+    // ---- R6 编辑面便捷访问 (真窗即画布: 命中/装饰/单组件重建) ----
+
+    /// 换装单组件实例 (编辑面改 props 后单组件重建; node.component + cells 双替换)
+    pub fn set_component_cell(&mut self, id: &str, cell: WidgetCell) -> bool {
+        let Some(node) = self.layout.engine.get_node(id) else {
+            return false;
+        };
+        node.borrow_mut().component = cell.clone();
+        self.cells.insert(id.to_string(), cell);
+        true
+    }
+
+    /// 行高 (坐标换算基: 画布 px ↔ pos 单位)
+    pub fn line_height(&self) -> f64 {
+        self.fonts.draw.size as f64
+    }
 }
 
 // =====================================================================

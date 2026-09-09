@@ -139,6 +139,27 @@ impl<T> ModernHUDLayoutEngine<T> {
             .map(|(_, n)| n.clone())
     }
 
+    /// 删除节点 (R6 编辑面: 删组件; Java 无对应 — 编辑器新增)。
+    /// 子节点的父引用由调用方悬空处理 (set_parent(None))
+    pub fn remove_node(&mut self, id: &str) -> Option<SharedNode<T>> {
+        let pos = self.nodes.iter().position(|(k, _)| k == id)?;
+        let (_, node) = self.nodes.remove(pos);
+        self.dirty = true;
+        Some(node)
+    }
+
+    /// 节点重排 (R6 编辑面: z 序 = nodes 序; to 越界钳到端点)
+    pub fn reorder_node(&mut self, id: &str, to: usize) -> bool {
+        let Some(pos) = self.nodes.iter().position(|(k, _)| k == id) else {
+            return false;
+        };
+        let entry = self.nodes.remove(pos);
+        let to = to.min(self.nodes.len());
+        self.nodes.insert(to, entry);
+        self.dirty = true;
+        true
+    }
+
     /// Java `clear()`
     pub fn clear(&mut self) {
         self.nodes.clear();

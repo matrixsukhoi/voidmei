@@ -49,6 +49,13 @@ pub enum UiCommand {
     /// 全局五色更新 (Java: 改色 → CONFIG_CHANGED(font 前缀全局键) → 刷新;
     /// Rust 配置 !Send, 色值随命令直送渲染线程的 global_colors 仓) — 渲染线程属主
     SetGlobalColors(GlobalColors),
+    // ---- R6 编辑会话 (真窗即画布) ----
+    /// 进入编辑会话 (条件: Preview 态且无活动会话) — 渲染线程属主
+    BeginEditSession,
+    /// 退出编辑会话 (commit=true 提交落盘 / false 丢弃) — 渲染线程属主
+    EndEditSession { commit: bool },
+    /// 编辑命令载荷 (选中/微调/增删改组件/页面管理) — 渲染线程属主
+    Edit(Box<crate::edit_session::EditCommand>),
     /// 渲染线程退出 (host 停泵 + 托盘 NIM_DELETE)
     Shutdown,
 }
@@ -92,6 +99,17 @@ pub enum MainEvent {
         x: f64,
         y: f64,
     },
+    /// 编辑会话提交 (渲染线程 → 主线程: 逐页 save_page + 删除页 + 广播;
+    /// PageDoc 非 Send 顾虑不存在 — 纯数据)。
+    /// 渲染线程已在发送前退出编辑形态
+    EditCommitted {
+        pages: Vec<vm_core::config::json_model::PageDoc>,
+        deleted: Vec<String>,
+    },
+    /// 编辑会话请求被拒 (状态不符等 — 主线程转发前端 toast)
+    EditRejected(String),
+    /// 编辑会话丢弃 (主线程全量重建外部真相: ReinitOverlays + RefreshPreviews)
+    EditDiscarded,
 }
 
 /// 分相监督循环 ([`crate::AppShell::run_supervisor_phase`]) 的退出形态

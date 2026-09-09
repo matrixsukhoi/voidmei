@@ -102,6 +102,10 @@ pub fn build_page_layout(inputs: &PageBuildInputs) -> BuiltPageLayout {
 
     for comp in &doc.components {
         let Some(cell) = build_component(comp, inputs, &mut errors) else { continue };
+        // R6: 尺寸覆盖接线 (doc.size → WidgetCell override)
+        if let Some([w, h]) = comp.size {
+            cell.set_size_override(Some((w, h)));
+        }
         // 父解析: 缺席退化根 (模块头语义裁决)
         let parent = comp.parent.as_deref().and_then(|pid| engine.get_node(pid));
         let node = HUDLayoutNode::new(comp.id.clone(), cell.clone());
@@ -134,8 +138,9 @@ pub fn build_page_layout(inputs: &PageBuildInputs) -> BuiltPageLayout {
 }
 
 /// 单组件建身: enabled + visibleWhen 门控 → 工厂造件。
-/// 门控跳过 (None) 不算错误; 类型未注册/工厂 Err 返回 None 并落 errors
-fn build_component(
+/// 门控跳过 (None) 不算错误; 类型未注册/工厂 Err 返回 None 并落 errors。
+/// R6 导出 pub: 编辑面单组件重建 (改 props 免整页重建) 复用同一建身语义
+pub(crate) fn build_component(
     comp: &ComponentDoc,
     inputs: &PageBuildInputs,
     errors: &mut Vec<(String, String)>,

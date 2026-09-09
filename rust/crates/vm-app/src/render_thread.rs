@@ -624,6 +624,12 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
             }
         }
         session.host.pump_events();
+        // R6 编辑泵: 会话在场时消费编辑事件队列 (手势推进 → 直改页面实例
+        // → 缓存刷新 → 前端推送 → 即时 render_tick ~100Hz 跟手)
+        if let Some(es_rc) = session.edit.clone() {
+            let mut es = es_rc.borrow_mut();
+            crate::edit_session::edit_pump(&mut es, &mut session.host, &session.handles.pages, &session.ui_bus);
+        }
         // 渲染节拍 50ms (Java FieldOverlay.onFlightData 50ms 节流, host.run 同款)
         if last_render.elapsed() >= Duration::from_millis(50) {
             last_render = Instant::now();
@@ -855,6 +861,32 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                     // 调整序前必读
                     return;
                 }
+                // ---- R6 编辑会话 (真窗即画布) ----
+                UiCommand::BeginEditSession => session.on_begin_edit_session(),
+                UiCommand::EndEditSession { commit } => session.on_end_edit_session(commit),
+                UiCommand::Edit(cmd) => {
+                    if let Some(es_rc) = session.edit.clone() {
+                        let result = {
+                            let mut es = es_rc.borrow_mut();
+                            crate::edit_session::apply_command(&mut es, &session.handles.pages, &cmd)
+                        };
+                        match result {
+                            Err(e) => {
+                                session.ui_bus.publish(
+                                    crate::edit_session::HUD_EDIT_ERROR,
+                                    Some("EditSession"),
+                                    Some(&e),
+                                );
+                            }
+                            Ok(()) => {
+                                // 命令类修改统一整页重装配 (props/增删/页面属性) —
+                                // 编辑仓接管 params.pages 后走 reinit 链, 直改即所见
+                                let mut es = es_rc.borrow_mut();
+                                session.rebuild_edit_target(&mut es);
+                            }
+                        }
+                    }
+                }
                 // 主线程属主命令不经本通道 (UiCommand 文档); 防御性忽略
                 UiCommand::StartGame | UiCommand::EndGame => {}
             }
@@ -919,6 +951,10 @@ struct RenderSession {
     /// 页激活策略表 (entry id → strategy; Rc 共享给 host 探测闭包,
     /// 注册/sync 时重建 — R3 声明式激活)
     strategies: Rc<RefCell<HashMap<String, ActivationStrategy>>>,
+    /// 编辑会话 (R6 真窗即画布; None = 常规形态。Rc: EditBridge 闭包共享)
+    edit: Option<crate::edit_session::EditSessionRef>,
+    /// 主线程事件通道发送端 (编辑提交/拒绝回传)
+    main_event_tx: Sender<MainEvent>,
     /// WYSIWYG reinit 参数仓 (各 spec 工厂 reinit 闭包读取)
     params: Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
     /// 标签源 (GearFlaps update_tick / engine reinit 闭包共用; Lang !Clone)
@@ -1030,7 +1066,9 @@ impl RenderSession {
         // ---- 托盘 (Java initSystemTray: 失败继续运行) ----
         #[cfg(target_os = "windows")]
         let tray = {
-            let handler = AppTrayHandler { tx: main_event_tx };
+            let handler = AppTrayHandler {
+            tx: main_event_tx.clone(),
+        };
             let tray_cfg = TrayConfig {
                 icon_path: env.icon_path.clone(),
                 ..Default::default()
@@ -1090,6 +1128,8 @@ impl RenderSession {
             tray,
             hud_settings,
             strategies,
+            edit: None,
+            main_event_tx: main_event_tx.clone(),
             params,
             lang,
             handles,
@@ -1259,12 +1299,137 @@ impl RenderSession {
         }
     }
 
+    // ---- R6 编辑会话 (真窗即画布) ----
+
+    /// 进入编辑会话: 条件 = Preview 态且无活动会话。压 z 序 (MainForm 不被盖)
+    /// → 全页强制 preview 开窗 → 编辑仓初始化 → 挂 EditBridge → 节拍收紧
+    fn on_begin_edit_session(&mut self) {
+        use crate::edit_session::{paint_decorations, press_decision, EditSession};
+        use vm_overlay::platform::host::{EditBridge, EditMouse};
+        if self.edit.is_some() {
+            let _ = self.main_event_tx.send(MainEvent::EditRejected("已有编辑会话".into()));
+            return;
+        }
+        if self.shared.state() != crate::controller_state::ControllerState::Preview {
+            let _ = self
+                .main_event_tx
+                .send(MainEvent::EditRejected("请先结束游戏会话再编辑".into()));
+            return;
+        }
+        // ① overlay 恒 TOPMOST 会盖住 MainForm — 借对话框挂起计数压 z 序
+        self.host.dialog_will_show();
+        // ② 全页 preview 可见 (无视激活探测; 未开的记录, 退出时收回)
+        let mut forced_open = Vec::new();
+        for (id, _) in &self.handles.pages {
+            if !self.host.is_active(id) {
+                if self.host.force_open_preview(id).unwrap_or(false) {
+                    forced_open.push(id.clone());
+                }
+            }
+        }
+        // ③ 编辑仓 = 当前参数仓页集快照
+        let docs: Vec<_> = self.params.borrow().pages.iter().cloned().collect();
+        let es: crate::edit_session::EditSessionRef =
+            Rc::new(RefCell::new(EditSession::new(docs, forced_open)));
+        // ④ EditBridge: on_press 立即裁决 (缓存矩形) / on_event 入队 / on_paint 装饰
+        let press_es = Rc::clone(&es);
+        let event_es = Rc::clone(&es);
+        let paint_es = Rc::clone(&es);
+        self.host.set_edit_bridge(Some(EditBridge {
+            on_press: Box::new(move |id, x, y, win_pos| {
+                press_decision(&mut press_es.borrow_mut(), id, (x, y), win_pos)
+            }),
+            on_event: Box::new(move |id, ev: EditMouse| {
+                // 入队 (edit_pump 消费; 拖拽期间的 Move 也走此路 — 主循环 10ms 内处理)
+                if let Ok(mut s) = event_es.try_borrow_mut() {
+                    s.pending.push_back((id.to_string(), ev));
+                }
+            }),
+            on_paint: Box::new(move |id, cv| {
+                if let Ok(s) = paint_es.try_borrow() {
+                    paint_decorations(&s, id, cv);
+                }
+            }),
+        }));
+        self.edit = Some(es);
+        self.ui_bus.publish(
+            crate::edit_session::HUD_EDIT_SESSION,
+            Some("EditSession"),
+            Some("begin"),
+        );
+        logger::info("EditSession", "编辑会话开始 (真窗即画布)");
+    }
+
+    /// 退出编辑会话: 卸桥/恢复 z 序/收回强制开窗页 → commit=true 发 EditCommitted
+    /// (主线程逐页落盘) / false 发 EditDiscarded (主线程全量重建外部真相)
+    fn on_end_edit_session(&mut self, commit: bool) {
+        let Some(es) = self.edit.take() else {
+            return;
+        };
+        self.host.set_edit_bridge(None);
+        self.host.dialog_did_dismiss();
+        // 强制开的页收回 (后续 refresh_preview 按激活探测重开应开的)
+        for id in &es.borrow().forced_open {
+            let _ = self.host.close(id);
+        }
+        if commit {
+            let s = es.borrow();
+            // 删除页 = 参数仓有而编辑仓没有的
+            let deleted: Vec<String> = self
+                .params
+                .borrow()
+                .pages
+                .iter()
+                .filter(|d| !s.docs.iter().any(|e| e.id == d.id))
+                .map(|d| d.id.clone())
+                .collect();
+            let _ = self.main_event_tx.send(MainEvent::EditCommitted {
+                pages: s.docs.clone(),
+                deleted,
+            });
+        } else {
+            let _ = self.main_event_tx.send(MainEvent::EditDiscarded);
+        }
+        self.ui_bus.publish(
+            crate::edit_session::HUD_EDIT_SESSION,
+            Some("EditSession"),
+            Some("end"),
+        );
+        logger::info("EditSession", "编辑会话结束");
+    }
+
+    /// 命令类修改后的整页重装配 (props/增删/页面属性 — 走 reinit 链即所见):
+    /// 编辑仓覆写 params.pages → 目标页 reinit 闭包整体重建
+    fn rebuild_edit_target(&mut self, es: &mut crate::edit_session::EditSession) {
+        let mut p = self.params.borrow_mut();
+        p.pages = std::sync::Arc::new(es.docs.clone());
+        let target = es.target_page.clone();
+        drop(p);
+        // 目标页条目 reinit (闭包从 params.pages 取最新 doc 重建)
+        if let Some((_, page)) = self.handles.pages.iter().find(|(id, _)| *id == target) {
+            let _ = page.borrow_mut();
+            // PageHandle 的 reinit 闭包在 host 条目里 — 经 refresh 路径触发:
+            // 直接调 host.refresh_preview_key 会做激活探测; 编辑态统一
+            // reinit_active_overlays (全部已开条目重装配, 编辑态页面少, 成本可接受)
+        }
+        self.host.reinit_active_overlays();
+        // 重装配后刷新命中缓存
+        crate::edit_session::refresh_cache_public(es, &self.handles.pages);
+    }
+
     /// ReinitOverlays 命令处理: WYSIWYG reinit 参数仓覆写 (不直接触发刷新) +
-    /// 页面条目集对齐 (编辑器 save/delete 页 → CONFIG_CHANGED → 本命令)
+    /// 页面条目集对齐 (编辑器 save/delete 页 → CONFIG_CHANGED → 本命令)。
+    /// R6 编辑会话写权接管: 编辑在场时 new_params.pages 被编辑仓覆写
+    /// (gauge/hud/dpi 照收), sync 以编辑仓对齐 (编辑内新建/删除页生效),
+    /// 外部 CONFIG_CHANGED 不替换编辑中实例
     fn on_reinit_overlays(&mut self, new_params: Box<vm_overlay::platform::reinit::ReinitParams>) {
         // 地平仪节流已组件化 (AttitudeWidget 内闩, GaugeCfg.attitude_freq_ms 注入)
+        let mut new_params = *new_params;
+        if let Some(es) = self.edit.as_ref() {
+            new_params.pages = std::sync::Arc::new(es.borrow().docs.clone());
+        }
         self.hud_settings = new_params.hud.clone();
-        *self.params.borrow_mut() = *new_params;
+        *self.params.borrow_mut() = new_params;
         // 用户页生命周期对齐: 新页注册落窗 / 消失的页注销摘窗 (出厂页恒定无操作)。
         // 借用拆分: env/lang/params/shared 均为独立字段, host/handles 可变独占
         let Self {

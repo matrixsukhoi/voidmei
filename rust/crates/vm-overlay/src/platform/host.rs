@@ -376,6 +376,21 @@ impl OverlayHost {
         Ok(true)
     }
 
+    /// 强制以 preview 形态开窗 (R6 编辑会话: 全页可见, 无视激活探测;
+    /// 已开 (无论形态) 跳过 — preview 窗已可交互, live 窗罕见于编辑态)
+    pub fn force_open_preview(&mut self, id: &str) -> Result<bool, String> {
+        let idx = self
+            .entries
+            .iter()
+            .position(|e| e.id == id)
+            .ok_or_else(|| format!("未注册的 overlay: {}", id))?;
+        if self.entries[idx].slot.is_some() || self.entries[idx].zombie {
+            return Ok(false);
+        }
+        self.materialize(idx, true)?;
+        Ok(true)
+    }
+
     /// 打开全部 (按注册序, 激活探测为真才 open)
     pub fn open_all(&mut self) -> Result<(), String> {
         let plan: Vec<usize> = self
