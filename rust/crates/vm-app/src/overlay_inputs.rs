@@ -35,6 +35,15 @@ pub(crate) fn refresh_activation_cache(config: &ConfigurationService, cache: &Ac
     for key in ACTIVATION_KEYS {
         m.insert(key.to_string(), config.get_config(key).unwrap_or_default());
     }
+    // 用户页开关键并集 (P0: 用户页 switch_key 任意, 不在出厂 9 键表 —
+    // 不入缓存则激活探测 get_bool 恒 false, 页面永不激活)
+    for page in config.pages().iter() {
+        if let Some(key) = page.switch_key.as_deref() {
+            if !key.is_empty() {
+                m.insert(key.to_string(), config.get_config(key).unwrap_or_default());
+            }
+        }
+    }
 }
 
 /// overlay 注册面的 Send 参数快照 (渲染线程一次性注册用, D8: 字体→渲染线程)。

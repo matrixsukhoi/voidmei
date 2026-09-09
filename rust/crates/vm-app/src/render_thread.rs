@@ -132,6 +132,8 @@ impl ActivationContext for HostActivationCtx {
 /// 两处复合策略来自 Java registerWithStrategy)
 pub(crate) fn strategy_for(config_key: &str) -> ActivationStrategy {
     match config_key {
+        // 空键 = 用户页未设开关键 → 恒显 (对位 PageDoc.switch_key 注释语义)
+        "" => ActivationStrategy::always(),
         "enableVoiceWarn" => {
             ActivationStrategy::config(config_key).and(&ActivationStrategy::live_only())
         }
@@ -239,12 +241,9 @@ pub(crate) fn register_live_overlays(
         )
     });
     // W3 通用页 (flight/power/engine/gear/axis/attitude + fm 两页 sidecar)
-    for doc in inputs.pages.iter().filter(|d| is_paged_overlay(&d.id)) {
-        if let Some(handle) = register_one(host, shared, &doc.name, page_interest_keys(&doc.id), || {
-            page_overlay_spec(assemble_page_spec(doc.clone(), env, lang, params))
-        }) {
-            handles.pages.push((doc.id.clone(), handle));
-        }
+    // 出厂页 + 用户页同权注册 (P0: 编辑器新建/复制的页面同样落窗)
+    for doc in inputs.pages.iter().filter(|d| is_page_overlay_entry(d)) {
+        register_page(host, handles, env, lang, params, shared, doc);
     }
     // FM 两页 (fm-list/thrust-chart) 已并入上方 pages 循环 (sidecar 数据面
     // 在渲染节拍块驱动 — FM_OVERLAY_TOGGLE/FM_CHANGED 事件脉冲 + tick)
@@ -254,19 +253,63 @@ pub(crate) fn register_live_overlays(
     }
 }
 
-/// W3 走通用页面编排的出厂页 (fm 两页 sidecar 接线后并入)
-fn is_paged_overlay(id: &str) -> bool {
-    matches!(
-        id,
-        "flight-info-default"
-            | "power-info-default"
-            | "engine-control-default"
-            | "gear-flaps-default"
-            | "axis-default"
-            | "attitude-default"
-            | "fm-list-default"
-            | "thrust-chart-default"
-    )
+/// 走通用页面编排的页面谓词: 出厂页 + 用户页全部放行, 仅排除 MiniHUD
+/// 编排器专页 (minihud-default 由 minihud_overlay_spec 独占注册, 走通用
+/// 面会双窗) — P0 前这里硬编码 8 个出厂 id, 用户页被全部过滤
+fn is_page_overlay_entry(doc: &vm_core::config::json_model::PageDoc) -> bool {
+    doc.id != "minihud-default"
+}
+
+/// 单页注册 (register_live_overlays 的 pages 段提取; sync_page_entries
+/// 会话动态注册复用同一路径, 保证启动/运行时行为一致)
+#[allow(clippy::too_many_arguments)]
+fn register_page(
+    host: &mut OverlayHost,
+    handles: &mut OverlayHandles,
+    env: &crate::env::Env,
+    lang: &Rc<Lang>,
+    params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
+    shared: &ControllerShared,
+    doc: &vm_core::config::json_model::PageDoc,
+) {
+    if let Some(handle) = register_one(host, shared, &doc.name, page_interest_keys(&doc.id), || {
+        page_overlay_spec(assemble_page_spec(doc.clone(), env, lang, params))
+    }) {
+        handles.pages.push((doc.id.clone(), handle));
+    }
+}
+
+/// 用户页生命周期 = 配置驱动: 编辑器 save/delete/reset 页 → CONFIG_CHANGED →
+/// ReinitOverlays (params.pages 覆写) → 本函数对齐条目集 — 新页注册落窗、
+/// 消失的页注销摘窗。出厂页 reinit 只重建不增删 (条目集恒定, sync 无操作)。
+/// 增删只发生在本渲染线程 ui_cmd 处理点, 与 feed 循环同线程串行, 无锁无竞态
+fn sync_page_entries(
+    host: &mut OverlayHost,
+    handles: &mut OverlayHandles,
+    env: &crate::env::Env,
+    lang: &Rc<Lang>,
+    params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
+    shared: &ControllerShared,
+) {
+    let docs = params.borrow().pages.clone();
+    // ① 新页: 通过谓词且尚未注册 → 注册落窗
+    for doc in docs.iter().filter(|d| is_page_overlay_entry(d)) {
+        if !handles.pages.iter().any(|(id, _)| *id == doc.id) {
+            register_page(host, handles, env, lang, params, shared, doc);
+        }
+    }
+    // ② 消失的页: 注销 (close 完整销毁链 + 摘条目, 防僵留复活) + 摘句柄
+    let live: Vec<String> = docs.iter().map(|d| d.id.clone()).collect();
+    let gone: Vec<String> = handles
+        .pages
+        .iter()
+        .filter(|(id, _)| !live.iter().any(|l| l == id))
+        .map(|(id, _)| id.clone())
+        .collect();
+    for id in gone {
+        host.unregister(&id);
+    }
+    handles.pages.retain(|(id, _)| live.iter().any(|l| l == id));
 }
 
 /// per-page WYSIWYG 兴趣键 (对位原 with_interest 键集; 死键已清 —
@@ -882,6 +925,8 @@ struct RenderSession {
     /// overlay 宿主 (注册/激活/渲染/开收窗)
     host: OverlayHost,
     // ---- 依赖段 (命令处理/循环所需; Drop 序无契约) ----
+    /// 运行环境快照 (sync_page_entries 动态注册用户页需要 fonts_dir/dpi)
+    env: crate::env::Env,
     /// UI 命令接收端 (主线程/桥发送)
     ui_cmd_rx: Receiver<UiCommand>,
     /// 热键事件接收端 (钩子线程发送)
@@ -1014,6 +1059,7 @@ impl RenderSession {
         });
         // FM 两页的数据泵已组件化 (WidgetSidecar tick, 渲染节拍驱动)
 
+        let env_debug = env.debug; // env 字段 move 前先取标量
         Self {
             fm_changed_sub,
             fm_data_rx,
@@ -1035,9 +1081,10 @@ impl RenderSession {
             handles,
             host,
             // ---- 依赖段 ----
+            env,
             ui_cmd_rx,
             hotkey_rx,
-            debug: env.debug,
+            debug: env_debug,
             ui_bus,
             flight_bus,
             fm,
@@ -1198,10 +1245,23 @@ impl RenderSession {
         }
     }
 
-    /// ReinitOverlays 命令处理: WYSIWYG reinit 参数仓覆写 (不直接触发刷新)
+    /// ReinitOverlays 命令处理: WYSIWYG reinit 参数仓覆写 (不直接触发刷新) +
+    /// 页面条目集对齐 (编辑器 save/delete 页 → CONFIG_CHANGED → 本命令)
     fn on_reinit_overlays(&mut self, new_params: Box<vm_overlay::platform::reinit::ReinitParams>) {
         // 地平仪节流已组件化 (AttitudeWidget 内闩, GaugeCfg.attitude_freq_ms 注入)
         self.hud_settings = new_params.hud.clone();
         *self.params.borrow_mut() = *new_params;
+        // 用户页生命周期对齐: 新页注册落窗 / 消失的页注销摘窗 (出厂页恒定无操作)。
+        // 借用拆分: env/lang/params/shared 均为独立字段, host/handles 可变独占
+        let Self {
+            host,
+            handles,
+            env,
+            lang,
+            params,
+            shared,
+            ..
+        } = self;
+        sync_page_entries(host, handles, env, lang, params, shared);
     }
 }

@@ -397,6 +397,16 @@ impl OverlayHost {
         }
     }
 
+    /// 注销条目 (close 只摘槽位不清条目): 配置驱动的页面删除用 —
+    /// 先走 close 的完整销毁链 (存位置 → 销毁窗口), 再摘注册条目本身,
+    /// 条目僵留会在 refresh_preview 里被当作应开条目复活成僵尸窗口
+    pub fn unregister(&mut self, id: &str) -> bool {
+        self.close(id);
+        let before = self.entries.len();
+        self.entries.retain(|e| e.id != id);
+        before != self.entries.len()
+    }
+
     /// preview 模式生命周期:
     /// 应开未开 → 建 preview 窗口 (可拖拽); 已开应开 → reinit (标脏强制重绘);
     /// 已开不应开 → close (策略失活)

@@ -16,7 +16,7 @@ use vm_core::lang::Lang;
 use crate::layout::hud_layout_node::HUDLayoutNodeExt;
 use crate::layout::minihud_layout::AutoSizingPlan;
 use crate::overlays::minihud::{MinimalHudContext, MiniHudFonts};
-use crate::overlays::spec_common::keyed_spec;
+use crate::overlays::spec_common::{keyed_spec, keyed_spec_id};
 use crate::platform::host::OverlaySpec;
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
@@ -194,22 +194,43 @@ pub fn page_overlay_spec(params: PageSpecParams) -> Result<(PageHandle, OverlayS
         }
     });
 
-    let switch_key = params
+    // 条目键: entry_key/switch_key 优先, 均空 = 恒显 (不再回退 doc.id)。
+    // 实例键分叉: 出厂页保持 id==key (OVERLAY_SECTIONS 位置存档/激活探测/
+    // 冒烟断言面零变化); 用户页 id = 页文档 id — 同 switch_key 的多页
+    // 可并存双窗 (host.rs OverlaySpec 头注预留的分叉语义, 此为其启用点)
+    let key = params
         .entry_key
         .clone()
         .or_else(|| params.doc.switch_key.clone())
-        .unwrap_or_else(|| params.doc.id.clone());
+        .unwrap_or_default();
+    let is_factory = vm_core::config::json_store::factory()
+        .pages
+        .iter()
+        .any(|p| p.id == params.doc.id);
     Ok((
         handle,
-        keyed_spec(
-            &switch_key,
-            w,
-            h,
-            Box::new(move |cv: &mut PixCanvas| {
-                render_handle.borrow_mut().draw(cv, aa());
-            }),
-            Some(reinit),
-        ),
+        if is_factory {
+            keyed_spec(
+                &key,
+                w,
+                h,
+                Box::new(move |cv: &mut PixCanvas| {
+                    render_handle.borrow_mut().draw(cv, aa());
+                }),
+                Some(reinit),
+            )
+        } else {
+            keyed_spec_id(
+                &params.doc.id,
+                &key,
+                w,
+                h,
+                Box::new(move |cv: &mut PixCanvas| {
+                    render_handle.borrow_mut().draw(cv, aa());
+                }),
+                Some(reinit),
+            )
+        },
     ))
 }
 
