@@ -14,7 +14,7 @@ const CATEGORY_ZH: Record<string, string> = {
 }
 
 interface PaletteProps {
-  onAdd: (typeName: string, displayZh: string) => void
+  onAdd: (typeName: string, displayZh: string, defaultProps?: Record<string, unknown>) => void
   /** 常用字段预设添加 (props 完整配置) */
   onAddField: (preset: FieldPreset) => void
 }
@@ -91,7 +91,7 @@ export const Palette: React.FC<PaletteProps> = ({ onAdd, onAddField }) => {
           {items.map(e => (
             <div
               key={e.typeName}
-              onClick={() => onAdd(e.typeName, e.displayZh)}
+              onClick={() => onAdd(e.typeName, e.displayZh, e.defaultProps)}
               style={{
                 display: 'flex',
                 alignItems: 'center',

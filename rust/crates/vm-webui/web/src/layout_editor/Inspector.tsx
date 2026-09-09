@@ -32,6 +32,8 @@ interface InspectorProps {
   component: ComponentDoc | null
   onPatchPage: (mut: (doc: PageDoc) => PageDoc) => void
   onPatchComponent: (id: string, mut: (c: ComponentDoc) => ComponentDoc) => void
+  /** 改名收口 (唯一性校验 + parent 重指); 返回 false = 撞名拒绝 */
+  onRename: (oldId: string, newName: string) => boolean
   onRemove: (id: string) => void
   onDuplicate: (id: string) => void
 }
@@ -41,12 +43,38 @@ export const Inspector: React.FC<InspectorProps> = ({
   component,
   onPatchPage,
   onPatchComponent,
+  onRename,
   onRemove,
   onDuplicate,
 }) => {
   const [schema, setSchema] = useState<Record<string, PropSchemaEntry[]>>({})
   const [varNames, setVarNames] = useState<{ value: string; label: string }[]>([])
   const [unitByName, setUnitByName] = useState<Record<string, string>>({})
+  /** id 改名本地草稿 (onBlur/Enter 提交 → onRename 收口; 撞名回显 error) */
+  const [idDraft, setIdDraft] = useState<string | null>(null)
+  const [idError, setIdError] = useState<string | null>(null)
+
+  // 组件切换时清草稿
+  useEffect(() => {
+    setIdDraft(null)
+    setIdError(null)
+  }, [component?.id])
+
+  const submitRename = () => {
+    if (idDraft == null || !component) return
+    const name = idDraft.trim()
+    if (!name || name === component.id) {
+      setIdDraft(null)
+      setIdError(null)
+      return
+    }
+    if (!onRename(component.id, name)) {
+      setIdError(`id「${name}」已存在`)
+      return
+    }
+    setIdDraft(null)
+    setIdError(null)
+  }
 
   // 目录一次拉取 (组件类型 → propsSchema)
   useEffect(() => {
@@ -137,7 +165,20 @@ export const Inspector: React.FC<InspectorProps> = ({
         </Button>
       </Space>
       <Field label="id">
-        <Input value={component.id} onChange={e => patch(c => ({ ...c, id: e.target.value }))} />
+        <Input
+          value={idDraft ?? component.id}
+          status={idError ? 'error' : undefined}
+          onChange={e => {
+            setIdDraft(e.target.value)
+            setIdError(null)
+          }}
+          onBlur={submitRename}
+          onPressEnter={submitRename}
+          placeholder="改名 (Enter 提交; 子组件引用自动跟随)"
+        />
+        {idError && (
+          <div style={{ fontSize: 11, color: '#ff4d4f', marginTop: 2 }}>{idError}</div>
+        )}
       </Field>
       <Field label="类型">
         <Input value={component.type} disabled />

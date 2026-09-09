@@ -37,13 +37,7 @@ export async function resetPageToFactory(id: string): Promise<void> {
   await invoke('reset_page_to_factory', { id });
 }
 
-/** PNG 字节数组 → data URL (画布底图) */
-export function pngToDataUrl(bytes: number[]): string {
-  const bin = new Uint8Array(bytes);
-  let s = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bin.length; i += chunk) {
-    s += String.fromCharCode(...bin.subarray(i, i + chunk));
-  }
-  return `data:image/png;base64,${btoa(s)}`;
+/** PNG (Rust 侧已 base64) → data URL (画布底图) */
+export function pngToDataUrl(b64: string): string {
+  return `data:image/png;base64,${b64}`;
 }

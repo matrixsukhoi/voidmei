@@ -17,6 +17,8 @@ export interface ComponentCatalogEntry {
   configKeys: string[];
   dataShorts: string[];
   propsSchema: PropSchemaEntry[];
+  /** palette 新建组件的合法初值 (Rust 工厂必填项兜底 — 空 props 工厂 Err 组件不建) */
+  defaultProps?: Record<string, unknown>;
 }
 
 /** 常用字段预设 (出厂页 data.field 原样导出 — 点击即完整配置) */
@@ -81,8 +83,25 @@ export interface SolveItem {
 
 export interface SolveResult {
   lineHeightPx: number;
+  /** 窗口尺寸 (内容包围盒 + 2×padding — 派生物) */
   pageW: number;
   pageH: number;
+  /** 窗口视图 ← 画布视图的平移 (PNG 按窗口系渲染, 画布以 −offset 反变换锚定) */
+  offsetX: number;
+  offsetY: number;
+  /** 内容包围盒 (画布系) */
+  contentX: number;
+  contentY: number;
+  contentW: number;
+  contentH: number;
+  padding: number;
+  /** 逻辑画布 (4096 自由 / minihud ctx 派生) */
+  canvasW: number;
+  canvasH: number;
+  /** 组件矩形 (画布系, 页文档序 = z 序) */
   items: SolveItem[];
-  png: number[];
+  /** 构建错误 (id, 原因): 类型未注册 / 工厂 Err — 静默失败回显 */
+  errors: [string, string][];
+  /** RGBA PNG (Rust 侧 base64 — 此前 number[] JSON 逐字节传输) */
+  png: string;
 }

@@ -3,9 +3,15 @@
  * 页面数据 (PageDoc) 在前端全量编辑, 100ms 防抖 solve_page 取 Rust 布局
  * 矩形 + PNG 底图 (布局求解唯一真相在 Rust); 保存走 save_page (delta)。
  * 桌面真窗的实时预览经既有 WYSIWYG 链 (save 后 CONFIG_CHANGED → reinit)。
+ *
+ * P0 数据流修复: 脏页集 (per-page dirty — 此前单布尔跨页泄漏);
+ * refreshList 仅 mount + 显式调用 (此前依赖 [activeId] 每次切页整包重拉,
+ * 未保存编辑被静默覆盖); 删除当前页自动落到剩余页 (此前卡死在空态早退);
+ * 组件 id 生成递增查重 (此前 数量+1 / 固定 -copy 后缀删改后会撞 id);
+ * Inspector 改名经 renameComponent 收口 (唯一性校验 + parent 引用重指)。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Popconfirm, Select, Space, message } from 'antd'
+import { Alert, Button, Popconfirm, Select, Space, message } from 'antd'
 import type { ComponentDoc, PageDoc, PageSummary, SolveResult } from './types'
 import {
   deletePage,
@@ -21,7 +27,7 @@ import { Inspector } from './Inspector'
 /** 网格吸附步长 (line_height 单位) */
 const SNAP = 0.1
 
-/** palette 新建组件的可用初值 (空 props 工厂 Err → 组件不建, 画布无反馈) */
+/** 显示层预设 (覆盖 Rust defaultProps 同名键 — 展示更友好的初值) */
 const PRESET_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
   'core.data.field': { target: 'ias', label: '表  速', unit: 'Km/h', precision: 0, previewValue: '500' },
   'core.fm.field': { key: 'weight.empty' },
@@ -30,36 +36,75 @@ const PRESET_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
 
 export const LAYOUT_TAB_KEY = '__hud_layout__'
 
+/** 页 id 生成 (时间36进制 + 随机段 — Date.now() 取模会碰撞) */
+const newPageId = () =>
+  `user-page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+
+/** 组件 id 生成: 序号递增至页内不撞 (数量+1 在删除过组件后会重复) */
+const nextComponentId = (page: PageDoc, base: string) => {
+  let n = page.components.length + 1
+  while (page.components.some(c => c.id === `${base}-${n}`)) n++
+  return `${base}-${n}`
+}
+
 export const LayoutTab: React.FC = () => {
   const [pages, setPages] = useState<PageSummary[]>([])
   const [pageDocs, setPageDocs] = useState<Record<string, PageDoc>>({})
   const [activeId, setActiveId] = useState<string>('')
   const [selectedComp, setSelectedComp] = useState<string>('')
   const [solve, setSolve] = useState<SolveResult | null>(null)
-  const [dirty, setDirty] = useState(false)
+  /** 脏页集 (per-page; 切页不丢、refreshList 不覆盖) */
+  const [dirty, setDirty] = useState<Set<string>>(new Set())
+  /** 首次加载完成 (区分 "加载中" 与 "无页面" 空态) */
+  const [loaded, setLoaded] = useState(false)
   /** 升级提示已表态页 (本会话不再弹) */
   const [upgradeDismissed, setUpgradeDismissed] = useState<Set<string>>(new Set())
   const solveTimer = useRef<number>(0)
+  /** refreshList 读 dirty 的桥 (避免 useCallback 依赖导致每次 dirty 变都重建) */
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
 
   const active = pageDocs[activeId] ?? null
   const activeUpgrade =
     pages.find(p => p.id === activeId)?.upgradeAvailable &&
     !upgradeDismissed.has(activeId)
 
+  const markDirty = useCallback((id: string) => {
+    setDirty(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
+  }, [])
+  const clearDirty = useCallback((id: string) => {
+    setDirty(prev => {
+      if (!prev.has(id)) return prev
+      const n = new Set(prev)
+      n.delete(id)
+      return n
+    })
+  }, [])
+
+  /** 页面清单拉取 (mount + 显式刷新点; 未保存页保留本地版本) */
   const refreshList = useCallback(async () => {
     const { pages: list, docs } = await getPages()
     setPages(list)
-    setPageDocs(Object.fromEntries(docs.map(d => [d.id, d])))
-    if (!activeId && list.length) setActiveId(list[0].id)
-  }, [activeId])
+    setPageDocs(prev => {
+      const next: Record<string, PageDoc> = Object.fromEntries(docs.map(d => [d.id, d]))
+      // 脏页保留本地编辑 (服务端数据是上次保存的旧版)
+      for (const id of dirtyRef.current) if (prev[id]) next[id] = prev[id]
+      return next
+    })
+    // 当前页消失 (删除/外部变更) → 落到剩余第一页, 不再卡死空态
+    setActiveId(cur => (list.some(p => p.id === cur) ? cur : (list[0]?.id ?? '')))
+    setLoaded(true)
+  }, [])
 
   useEffect(() => {
     refreshList()
   }, [refreshList])
 
-  /** 页面文档加载 (编辑器内全量编辑) — solve_page 顺带取文档? Rust 只回快照;
-   * 文档由 save_page 往返维护: 首次进入用 pages() 的 id 逐个 solve 无法取文档。
-   * 改法: get_pages 返回文档本体 (Rust 侧 pages() 已含全量)。 */
+  // 切页清旧快照 (避免上一页 PNG 闪帧)
+  useEffect(() => {
+    setSolve(null)
+  }, [activeId])
+
   // 防抖 solve
   useEffect(() => {
     if (!active) return
@@ -78,26 +123,26 @@ export const LayoutTab: React.FC = () => {
     (mut: (doc: PageDoc) => PageDoc) => {
       if (!active) return
       setPageDocs(prev => ({ ...prev, [activeId]: mut(prev[activeId]) }))
-      setDirty(true)
+      markDirty(activeId)
     },
-    [active, activeId],
+    [active, activeId, markDirty],
   )
 
-  /** palette 点击添加 (画布中心落点, 吸附网格) */
+  /** palette 点击添加 (画布中心落点, 吸附网格; Rust defaultProps 兜底) */
   const addComponent = useCallback(
-    (typeName: string, displayZh: string) => {
+    (typeName: string, displayZh: string, defaultProps?: Record<string, unknown>) => {
       if (!active) return
       const cx = Math.round((active.components.length ? 2 : 1) / SNAP) * SNAP
-      // 各类型的可用初值 (空 props 工厂 Err → 组件不建, 画布无反馈)
-      const defaultProps: Record<string, unknown> = PRESET_DEFAULT_PROPS[typeName] ?? {}
+      // 初值 = Rust defaultProps (工厂必填项) ⊕ 显示层预设 (同名覆盖)
+      const props = { ...(defaultProps ?? {}), ...(PRESET_DEFAULT_PROPS[typeName] ?? {}) }
       const comp: ComponentDoc = {
-        id: `${displayZh}-${active.components.length + 1}`,
+        id: nextComponentId(active, displayZh),
         type: typeName,
         pos: [cx, active.components.length * SNAP * 10],
         anchor: ['TopLeft', 'TopLeft'],
         parent: null,
         enabled: true,
-        props: defaultProps,
+        props,
       }
       patchPage(d => ({ ...d, components: [...d.components, comp] }))
       setSelectedComp(comp.id)
@@ -112,7 +157,7 @@ export const LayoutTab: React.FC = () => {
       const type = preset.props.kind ? 'core.engine.gauge' : 'core.data.field'
       const idBase = String(preset.props.target ?? preset.props.kind ?? 'field')
       const comp: ComponentDoc = {
-        id: `${idBase}-${active.components.length + 1}`,
+        id: nextComponentId(active, idBase),
         type,
         pos: [0, 0],
         anchor: ['TopLeft', 'BottomLeft'],
@@ -136,11 +181,34 @@ export const LayoutTab: React.FC = () => {
     [patchPage],
   )
 
+  /** 组件改名收口: 唯一性校验 + 其它组件 parent 引用重指 + 选中态联动。
+   * 返回 false = 撞名拒绝 (Inspector 显示 error) */
+  const renameComponent = useCallback(
+    (oldId: string, newName: string): boolean => {
+      if (!active || !newName || newName === oldId) return true
+      if (active.components.some(c => c.id === newName)) return false
+      patchPage(d => ({
+        ...d,
+        components: d.components.map(c =>
+          c.id === oldId
+            ? { ...c, id: newName }
+            : { ...c, parent: c.parent === oldId ? newName : c.parent },
+        ),
+      }))
+      setSelectedComp(newName)
+      return true
+    },
+    [active, patchPage],
+  )
+
   const removeComponent = useCallback(
     (id: string) => {
       patchPage(d => ({
         ...d,
-        components: d.components.filter(c => c.id !== id),
+        components: d.components
+          .filter(c => c.id !== id)
+          // 悬空 parent 重指根 (布局引擎同样宽容退化, 这里显式落盘防困惑)
+          .map(c => (c.parent === id ? { ...c, parent: null } : c)),
       }))
       setSelectedComp('')
     },
@@ -154,7 +222,7 @@ export const LayoutTab: React.FC = () => {
       if (!src) return
       const copy: ComponentDoc = {
         ...src,
-        id: `${src.id}-copy`,
+        id: nextComponentId(active, src.id),
         pos: [src.pos[0] + SNAP * 5, src.pos[1] + SNAP * 5],
       }
       patchPage(d => ({ ...d, components: [...d.components, copy] }))
@@ -179,28 +247,65 @@ export const LayoutTab: React.FC = () => {
     [solve, patchComponent],
   )
 
+  /** 新建/本地注入页 (标记脏 — 此前新页不置 dirty, 保存按钮恒禁用无法保存) */
+  const upsertLocalPage = useCallback(
+    (doc: PageDoc) => {
+      setPageDocs(prev => ({ ...prev, [doc.id]: doc }))
+      setActiveId(doc.id)
+      setSelectedComp('')
+      markDirty(doc.id)
+    },
+    [markDirty],
+  )
+
   const onSave = useCallback(async () => {
     if (!active) return
     try {
       await savePage(active)
-      setDirty(false)
+      clearDirty(activeId)
       message.success(`页面「${active.name}」已保存 (桌面预览窗实时更新)`)
     } catch (e) {
       message.error(`保存失败: ${e}`)
     }
-  }, [active])
+  }, [active, activeId, clearDirty])
 
   const selected = useMemo(
     () => active?.components.find(c => c.id === selectedComp) ?? null,
     [active, selectedComp],
   )
 
-  if (!active) {
+  if (!loaded) {
     return <div style={{ padding: 24 }}>加载页面中…</div>
   }
 
+  // 空态 (全部页面被删): 给恢复手段, 不再卡死
+  if (!active) {
+    return (
+      <div style={{ padding: 24 }}>
+        <p style={{ color: '#999' }}>没有页面了</p>
+        <Button
+          type="primary"
+          onClick={() =>
+            upsertLocalPage({
+              id: newPageId(),
+              name: '新页面',
+              switchKey: null,
+              pos: [0.5, 0.5],
+              padding: 20,
+              font: { family: '', sizeAdd: 0, scaleSource: '' },
+              contentVersion: 0,
+              components: [],
+            })
+          }
+        >
+          新建页
+        </Button>
+      </div>
+    )
+  }
+
   return (
-    <div style={{ display: 'flex', gap: 8, height: 'calc(100vh - 132px)', minHeight: 480 }}>
+    <div style={{ display: 'flex', gap: 8, height: '100%', minHeight: 480 }}>
       {/* palette */}
       <Palette onAdd={addComponent} onAddField={addFieldPreset} />
 
@@ -216,7 +321,7 @@ export const LayoutTab: React.FC = () => {
               label: `${p.name}${p.upgradeAvailable ? ' ⬆' : ''}`,
             }))}
           />
-          <Button type="primary" disabled={!dirty} onClick={onSave}>
+          <Button type="primary" disabled={!dirty.has(activeId)} onClick={onSave}>
             保存
           </Button>
           {activeUpgrade && (
@@ -227,6 +332,7 @@ export const LayoutTab: React.FC = () => {
               cancelText="保留我的"
               onConfirm={async () => {
                 await resetPageToFactory(activeId)
+                clearDirty(activeId)
                 message.success('已采用出厂新版')
                 refreshList()
               }}
@@ -242,6 +348,7 @@ export const LayoutTab: React.FC = () => {
             description="丢弃对该页的全部修改?"
             onConfirm={async () => {
               await resetPageToFactory(activeId)
+              clearDirty(activeId)
               message.success('已恢复出厂版本')
               refreshList()
             }}
@@ -254,6 +361,7 @@ export const LayoutTab: React.FC = () => {
             onConfirm={async () => {
               try {
                 await deletePage(activeId)
+                clearDirty(activeId)
                 message.success('已删除')
                 refreshList()
               } catch (e) {
@@ -268,17 +376,16 @@ export const LayoutTab: React.FC = () => {
           <Button onClick={() => {
             const copy: PageDoc = {
               ...active,
-              id: `${active.id}-copy-${Date.now() % 1000}`,
+              id: newPageId(),
               name: `${active.name} 副本`,
             }
-            setPageDocs(prev => ({ ...prev, [copy.id]: copy }))
             savePage(copy).then(() => refreshList())
           }}>
             复制页
           </Button>
           <Button onClick={() => {
-            const fresh: PageDoc = {
-              id: `user-page-${Date.now() % 10000}`,
+            upsertLocalPage({
+              id: newPageId(),
               name: '新页面',
               switchKey: null,
               pos: [0.5, 0.5],
@@ -286,13 +393,20 @@ export const LayoutTab: React.FC = () => {
               font: { family: '', sizeAdd: 0, scaleSource: '' },
               contentVersion: 0,
               components: [],
-            }
-            setPageDocs(prev => ({ ...prev, [fresh.id]: fresh }))
-            setActiveId(fresh.id)
+            })
           }}>
             新建页
           </Button>
         </Space>
+        {/* 构建错误回显 (类型未注册/工厂 Err — 此前仅 Rust warn 日志静默失败) */}
+        {solve && solve.errors.length > 0 && (
+          <Alert
+            type="error"
+            showIcon
+            message={`${solve.errors.length} 个组件构建失败`}
+            description={solve.errors.map(([id, reason]) => `「${id}」: ${reason}`).join('；')}
+          />
+        )}
         <Canvas
           solve={solve}
           page={active}
@@ -308,6 +422,7 @@ export const LayoutTab: React.FC = () => {
         component={selected}
         onPatchPage={patchPage}
         onPatchComponent={(id, mut) => patchComponent(id, mut)}
+        onRename={renameComponent}
         onRemove={removeComponent}
         onDuplicate={duplicateComponent}
       />
