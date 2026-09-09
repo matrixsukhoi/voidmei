@@ -104,6 +104,10 @@ fn dispatch_form(
                         "configKeys": m.config_keys,
                         "dataShorts": m.data_shorts,
                         "propsSchema": schema,
+                        // palette 新建初值 (const JSON 文本 → 对象直传; 空值工厂
+                        // Err → 组件静默不建是 P0 静默失败问题的根源)
+                        "defaultProps": serde_json::from_str::<serde_json::Value>(m.default_props)
+                            .unwrap_or_else(|_| serde_json::json!({})),
                     })
                 })
                 .collect();
@@ -288,8 +292,12 @@ fn dispatch_form(
 }
 
 
-/// W4 编辑器快照求解 (主线程 — Rc 渲染面): PageDoc → 布局矩形 + PNG。
-/// 字体按页分派 (minihud 页 = preview ctx 三档, 其余 24px 基准)。
+/// W4 编辑器快照求解 (主线程 — Rc 渲染面): PageDoc → 画布系矩形 + PNG。
+/// WYSIWYG: 参数与真窗注册面同源 — 主线程现取 OverlayInputs (真实用户设置 +
+/// 真实 DPI + 组字号/gauge 参数), 此前用出厂默认 + dpi 1.0 + 固定 24px,
+/// 编辑器与真窗大小天然不一致 (与"所见即所得"承诺直接冲突)。
+/// 现取 = 快照式一致视图: dispatcher 与配置写点同在主线程串行, 无撕裂面;
+/// 成本 = 数十次 cfg 树读, 100ms 防抖一次可忽略 (将来可 CONFIG_CHANGED 缓存)。
 fn solve_page_ipc(
     page: serde_json::Value,
     shell: &Rc<RefCell<AppShell>>,
@@ -302,24 +310,36 @@ fn solve_page_ipc(
         let s = shell.borrow();
         s.env.fonts_dir.clone()
     };
-    let settings = vm_core::config::config_api::HudSettingsSnapshot::default();
-    // minihud 族组件的 preview 派生 ctx (离线 create: 出厂默认 settings + dpi 1.0)
+    // 真窗同源参数快照 (controller 缺席 = 托盘重建瞬间, 磁盘配置兜底)
+    let inputs = {
+        let s = shell.borrow();
+        let config = s
+            .controller
+            .as_ref()
+            .map(|c| c.config.clone())
+            .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
+        crate::overlay_inputs::OverlayInputs::build(&config, &s.env, &s.shared)
+    };
+    let params = vm_overlay::platform::reinit::ReinitParams::from(&inputs);
+    // minihud 族组件的 preview 派生 ctx (真实 settings + 真实 dpi)
     let preview_ctx = match vm_overlay::overlays::minihud::MinimalHudContext::create(
-        &settings,
-        1.0,
+        &inputs.hud,
+        inputs.dpi_scale,
         &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
     ) {
         Ok(c) => c,
         Err(e) => return IpcReply::Err(format!("preview ctx 构造失败: {e}")),
     };
     // 页面字体: minihud 页 = ctx 三档 (行距/字高一致, 与真窗同源);
-    // 其余页 = 24px 编辑器基准 (线程本地缓存 — 100ms 防抖 solve 高频)
+    // 其余页 = resolve_page_font_size (出厂页按组 font_add / 用户页按
+    // doc.font.sizeAdd, dpi 后 — 线程本地缓存, 100ms 防抖 solve 高频)
     let fonts = if doc.canvas.as_deref() == Some("minihud") {
         Rc::new(preview_ctx.fonts.clone())
     } else {
+        let fs = vm_overlay::widgets::resolve_page_font_size(&doc, &params, inputs.dpi_scale);
         match vm_overlay::render::font::LoadedFont::new_cached(
             &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
-            24,
+            fs,
         ) {
             Ok(f) => Rc::new(vm_overlay::overlays::minihud::MiniHudFonts {
                 draw: Rc::clone(&f),
@@ -329,18 +349,24 @@ fn solve_page_ipc(
             Err(e) => return IpcReply::Err(format!("字体加载失败: {e}")),
         }
     };
-    // 编辑器 preview 参数面: lang (OnceLock 缓存) + 出厂默认兜底
-    // 用户实际配置经真窗 WYSIWYG 链反映,
-    // 编辑器快照为布局示意)
+    // gauge 参数真值 (dpi/组字号/节流 — 此前 None 走 Java 回退缺省)
+    let gauge = vm_overlay::widgets::GaugeCfg::from_params(
+        &params,
+        inputs.dpi_scale,
+        {
+            let s = shell.borrow();
+            s.env.dpi.get_logical_screen_height()
+        },
+    );
     let lang = vm_core::lang::Lang::init_lang();
     let fctx = vm_overlay::widgets::FactoryCtx {
         minihud_ctx: Some(&preview_ctx),
         fonts,
         lang: Some(&lang),
         fonts_dir: Some(fonts_dir),
-        gauge_cfg: None,
+        gauge_cfg: Some(&gauge),
     };
-    match vm_overlay::widgets::solve_page_snapshot(&doc, &fctx, &settings) {
+    match vm_overlay::widgets::solve_page_snapshot(&doc, &fctx, &inputs.hud) {
         Ok(r) => {
             let items: Vec<_> = r
                 .items
@@ -353,7 +379,19 @@ fn solve_page_ipc(
                 "lineHeightPx": r.line_height_px,
                 "pageW": r.page_w,
                 "pageH": r.page_h,
+                // 画布系元数据 (前端 PNG 以 −offset 反变换回画布视图)
+                "offsetX": r.offset_x,
+                "offsetY": r.offset_y,
+                "contentX": r.content_x,
+                "contentY": r.content_y,
+                "contentW": r.content_w,
+                "contentH": r.content_h,
+                "padding": r.padding,
+                "canvasW": r.canvas_w,
+                "canvasH": r.canvas_h,
                 "items": items,
+                // 构建错误回显 (类型未注册/工厂 Err — 此前仅 warn 日志静默失败)
+                "errors": r.errors,
                 "png": r.png,
             }))
             .map(IpcReply::Ok)

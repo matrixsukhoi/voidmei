@@ -367,6 +367,10 @@ impl<T> ModernHUDLayoutEngine<T> {
             new_height,
             offset_x,
             offset_y,
+            content_x: content_bounds.x,
+            content_y: content_bounds.y,
+            content_w: content_bounds.width,
+            content_h: content_bounds.height,
         }
     }
 
@@ -415,6 +419,12 @@ pub struct AutoSizingPlan {
     pub new_height: i32,
     pub offset_x: i32,
     pub offset_y: i32,
+    /// 内容包围盒 (画布系) — 编辑器画布坐标系的基准面: solve 快照用
+    /// (窗口视图 = 画布视图 + offset 平移; offset = padding − content 原点)
+    pub content_x: i32,
+    pub content_y: i32,
+    pub content_w: i32,
+    pub content_h: i32,
 }
 
 /// Java `String.hashCode()` (JLS: h = 31*h + c, UTF-16 码元)。

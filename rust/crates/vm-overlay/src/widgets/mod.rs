@@ -20,5 +20,5 @@ pub mod registry;
 pub use env::{FactoryCtx, GaugeCfg, MiniHudTemplates, StyleEnv, UpdateEnv};
 pub use fm_sidecar::{SidecarAction, SidecarCtx, WidgetSidecar};
 pub use page_layout::{build_page_layout, BuiltPageLayout, PageBuildInputs};
-pub use page_overlay::{page_font_size, page_overlay_spec, solve_page_snapshot, PageHandle, PageOverlay, PageSpecParams, SolveResult};
+pub use page_overlay::{page_font_size, page_overlay_spec, resolve_page_font_size, solve_page_snapshot, PageHandle, PageOverlay, PageSpecParams, SolveResult};
 pub use registry::{lookup_widget, widget_registry, HudWidget, WidgetCell, WidgetCategory, WidgetMeta};

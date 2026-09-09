@@ -236,6 +236,7 @@ pub(super) const DATA_FIELD_META: WidgetMeta = WidgetMeta {
     ],
     config_keys: DATA_FIELD_KEYS,
     data_shorts: &[],
+    default_props: r#"{"target":"ias","label":"表  速","unit":"Km/h","precision":0,"previewValue":"500"}"#,
     factory: f_data_field,
 };
 

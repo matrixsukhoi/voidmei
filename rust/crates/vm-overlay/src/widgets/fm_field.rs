@@ -670,6 +670,7 @@ const FM_FIELD_META_ENTRY: WidgetMeta = WidgetMeta {
     ],
     config_keys: FM_KEYS,
     data_shorts: &[],
+    default_props: r#"{"key":"weight.empty"}"#,
     factory: f_fm_field,
 };
 
@@ -702,6 +703,7 @@ const FM_META_META_ENTRY: WidgetMeta = WidgetMeta {
     ],
     config_keys: FM_KEYS,
     data_shorts: &[],
+    default_props: r#"{"key":"fm.version"}"#,
     factory: f_fm_meta,
 };
 

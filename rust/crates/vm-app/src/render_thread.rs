@@ -28,7 +28,7 @@ use vm_core::lang::Lang;
 
 use vm_overlay::overlays::minihud::{minihud_overlay_spec, MiniHudHandle};
 use vm_overlay::platform::host::{OverlayHost, OverlaySpec};
-use vm_overlay::widgets::{page_font_size, page_overlay_spec, PageHandle, PageSpecParams};
+use vm_overlay::widgets::{page_overlay_spec, PageHandle, PageSpecParams};
 use vm_overlay::platform::hotkey::HotkeyEvent;
 
 #[cfg(target_os = "windows")]
@@ -336,35 +336,13 @@ fn assemble_page_spec(
     lang: &Rc<Lang>,
     params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
 ) -> PageSpecParams {
-    // 参数仓快照 (per-page 分差)
+    // 参数仓快照 (per-page 分差; gauge/字号与编辑器快照同源 — env.rs from_params
+    // + page_overlay.rs resolve_page_font_size 的收敛点)
     let p = params.borrow();
     let dpi = env.dpi.get_scale();
-    let gauge = vm_overlay::widgets::GaugeCfg {
-        dpi_scale: dpi,
-        service_loop_interval_ms: p.service_loop_interval_ms,
-        engine_font_add: p.engine.font_add,
-        gear: (p.gear.font_add, p.gear.show_edge),
-        axis: (p.axis.font_add, p.axis.show_edge),
-        attitude: (
-            p.attitude.width,
-            p.attitude.height,
-            p.attitude.show_direction,
-            p.attitude.show_aoa_limits,
-        ),
-        attitude_freq_ms: p.attitude_freq_ms,
-        fm_font_add: p.fm.font_add,
-        logical_height: env.dpi.get_logical_screen_height(),
-    };
-    let font_size = match doc.id.as_str() {
-        "flight-info-default" => page_font_size(24, p.flight.font_add, dpi),
-        "power-info-default" => page_font_size(24, p.power.font_add, dpi),
-        "engine-control-default" => page_font_size(24, p.engine.font_add, dpi),
-        "gear-flaps-default" => page_font_size(24, p.gear.font_add, dpi),
-        "axis-default" => page_font_size(24, p.axis.font_add, dpi),
-        "fm-list-default" | "thrust-chart-default" => 24,
-        // 用户页/其余: 页文档自身字号增量 (PageDoc.font.sizeAdd 落地)
-        _ => page_font_size(24, doc.font.size_add, dpi),
-    };
+    let gauge =
+        vm_overlay::widgets::GaugeCfg::from_params(&p, dpi, env.dpi.get_logical_screen_height());
+    let font_size = vm_overlay::widgets::resolve_page_font_size(&doc, &p, dpi);
     let hud = p.hud.clone();
     drop(p);
 
@@ -384,20 +362,18 @@ fn assemble_page_spec(
             .find(|d| d.id == refresh_doc.id)
             .cloned()
             .unwrap_or_else(|| refresh_doc.clone());
-        let fs = match doc.id.as_str() {
-            "flight-info-default" => page_font_size(24, p.flight.font_add, refresh_env_dpi),
-            "power-info-default" => page_font_size(24, p.power.font_add, refresh_env_dpi),
-            "engine-control-default" => page_font_size(24, p.engine.font_add, refresh_env_dpi),
-            "gear-flaps-default" => page_font_size(24, p.gear.font_add, refresh_env_dpi),
-            "axis-default" => page_font_size(24, p.axis.font_add, refresh_env_dpi),
-            // 用户页/其余: 页文档自身字号增量 (PageDoc.font.sizeAdd 落地)
-            _ => page_font_size(24, doc.font.size_add, refresh_env_dpi),
-        };
+        let fs = vm_overlay::widgets::resolve_page_font_size(&doc, &p, refresh_env_dpi);
         let hud = p.hud.clone();
         drop(p);
         PageSpecParams {
             entry_key: doc.entry_key.clone(),
-            gauge_cfg: refresh_gauge(&refresh_params, refresh_env_dpi),
+            // logical_height 沿用历史硬编码 1080 (P3 备案: 与初装配
+            // get_logical_screen_height 的已知不一致)
+            gauge_cfg: vm_overlay::widgets::GaugeCfg::from_params(
+                &refresh_params.borrow(),
+                refresh_env_dpi,
+                1080,
+            ),
             doc: doc.clone(),
             font_path: refresh_font_path(&doc),
             font_size: fs,
@@ -418,30 +394,6 @@ fn assemble_page_spec(
         settings: hud,
         debug: false,
         refresh,
-    }
-}
-
-/// refresh 闭包的 GaugeCfg 重取 (参数仓 + dpi 快照)
-fn refresh_gauge(
-    params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
-    dpi: f64,
-) -> vm_overlay::widgets::GaugeCfg {
-    let p = params.borrow();
-    vm_overlay::widgets::GaugeCfg {
-        dpi_scale: dpi,
-        service_loop_interval_ms: p.service_loop_interval_ms,
-        engine_font_add: p.engine.font_add,
-        gear: (p.gear.font_add, p.gear.show_edge),
-        axis: (p.axis.font_add, p.axis.show_edge),
-        attitude: (
-            p.attitude.width,
-            p.attitude.height,
-            p.attitude.show_direction,
-            p.attitude.show_aoa_limits,
-        ),
-        attitude_freq_ms: p.attitude_freq_ms,
-        fm_font_add: p.fm.font_add,
-        logical_height: 1080,
     }
 }
 

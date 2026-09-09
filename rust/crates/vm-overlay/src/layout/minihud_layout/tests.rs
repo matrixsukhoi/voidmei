@@ -275,7 +275,12 @@ fn auto_sizing_plan_and_render_offset() {
             new_width: 112,
             new_height: 100,
             offset_x: 10,
-            offset_y: 10
+            offset_y: 10,
+            // 内容包围盒 (0,0,92,80) 画布系原样入计划
+            content_x: 0,
+            content_y: 0,
+            content_w: 92,
+            content_h: 80
         }
     );
     let mut seen = Vec::new();

@@ -124,6 +124,34 @@ impl Default for GaugeCfg {
     }
 }
 
+impl GaugeCfg {
+    /// ReinitParams → GaugeCfg 组装 (真窗注册面 / refresh 闭包 / 编辑器快照
+    /// 三处同源的收敛点)。logical_height 由调用方传入: 初装配用
+    /// dpi.get_logical_screen_height(), refresh 链历史硬编码 1080 (P3 备案)
+    pub fn from_params(
+        p: &crate::platform::reinit::ReinitParams,
+        dpi: f64,
+        logical_height: i32,
+    ) -> Self {
+        GaugeCfg {
+            dpi_scale: dpi,
+            service_loop_interval_ms: p.service_loop_interval_ms,
+            engine_font_add: p.engine.font_add,
+            gear: (p.gear.font_add, p.gear.show_edge),
+            axis: (p.axis.font_add, p.axis.show_edge),
+            attitude: (
+                p.attitude.width,
+                p.attitude.height,
+                p.attitude.show_direction,
+                p.attitude.show_aoa_limits,
+            ),
+            attitude_freq_ms: p.attitude_freq_ms,
+            fm_font_add: p.fm.font_add,
+            logical_height,
+        }
+    }
+}
+
 /// 工厂环境 (组件构造所需的页面派生量)
 pub struct FactoryCtx<'a> {
     /// MiniHUD 派生上下文 (仅 minihud 族组件; W3 页面 None)

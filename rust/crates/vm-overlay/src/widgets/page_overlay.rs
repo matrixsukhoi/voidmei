@@ -277,15 +277,55 @@ pub fn page_font_size(base: i32, add: i32, dpi: f64) -> i32 {
 // W4 编辑器快照面 (solve_page): 布局求解 + PNG 预览 — 与真窗同管线
 // =====================================================================
 
-/// solve 产物 (编辑器画布的数据面: 矩形集 + 像素快照)
+/// 页面主字号解析 (真窗注册面与编辑器快照同源): 出厂页按组 font_add
+/// (panels 行值), fm 两页 24 基准, 用户页按页文档 font.sizeAdd — dpi 后 px
+pub fn resolve_page_font_size(
+    doc: &PageDoc,
+    p: &crate::platform::reinit::ReinitParams,
+    dpi: f64,
+) -> i32 {
+    match doc.id.as_str() {
+        "flight-info-default" => page_font_size(24, p.flight.font_add, dpi),
+        "power-info-default" => page_font_size(24, p.power.font_add, dpi),
+        "engine-control-default" => page_font_size(24, p.engine.font_add, dpi),
+        "gear-flaps-default" => page_font_size(24, p.gear.font_add, dpi),
+        "axis-default" => page_font_size(24, p.axis.font_add, dpi),
+        "fm-list-default" | "thrust-chart-default" => 24,
+        // 用户页/其余: 页文档自身字号增量 (PageDoc.font.sizeAdd)
+        _ => page_font_size(24, doc.font.size_add, dpi),
+    }
+}
+
+/// solve 产物 (编辑器画布的数据面: 画布系矩形 + 像素快照 + 派生元数据)。
+/// 编辑器语义 = 编辑画布内容布局: items 用画布系 (锚点求解原生坐标),
+/// 窗口 (page_w/h + PNG) 是派生物 — 前端以 −offset 把 PNG 反变换回画布视图
 pub struct SolveResult {
     pub line_height_px: i32,
+    /// 窗口尺寸 (内容包围盒 + 2×padding — 派生物)
     pub page_w: i32,
     pub page_h: i32,
-    /// (id, x, y, w, h) — 锚点求解后的组件矩形 (画布系)
+    /// 窗口视图 ← 画布视图的平移 (offset = padding − content 原点)
+    pub offset_x: i32,
+    pub offset_y: i32,
+    /// 内容包围盒 (画布系)
+    pub content_x: i32,
+    pub content_y: i32,
+    pub content_w: i32,
+    pub content_h: i32,
+    /// 窗口留白
+    pub padding: i32,
+    /// 逻辑画布 (4096 自由 / minihud ctx 派生)
+    pub canvas_w: i32,
+    pub canvas_h: i32,
+    /// (id, x, y, w, h) — 组件矩形, **画布系**、页文档序 (= 稳定 z 序)。
+    /// 此前加 offset 返回窗口系且 HashMap 迭代序随机: 前端把窗口位移当画布
+    /// 位移用, auto-sizing 每次重解重推包围盒 → 拖最左/最上组件纹丝不动、
+    /// 其余组件反向跳动 (P0 拖动 bug 根因)
     pub items: Vec<(String, i32, i32, i32, i32)>,
-    /// RGBA 直通 PNG 字节流 (与真 overlay 同 PixCanvas+swash 管线 = 像素一致)
-    pub png: Vec<u8>,
+    /// 组件构建错误 (id, 原因) — 编辑器回显防静默失败
+    pub errors: Vec<(String, String)>,
+    /// RGBA 直通 PNG (base64; 与真 overlay 同 PixCanvas+swash 管线 = 像素一致)
+    pub png: String,
 }
 
 /// 页面快照求解 (编辑器 100ms 防抖调用; 主线程 — Rc 边界内)。
@@ -296,7 +336,9 @@ pub fn solve_page_snapshot(
     settings: &HudSettingsSnapshot,
 ) -> Result<SolveResult, String> {
     let page = PageOverlay::build(doc, fctx, settings, false, true);
-    let line_height_px = page_canvas(doc, fctx).2 as i32;
+    let (canvas_w, canvas_h, line_height) = page_canvas(doc, fctx);
+    let line_height_px = line_height as i32;
+    let errors = page.layout.errors.clone();
     // minihud 族 preview 模板 (行文本示例; 与真窗 preview 同源构造)
     let templates = crate::overlays::minihud::preview_templates(
         settings,
@@ -307,26 +349,35 @@ pub fn solve_page_snapshot(
         cell.push_templates(&templates);
     }
     let Some(sizing) = page.sizing() else {
+        // 空页: 无内容无快照 (前端有空态占位文案)
         return Ok(SolveResult {
             line_height_px,
-            page_w: 1,
-            page_h: 1,
+            page_w: 0,
+            page_h: 0,
+            offset_x: 0,
+            offset_y: 0,
+            content_x: 0,
+            content_y: 0,
+            content_w: 0,
+            content_h: 0,
+            padding: doc.padding,
+            canvas_w,
+            canvas_h,
             items: Vec::new(),
-            png: Vec::new(),
+            errors,
+            png: String::new(),
         });
     };
-    // 布局求解后的组件矩形 (engine 的 pixel rect + 偏移)
+    // 组件矩形: 画布系原样 (不加窗口 offset), 按页文档序 (z 序稳定,
+    // 与前端 components 数组序一致)
     let mut items = Vec::new();
-    for (id, cell) in &page.cells {
-        let _ = cell;
-        let node = page.layout.engine.get_node(id);
-        if let Some(node) = node {
+    for comp in &doc.components {
+        if let Some(node) = page.layout.engine.get_node(&comp.id) {
             let r = node.get_pixel_rect();
-            let off = (sizing.offset_x, sizing.offset_y);
-            items.push((id.clone(), r.x + off.0, r.y + off.1, r.width, r.height));
+            items.push((comp.id.clone(), r.x, r.y, r.width, r.height));
         }
     }
-    // 渲染快照 (清零重画到独立画布)
+    // 渲染快照 (清零重画到独立画布; 窗口视图 = 画布 + offset)
     let mut cv = crate::render::canvas::PixCanvas::new(sizing.new_width, sizing.new_height)?;
     let mut page = page;
     page.draw(&mut cv, crate::render::palette::aa());
@@ -341,11 +392,25 @@ pub fn solve_page_snapshot(
             .write_image_data(rgba.chunks(4).flat_map(|p| p.iter().copied()).collect::<Vec<_>>().as_slice())
             .map_err(|e| e.to_string())?;
     }
+    // base64 在 Rust 侧编码: 前端此前收 number[] (逐字节 JSON 数字, 100KB PNG
+    // ≈ 400KB 文本) 每次 solve 全量重传 — 改字符串直传
+    use base64::Engine as _;
+    let png = base64::engine::general_purpose::STANDARD.encode(&png_out);
     Ok(SolveResult {
         line_height_px,
         page_w: sizing.new_width,
         page_h: sizing.new_height,
+        offset_x: sizing.offset_x,
+        offset_y: sizing.offset_y,
+        content_x: sizing.content_x,
+        content_y: sizing.content_y,
+        content_w: sizing.content_w,
+        content_h: sizing.content_h,
+        padding: doc.padding,
+        canvas_w,
+        canvas_h,
         items,
-        png: png_out,
+        errors,
+        png,
     })
 }

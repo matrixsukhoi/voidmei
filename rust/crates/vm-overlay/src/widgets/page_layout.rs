@@ -30,7 +30,14 @@ fn anchor_from_name(name: &str) -> Anchor {
         "BottomLeft" => Anchor::BottomLeft,
         "BottomCenter" => Anchor::BottomCenter,
         "BottomRight" => Anchor::BottomRight,
-        _ => Anchor::TopLeft,
+        _ => {
+            // 非空未知锚点名 (拼写错误) 静默降级 TopLeft 会让布局"莫名错位" —
+            // 打 warn 提示; 空串是合法缺省不报
+            if !name.is_empty() {
+                logger::warn("PageLayout", &format!("未知锚点名: {name:?} (降级 TopLeft)"));
+            }
+            Anchor::TopLeft
+        }
     }
 }
 
@@ -57,6 +64,9 @@ pub struct BuiltPageLayout {
     pub sizing: Option<AutoSizingPlan>,
     /// id → 组件句柄 (build 后编排器/数据面分发用)
     pub cells: HashMap<String, WidgetCell>,
+    /// 构建错误 (id, 原因): 类型未注册/工厂 Err — 编辑器回显而非静默失败
+    /// (enabled=false / visibleWhen 不满足是正常门控, 不入此表)
+    pub errors: Vec<(String, String)>,
 }
 
 impl BuiltPageLayout {
@@ -66,6 +76,7 @@ impl BuiltPageLayout {
             engine: ModernHUDLayoutEngine::new(w, h),
             sizing: None,
             cells: HashMap::new(),
+            errors: Vec::new(),
         }
     }
 }
@@ -79,16 +90,18 @@ pub fn build_page_layout(inputs: &PageBuildInputs) -> BuiltPageLayout {
     engine.set_line_height(inputs.line_height);
 
     let mut cells: HashMap<String, WidgetCell> = HashMap::new();
+    let mut errors: Vec<(String, String)> = Vec::new();
     if doc.components.is_empty() {
         return BuiltPageLayout {
             engine,
             sizing: None,
             cells,
+            errors,
         };
     }
 
     for comp in &doc.components {
-        let Some(cell) = build_component(comp, inputs) else { continue };
+        let Some(cell) = build_component(comp, inputs, &mut errors) else { continue };
         // 父解析: 缺席退化根 (模块头语义裁决)
         let parent = comp.parent.as_deref().and_then(|pid| engine.get_node(pid));
         let node = HUDLayoutNode::new(comp.id.clone(), cell.clone());
@@ -104,6 +117,7 @@ pub fn build_page_layout(inputs: &PageBuildInputs) -> BuiltPageLayout {
             engine,
             sizing: None,
             cells,
+            errors,
         };
     }
 
@@ -115,11 +129,17 @@ pub fn build_page_layout(inputs: &PageBuildInputs) -> BuiltPageLayout {
         engine,
         sizing: Some(sizing),
         cells,
+        errors,
     }
 }
 
-/// 单组件建身: enabled + visibleWhen 门控 → 工厂造件
-fn build_component(comp: &ComponentDoc, inputs: &PageBuildInputs) -> Option<WidgetCell> {
+/// 单组件建身: enabled + visibleWhen 门控 → 工厂造件。
+/// 门控跳过 (None) 不算错误; 类型未注册/工厂 Err 返回 None 并落 errors
+fn build_component(
+    comp: &ComponentDoc,
+    inputs: &PageBuildInputs,
+    errors: &mut Vec<(String, String)>,
+) -> Option<WidgetCell> {
     if !comp.enabled {
         return None;
     }
@@ -132,19 +152,17 @@ fn build_component(comp: &ComponentDoc, inputs: &PageBuildInputs) -> Option<Widg
         }
     }
     let Some(meta) = lookup_widget(&comp.r#type) else {
-        logger::warn(
-            "PageLayout",
-            &format!("组件类型未注册: {} (id={})", comp.r#type, comp.id),
-        );
+        let reason = format!("组件类型未注册: {}", comp.r#type);
+        logger::warn("PageLayout", &format!("{reason} (id={})", comp.id));
+        errors.push((comp.id.clone(), reason));
         return None;
     };
     match (meta.factory)(&comp.props, inputs.fctx) {
         Ok(inner) => Some(WidgetCell::new(inner, inputs.fctx.fonts.clone())),
         Err(e) => {
-            logger::warn(
-                "PageLayout",
-                &format!("组件构造失败: {} (id={}: {e})", comp.r#type, comp.id),
-            );
+            let reason = format!("组件构造失败 ({}) props 非法: {e}", comp.r#type);
+            logger::warn("PageLayout", &format!("{reason} (id={})", comp.id));
+            errors.push((comp.id.clone(), reason));
             None
         }
     }

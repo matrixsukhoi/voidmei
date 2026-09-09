@@ -225,6 +225,9 @@ pub struct WidgetMeta {
     pub config_keys: &'static [&'static str],
     /// 数据依赖短名 (palette 提示/校验)
     pub data_shorts: &'static [&'static str],
+    /// palette 新建组件的合法初值 (const JSON): 空值工厂 Err → 组件静默不建,
+    /// 编辑器无从反馈 — 前端用此值兜底 (显示层预设可覆盖同名键)
+    pub default_props: &'static str,
     pub factory: WidgetFactory,
 }
 

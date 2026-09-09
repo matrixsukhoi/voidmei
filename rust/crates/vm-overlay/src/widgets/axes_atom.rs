@@ -144,5 +144,6 @@ pub(super) const REGISTRY_ENTRIES: &[WidgetMeta] = &[WidgetMeta {
     }],
     config_keys: &["fontSize"],
     data_shorts: &["rudder"],
+    default_props: "{}",
     factory: f_rudder_bar,
 }];

@@ -14,6 +14,8 @@ png = { workspace = true }
 swash = { workspace = true }
 ttf-parser = { workspace = true }
 tiny-skia = "0.12.0"
+# 编辑器 solve 快照 PNG 的 base64 编码 (此前 number[] JSON 传输, 见 page_overlay.rs)
+base64 = "0.22"
 
 [target.'cfg(windows)'.dependencies]
 # 增补 feature (基线见 workspace 根):

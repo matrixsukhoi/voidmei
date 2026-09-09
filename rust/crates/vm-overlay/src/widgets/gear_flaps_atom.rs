@@ -297,6 +297,7 @@ pub(super) const REGISTRY_ENTRIES: &[WidgetMeta] = &[
         props_schema: &[FONT_ADD_PROP],
         config_keys: KEYS,
         data_shorts: &["flaps"],
+        default_props: "{}",
         factory: f_flap_bar,
     },
     WidgetMeta {
@@ -307,6 +308,7 @@ pub(super) const REGISTRY_ENTRIES: &[WidgetMeta] = &[
         props_schema: &[FONT_ADD_PROP],
         config_keys: KEYS,
         data_shorts: &["gear", "airbrake"],
+        default_props: "{}",
         factory: f_gear_warn,
     },
 ];

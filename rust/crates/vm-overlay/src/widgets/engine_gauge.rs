@@ -298,5 +298,6 @@ pub(super) const ENGINE_GAUGE_META: WidgetMeta = WidgetMeta {
     }],
     config_keys: ENGINE_GAUGE_KEYS,
     data_shorts: &[],
+    default_props: r#"{"kind":"throttle"}"#,
     factory: f_engine_gauge,
 };

@@ -259,6 +259,7 @@ const fn meta(
         props_schema: EMPTY_PROPS,
         config_keys,
         data_shorts: &[],
+        default_props: "{}",
         factory,
     }
 }
