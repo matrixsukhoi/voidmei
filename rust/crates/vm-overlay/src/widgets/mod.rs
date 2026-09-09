@@ -9,6 +9,7 @@ pub mod data_field;
 pub mod engine_gauge;
 pub mod env;
 pub mod fm_field;
+pub mod fm_list;
 pub mod fm_sidecar;
 pub mod gear_flaps_atom;
 pub mod gauges_composite;
