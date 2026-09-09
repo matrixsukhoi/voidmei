@@ -69,6 +69,30 @@ pub trait PositionStore {
 /// Java Application.previewColor = (0,0,0,10): 预览模式极淡黑底 (同 window.rs, 便于看清范围)
 const PREVIEW_BG: [u8; 4] = [0x00, 0x00, 0x00, 0x0A];
 
+// ===================== R5 编辑事件面 (真窗即画布) =====================
+
+/// 编辑桥承载的鼠标事件 (屏幕坐标; host 拖拽状态机之外的外发面)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EditMouse {
+    Move { x: i32, y: i32 },
+    Release,
+    RightPress { x: i32, y: i32 },
+    DoubleClick { x: i32, y: i32 },
+}
+
+/// 编辑桥: vm-app 编辑会话注入 host 的事件外发/装饰叠加面 (host 不依赖 vm-app)。
+/// 三闭包均按 entry id 寻址; 摘桥/挂桥经 [`OverlayHost::set_edit_bridge`]
+pub struct EditBridge {
+    /// 按下裁决: true = 编辑层接管 (host 不启动整窗拖拽), false = host 既有
+    /// 整窗拖拽。参数 = (entry_id, 屏幕坐标, 窗口左上角)
+    pub on_press: Box<dyn FnMut(&str, i32, i32, (i32, i32)) -> bool>,
+    /// 无拖拽时的 Move / Release / 右键 / 双击 (拖整窗期间不发)
+    pub on_event: Box<dyn FnMut(&str, EditMouse)>,
+    /// 编辑装饰叠加 (render 闭包之后调用; 画布 = 窗口视图坐标系,
+    /// 像素变化自然触发脏检查 present)
+    pub on_paint: Box<dyn FnMut(&str, &mut PixCanvas)>,
+}
+
 /// 注册用描述 (注册不建实例)
 pub struct OverlaySpec {
     /// 唯一实例键 (Java entries LinkedHashMap 的 key; 亦为位置存档键)。
@@ -191,6 +215,8 @@ pub struct OverlayHost {
     saved_positions: HashMap<String, (f64, f64)>,
     /// 位置存档后端 (None = 纯内存档)
     position_store: Option<Box<dyn PositionStore>>,
+    /// 编辑桥 (R5: 编辑会话期间挂载; None = 常规形态, 事件全归拖拽状态机)
+    edit_bridge: Option<EditBridge>,
     /// 游戏失焦隐藏标志 — Java 侧需 volatile 因 FocusMonitor 在 Service 线程调用;
     /// host 为单线程独占 (&mut self), 服务线程经消息送主循环调用, 普通 bool 即可
     overlays_hidden: bool,
@@ -222,6 +248,7 @@ impl OverlayHost {
             pending_dialogs: 0,
             saved_positions: HashMap::new(),
             position_store: None,
+            edit_bridge: None,
             overlays_hidden: false,
             stop: Arc::new(AtomicBool::new(false)),
         }
@@ -250,6 +277,11 @@ impl OverlayHost {
     pub fn with_position_store(&mut self, store: Box<dyn PositionStore>) -> &mut Self {
         self.position_store = Some(store);
         self
+    }
+
+    /// 挂/卸编辑桥 (R5: 编辑会话进出时切换; None = 常规形态)
+    pub fn set_edit_bridge(&mut self, bridge: Option<EditBridge>) {
+        self.edit_bridge = bridge;
     }
 
     /// 注册 overlay (不建实例)
@@ -721,13 +753,15 @@ impl OverlayHost {
         }
     }
 
-    /// 一轮消息泵: 逐窗口取事件 → 拖拽状态机; Close 事件走 close 销毁链 (槽位放回后)。
-    /// 返回本轮因 Close 事件被关闭的 id (Java 无对应返回, 测试/上层生命周期用)。
+    /// 一轮消息泵: 逐窗口取事件 → 拖拽状态机 (+ R5 编辑桥外发); Close 事件走
+    /// close 销毁链 (槽位放回后)。返回本轮因 Close 事件被关闭的 id。
     /// poll_event (→DispatchMessageW→WNDPROC 回调) 与 set_position/position/screen_size
     /// (系统调用) 均为外部代码; 事件处理在持槽位所有权下执行, 拖拽落点保存推迟到循环尾。
     pub fn pump_events(&mut self) -> Vec<String> {
         let mut closed: Vec<String> = Vec::new();
         let mut position_saves: Vec<(String, f64, f64)> = Vec::new();
+        // 编辑桥摘出 (事件裁决闭包与槽位/条目操作无借用交叉; 循环尾放回)
+        let mut bridge = self.edit_bridge.take();
         for i in 0..self.entries.len() {
             // ① 摘槽位
             let taken = self.entries[i].slot.take();
@@ -742,9 +776,14 @@ impl OverlayHost {
                         break; // 槽位放回后由 close() 走完整销毁链 (存位置 → drop)
                     }
                     OverlayEvent::MousePress { root_x, root_y } => {
+                        let (wx, wy) = sl.window.position();
+                        // R5 编辑桥裁决: true = 编辑层接管 (组件手势), 不启动整窗拖拽
+                        let mut edited = false;
+                        if let Some(b) = bridge.as_mut() {
+                            edited = (b.on_press)(&self.entries[i].id, root_x, root_y, (wx, wy));
+                        }
                         // 仅 preview 可拖拽 (live 穿透收不到鼠标事件, 双保险)
-                        if self.entries[i].preview {
-                            let (wx, wy) = sl.window.position();
+                        if !edited && self.entries[i].preview {
                             sl.drag = Some((root_x - wx, root_y - wy));
                         }
                     }
@@ -757,6 +796,15 @@ impl OverlayHost {
                             if left_down {
                                 sl.window.set_position(root_x - off_x, root_y - off_y);
                             }
+                        } else if let Some(b) = bridge.as_mut() {
+                            // 无整窗拖拽时编辑层收 Move (hover/手势推进)
+                            (b.on_event)(
+                                &self.entries[i].id,
+                                EditMouse::Move {
+                                    x: root_x,
+                                    y: root_y,
+                                },
+                            );
                         }
                     }
                     OverlayEvent::MouseRelease => {
@@ -767,6 +815,31 @@ impl OverlayHost {
                             if sw > 0 && sh > 0 {
                                 save = Some((wx as f64 / sw as f64, wy as f64 / sh as f64));
                             }
+                        }
+                        if let Some(b) = bridge.as_mut() {
+                            (b.on_event)(&self.entries[i].id, EditMouse::Release);
+                        }
+                    }
+                    OverlayEvent::RightPress { root_x, root_y } => {
+                        if let Some(b) = bridge.as_mut() {
+                            (b.on_event)(
+                                &self.entries[i].id,
+                                EditMouse::RightPress {
+                                    x: root_x,
+                                    y: root_y,
+                                },
+                            );
+                        }
+                    }
+                    OverlayEvent::DoubleClick { root_x, root_y } => {
+                        if let Some(b) = bridge.as_mut() {
+                            (b.on_event)(
+                                &self.entries[i].id,
+                                EditMouse::DoubleClick {
+                                    x: root_x,
+                                    y: root_y,
+                                },
+                            );
                         }
                     }
                 }
@@ -780,6 +853,7 @@ impl OverlayHost {
                 closed.push(self.entries[i].id.clone());
             }
         }
+        self.edit_bridge = bridge;
         for (id, nx, ny) in position_saves {
             self.saved_positions.insert(id.clone(), (nx, ny));
             // 拖拽松手即落盘 (Java DraggableOverlay mouseReleased → saveWindowPosition
@@ -795,9 +869,11 @@ impl OverlayHost {
     }
 
     /// 一帧渲染: 清底 (preview 铺极淡黑底, Java applyPreviewStyle) → render 闭包 →
-    /// 与上帧逐字节比较 → 变化才 present (脏检查, Java repaint 抑制 / 零无谓提交)。
+    /// (R5 编辑桥装饰叠加) → 与上帧逐字节比较 → 变化才 present (脏检查)。
     /// render 闭包是任意第三方代码, present 是系统调用 — 在持槽位所有权下执行
     pub fn render_tick(&mut self) -> Result<(), String> {
+        // 编辑桥摘出 (on_paint 与 entry 借用无交叉; 循环尾放回)
+        let mut bridge = self.edit_bridge.take();
         for i in 0..self.entries.len() {
             if self.entries[i].canvas.is_none() {
                 continue; // materialize 保证 canvas 先于窗口存在, 此处防御性跳过
@@ -818,6 +894,10 @@ impl OverlayHost {
                     canvas.fill_rect(0, 0, cw, ch, PREVIEW_BG);
                 }
                 (entry.render)(canvas);
+                // R5 编辑装饰叠加 (选中框/参考线/手柄; 像素变化自然触发下方脏检查)
+                if let Some(b) = bridge.as_mut() {
+                    (b.on_paint)(&entry.id, canvas);
+                }
                 // 指纹 = 预乘 RGBA 逐字节 (比 window.rs 的字符串指纹更严: 任何像素变化都
                 // 重绘)。先零拷贝比较 (整帧克隆 400x300 ≈ 480KB/tick, 未变化时白拷),
                 // 命中变化才克隆存档
@@ -835,6 +915,7 @@ impl OverlayHost {
             self.entries[i].slot = Some(sl);
             result?;
         }
+        self.edit_bridge = bridge;
         Ok(())
     }
 

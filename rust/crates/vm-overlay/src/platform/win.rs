@@ -19,10 +19,11 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{ReleaseCapture, SetCapture};
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DestroyWindow, DispatchMessageW, GetCursorPos, GetWindowLongPtrW, LoadCursorW,
     PeekMessageW, RegisterClassW, SetWindowLongPtrW, SetWindowPos, ShowWindow, TranslateMessage,
-    CS_HREDRAW, CS_VREDRAW, GWL_EXSTYLE, HTCLIENT, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST,
+    CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, GWL_EXSTYLE, HTCLIENT, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST,
     IDC_ARROW, MSG, PM_REMOVE, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_HIDE,
     SW_SHOWNOACTIVATE, ULW_ALPHA, WINDOW_EX_STYLE, WM_CAPTURECHANGED, WM_DESTROY, WM_LBUTTONDOWN,
-    WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCHITTEST, WM_POINTERUP, WNDCLASSW, WS_EX_LAYERED,
+    WM_LBUTTONDBLCLK, WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCHITTEST, WM_POINTERUP, WM_RBUTTONDOWN,
+    WNDCLASSW, WS_EX_LAYERED,
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
 };
 
@@ -66,6 +67,30 @@ unsafe extern "system" fn wnd_proc(
             push_event(
                 hwnd,
                 OverlayEvent::MousePress {
+                    root_x: x,
+                    root_y: y,
+                },
+            );
+            LRESULT(0)
+        }
+        WM_RBUTTONDOWN => {
+            // R5 编辑面: 右键 (不捕获 — 无右键拖拽语义)
+            let (x, y) = cursor_root_pos();
+            push_event(
+                hwnd,
+                OverlayEvent::RightPress {
+                    root_x: x,
+                    root_y: y,
+                },
+            );
+            LRESULT(0)
+        }
+        WM_LBUTTONDBLCLK => {
+            // R5 编辑面: 双击 (窗口类需 CS_DBLCLKS 才会收到)
+            let (x, y) = cursor_root_pos();
+            push_event(
+                hwnd,
+                OverlayEvent::DoubleClick {
                     root_x: x,
                     root_y: y,
                 },
@@ -162,7 +187,8 @@ pub fn create(cfg: WindowConfig) -> Result<WinOverlay, String> {
         let class_name = w!("VoidMeiOverlay");
 
         let wc = WNDCLASSW {
-            style: CS_HREDRAW | CS_VREDRAW,
+            // CS_DBLCLKS: 编辑面双击事件 (R5)
+            style: CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS,
             lpfnWndProc: Some(wnd_proc),
             hInstance: hinstance.into(),
             lpszClassName: class_name,

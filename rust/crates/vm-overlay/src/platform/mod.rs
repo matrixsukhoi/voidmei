@@ -13,7 +13,7 @@ pub struct WindowConfig {
     pub click_through: bool,
 }
 
-/// 主循环消费的事件 (拖拽状态机输入)
+/// 主循环消费的事件 (拖拽状态机输入 + R5 编辑事件面)
 /// derive PartialEq: 事件分流单测断言用 (Java 无对应, Rust 测试面)
 #[derive(Debug, PartialEq)]
 pub enum OverlayEvent {
@@ -28,6 +28,16 @@ pub enum OverlayEvent {
         left_down: bool,
     },
     MouseRelease,
+    /// 右键按下 (编辑面: 上下文菜单等; 坐标 = 屏幕系)
+    RightPress {
+        root_x: i32,
+        root_y: i32,
+    },
+    /// 左键双击 (编辑面; 需窗口类 CS_DBLCLKS)
+    DoubleClick {
+        root_x: i32,
+        root_y: i32,
+    },
 }
 
 pub trait OverlayWindow {
