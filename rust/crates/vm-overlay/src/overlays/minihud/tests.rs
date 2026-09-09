@@ -907,7 +907,7 @@ fn overlay_spec_sizes_and_renders() {
     }));
     let (handle, mut spec) =
         minihud_overlay_spec(false, 100, &s, 1.0, &font_path(), &cell).unwrap();
-    assert_eq!(spec.id, "crosshairSwitch");
+    assert_eq!(spec.id, "minihud-default"); // R3: 条目键 = 页 id
     assert_eq!(spec.config_key, "crosshairSwitch");
     let plan = handle.borrow().sizing().unwrap();
     assert_eq!((spec.width, spec.height), (plan.new_width, plan.new_height));

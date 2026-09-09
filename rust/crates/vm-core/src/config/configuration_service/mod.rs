@@ -286,12 +286,11 @@ impl ConfigurationService {
         }
     }
 
-    /// 组装层位置桥 (归一化直读): 窗口位置唯一真源 = 页文档 pos。
-    /// R2 前位置走 panels 组配置 (OVERLAY_SECTIONS 标题映射 — 用户页不在
-    /// 映射表里位置永不持久化的旧缺陷根源), 现按 host 条目键查合成页。
-    pub fn page_position(&self, host_key: &str) -> Option<(f64, f64)> {
+    /// 组装层位置桥 (归一化直读): 窗口位置唯一真源 = 页文档 pos,
+    /// 按页 id 查合成页 (R3 起条目键 = 页 id)
+    pub fn page_position(&self, page_id: &str) -> Option<(f64, f64)> {
         let pages = self.pages();
-        let page = pages.iter().find(|p| p.host_key() == host_key)?;
+        let page = pages.iter().find(|p| p.id == page_id)?;
         Some((page.pos[0], page.pos[1]))
     }
 

@@ -167,7 +167,7 @@ fn with_interest_targets_last_entry() {
     let mut host = OverlayHost::with_factory(mock.factory());
     host.register(spec("a", 40, 30, [255, 0, 0, 255]));
     host.register(spec("b", 40, 30, [0, 255, 0, 255]))
-        .with_interest(&["shared"]);
+        .with_interest(&["shared".to_string()]);
     assert!(!host.entries[0].is_interested_in(Some("shared_x")));
     assert!(host.entries[1].is_interested_in(Some("shared_x")));
     assert!(host.entries[1].is_interested_in(Some("b"))); // 默认自身键
@@ -552,7 +552,7 @@ fn refresh_preview_key_filtering() {
     let mut host = OverlayHost::with_factory(mock.factory());
     host.register(spec("a", 40, 30, [255, 0, 0, 255]));
     host.register(spec("b", 40, 30, [0, 255, 0, 255]))
-        .with_interest(&["shared"]);
+        .with_interest(&["shared".to_string()]);
     host.register(spec("c", 40, 30, [0, 0, 255, 255]));
     // 只动 a: 仅 a 建
     host.refresh_preview_key(Some("a")).unwrap();

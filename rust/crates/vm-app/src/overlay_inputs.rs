@@ -9,19 +9,9 @@ use vm_core::config::configuration_service::{ConfigurationService, GlobalColors}
 use crate::controller_shared::ControllerShared;
 use crate::env::Env;
 
-/// 激活策略引用的全部配置键 (Java registerGameModeOverlays 的
-/// ActivationStrategy.config(...) 实参 + 复合策略依赖键)
-pub const ACTIVATION_KEYS: [&str; 9] = [
-    "enableEngineControl",
-    "engineInfoSwitch",
-    "crosshairSwitch",
-    "flightInfoSwitch",
-    "enableAxis",
-    "enableAttitudeIndicator",
-    "enablegearAndFlaps",
-    "enableVoiceWarn",
-    "enableFMPrint",
-];
+/// 激活策略引用的非页面配置键 (R3 声明式后仅剩语音告警; 页面激活键由
+/// 页文档 activation.key 派生, 见 refresh_activation_cache)
+pub const ACTIVATION_KEYS: [&str; 1] = ["enableVoiceWarn"];
 
 /// key → 原始配置串 (get_config 值域, Some("") 表缺失 — ConfigurationService 先例)。
 /// 主线程刷新 (rebuild + 每次 CONFIG_CHANGED), 渲染线程激活探测读。
@@ -35,12 +25,12 @@ pub(crate) fn refresh_activation_cache(config: &ConfigurationService, cache: &Ac
     for key in ACTIVATION_KEYS {
         m.insert(key.to_string(), config.get_config(key).unwrap_or_default());
     }
-    // 用户页开关键并集 (P0: 用户页 switch_key 任意, 不在出厂 9 键表 —
+    // 页激活键并集 (R3 声明式: 全部页 (出厂+用户) 的 activation.key —
     // 不入缓存则激活探测 get_bool 恒 false, 页面永不激活)
     for page in config.pages().iter() {
-        if let Some(key) = page.switch_key.as_deref() {
-            if !key.is_empty() {
-                m.insert(key.to_string(), config.get_config(key).unwrap_or_default());
+        if let Some(a) = &page.activation {
+            if !a.key.is_empty() {
+                m.insert(a.key.clone(), config.get_config(&a.key).unwrap_or_default());
             }
         }
     }

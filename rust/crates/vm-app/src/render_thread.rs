@@ -37,7 +37,7 @@ use vm_overlay::platform::tray::{TrayConfig, TrayHandler, TrayIcon};
 use crate::commands::{MainEvent, TrayCommand, UiCommand};
 use crate::controller_shared::{is_stale_refresh, ControllerShared};
 use crate::env::Env;
-use crate::keys::{FM_UNPACKED_INTEREST_KEYS, MINIHUD_INTEREST_KEYS};
+
 use crate::overlay_inputs::{ActivationCache, OverlayInputs};
 use crate::voice_setup::{
     open_voice_warning, voice_warn_refresh_reaches, ConfigSnapshots, VoiceWarnSession,
@@ -128,20 +128,28 @@ impl ActivationContext for HostActivationCtx {
     }
 }
 
-/// 注册键 → 激活策略 (Java registerWithPreview 默认 config(key);
-/// 两处复合策略来自 Java registerWithStrategy)
-pub(crate) fn strategy_for(config_key: &str) -> ActivationStrategy {
-    match config_key {
-        // 空键 = 用户页未设开关键 → 恒显 (对位 PageDoc.switch_key 注释语义)
-        "" => ActivationStrategy::always(),
-        "enableVoiceWarn" => {
-            ActivationStrategy::config(config_key).and(&ActivationStrategy::live_only())
+/// 页文档 → 激活策略 (R3 声明式: strategy_for/entry_key/strategy_extra 三处
+/// 硬编码的接替者 — 页文档自带, 注册时构建入策略表)
+fn strategy_of(doc: &vm_core::config::json_model::PageDoc) -> ActivationStrategy {
+    use vm_core::config::json_model::ActivationReq;
+    match &doc.activation {
+        None => ActivationStrategy::always(),
+        Some(a) => {
+            let mut s = ActivationStrategy::config(&a.key);
+            for r in &a.requires {
+                s = s.and(&match r {
+                    ActivationReq::Jet => ActivationStrategy::jet_only(),
+                    ActivationReq::Live => ActivationStrategy::live_only(),
+                });
+            }
+            s
         }
-        "thrustdFS" => {
-            ActivationStrategy::config("enableFMPrint").and(&ActivationStrategy::jet_only())
-        }
-        _ => ActivationStrategy::config(config_key),
     }
+}
+
+/// 语音告警 (非窗口线程形态) 的激活策略 — 不页化, 独立注册面
+pub(crate) fn voice_warn_strategy() -> ActivationStrategy {
+    ActivationStrategy::config("enableVoiceWarn").and(&ActivationStrategy::live_only())
 }
 
 /// FocusMonitor 的通道桥 (轮 2-C 收口): Service 轮询线程内 FocusMonitor tick →
@@ -216,6 +224,7 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
 pub(crate) fn register_live_overlays(
     host: &mut OverlayHost,
     handles: &mut OverlayHandles,
+    strategies: &mut HashMap<String, ActivationStrategy>,
     setup: &OverlayRegSetup,
 ) {
     let OverlayRegSetup {
@@ -226,10 +235,11 @@ pub(crate) fn register_live_overlays(
         shared,
     } = setup;
     let fonts = &env.fonts_dir;
-    // MiniHUD (键 crosshairSwitch; HUDSettings 经快照)
+    // MiniHUD 编排器专页 (minihud-default; HUDSettings 经快照)。
     // service_present=false (注册时 Service 尚未建; 该标志影响 preview 行为集,
     // live 重接线批次随 spec 工厂参数化回收)
-    handles.minihud = register_one(host, shared, "MiniHUD", &MINIHUD_INTEREST_KEYS, || {
+    let minihud_doc = inputs.pages.iter().find(|d| d.id == "minihud-default");
+    handles.minihud = register_one(host, shared, "MiniHUD", &interest_keys_of_opt(minihud_doc), || {
         minihud_overlay_spec(
             false,
             inputs.service_loop_interval_ms,
@@ -239,17 +249,36 @@ pub(crate) fn register_live_overlays(
             params,
         )
     });
+    if let Some(doc) = minihud_doc {
+        strategies.insert(doc.id.clone(), strategy_of(doc));
+    }
     // W3 通用页 (flight/power/engine/gear/axis/attitude + fm 两页 sidecar)
     // 出厂页 + 用户页同权注册 (P0: 编辑器新建/复制的页面同样落窗)
     for doc in inputs.pages.iter().filter(|d| is_page_overlay_entry(d)) {
-        register_page(host, handles, env, lang, params, shared, doc);
+        register_page(host, handles, strategies, env, lang, params, shared, doc);
     }
-    // FM 两页 (fm-list/thrust-chart) 已并入上方 pages 循环 (sidecar 数据面
-    // 在渲染节拍块驱动 — FM_OVERLAY_TOGGLE/FM_CHANGED 事件脉冲 + tick)
-    // 推力曲线固定几何: setBounds(0, screenH-500, 900, 500) 每次实例化恒定
-    if handles.pages.iter().any(|(id, _)| id == "thrust-chart-default") {
-        host.set_entry_fixed_pos("thrustdFS", 0, env.dpi.get_logical_screen_height() - 500);
+}
+
+/// 页兴趣键 (R3 声明式): ∪ 组件 config_keys (注册表) ∪ doc.interest_keys
+/// (页级声明 — minihud ctx 重建键/组几何前缀键等组件面之外的兴趣)。
+/// 此前 page_interest_keys 按 8 个出厂 id 硬编码 match
+fn interest_keys_of(doc: &vm_core::config::json_model::PageDoc) -> Vec<String> {
+    let mut keys: Vec<String> = doc.interest_keys.clone();
+    for comp in &doc.components {
+        if let Some(meta) = vm_overlay::widgets::lookup_widget(&comp.r#type) {
+            for k in meta.config_keys {
+                if !keys.iter().any(|v| v == k) {
+                    keys.push(k.to_string());
+                }
+            }
+        }
     }
+    keys
+}
+
+/// MiniHUD 专页的兴趣键 (doc 缺席兜底空集)
+fn interest_keys_of_opt(doc: Option<&vm_core::config::json_model::PageDoc>) -> Vec<String> {
+    doc.map(interest_keys_of).unwrap_or_default()
 }
 
 /// 走通用页面编排的页面谓词: 出厂页 + 用户页全部放行, 仅排除 MiniHUD
@@ -260,21 +289,32 @@ fn is_page_overlay_entry(doc: &vm_core::config::json_model::PageDoc) -> bool {
 }
 
 /// 单页注册 (register_live_overlays 的 pages 段提取; sync_page_entries
-/// 会话动态注册复用同一路径, 保证启动/运行时行为一致)
+/// 会话动态注册复用同一路径, 保证启动/运行时行为一致)。
+/// R3: 策略入表 (entry id → strategy, host 探测闭包查表); dock 派生固定定位
 #[allow(clippy::too_many_arguments)]
 fn register_page(
     host: &mut OverlayHost,
     handles: &mut OverlayHandles,
+    strategies: &mut HashMap<String, ActivationStrategy>,
     env: &crate::env::Env,
     lang: &Rc<Lang>,
     params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
     shared: &ControllerShared,
     doc: &vm_core::config::json_model::PageDoc,
 ) {
-    if let Some(handle) = register_one(host, shared, &doc.name, page_interest_keys(&doc.id), || {
+    strategies.insert(doc.id.clone(), strategy_of(doc));
+    if let Some(handle) = register_one(host, shared, &doc.name, &interest_keys_of(doc), || {
         page_overlay_spec(assemble_page_spec(doc.clone(), env, lang, params))
     }) {
         handles.pages.push((doc.id.clone(), handle));
+    }
+    // dock 派生固定定位 (thrust-chart 贴屏底; 每次 sync 重新应用同值无害)
+    if let Some(vm_core::config::json_model::DockSpec::BottomLeft { from_bottom }) = doc.dock {
+        host.set_entry_fixed_pos(
+            &doc.id,
+            0,
+            env.dpi.get_logical_screen_height() - from_bottom,
+        );
     }
 }
 
@@ -285,6 +325,7 @@ fn register_page(
 fn sync_page_entries(
     host: &mut OverlayHost,
     handles: &mut OverlayHandles,
+    strategies: &mut HashMap<String, ActivationStrategy>,
     env: &crate::env::Env,
     lang: &Rc<Lang>,
     params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
@@ -294,10 +335,10 @@ fn sync_page_entries(
     // ① 新页: 通过谓词且尚未注册 → 注册落窗
     for doc in docs.iter().filter(|d| is_page_overlay_entry(d)) {
         if !handles.pages.iter().any(|(id, _)| *id == doc.id) {
-            register_page(host, handles, env, lang, params, shared, doc);
+            register_page(host, handles, strategies, env, lang, params, shared, doc);
         }
     }
-    // ② 消失的页: 注销 (close 完整销毁链 + 摘条目, 防僵留复活) + 摘句柄
+    // ② 消失的页: 注销 (close 完整销毁链 + 摘条目, 防僵留复活) + 摘句柄 + 摘策略
     let live: Vec<String> = docs.iter().map(|d| d.id.clone()).collect();
     let gone: Vec<String> = handles
         .pages
@@ -305,27 +346,11 @@ fn sync_page_entries(
         .filter(|(id, _)| !live.iter().any(|l| l == id))
         .map(|(id, _)| id.clone())
         .collect();
-    for id in gone {
-        host.unregister(&id);
+    for id in &gone {
+        host.unregister(id);
+        strategies.remove(id);
     }
     handles.pages.retain(|(id, _)| live.iter().any(|l| l == id));
-}
-
-/// per-page WYSIWYG 兴趣键 (对位原 with_interest 键集; 死键已清 —
-/// 行开关/列数类随字段原子化退役)
-fn page_interest_keys(id: &str) -> &'static [&'static str] {
-    match id {
-        "flight-info-default" => &["flightInfo", "fontSize"],
-        "power-info-default" => &["fontSize"],
-        "engine-control-default" => &["fontSize", "dataPollIntervalMs"],
-        "gear-flaps-default" => &["enablegearAndFlapsEdge", "fontSize"],
-        "axis-default" => &["enableAxisEdge", "fontSize"],
-        "attitude-default" => &["attitudeIndicator", "enableAttitudeIndicator"],
-        "fm-list-default" => &FM_UNPACKED_INTEREST_KEYS,
-        // thrustdFS 无追加键 (Java 同; 激活策略 = config(enableFMPrint)∧jetOnly)
-        "thrust-chart-default" => &[],
-        _ => &[],
-    }
 }
 
 /// PageSpecParams 组装 (per-page 参数差异的集中点; refresh 闭包重取参数仓)
@@ -367,7 +392,6 @@ fn assemble_page_spec(
         let hud = p.hud.clone();
         drop(p);
         PageSpecParams {
-            entry_key: doc.entry_key.clone(),
             // logical_height 沿用历史硬编码 1080 (P3 备案: 与初装配
             // get_logical_screen_height 的已知不一致)
             gauge_cfg: vm_overlay::widgets::GaugeCfg::from_params(
@@ -386,7 +410,6 @@ fn assemble_page_spec(
     });
 
     PageSpecParams {
-        entry_key: doc.entry_key.clone(),
         gauge_cfg: gauge,
         doc,
         font_path: env.fonts_dir.join("sarasa-mono-sc-bold.ttf"),
@@ -426,7 +449,7 @@ fn register_one<H>(
     host: &mut OverlayHost,
     shared: &ControllerShared,
     label: &str,
-    keys: &[&str],
+    keys: &[String],
     factory: impl FnOnce() -> Result<(H, OverlaySpec), String>,
 ) -> Option<H> {
     match factory() {
@@ -654,10 +677,32 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                     fm_changed = fmdata.map(Arc::new);
                 }
             }
+            // R3 声明式: sidecar 数据面页集合从页文档派生 (此前 fm 两页 id 特判);
+            // 元素 = (页 id, start_hidden) — start_hidden 页 = 热键显隐/隐藏起步
+            // 语义 (原 fm-list 专属)
+            let sidecar_pages: Vec<(String, bool)> = {
+                let docs = &session.params.borrow().pages;
+                session
+                    .handles
+                    .pages
+                    .iter()
+                    .filter(|(id, _)| {
+                        docs.iter().any(|d| {
+                            &d.id == id
+                                && d.dataface == vm_core::config::json_model::DatafaceSpec::Sidecar
+                        })
+                    })
+                    .map(|(id, _)| {
+                        (
+                            id.clone(),
+                            docs.iter().any(|d| &d.id == id && d.start_hidden),
+                        )
+                    })
+                    .collect()
+            };
             if toggle_pulse
                 || fm_changed.is_some()
-                || session.host.is_active("enableFMPrint")
-                || session.host.is_active("thrustdFS")
+                || sidecar_pages.iter().any(|(id, _)| session.host.is_active(id))
             {
                 let display_fm_key = session
                     .shared
@@ -674,15 +719,17 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                     .and_then(|frames| frames.latest());
                 let now_ms = current_time_millis();
                 let fm_field = session.fm_field_snapshot.clone();
-                for (page_id, page) in &session.handles.pages {
-                    if !matches!(page_id.as_str(), "fm-list-default" | "thrust-chart-default") {
+                for (page_id, manages_visibility) in &sidecar_pages {
+                    let Some(page) = session
+                        .handles
+                        .pages
+                        .iter()
+                        .find(|(id, _)| id == page_id)
+                        .map(|(_, h)| h)
+                    else {
                         continue;
-                    }
-                    let entry = if page_id == "fm-list-default" {
-                        "enableFMPrint"
-                    } else {
-                        "thrustdFS"
                     };
+                    let entry = page_id.as_str(); // 条目键 = 页 id (R3 统一)
                     if !session.host.is_active(entry) {
                         continue; // 条目未激活 (Java 无实例 = host 槽位空)
                     }
@@ -718,11 +765,11 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                             }
                         }
                     }
-                    // fm-list 页编排面 (原子组件无整窗语义, 由本节拍承担):
+                    // start_hidden 页编排面 (原子组件无整窗语义, 由本节拍承担):
                     // 热键切换/游戏形态隐藏起步 (原 FmUnpacked 自管 visible 的
                     // 页面级承接) + 包围盒高度跟随 (替代行数滞回 Resize, 无滞回;
                     // 屏高钳制 = 原 adjustPosition 上限)
-                    if page_id == "fm-list-default" {
+                    if *manages_visibility {
                         if session.fm_game_mode_pending {
                             session.fm_list_visible = false; // 游戏形态隐藏起步
                         }
@@ -869,6 +916,9 @@ struct RenderSession {
     tray: Option<TrayIcon>,
     /// live 喂入用设置快照 (ReinitOverlays 命令同步覆写)
     hud_settings: HudSettingsSnapshot,
+    /// 页激活策略表 (entry id → strategy; Rc 共享给 host 探测闭包,
+    /// 注册/sync 时重建 — R3 声明式激活)
+    strategies: Rc<RefCell<HashMap<String, ActivationStrategy>>>,
     /// WYSIWYG reinit 参数仓 (各 spec 工厂 reinit 闭包读取)
     params: Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
     /// 标签源 (GearFlaps update_tick / engine reinit 闭包共用; Lang !Clone)
@@ -936,8 +986,17 @@ impl RenderSession {
             shared: Arc::clone(&shared),
             debug: env.debug,
         };
-        host.with_activation(Box::new(move |key: &str| {
-            strategy_for(key).should_activate(&ctx)
+        // 激活探测: entry id → 策略表 (R3 声明式; 表由注册面/sync 重建,
+        // Rc 共享使探测闭包恒读最新表)。未注册 id → false
+        let strategies: Rc<RefCell<HashMap<String, ActivationStrategy>>> =
+            Rc::new(RefCell::new(HashMap::new()));
+        let probe = Rc::clone(&strategies);
+        host.with_activation(Box::new(move |id: &str| {
+            probe
+                .borrow()
+                .get(id)
+                .map(|s| s.should_activate(&ctx))
+                .unwrap_or(false)
         }));
         let mut handles = OverlayHandles {
             minihud: None,
@@ -954,6 +1013,7 @@ impl RenderSession {
         register_live_overlays(
             &mut host,
             &mut handles,
+            &mut strategies.borrow_mut(),
             &OverlayRegSetup {
                 env: &env,
                 inputs: &inputs,
@@ -1029,6 +1089,7 @@ impl RenderSession {
             #[cfg(target_os = "windows")]
             tray,
             hud_settings,
+            strategies,
             params,
             lang,
             handles,
@@ -1091,7 +1152,7 @@ impl RenderSession {
         // Java "instance != null 跳过"
         if self.voice_warn.is_none() {
             let vctx = self.vctx();
-            if strategy_for("enableVoiceWarn").should_activate(&vctx) {
+            if voice_warn_strategy().should_activate(&vctx) {
                 let live = self.shared.live.read().expect("live 锁中毒").clone();
                 match open_voice_warning(
                     &self.voice,
@@ -1178,7 +1239,7 @@ impl RenderSession {
         // 同样不 open (怪癖保真), 重起等下次 OpenAllOverlays。
         if self.voice_warn.is_some() && voice_warn_refresh_reaches(changed_key.as_deref()) {
             let vctx = self.vctx();
-            if !strategy_for("enableVoiceWarn").should_activate(&vctx) {
+            if !voice_warn_strategy().should_activate(&vctx) {
                 logger::info(
                     "OverlayManager",
                     "Closing overlay (inactive strategy): enableVoiceWarn",
@@ -1209,12 +1270,13 @@ impl RenderSession {
         let Self {
             host,
             handles,
+            strategies,
             env,
             lang,
             params,
             shared,
             ..
         } = self;
-        sync_page_entries(host, handles, env, lang, params, shared);
+        sync_page_entries(host, handles, &mut strategies.borrow_mut(), env, lang, params, shared);
     }
 }

@@ -250,29 +250,82 @@ impl Default for ComponentDoc {
     }
 }
 
+/// 激活策略 (声明式, R3: strategy_for/entry_key/strategy_extra 三处硬编码的
+/// 接替者 — 页文档自带, 注册时构建)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivationSpec {
+    /// 配置开关键 ("crosshairSwitch" 等)
+    pub key: String,
+    /// 附加条件 ([] = 无; "jet" = 喷气机; "live" = 仅游戏态)
+    #[serde(default)]
+    pub requires: Vec<ActivationReq>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ActivationReq {
+    /// 喷气机在飞 (FM is_jet)
+    Jet,
+    /// 游戏态 (非 preview)
+    Live,
+}
+
+/// 窗口尺寸语义 (fm-list 高度自适应 vs thrust-chart 固定几何)
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SizingSpec {
+    /// 窗口 = 内容包围盒 + 2×padding (节拍收敛)
+    Auto,
+    /// 固定几何 (thrust-chart 900×500)
+    Fixed { w: i32, h: i32 },
+}
+
+/// 页面数据面形态 (R3: render_thread FM 字符串特判的声明式接替)
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DatafaceSpec {
+    /// 常规: FlightDataEvent → UpdateEnv 分发
+    Page,
+    /// FM 黑盒: WidgetSidecar tick (FM_CHANGED/热键/自节流)
+    Sidecar,
+}
+
+/// 窗口停靠 (固定定位形态; thrust-chart 贴屏底)
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum DockSpec {
+    /// 贴屏底左侧 (y = 屏高 − from_bottom)
+    BottomLeft { from_bottom: i32 },
+}
+
 /// 一个 HUD 页面 (= 一个 overlay 窗口)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PageDoc {
-    /// 稳定 id (= host entry id = 位置存档键)
+    /// 稳定 id (= host entry id = 位置存档键 = 激活关联键, R3 起唯一键)
     pub id: String,
     pub name: String,
-    /// 激活开关键 (None = 恒显调试页)
-    pub switch_key: Option<String>,
-    /// host 条目键 (默认 = switchKey; 推力曲线 = "thrustdFS" —
-    /// 激活策略 config(switchKey)∧jetOnly 经 strategy_extra 表达)
-    pub entry_key: Option<String>,
-    /// 激活策略扩展 ("jetOnly" 等; 渲染线程 strategy_for 特判)
-    pub strategy_extra: Option<String>,
-    /// 归一化窗口位置 [x, y] — 窗口位置唯一真源 (拖拽存档写回;
-    /// R2 前是死字段, 位置走 panels 组配置旧链)
+    /// 激活策略 (None = 恒显)
+    pub activation: Option<ActivationSpec>,
+    /// 归一化窗口位置 [x, y] — 窗口位置唯一真源 (拖拽存档写回)
     pub pos: [f64; 2],
     /// 包围盒 padding (窗口 = 内容包围盒 + 2×padding)
     pub padding: i32,
     /// 画布语义 (None/"free" = 4096 自由画布; "minihud" = ctx.width×2 派生画布 —
     /// crosshair 的 MiddleRight 右半区锚定依赖此语义, 真窗由 minihud 编排器承载)
     pub canvas: Option<String>,
+    /// 窗口尺寸语义 (缺省 Auto)
+    pub sizing: SizingSpec,
+    /// 固定停靠 (缺省自由定位)
+    pub dock: Option<DockSpec>,
+    /// 数据面形态 (缺省 Page)
+    pub dataface: DatafaceSpec,
+    /// live 起步隐藏 (fm-list: 热键显隐语义)
+    pub start_hidden: bool,
     pub font: PageFont,
+    /// 页级兴趣键声明 (minihud ctx 重建键等 — 组件 config_keys 并集之外的面)
+    pub interest_keys: Vec<String>,
     /// 出厂页内容版本戳 (升级提示比对; 用户页恒 0)
     pub content_version: u32,
     pub components: Vec<ComponentDoc>,
@@ -294,27 +347,19 @@ impl Default for PageDoc {
         PageDoc {
             id: String::new(),
             name: String::new(),
-            switch_key: None,
-            entry_key: None,
-            strategy_extra: None,
+            activation: None,
             pos: [0.5, 0.5],
             padding: 45,
             canvas: None,
+            sizing: SizingSpec::Auto,
+            dock: None,
+            dataface: DatafaceSpec::Page,
+            start_hidden: false,
             font: PageFont::default(),
+            interest_keys: Vec::new(),
             content_version: 0,
             components: Vec::new(),
         }
-    }
-}
-
-impl PageDoc {
-    /// host 条目键 (spec 实例 id / 位置存档键 / 激活探测键 三面合一的旧式;
-    /// R3 激活声明式后收敛为页 id)
-    pub fn host_key(&self) -> String {
-        self.entry_key
-            .clone()
-            .or_else(|| self.switch_key.clone())
-            .unwrap_or_else(|| self.id.clone())
     }
 }
 

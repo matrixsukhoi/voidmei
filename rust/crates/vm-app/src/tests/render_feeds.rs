@@ -78,12 +78,12 @@ fn render_overlay_present_counts_per_registered_overlay() {
     shell.send_ui(UiCommand::OpenAllOverlays);
     // 轮询等 6 窗全部 present (固定 sleep 在并发负载下不够 → flaky; 上限 10s)
     let wanted = [
-        "enableEngineControl",
-        "engineInfoSwitch",
-        "crosshairSwitch",
-        "enablegearAndFlaps",
-        "enableAxis",
-        "enableAttitudeIndicator",
+        "engine-control-default",
+        "power-info-default",
+        "minihud-default",
+        "gear-flaps-default",
+        "axis-default",
+        "attitude-default",
     ];
     poll_until(Duration::from_secs(10), || {
         let counts = shell
@@ -147,9 +147,11 @@ fn register_live_overlays_nine_window_entries() {
     let params = Rc::new(RefCell::new(
         vm_overlay::platform::reinit::ReinitParams::from(&inputs),
     ));
+    let mut strategies = std::collections::HashMap::new();
     register_live_overlays(
         &mut host,
         &mut handles,
+        &mut strategies,
         &OverlayRegSetup {
             env: &shell.env,
             inputs: &inputs,
@@ -158,7 +160,7 @@ fn register_live_overlays_nine_window_entries() {
             shared: &shell.shared,
         },
     );
-    // 注册面逐窗计数落键: 9 键全部以 0 落位 (present 计数起点)
+    // 注册面逐窗计数落键: 9 出厂页全部以 0 落位 (present 计数起点)
     let reg_keys: Vec<String> = shell
         .shared
         .overlay_present
@@ -168,7 +170,7 @@ fn register_live_overlays_nine_window_entries() {
         .cloned()
         .collect();
     assert_eq!(reg_keys.len(), 9, "注册落键应恰为 9 键 (实测 {reg_keys:?})");
-    // 9 个共享句柄全部登记 (spec 工厂成功): minihud + 6 通用页 + fm 两旧形态
+    // 9 个共享句柄全部登记 (spec 工厂成功): minihud + 8 通用页
     assert!(handles.minihud.is_some(), "MiniHUD 句柄");
     assert_eq!(
         handles.pages.len(),
@@ -183,17 +185,17 @@ fn register_live_overlays_nine_window_entries() {
     assert_eq!(
         ids,
         vec![
-            "crosshairSwitch",
-            "enableAttitudeIndicator",
-            "enableAxis",
-            "enableEngineControl",
-            "enableFMPrint",
-            "enablegearAndFlaps",
-            "engineInfoSwitch",
-            "flightInfoSwitch",
-            "thrustdFS",
+            "attitude-default",
+            "axis-default",
+            "engine-control-default",
+            "flight-info-default",
+            "fm-list-default",
+            "gear-flaps-default",
+            "minihud-default",
+            "power-info-default",
+            "thrust-chart-default",
         ],
-        "注册键 10 键中的 9 窗口条目 (Java 键一一对应)"
+        "9 出厂页条目 (R3: 条目键 = 页 id)"
     );
 }
 
@@ -214,7 +216,6 @@ fn test_pages(
         }
         let params = PageSpecParams {
             doc: doc.clone(),
-            entry_key: doc.entry_key.clone(),
             font_path: fonts.join("sarasa-mono-sc-bold.ttf"),
             font_size: 24,
             lang: Lang::init_lang(),
@@ -474,9 +475,9 @@ fn feed_overlays_live_swallows_malformed_frame() {
     );
 }
 
-/// 注册键 ↔ ui_layout.cfg 核对: 9 个激活键 (ACTIVATION_KEYS) 全部以 panel switch
-/// 形式存在 (Java 端第 10 键 thrustdFS 无 cfg 项 — 策略读 enableFMPrint,
-/// DrawFrameSimpl 无独立开关, Java 同形态)
+/// R3 声明式激活核对: 出厂页 activation.key 全部以行绑定键存在于 panels 区
+/// (键不存在 → get_bool 恒 false, 页面永不激活); enableVoiceWarn (语音线程)
+/// 同样核对
 #[test]
 fn activation_keys_match_factory_default() {
     let keys = factory_target_keys();
@@ -486,20 +487,15 @@ fn activation_keys_match_factory_default() {
             "激活键 {key} 应以行绑定键存在于 factory_default.json"
         );
     }
-    // 6 个窗口条目键 (注册面) 与出厂面板一一对应 (thrustdFS 例外 — 策略读
-    // enableFMPrint, 无独立开关)
-    for key in [
-        "crosshairSwitch",
-        "flightInfoSwitch",
-        "engineInfoSwitch",
-        "enableEngineControl",
-        "enableAxis",
-        "enablegearAndFlaps",
-        "enableAttitudeIndicator",
-        "enableFMPrint",
-        "enableVoiceWarn",
-    ] {
-        assert!(keys.iter().any(|k| k == key), "键 {key} 缺失");
+    for page in &vm_core::config::json_store::factory_default().pages {
+        if let Some(a) = &page.activation {
+            assert!(
+                keys.iter().any(|k| k == &a.key),
+                "出厂页 {} 的激活键 {} 缺失 (页面永不激活)",
+                page.id,
+                a.key
+            );
+        }
     }
 }
 
@@ -520,20 +516,20 @@ fn factory_target_keys() -> Vec<String> {
     out
 }
 
-/// MiniHUD 兴趣键 ↔ ui_layout.cfg 键空间核对 (审查 W1 回归锚): with_interest
-/// 为前缀匹配 (host is_interested_in), 死键不命中任何 cfg 键 → WYSIWYG 开关
-/// 切换时 MiniHUD 不刷新 (Java 会刷新)。曾笔误 "showAttitudeIndicator"
-/// (正确键 showAttitudeGauge, ui_layout.cfg:63 / Java Controller.java:676)。
-/// 注: "S." (PowerInfo) 为 Java 原样搬移的死前缀, cfg 无此键族 — 不在本测试面。
+/// 页兴趣键 ↔ 键空间核对 (R3: 兴趣键由页文档声明): 出厂页 interestKeys 全部
+/// 命中 panels 行绑定键 (前缀匹配) — 死键会导致 WYSIWYG 开关切换时该页不刷新
 #[test]
-fn minihud_interest_keys_hit_factory_default() {
+fn page_interest_keys_hit_factory_default() {
     let keys = factory_target_keys();
     assert!(!keys.is_empty(), "出厂键空间非空 (解析自检)");
-    for p in MINIHUD_INTEREST_KEYS {
-        assert!(
-            keys.iter().any(|k| k.starts_with(p)),
-            "MiniHUD 兴趣键 {p} 应命中 factory_default.json 的行绑定键 (前缀匹配)"
-        );
+    for page in &vm_core::config::json_store::factory_default().pages {
+        for p in &page.interest_keys {
+            assert!(
+                keys.iter().any(|k| k.starts_with(p)),
+                "页 {} 兴趣键 {p} 应命中 factory_default.json 的行绑定键 (前缀匹配)",
+                page.id
+            );
+        }
     }
 }
 
@@ -565,11 +561,11 @@ fn focus_bridge_sends_commands_and_mirrors_hidden() {
 #[test]
 fn factory_pages_host_keys_unique() {
     let factory = vm_core::config::json_store::factory_default();
-    let keys: Vec<String> = factory.pages.iter().map(|p| p.host_key()).collect();
+    let keys: Vec<String> = factory.pages.iter().map(|p| p.id.clone()).collect();
     let uniq: std::collections::HashSet<&String> = keys.iter().collect();
     assert_eq!(keys.len(), uniq.len(), "出厂页 host 键不得重复 (位置档将撞键)");
-    assert!(keys.contains(&"crosshairSwitch".to_string()));
-    assert!(keys.contains(&"thrustdFS".to_string()));
+    assert!(keys.contains(&"minihud-default".to_string()));
+    assert!(keys.contains(&"thrust-chart-default".to_string()));
 }
 
 /// 渲染线程 CloseAllOverlays 数据面重置 (reset_handles_preview_values 接线面):

@@ -16,7 +16,7 @@ use vm_core::lang::Lang;
 use crate::layout::hud_layout_node::HUDLayoutNodeExt;
 use crate::layout::minihud_layout::AutoSizingPlan;
 use crate::overlays::minihud::{MinimalHudContext, MiniHudFonts};
-use crate::overlays::spec_common::{keyed_spec, keyed_spec_id};
+use crate::overlays::spec_common::keyed_spec_id;
 use crate::platform::host::OverlaySpec;
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
@@ -156,8 +156,6 @@ impl PageOverlay {
 /// 页面构建参数 (各页差异量的收敛包; 字号由调用方按 dpi 解析)
 pub struct PageSpecParams {
     pub doc: PageDoc,
-    /// host 条目键覆盖 (默认 doc.switch_key; 推力曲线 "thrustdFS")
-    pub entry_key: Option<String>,
     pub font_path: std::path::PathBuf,
     /// 页面主字号 (px, dpi 后)
     pub font_size: i32,
@@ -194,43 +192,27 @@ pub fn page_overlay_spec(params: PageSpecParams) -> Result<(PageHandle, OverlayS
         }
     });
 
-    // 条目键: entry_key/switch_key 优先, 均空 = 恒显 (不再回退 doc.id)。
-    // 实例键分叉: 出厂页保持 id==key (OVERLAY_SECTIONS 位置存档/激活探测/
-    // 冒烟断言面零变化); 用户页 id = 页文档 id — 同 switch_key 的多页
-    // 可并存双窗 (host.rs OverlaySpec 头注预留的分叉语义, 此为其启用点)
+    // R3 声明式: 实例键 = 页文档 id (位置存档/激活探测关联键统一);
+    // 激活键 = activation.key (host 探测经 id 查策略表), 无 activation = 空
+    // (恒显策略)。thrustdFS 别名/出厂键分叉等旧式全部退役
     let key = params
-        .entry_key
-        .clone()
-        .or_else(|| params.doc.switch_key.clone())
+        .doc
+        .activation
+        .as_ref()
+        .map(|a| a.key.clone())
         .unwrap_or_default();
-    let is_factory = vm_core::config::json_store::factory()
-        .pages
-        .iter()
-        .any(|p| p.id == params.doc.id);
     Ok((
         handle,
-        if is_factory {
-            keyed_spec(
-                &key,
-                w,
-                h,
-                Box::new(move |cv: &mut PixCanvas| {
-                    render_handle.borrow_mut().draw(cv, aa());
-                }),
-                Some(reinit),
-            )
-        } else {
-            keyed_spec_id(
-                &params.doc.id,
-                &key,
-                w,
-                h,
-                Box::new(move |cv: &mut PixCanvas| {
-                    render_handle.borrow_mut().draw(cv, aa());
-                }),
-                Some(reinit),
-            )
-        },
+        keyed_spec_id(
+            &params.doc.id,
+            &key,
+            w,
+            h,
+            Box::new(move |cv: &mut PixCanvas| {
+                render_handle.borrow_mut().draw(cv, aa());
+            }),
+            Some(reinit),
+        ),
     ))
 }
 

@@ -554,7 +554,7 @@ fn mock_smoke_main(debug: bool) -> i32 {
     let wanted: Vec<String> = vm_core::config::json_store::factory()
         .pages
         .iter()
-        .map(|p| p.host_key())
+        .map(|p| p.id.clone())
         .collect();
     let mut missing = Vec::new();
     let mut zero = Vec::new();

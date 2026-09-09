@@ -286,10 +286,10 @@ impl OverlayHost {
     }
 
     /// 给最后注册的条目加兴趣前缀 (影响 refresh_preview_key(changed_key) 过滤)
-    pub fn with_interest(&mut self, prefixes: &[&str]) -> &mut Self {
+    pub fn with_interest(&mut self, prefixes: &[String]) -> &mut Self {
         if let Some(entry) = self.entries.last_mut() {
             for p in prefixes {
-                entry.interested_prefixes.push(p.to_string());
+                entry.interested_prefixes.push(p.clone());
             }
         }
         self
@@ -350,7 +350,7 @@ impl OverlayHost {
             .entries
             .iter()
             .enumerate()
-            .filter(|(_, e)| (self.activation)(&e.config_key))
+            .filter(|(_, e)| (self.activation)(&e.id))
             .map(|(i, _)| i)
             .collect();
         for idx in plan {
@@ -434,7 +434,7 @@ impl OverlayHost {
     }
 
     fn refresh_preview_idx(&mut self, idx: usize) -> Result<(), String> {
-        let should_open = (self.activation)(&self.entries[idx].config_key);
+        let should_open = (self.activation)(&self.entries[idx].id);
         let active = self.entries[idx].slot.is_some();
         let zombie = self.entries[idx].zombie;
         if should_open {

@@ -475,7 +475,7 @@ export const LayoutTab: React.FC = () => {
             upsertLocalPage({
               id: newPageId(),
               name: '新页面',
-              switchKey: null,
+              activation: null,
               pos: [0.5, 0.5],
               padding: 20,
               font: { sizeAdd: 0 },
@@ -594,7 +594,7 @@ export const LayoutTab: React.FC = () => {
             upsertLocalPage({
               id: newPageId(),
               name: '新页面',
-              switchKey: null,
+              activation: null,
               pos: [0.5, 0.5],
               padding: 20,
               font: { sizeAdd: 0 },

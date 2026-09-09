@@ -48,7 +48,7 @@ use vm_core::game_api::parser::{Indicators, State};
 use crate::layout::hud_layout_node::HUDLayoutNodeExt;
 use crate::layout::minihud_layout::AutoSizingPlan;
 use crate::overlays::rows::{TickScale, MANEUVER_FULL_SCALE, MANEUVER_TICK_STEPS};
-use crate::overlays::spec_common::keyed_spec;
+use crate::overlays::spec_common::keyed_spec_id;
 use crate::overlays::warning::WarningBlinkHost;
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
@@ -610,7 +610,9 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
     });
     Ok((
         handle,
-        keyed_spec(
+        keyed_spec_id(
+            // R3: 条目键 = 页 id (激活/位置档统一); 激活键 = crosshairSwitch
+            "minihud-default",
             "crosshairSwitch",
             w,
             h,

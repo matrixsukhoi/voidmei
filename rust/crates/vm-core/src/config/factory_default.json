@@ -4339,7 +4339,6 @@
     {
       "id": "minihud-default",
       "name": "MiniHUD",
-      "switchKey": "crosshairSwitch",
       "pos": [
         0.3891,
         0.7042
@@ -4592,12 +4591,26 @@
           "enabled": true,
           "props": null
         }
+      ],
+      "interestKeys": [
+        "displayCrosshair",
+        "drawHUD",
+        "disableHUD",
+        "crosshair",
+        "miniHUD",
+        "enableLayoutDebug",
+        "enableFlapAngleBar",
+        "hudMach",
+        "showSpeedBar",
+        "showAttitudeGauge",
+        "attitudeIndicatorInertialMode",
+        "alwaysShowRadarAltitude",
+        "showHUD"
       ]
     },
     {
       "id": "flight-info-default",
       "name": "飞行信息",
-      "switchKey": "flightInfoSwitch",
       "pos": [
         0.0602,
         0.1188
@@ -4968,7 +4981,6 @@
     {
       "id": "power-info-default",
       "name": "动力信息",
-      "switchKey": "engineInfoSwitch",
       "pos": [
         0.0613,
         0.4806
@@ -5421,7 +5433,6 @@
     {
       "id": "engine-control-default",
       "name": "引擎控制",
-      "switchKey": "enableEngineControl",
       "pos": [
         0.1441,
         0.4188
@@ -5563,7 +5574,6 @@
     {
       "id": "gear-flaps-default",
       "name": "起落襟翼",
-      "switchKey": "enablegearAndFlaps",
       "pos": [
         0.1551,
         0.2833
@@ -5611,7 +5621,6 @@
     {
       "id": "axis-default",
       "name": "舵面值",
-      "switchKey": "enableAxis",
       "pos": [
         0.8898,
         0.3208
@@ -5747,7 +5756,6 @@
     {
       "id": "attitude-default",
       "name": "地平仪",
-      "switchKey": "enableAttitudeIndicator",
       "pos": [
         0.6934,
         0.1299
@@ -5778,7 +5786,6 @@
     {
       "id": "fm-list-default",
       "name": "FM拆包数据",
-      "switchKey": "enableFMPrint",
       "pos": [
         0.832,
         0.3125
@@ -7365,14 +7372,13 @@
             "switchKey": "showStab"
           }
         }
-      ]
+      ],
+      "dataface": "sidecar",
+      "startHidden": true
     },
     {
       "id": "thrust-chart-default",
       "name": "推力曲线",
-      "switchKey": "enableFMPrint",
-      "entryKey": "thrustdFS",
-      "strategyExtra": "jetOnly",
       "pos": [
         0.0,
         0.75
@@ -7398,7 +7404,19 @@
           "enabled": true,
           "props": {}
         }
-      ]
+      ],
+      "sizing": {
+        "fixed": {
+          "w": 900,
+          "h": 500
+        }
+      },
+      "dock": {
+        "bottomLeft": {
+          "fromBottom": 500
+        }
+      },
+      "dataface": "sidecar"
     }
   ]
 }

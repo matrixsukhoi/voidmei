@@ -315,10 +315,24 @@ fn fm_changed_missing_schedules_full_refresh() {
 // 托盘重建 (Application.ctr 替换)
 // ------------------------------------------------------------------
 
-/// 激活缓存随配置装载 (渲染线程激活面的 WYSIWYG 输入)
+/// 激活缓存随配置装载 (渲染线程激活面的 WYSIWYG 输入)。
+/// R3: 页面激活键从页文档 activation 派生 (tmp cfg 小树无 pages →
+/// 注入用户页后手动刷新, 验证派生链)
 #[test]
 fn activation_cache_tracks_config() {
     let shell = fixture();
+    let config = shell.controller.as_ref().unwrap().config.clone();
+    use vm_core::config::json_model::{ActivationSpec, PageDoc};
+    config.save_page(PageDoc {
+        id: "p1".to_string(),
+        name: "测试页".to_string(),
+        activation: Some(ActivationSpec {
+            key: "crosshairSwitch".to_string(),
+            requires: vec![],
+        }),
+        ..PageDoc::default()
+    });
+    crate::overlay_inputs::refresh_activation_cache(&config, &shell.activation);
     let v = shell
         .activation
         .lock()
@@ -328,15 +342,8 @@ fn activation_cache_tracks_config() {
     assert_eq!(
         v.as_deref(),
         Some("true"),
-        "tmp cfg 的 crosshairSwitch=true 应入缓存"
+        "tmp cfg 的 crosshairSwitch=true 应经页 activation 派生入缓存"
     );
-    let v2 = shell
-        .activation
-        .lock()
-        .unwrap()
-        .get("enableEngineControl")
-        .cloned();
-    assert_eq!(v2.as_deref(), Some("false"));
 }
 
 // ------------------------------------------------------------------

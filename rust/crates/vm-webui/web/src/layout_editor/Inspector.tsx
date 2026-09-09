@@ -168,10 +168,15 @@ export const Inspector: React.FC<InspectorProps> = ({
         </Field>
         <Field label="开关键">
           <Input
-            value={page.switchKey ?? ''}
+            value={page.activation?.key ?? ''}
             placeholder="空 = 恒显"
             onChange={e =>
-              onPatchPage(d => ({ ...d, switchKey: e.target.value || null }))
+              onPatchPage(d => ({
+                ...d,
+                activation: e.target.value
+                  ? { ...(d.activation ?? { key: '' }), key: e.target.value }
+                  : null,
+              }))
             }
           />
         </Field>

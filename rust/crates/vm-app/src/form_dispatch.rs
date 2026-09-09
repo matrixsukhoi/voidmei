@@ -172,7 +172,7 @@ fn dispatch_form(
                     serde_json::json!({
                         "id": p.id,
                         "name": p.name,
-                        "switchKey": p.switch_key,
+                        "activation": p.activation,
                         "isFactory": factory_ids.contains(&p.id),
                         "componentCount": p.components.len(),
                         "upgradeAvailable": hints.iter().any(|(id, _, _)| *id == p.id),

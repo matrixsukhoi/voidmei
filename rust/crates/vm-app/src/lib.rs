@@ -102,7 +102,7 @@ pub use crate::voice_setup::ConfigSnapshots; // AppShell pub 字段类型 (E9b)
 // tests.rs 专用符号 (经 `use super::*` 抵达; cfg(test) 免非测试构建 unused 警告)
 #[cfg(test)]
 use crate::render_thread::{
-    feed_overlays_live, register_live_overlays, reset_handles_preview_values, strategy_for,
+    feed_overlays_live, register_live_overlays, reset_handles_preview_values,
     ChannelFocusBridge, HostActivationCtx, OverlayHandles, OverlayRegSetup,
 };
 #[cfg(test)]
@@ -381,7 +381,7 @@ impl AppShell {
         let position_snapshot: HashMap<String, (f64, f64)> = inputs
             .pages
             .iter()
-            .map(|p| (p.host_key(), (p.pos[0], p.pos[1])))
+            .map(|p| (p.id.clone(), (p.pos[0], p.pos[1])))
             .collect();
         let cfg = RenderThreadConfig {
             env: self.env.clone(),
@@ -448,7 +448,7 @@ impl AppShell {
                         .config
                         .pages()
                         .iter()
-                        .find(|p| p.host_key() == host_key)
+                        .find(|p| &p.id == &host_key)
                         .map(|p| p.id.clone());
                     if let Some(page_id) = page_id {
                         c.config.save_page_position(&page_id, x, y);

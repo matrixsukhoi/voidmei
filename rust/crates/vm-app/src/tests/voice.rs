@@ -141,7 +141,7 @@ fn voice_warning_激活判定_配置开关与live门控() {
     };
     // cfg=true + 预览态 (CloseAll/重建核初值) → live_only 拦截
     assert!(
-        !strategy_for("enableVoiceWarn").should_activate(&mk_ctx(&shell)),
+        !crate::render_thread::voice_warn_strategy().should_activate(&mk_ctx(&shell)),
         "预览态 (overlay_ctx_preview=true) 不得激活 (Java gameModeOnly)"
     );
     // openpad: 会话窗口形态翻 false (forGameMode ctx) → 激活
@@ -150,7 +150,7 @@ fn voice_warning_激活判定_配置开关与live门控() {
         .overlay_ctx_preview
         .store(false, Ordering::SeqCst);
     assert!(
-        strategy_for("enableVoiceWarn").should_activate(&mk_ctx(&shell)),
+        crate::render_thread::voice_warn_strategy().should_activate(&mk_ctx(&shell)),
         "cfg=true + 游戏模式应激活"
     );
     // 游戏模式但 cfg 改关 (WYSIWYG): 经 CONFIG_CHANGED 链刷新激活缓存后拦截
@@ -162,7 +162,7 @@ fn voice_warning_激活判定_配置开关与live门控() {
         .set_config("enableVoiceWarn", "false");
     pump_events(&mut shell);
     assert!(
-        !strategy_for("enableVoiceWarn").should_activate(&mk_ctx(&shell)),
+        !crate::render_thread::voice_warn_strategy().should_activate(&mk_ctx(&shell)),
         "cfg 改关后不得激活 (激活缓存应已刷新)"
     );
 }

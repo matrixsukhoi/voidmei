@@ -323,12 +323,12 @@ fn reset_to_factory_clears_delta() {
 #[test]
 fn page_position_read_write_roundtrip() {
     let s = svc_factory();
-    // 读: 出厂页按 host 条目键查合成页 pos
-    assert_eq!(s.page_position("flightInfoSwitch"), Some((0.0602, 0.1188)));
+    // 读: 出厂页按页 id 查合成页 pos (R3: 条目键 = 页 id)
+    assert_eq!(s.page_position("flight-info-default"), Some((0.0602, 0.1188)));
     assert_eq!(s.page_position("zzz"), None); // 未命中 → None (host 居中兜底)
     // 写: 出厂未提升页 → page_positions 轻量区 (拖一下窗不整页提升)
     s.save_page_position("flight-info-default", 0.25, 0.75);
-    assert_eq!(s.page_position("flightInfoSwitch"), Some((0.25, 0.75)));
+    assert_eq!(s.page_position("flight-info-default"), Some((0.25, 0.75)));
     let delta = s.inner.delta.read().expect(DELTA_LOCK_MSG);
     assert_eq!(
         delta.page_positions.get("flight-info-default"),
