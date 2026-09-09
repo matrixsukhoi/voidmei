@@ -4,9 +4,11 @@
 //! PageDoc 驱动建树。W3 起泛化数据面 (frame/FormulaView 进 env) 与
 //! sidecar (FM 黑盒组件)。
 
+pub mod axes_atom;
 pub mod data_field;
 pub mod engine_gauge;
 pub mod env;
+pub mod gear_flaps_atom;
 pub mod fm_sidecar;
 pub mod gauges_composite;
 pub mod minihud;

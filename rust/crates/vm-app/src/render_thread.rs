@@ -76,16 +76,10 @@ pub(crate) struct OverlayHandles {
 }
 
 /// CloseAllOverlays 时数据面回 preview 静态初值 (渲染线程命令处理点调用)。
-/// 覆盖面 = reinit 闭包只重建几何/资源、不重建数据态的 4 个 overlay:
-/// 动力信息 (RenderContext 重载)、飞行信息 (字体/画布重载, rows 保留)、
-/// 舵面值 (几何派生)、地平仪 (尺寸/开关)。
-/// 不重置: MiniHUD (reinit 刷新 mock 模板 + update_components(None)) /
-/// 引擎控制 (build_engine_state 整建) / 起落襟翼 (GearFlapsState::new 整建) —
-/// preview 冷激活路径 refresh_preview_idx 先跑 reinit 即自愈。
-/// FM拆包数据另加会话形态复位 (reset_preview: 可见/预览态/lastData 清空 — Java
-/// closeAll 销毁实例 + 预览工厂新建 initPreview 的形态)。
-/// 推力曲线同族 (reset_preview: visible=true / is_preview=true — Java closeAll
-/// 销毁 + 预览工厂新建 initPreview 恒可见)。
+/// W3 组件化后: pages 逐组件 reset_preview (trait HudWidget 覆写, 有状态
+/// 组件复位数据态); FM 两页 (拆包/推力曲线) 的 sidecar 形态复位也在各自组件
+/// reset_preview 内 (可见/预览态/lastData 清空 — 对位 Java closeAll 销毁实例 +
+/// 预览工厂新建 initPreview 的形态)。
 pub(crate) fn reset_handles_preview_values(handles: &OverlayHandles) {
     // W3 页面: 组件级 preview 复位 (trait reset_preview, 有状态组件覆写)
     for (_, page) in &handles.pages {

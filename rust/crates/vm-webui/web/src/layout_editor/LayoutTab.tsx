@@ -30,9 +30,14 @@ export const LayoutTab: React.FC = () => {
   const [selectedComp, setSelectedComp] = useState<string>('')
   const [solve, setSolve] = useState<SolveResult | null>(null)
   const [dirty, setDirty] = useState(false)
+  /** 升级提示已表态页 (本会话不再弹) */
+  const [upgradeDismissed, setUpgradeDismissed] = useState<Set<string>>(new Set())
   const solveTimer = useRef<number>(0)
 
   const active = pageDocs[activeId] ?? null
+  const activeUpgrade =
+    pages.find(p => p.id === activeId)?.upgradeAvailable &&
+    !upgradeDismissed.has(activeId)
 
   const refreshList = useCallback(async () => {
     const { pages: list, docs } = await getPages()
@@ -210,6 +215,24 @@ export const LayoutTab: React.FC = () => {
           <Button type="primary" disabled={!dirty} onClick={onSave}>
             保存
           </Button>
+          {activeUpgrade && (
+            <Popconfirm
+              title="出厂页有更新"
+              description={`「${active.name}」的出厂版本已更新。采用新版将丢弃你对本页的修改 (可先复制页备份)，确定采用？`}
+              okText="采用新版"
+              cancelText="保留我的"
+              onConfirm={async () => {
+                await resetPageToFactory(activeId)
+                message.success('已采用出厂新版')
+                refreshList()
+              }}
+              onCancel={() =>
+                setUpgradeDismissed(prev => new Set(prev).add(activeId))
+              }
+            >
+              <Button>出厂有更新 ⬆</Button>
+            </Popconfirm>
+          )}
           <Popconfirm
             title="恢复出厂"
             description="丢弃对该页的全部修改?"

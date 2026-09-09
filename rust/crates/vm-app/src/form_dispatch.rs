@@ -289,8 +289,7 @@ fn dispatch_form(
 
 
 /// W4 编辑器快照求解 (主线程 — Rc 渲染面): PageDoc → 布局矩形 + PNG。
-/// 字体按页分派 (minihud 页 = preview ctx 三档, 其余 24px 基准);
-/// rows = 出厂两面板的编译行 (fields.grid)。
+/// 字体按页分派 (minihud 页 = preview ctx 三档, 其余 24px 基准)。
 fn solve_page_ipc(
     page: serde_json::Value,
     shell: &Rc<RefCell<AppShell>>,

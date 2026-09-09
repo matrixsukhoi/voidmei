@@ -5507,11 +5507,11 @@
         "sizeAdd": 0,
         "scaleSource": ""
       },
-      "contentVersion": 1,
+      "contentVersion": 2,
       "components": [
         {
-          "id": "status",
-          "type": "core.gearflaps.status",
+          "id": "flapbar",
+          "type": "core.gearflaps.flapbar",
           "pos": [
             0,
             0
@@ -5521,6 +5521,23 @@
             "TopLeft"
           ],
           "parent": null,
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {}
+        },
+        {
+          "id": "warn",
+          "type": "core.gearflaps.warn",
+          "pos": [
+            2,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "visibleWhen": null,
           "enabled": true,
           "props": {}
         }
@@ -5540,7 +5557,7 @@
         "sizeAdd": 0,
         "scaleSource": ""
       },
-      "contentVersion": 1,
+      "contentVersion": 2,
       "components": [
         {
           "id": "cross",
@@ -5554,6 +5571,111 @@
             "TopLeft"
           ],
           "parent": null,
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {}
+        },
+        {
+          "id": "elevator",
+          "type": "core.data.field",
+          "pos": [
+            6,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "elevator",
+            "label": "升降舵",
+            "unit": "%",
+            "precision": 0,
+            "previewValue": "50"
+          }
+        },
+        {
+          "id": "aileron",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0.2
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "elevator",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "aileron",
+            "label": "副　翼",
+            "unit": "%",
+            "precision": 0,
+            "previewValue": "50"
+          }
+        },
+        {
+          "id": "rudder",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0.2
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "aileron",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "rudder",
+            "label": "方向舵",
+            "unit": "%",
+            "precision": 0,
+            "previewValue": "50"
+          }
+        },
+        {
+          "id": "wing_sweep",
+          "type": "core.data.field",
+          "pos": [
+            0,
+            0.2
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "rudder",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "target": "wing_sweep * 100",
+            "label": "可变翼",
+            "unit": "%",
+            "precision": 0,
+            "previewValue": "50"
+          }
+        },
+        {
+          "id": "rudderbar",
+          "type": "core.axes.rudderbar",
+          "pos": [
+            0,
+            6
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "visibleWhen": null,
           "enabled": true,
           "props": {}
         }

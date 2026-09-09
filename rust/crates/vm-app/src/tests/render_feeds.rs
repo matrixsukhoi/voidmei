@@ -283,9 +283,11 @@ fn feed_overlays_live_updates_all_handles() {
             .map(|(_, h)| h.clone())
             .unwrap_or_else(|| panic!("页面 {id} 应在 pages"))
     };
+    use vm_overlay::widgets::axes_atom::RudderBarWidget;
     use vm_overlay::widgets::data_field::DataFieldWidget;
     use vm_overlay::widgets::engine_gauge::EngineGaugeWidget;
-    use vm_overlay::widgets::gauges_composite::{AttitudeWidget, AxesWidget, GearFlapsWidget};
+    use vm_overlay::widgets::gauges_composite::{AttitudeWidget, AxesWidget};
+    use vm_overlay::widgets::gear_flaps_atom::{FlapBarWidget, GearWarnWidget};
 
     // 动力信息页: 功率 1200 → horse_power 原子字段值文本 (无节流 — 组件每帧)
     {
@@ -312,21 +314,30 @@ fn feed_overlays_live_updates_all_handles() {
             .expect("engine 页 throttle = EngineGaugeWidget");
         assert_eq!(w.cur_value(), 55);
     }
-    // 起落襟翼页: gear=100 + airbrake=100 → "起落架 减速板" 告警; flaps=25 → flap_pix
-    // (fontAdd 0/dpi 1 → fs=24, barHeight=96, 25·96/100 = 24)
+    // 起落襟翼页 (拆解后两原子组件): gear=100 + airbrake=100 → "起落架 减速板"
+    // 告警; flaps=25 → flap_pix (fontAdd 0/dpi 1 → fs=24, barHeight=96,
+    // 25·96/100 = 24)
     {
         let h = page_of(&handles, "gear-flaps-default");
         let page = h.borrow();
         let w = page
             .cells
-            .get("status")
+            .get("warn")
             .unwrap()
-            .downcast_ref::<GearFlapsWidget>()
-            .expect("gear 页 status = GearFlapsWidget");
-        assert_eq!(w.state().warn_text, "起落架 减速板");
-        assert_eq!(w.state().flap_pix, 24);
+            .downcast_ref::<GearWarnWidget>()
+            .expect("gear 页 warn = GearWarnWidget");
+        assert_eq!(w.warn_text(), "起落架 减速板");
+        let b = page
+            .cells
+            .get("flapbar")
+            .unwrap()
+            .downcast_ref::<FlapBarWidget>()
+            .expect("gear 页 flapbar = FlapBarWidget");
+        assert_eq!(b.flap_pix(), 24);
+        assert_eq!(b.flap_text(), " 25");
     }
-    // 操纵面页: aileron=100 → px = (100+100)·144/200 = 144 (frame 在场 = live 形态)
+    // 操纵面页: aileron=100 → 十字 px = (100+100)·144/200 = 144; rudder 未设
+    // (默认 0) → 游标中位 72; elevator 行字段 0 (frame 在场 = live 形态)
     {
         let h = page_of(&handles, "axis-default");
         let page = h.borrow();
@@ -337,6 +348,20 @@ fn feed_overlays_live_updates_all_handles() {
             .downcast_ref::<AxesWidget>()
             .expect("axis 页 cross = AxesWidget");
         assert_eq!(w.state().px, 144);
+        let r = page
+            .cells
+            .get("rudderbar")
+            .unwrap()
+            .downcast_ref::<RudderBarWidget>()
+            .expect("axis 页 rudderbar = RudderBarWidget");
+        assert_eq!(r.rudder_pix(), 72);
+        let e = page
+            .cells
+            .get("elevator")
+            .unwrap()
+            .downcast_ref::<DataFieldWidget>()
+            .expect("axis 页 elevator = DataFieldWidget");
+        assert_eq!(e.value_text(), "0");
     }
     // 地平仪页: aoa=10 → AoA = round((10+30)·300/60) = 200 (默认几何 150×300)
     {

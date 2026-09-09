@@ -1,8 +1,7 @@
-//! JSON 配置驱动行定义: factory_default.json 的 `:type data` 行 → 运行时 [`RowDef`]。
-//! 显示元数据 (label/unit/precision/preview) 与取数表达式 (property 短名)
-//! 单点维护。编译在主线程完成, 产物 owned/Send, 经 ReinitParams 通道进渲染线程。
+//! visibleWhen/naWhen 中缀条件 → [`Cond`] 编译与求值。
+//! 消费方 = widgets::data_field (原子数据字段组件, factory_default.json
+//! 的 `:type data` 行属性直读 — 行编译中间层已随 fields.grid 退役)。
 
-use crate::config::json_model::{GroupConfig, RowConfig};
 use crate::formula::registry::FormulaView;
 
 /// 受限条件 (visibleWhen / naWhen 的编译产物; owned)。
@@ -46,84 +45,6 @@ impl Cond {
             Cond::And(a, b) => a.eval(s, value) && b.eval(s, value),
             Cond::Or(a, b) => a.eval(s, value) || b.eval(s, value),
         }
-    }
-}
-
-/// 输出格式 (format)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FormatKind {
-    Plain,
-    /// TIME_MM_SS — "mm'ss" 分秒格式
-    TimeMmSs,
-}
-
-/// 显示模式 (unitSource/precisionSource 特例 — 全表仅进气压一条)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DisplayMode {
-    Metric,
-    /// 英制切换: is_imperial 驱动 "P/x.x''"+1 位 / 公制 "Ata"+2 位
-    ImperialManifold,
-}
-
-/// 单个数据行定义 (两面板统一形态)
-#[derive(Debug, Clone, PartialEq)]
-pub struct RowDef {
-    /// 显示名 (targetName 优先, 缺省 label — 全角/双空格对齐原样)
-    pub label: String,
-    pub unit: String,
-    /// 预览模式的静态值 (原样字符串, 不经格式化)
-    pub preview_value: String,
-    /// 取数表达式 (property): 变量短名 | 公式名 | "X * N" 乘数
-    pub source: String,
-    /// 小数位 (precision, 缺省 0)
-    pub precision: u8,
-    pub format: FormatKind,
-    pub display: DisplayMode,
-    pub visible_when: Option<Cond>,
-    pub na_when: Option<Cond>,
-}
-
-/// 组内 data 行 → RowDef 列表 (顺序保持; 非法表达式按无条件处理 —
-/// 用户容错, 语义 = 旧求值异常时的宽松回退)。
-/// `disabled` = 行开关过滤 (value=false 的 data/switch 行不进面板)。
-pub fn rows_from_group(gc: &GroupConfig, disabled: &dyn Fn(&RowConfig) -> bool) -> Vec<RowDef> {
-    fn walk(rows: &[RowConfig], disabled: &dyn Fn(&RowConfig) -> bool, out: &mut Vec<RowDef>) {
-        for r in rows {
-            if r.r#type.eq_ignore_ascii_case("DATA") {
-                if !disabled(r) {
-                    out.push(row_from_config(r));
-                }
-            } else {
-                // 嵌套 HEADER 行, data 行藏在其 children
-                walk(&r.children, disabled, out);
-            }
-        }
-    }
-    let mut out = Vec::new();
-    walk(&gc.rows, disabled, &mut out);
-    out
-}
-
-fn row_from_config(r: &RowConfig) -> RowDef {
-    let target = r.property.clone().unwrap_or_else(|| r.label.clone());
-    RowDef {
-        label: r.target_name.clone().unwrap_or_else(|| r.label.clone()),
-        unit: r.unit.clone(),
-        preview_value: r.preview_value.clone().unwrap_or_else(|| "0".to_string()),
-        source: target,
-        precision: r.precision.max(0) as u8,
-        format: if r.format.eq_ignore_ascii_case("TIME_MM_SS") {
-            FormatKind::TimeMmSs
-        } else {
-            FormatKind::Plain
-        },
-        display: if r.unit_source.is_some() || r.precision_source.is_some() {
-            DisplayMode::ImperialManifold
-        } else {
-            DisplayMode::Metric
-        },
-        visible_when: r.visible_when.as_deref().and_then(compile_cond),
-        na_when: r.na_when.as_deref().and_then(compile_cond),
     }
 }
 
@@ -247,7 +168,7 @@ fn tokenize(s: &str) -> Option<Vec<Tok>> {
 /// 文法: or := and ('||' and)*; and := unary ('&&' unary)*;
 ///       unary := '!' unary | primary;
 ///       primary := '(' or ')' | 谓词 | 'value' relop 数字
-/// 中缀条件 → Cond (visibleWhen/naWhen 共用; 原子数据字段组件同源消费)
+/// (visibleWhen/naWhen 共用; 原子数据字段组件同源消费)
 pub fn compile_cond(expr: &str) -> Option<Cond> {
     let toks = tokenize(expr)?;
     let mut p = Parser { toks: &toks, pos: 0 };

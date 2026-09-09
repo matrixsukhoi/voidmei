@@ -223,7 +223,7 @@ pub struct PageFont {
 pub struct ComponentDoc {
     /// 页内唯一 id (= 布局节点 id = 链式挂载的父引用键)
     pub id: String,
-    /// 注册表类型名 ("core.minihud.row0" / "core.fields.grid" …)
+    /// 注册表类型名 ("core.minihud.row0" / "core.data.field" …)
     #[serde(rename = "type")]
     pub r#type: String,
     /// 坐标 (line_height 倍数; 相对父锚点偏移)

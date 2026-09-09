@@ -5,8 +5,9 @@
 //! 底部方向舵横条; 50ms 节流。窗口/拖动/FlightDataBus 注册归组装层
 //!, 本文件承载内容绘制的图层序与
 //! onFlightData 的数据换算。
-//! W3 起 host 挂载面 = widgets::gauges_composite 的 AxesWidget
-//! (包本 state), 旧 spec 工厂已退役。
+//! W3 起 host 挂载面 = widgets::gauges_composite 的 AxesWidget (包本 state);
+//! 面板拆解后生产消费面 = 十字段 (draw_crosshair), BOS 标签行/方向舵条
+//! 由 data.field + widgets::axes_atom 组件承担; 整图 draw 为 state 保真面。
 
 use crate::render::primitives;
 
@@ -126,7 +127,7 @@ fn draw_v_rect_negative(
 /// lbl 实参传入但 drawHBarText 内的标签绘制在 Java 源已注释
 ///, 本复刻同忽略。
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawHBarTextNum(g2d, x, y, w, h, val, border, c, lbl, num, len, lblFont, numFont)
-fn draw_h_bar_text_num(
+pub(crate) fn draw_h_bar_text_num(
     cv: &mut PixCanvas,
     lbl_font: &LoadedFont,
     num_font: &LoadedFont,
@@ -512,6 +513,21 @@ impl ControlSurfacesOverlay {
             stroke,
             colors().num,
             LineCapStyle::Square,
+            aa,
+        );
+    }
+
+    /// 十字段单独绘制 (面板拆解: crosshair 原子组件只画十字, BOS 标签行/
+    /// 方向舵条由 data.field/rudderbar 组件承担)。
+    /// 画布语义 = 十字区自身 (0,0)-(width,width), 不含右侧标签列与底部条。
+    pub fn draw_crosshair(&self, cv: &mut PixCanvas, aa: bool) {
+        self.locater(
+            cv,
+            self.px,
+            self.py,
+            self.width,
+            self.locate_size,
+            self.stroke_size as f32,
             aa,
         );
     }

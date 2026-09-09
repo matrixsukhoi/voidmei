@@ -1,28 +1,18 @@
-//! GearFlapsOverlay (ui/overlay/GearFlapsOverlay.java) — 起落架/襟翼状态条。
-//! 重构波2 自 overlays_field1.rs 拆出。
+//! GearFlaps 绘制原语 (UIBaseElements.drawVBar 族复刻)。
 //!
-//! 襟翼竖条 (UIBaseElements.drawVBarTextNum) + 起落架/减速板状态告警文本;
-//! onFlightData 100ms 节流。公共节流常量 FIELD_OVERLAY_REFRESH_INTERVAL_MS
-//! 随本文件 (PowerInfo 同源消费)。
-//! W3 起 host 挂载面 = widgets::gauges_composite 的 GearFlapsWidget
-//! (包本 state), 旧 spec 工厂已退役。
+//! 原黑盒 GearFlapsState 已随面板拆解退役 (flapbar/warn 两原子
+//! 组件独立摆位, 见 widgets::gear_flaps_atom); 本文件承载跨组件共享的
+//! 竖条+数值绘制面。
 
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::colors;
 use crate::render::primitives::{draw_h_rect, ring1px, text_shaded_auto};
-use vm_core::base::format::java_round_f64;
-use vm_core::formula::registry::FormulaView;
-use vm_core::lang::Lang;
-
-/// 节流间隔 (FieldOverlay REFRESH_INTERVAL_MS) — 防高频事件任务堆积;
-/// 公共节流常量 (PowerInfo 等 FieldOverlay 族同源)
-pub const FIELD_OVERLAY_REFRESH_INTERVAL_MS: i64 = 50;
 
 /// UIBaseElements.drawVBar (UIBaseElements): 竖条 (底对齐, shade 环 +
 /// c 内芯); val_height<0 分支为条自 y 向下生长 (GearFlaps 值域 0..100 不可达, 保真保留)
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawVBar(g2d,x,y,width,height,val_height,borderwidth,c)
-fn draw_v_bar(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, val_h: i32, bw: i32, c: [u8; 4]) {
+pub(crate) fn draw_v_bar(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, val_h: i32, bw: i32, c: [u8; 4]) {
     if val_h >= 0 {
         ring1px(cv, x, y - h, w - 1, h - 1, colors().shade_shape);
         cv.fill_rect(x + bw, y + bw - val_h, w - 2 * bw, val_h - 2 * bw, c);
@@ -35,7 +25,7 @@ fn draw_v_bar(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, val_h: i32, bw
 /// UIBaseElements.drawVBarTextNum (UIBaseElements): 竖条 + 随值指针横线 +
 /// 数值文本。lbl 形参在 Java 中传入后未绘制 (drawVBarText 的标签绘制已注释), 保真保留
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawVBarTextNum(g2d,x,y,width,height,val_height,borderwidth,c,lbl,num,lblFont,numFont)
-fn draw_v_bar_text_num(
+pub(crate) fn draw_v_bar_text_num(
     cv: &mut PixCanvas,
     x: i32,
     y: i32,
@@ -64,149 +54,4 @@ fn draw_v_bar_text_num(
     );
     // 数值文本: shade (+1,+1) + 本色 colorLabel (基线 y-val_height-2)
     text_shaded_auto(cv, num_font, x + w, y - val_h - 2, num, colors().label, aa);
-}
-
-/// 节流间隔 (gear/flaps 为低频数据; GearFlapsOverlay REFRESH_INTERVAL_MS)
-pub const GEAR_FLAPS_REFRESH_INTERVAL_MS: i64 = 100;
-
-/// 起落襟翼面板状态: 几何 (reinitConfig) + 动态数据 (drawTick) + 绘制 (draw)
-pub struct GearFlapsState {
-    /// 节流基准 (GearFlapsOverlay lastRefreshTime, System.currentTimeMillis 毫秒)
-    pub last_refresh_time: i64,
-    pub font_size: i32,
-    pub bar_width: i32,
-    pub bar_height: i32,
-    /// 内容区宽 (2*fontSize)
-    pub width: i32,
-    /// 内容区高 (5*fontSize)
-    pub height: i32,
-    /// 窗口总宽 (width + 4*fontSize + sw*2)
-    pub total_width: i32,
-    /// 窗口总高 (height + sw*2)
-    pub total_height: i32,
-    /// 襟翼填充像素高
-    pub flap_pix: i32,
-    /// 襟翼百分比文本 (Java "%3d")
-    pub flap_text: String,
-    /// 状态告警文本 (起落架/减速板)
-    pub warn_text: String,
-    pub warn_color: [u8; 4],
-}
-
-impl GearFlapsState {
-    /// reinitConfig 几何段。
-    /// show_edge = enablegearAndFlapsEdge 开关 (sw=10)
-    pub fn new(font_add: i32, dpi_scale: f64, show_edge: bool) -> Self {
-        // fontSize = round((24 + fontadd) * dpiScale)
-        let font_size = java_round_f64((24.0 + font_add as f64) * dpi_scale);
-        let bar_width = font_size >> 1;
-        let bar_height = 4 * font_size;
-        let width = 2 * font_size;
-        let height = 5 * font_size;
-        // 初始 (预览) 襟翼 50%
-        let flap_pix = bar_height * 50 / 100;
-        let flap_text = format!("{:>3}", 50);
-        let sw = if show_edge { 10 } else { 0 };
-        GearFlapsState {
-            last_refresh_time: 0,
-            font_size,
-            bar_width,
-            bar_height,
-            width,
-            height,
-            total_width: width + 4 * font_size + sw * 2,
-            total_height: height + sw * 2,
-            flap_pix,
-            flap_text,
-            warn_text: String::new(),
-            warn_color: colors().num,
-        }
-    }
-
-    /// onFlightData → drawTick (GearFlapsOverlay) 的单事件语义:
-    /// 100ms 节流闩 → (数据回调内) drawTick: 起落架/减速板
-    /// 状态文本 + 襟翼像素/文本。
-    /// System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
-    /// false = 节流跳过 (Java 原方法 void, 宿主可据此省重绘)
-    pub fn update_tick(&mut self, now_ms: i64, lang: &Lang, s: &dyn FormulaView) -> bool {
-        // 节流防高频事件任务堆积
-        if now_ms - self.last_refresh_time < GEAR_FLAPS_REFRESH_INTERVAL_MS {
-            return false; // 距上次更新太近, 跳过
-        }
-        self.last_refresh_time = now_ms;
-        // Java (int) 强转截断; 值域 0..100
-        let gear = s.var_value("gear").unwrap_or(0.0) as i32;
-        let mut flaps = s.var_value("flaps").unwrap_or(0.0) as i32;
-        let airbrake = s.var_value("airbrake").unwrap_or(0.0) as i32;
-
-        if gear >= 0 {
-            if gear == 0 {
-                self.warn_text.clear();
-                self.warn_color = colors().num;
-            } else if gear == 100 {
-                self.warn_text = lang.g_gear.to_string();
-                self.warn_color = colors().num;
-            } else {
-                self.warn_text = lang.g_gear_down.to_string();
-                self.warn_color = colors().warning;
-            }
-            if airbrake > 0 {
-                self.warn_text.push(' ');
-                self.warn_text.push_str(lang.g_brake);
-                self.warn_color = colors().warning;
-            }
-        }
-        // gear < 0 (无数据): 保留上次告警状态 (Java 同)
-
-        if flaps >= 0 {
-            self.flap_pix = flaps * self.bar_height / 100;
-        } else {
-            self.flap_pix = 0;
-            flaps = 0;
-        }
-        self.flap_text = format!("{:>3}", flaps);
-        true
-    }
-
-    /// paintComponent
-    pub fn draw(
-        &self,
-        cv: &mut PixCanvas,
-        font_num: &LoadedFont,
-        font_label: &LoadedFont,
-        aa: bool,
-    ) {
-        let fs = self.font_size;
-        let mut dy = fs >> 1;
-        // 已经有指示条, 不需要文字了. 暂时注释掉, 不删除.
-        // (Java 注释掉的 drawLabelBOSType 调用原位保留于此)
-        dy += self.bar_height;
-        // 条画在 (0, dy), 数值 "F"+flapText
-        let num = format!("F{}", self.flap_text);
-        draw_v_bar_text_num(
-            cv,
-            0,
-            dy,
-            self.bar_width,
-            self.bar_height,
-            self.flap_pix,
-            1,
-            colors().num,
-            "",
-            &num,
-            font_num,
-            font_label,
-            aa,
-        );
-        // 告警文本: (width, baseline=fontSize), fontLabel, 无阴影
-        // Java 判 warnText != null (恒真, 空串绘制无输出), 空串等价无绘制
-        cv.draw_text(
-            font_label,
-            self.width,
-            fs,
-            &self.warn_text,
-            self.warn_color,
-            aa,
-        );
-    }
 }
