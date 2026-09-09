@@ -20,8 +20,10 @@ import {
   solvePage,
 } from './api'
 import { Palette } from './Palette'
-import { Canvas } from './Canvas'
-import { Inspector } from './Inspector'
+import { Canvas, type CanvasHandle } from './Canvas'
+import { Inspector, type AlignKind } from './Inspector'
+import { Outline } from './Outline'
+import { usePageHistory } from './history'
 
 /** 网格吸附步长 (line_height 单位) */
 const SNAP = 0.1
@@ -67,6 +69,9 @@ export const LayoutTab: React.FC = () => {
   /** refreshList 读 dirty 的桥 (避免 useCallback 依赖导致每次 dirty 变都重建) */
   const dirtyRef = useRef(dirty)
   dirtyRef.current = dirty
+  /** 撤销/重做 (快照栈; 切页清栈) + Canvas 落点换算 handle */
+  const history = usePageHistory(activeId)
+  const canvasApi = useRef<CanvasHandle>(null)
 
   const active = pageDocs[activeId] ?? null
   const activeUpgrade =
@@ -124,12 +129,18 @@ export const LayoutTab: React.FC = () => {
     }, 100)
   }, [active])
 
+  /** 页文档修改单通道: state 更新 + 脏标记 + 撤销栈提交。
+   * coalesceKey: 500ms 内同 key 连续提交合并为一步 (拖动/连按/连续输入) */
   const patchPage = useCallback(
-    (mut: (doc: PageDoc) => PageDoc) => {
+    (mut: (doc: PageDoc) => PageDoc, coalesceKey?: string) => {
       if (!active) return
-      setPageDocs(prev => ({ ...prev, [activeId]: mut(prev[activeId]) }))
+      const next = mut(active)
+      setPageDocs(prev => ({ ...prev, [activeId]: next }))
       markDirty(activeId)
+      history.commit(active, next, coalesceKey)
     },
+    // history api 引用稳定 (ref 内部), 不入依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [active, activeId, markDirty],
   )
 
@@ -177,11 +188,14 @@ export const LayoutTab: React.FC = () => {
   )
 
   const patchComponent = useCallback(
-    (id: string, mut: (c: ComponentDoc) => ComponentDoc) => {
-      patchPage(d => ({
-        ...d,
-        components: d.components.map(c => (c.id === id ? mut(c) : c)),
-      }))
+    (id: string, mut: (c: ComponentDoc) => ComponentDoc, coalesceKey?: string) => {
+      patchPage(
+        d => ({
+          ...d,
+          components: d.components.map(c => (c.id === id ? mut(c) : c)),
+        }),
+        coalesceKey,
+      )
     },
     [patchPage],
   )
@@ -242,35 +256,119 @@ export const LayoutTab: React.FC = () => {
     (ids: string[], dPx: [number, number]) => {
       if (!solve) return
       const lh = solve.lineHeightPx || 1
-      patchPage(d => ({
-        ...d,
-        components: d.components.map(c =>
-          ids.includes(c.id)
-            ? {
-                ...c,
-                pos: [
-                  roundSnap(c.pos[0] + dPx[0] / lh),
-                  roundSnap(c.pos[1] + dPx[1] / lh),
-                ],
-              }
-            : c,
-        ),
-      }))
+      patchPage(
+        d => ({
+          ...d,
+          components: d.components.map(c =>
+            ids.includes(c.id)
+              ? {
+                  ...c,
+                  pos: [
+                    roundSnap(c.pos[0] + dPx[0] / lh),
+                    roundSnap(c.pos[1] + dPx[1] / lh),
+                  ],
+                }
+              : c,
+          ),
+        }),
+        `pos:${ids.join(',')}`, // 同组连续拖动合并为一步撤销
+      )
     },
     [solve, patchPage],
   )
 
-  /** 键盘: 方向键微调 (Shift 大步) / Delete 删除 / Escape 清选 */
+  /** palette 拖放落点 (Canvas clientToCanvas 换算; 画布外 = 静默取消) */
+  const onPaletteDrop = useCallback(
+    (
+      entry: { typeName: string; displayZh: string; defaultProps?: Record<string, unknown> },
+      clientX: number,
+      clientY: number,
+    ) => {
+      if (!active) return
+      const pt = canvasApi.current?.clientToCanvas(clientX, clientY)
+      if (!pt) return
+      const lh = solve?.lineHeightPx || 24
+      const props = { ...(entry.defaultProps ?? {}), ...(PRESET_DEFAULT_PROPS[entry.typeName] ?? {}) }
+      const comp: ComponentDoc = {
+        id: nextComponentId(active, entry.displayZh),
+        type: entry.typeName,
+        pos: [roundSnap(pt[0] / lh), roundSnap(pt[1] / lh)],
+        anchor: ['TopLeft', 'TopLeft'],
+        parent: null,
+        enabled: true,
+        props,
+      }
+      patchPage(d => ({ ...d, components: [...d.components, comp] }))
+      setSelectedIds([comp.id])
+    },
+    [active, solve, patchPage],
+  )
+
+  /** 多选对齐 (选中集包围盒; solve 矩形 → pos 增量) */
+  const onAlign = useCallback(
+    (ids: string[], kind: AlignKind) => {
+      if (!solve) return
+      const lh = solve.lineHeightPx || 1
+      const rects = solve.items.filter(it => ids.includes(it.id))
+      if (rects.length < 2) return
+      const box = {
+        x: Math.min(...rects.map(r => r.x)),
+        y: Math.min(...rects.map(r => r.y)),
+        r: Math.max(...rects.map(r => r.x + r.w)),
+        b: Math.max(...rects.map(r => r.y + r.h)),
+      }
+      patchPage(
+        d => ({
+          ...d,
+          components: d.components.map(c => {
+            const r = rects.find(it => it.id === c.id)
+            if (!r) return c
+            const cx = r.x + r.w / 2
+            const cy = r.y + r.h / 2
+            switch (kind) {
+              case 'left':
+                return { ...c, pos: [roundSnap(c.pos[0] + (box.x - r.x) / lh), c.pos[1]] }
+              case 'top':
+                return { ...c, pos: [c.pos[0], roundSnap(c.pos[1] + (box.y - r.y) / lh)] }
+              case 'hcenter':
+                return { ...c, pos: [roundSnap(c.pos[0] + ((box.x + box.r) / 2 - cx) / lh), c.pos[1]] }
+              case 'vcenter':
+                return { ...c, pos: [c.pos[0], roundSnap(c.pos[1] + ((box.y + box.b) / 2 - cy) / lh)] }
+            }
+          }),
+        }),
+        `align:${kind}:${ids.length}`,
+      )
+    },
+    [solve, patchPage],
+  )
+
+  /** 撤销/重做 (快照回放; 保持脏标记 — 用户可再保存) */
+  const applyHistory = useCallback(
+    (doc: PageDoc | null) => {
+      if (!doc) return
+      setPageDocs(prev => ({ ...prev, [activeId]: doc }))
+    },
+    [activeId],
+  )
+  const undo = useCallback(() => applyHistory(history.undo(pageDocs[activeId])), [history, applyHistory, pageDocs, activeId])
+  const redo = useCallback(() => applyHistory(history.redo(pageDocs[activeId])), [history, applyHistory, pageDocs, activeId])
+
+  /** 键盘: 方向键微调 (Shift 大步) / Delete 删除 / Escape 清选 /
+   * Ctrl+Z 撤销 / Ctrl+Y(Ctrl+Shift+Z) 重做 / Ctrl+D 复制 */
   const nudge = useCallback(
     (dxUnit: number, dyUnit: number) => {
-      patchPage(d => ({
-        ...d,
-        components: d.components.map(c =>
-          selectedIds.includes(c.id)
-            ? { ...c, pos: [roundSnap(c.pos[0] + dxUnit), roundSnap(c.pos[1] + dyUnit)] }
-            : c,
-        ),
-      }))
+      patchPage(
+        d => ({
+          ...d,
+          components: d.components.map(c =>
+            selectedIds.includes(c.id)
+              ? { ...c, pos: [roundSnap(c.pos[0] + dxUnit), roundSnap(c.pos[1] + dyUnit)] }
+              : c,
+          ),
+        }),
+        `nudge:${selectedIds.join(',')}`, // 连按合并为一步
+      )
     },
     [patchPage, selectedIds],
   )
@@ -279,11 +377,28 @@ export const LayoutTab: React.FC = () => {
       // 表单控件聚焦时不拦截
       const t = e.target as HTMLElement
       if (t.closest('input, textarea, [contenteditable="true"]')) return
+      const ctrl = e.ctrlKey || e.metaKey
+      if (ctrl && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+        return
+      }
+      if (ctrl && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault()
+        redo()
+        return
+      }
       if (e.key === 'Escape') {
         setSelectedIds([])
         return
       }
       if (!selectedIds.length || !active) return
+      if (ctrl && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault()
+        selectedIds.forEach(id => duplicateComponent(id))
+        return
+      }
       const step = e.shiftKey ? 1 : SNAP
       switch (e.key) {
         case 'ArrowLeft':
@@ -311,7 +426,7 @@ export const LayoutTab: React.FC = () => {
           break
       }
     },
-    [selectedIds, active, nudge, removeComponents],
+    [selectedIds, active, nudge, removeComponents, undo, redo, duplicateComponent],
   )
 
   /** 新建/本地注入页 (标记脏 — 此前新页不置 dirty, 保存按钮恒禁用无法保存) */
@@ -381,8 +496,19 @@ export const LayoutTab: React.FC = () => {
       tabIndex={0}
       onKeyDown={onRootKeyDown}
     >
-      {/* palette */}
-      <Palette onAdd={addComponent} onAddField={addFieldPreset} />
+      {/* palette + 组件大纲 (左栏; 大纲是禁用/构建失败组件的唯一寻回入口) */}
+      <div style={{ width: 190, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+        <Palette onAdd={addComponent} onDrop={onPaletteDrop} onAddField={addFieldPreset} />
+        <Outline
+          page={active}
+          solve={solve}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          onToggleEnabled={(id, enabled) =>
+            patchComponent(id, c => ({ ...c, enabled }), `enabled:${id}`)
+          }
+        />
+      </div>
 
       {/* 画布 + 工具栏 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
@@ -398,6 +524,12 @@ export const LayoutTab: React.FC = () => {
           />
           <Button type="primary" disabled={!dirty.has(activeId)} onClick={onSave}>
             保存
+          </Button>
+          <Button disabled={!history.canUndo} onClick={undo} title="Ctrl+Z">
+            撤销
+          </Button>
+          <Button disabled={!history.canRedo} onClick={redo} title="Ctrl+Y">
+            重做
           </Button>
           {activeUpgrade && (
             <Popconfirm
@@ -493,6 +625,7 @@ export const LayoutTab: React.FC = () => {
           />
         )}
         <Canvas
+          ref={canvasApi}
           solve={solve}
           page={active}
           selectedIds={selectedIds}
@@ -508,11 +641,14 @@ export const LayoutTab: React.FC = () => {
       <Inspector
         page={active}
         component={selected}
+        selectedIds={selectedIds}
         onPatchPage={patchPage}
-        onPatchComponent={(id, mut) => patchComponent(id, mut)}
+        onPatchComponent={(id, mut, key) => patchComponent(id, mut, key)}
         onRename={renameComponent}
         onRemove={removeComponent}
+        onRemoveMany={removeComponents}
         onDuplicate={duplicateComponent}
+        onAlign={onAlign}
       />
     </div>
   )

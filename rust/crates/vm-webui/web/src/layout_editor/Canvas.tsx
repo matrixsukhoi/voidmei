@@ -8,7 +8,7 @@
  * - 缩放: Ctrl+滚轮 (光标锚定) / 工具栏 ±/适应/100% (LayoutTab)
  * - 多选: Shift/Ctrl 点选 toggle + 空白拖框选; 成组拖动
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PageDoc, SolveResult } from './types'
 import { pngToDataUrl } from './api'
 import { computeSnap, type Rect, type SnapGuide } from './snap'
@@ -33,16 +33,25 @@ interface CanvasProps {
   fitTick: number
 }
 
-export const Canvas: React.FC<CanvasProps> = ({
-  solve,
-  page,
-  selectedIds,
-  onSelectionChange,
-  onDragCommit,
-  zoom,
-  onZoom,
-  fitTick,
-}) => {
+/** imperative 面 (palette 拖放落点换算 — stage 几何只有 Canvas 知道) */
+export interface CanvasHandle {
+  /** 屏幕 client → 画布 px (不在 stage 上返回 null) */
+  clientToCanvas: (clientX: number, clientY: number) => [number, number] | null
+}
+
+export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canvas(
+  {
+    solve,
+    page,
+    selectedIds,
+    onSelectionChange,
+    onDragCommit,
+    zoom,
+    onZoom,
+    fitTick,
+  },
+  ref,
+) {
   const dataUrl = useMemo(
     () => (solve && solve.png.length ? pngToDataUrl(solve.png) : ''),
     [solve],
@@ -97,42 +106,64 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // ---- fit-to-view (工具栏触发 + 换页自动一次) ----
   const fittedPage = useRef<string>('')
-  useEffect(() => {
-    if (!solve || !viewRef.current) return
-    const el = viewRef.current
+
+  // ---- stage 几何 (画布系 → 屏幕 px 的换算基; hooks 需先于 early return) ----
+  const geo = useMemo(() => {
+    if (!solve) return null
     const xs = solve.items.flatMap(it => [it.x, it.x + it.w]).concat([solve.contentX, solve.contentX + solve.pageW])
-    const ys = solve.items.flatMap(it => [it.y, it.h + it.y]).concat([solve.contentY, solve.contentY + solve.pageH])
-    const minX = Math.min(0, ...xs) - STAGE_MARGIN
-    const minY = Math.min(0, ...ys) - STAGE_MARGIN
-    const maxX = Math.max(...xs, solve.contentX + solve.contentW) + STAGE_MARGIN
-    const maxY = Math.max(...ys, solve.contentY + solve.contentH) + STAGE_MARGIN
-    const w = maxX - minX
-    const h = maxY - minY
-    if (w <= 0 || h <= 0) return
-    const fit = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.min((el.clientWidth - 32) / w, (el.clientHeight - 32) / h)))
-    onZoom(fit)
-    requestAnimationFrame(() => {
-      el.scrollLeft = (minX * -1) * fit - (el.clientWidth - w * fit) / 2
-      el.scrollTop = (minY * -1) * fit - (el.clientHeight - h * fit) / 2
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitTick]) // 手动 fit
-  useEffect(() => {
-    // 换页自动 fit 一次 (用户随后手动缩放不被覆盖)
-    if (solve && page.id !== fittedPage.current) {
-      fittedPage.current = page.id
+    const ys = solve.items.flatMap(it => [it.y, it.y + it.h]).concat([solve.contentY, solve.contentY + solve.pageH])
+    return {
+      originX: Math.min(0, ...xs) - STAGE_MARGIN,
+      originY: Math.min(0, ...ys) - STAGE_MARGIN,
+      maxX: Math.max(...xs, solve.contentX + solve.contentW) + STAGE_MARGIN,
+      maxY: Math.max(...ys, solve.contentY + solve.contentH) + STAGE_MARGIN,
     }
+  }, [solve])
+
+  /** fit-to-view (工具栏触发; 换页自动一次 — 用户随后手动缩放不被覆盖) */
+  const fit = useCallback(() => {
+    const el = viewRef.current
+    if (!el || !geo) return
+    const w = geo.maxX - geo.originX
+    const h = geo.maxY - geo.originY
+    if (w <= 0 || h <= 0) return
+    const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.min((el.clientWidth - 32) / w, (el.clientHeight - 32) / h)))
+    onZoom(z)
+    requestAnimationFrame(() => {
+      el.scrollLeft = -geo.originX * z - (el.clientWidth - w * z) / 2
+      el.scrollTop = -geo.originY * z - (el.clientHeight - h * z) / 2
+    })
+  }, [geo, onZoom])
+  useEffect(() => {
+    if (fitTick > 0) fit()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitTick])
+  useEffect(() => {
+    if (solve && geo && page.id !== fittedPage.current) {
+      fittedPage.current = page.id
+      fit()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solve, page.id])
+
+  // palette 拖放落点换算 (stage 几何只有 Canvas 知道)
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      clientToCanvas: (clientX: number, clientY: number): [number, number] | null => {
+        const r = stageRef.current?.getBoundingClientRect()
+        if (!r || !geo) return null
+        if (clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) return null
+        return [(clientX - r.left) / zoom + geo.originX, (clientY - r.top) / zoom + geo.originY]
+      },
+    }),
+    [geo, zoom],
+  )
 
   if (!solve) return <div style={{ flex: 1, display: 'grid', placeItems: 'center' }}>求解中…</div>
 
-  // ---- stage 几何 (画布系 → 屏幕 px 的换算基) ----
-  const xs = solve.items.flatMap(it => [it.x, it.x + it.w]).concat([solve.contentX, solve.contentX + solve.pageW])
-  const ys = solve.items.flatMap(it => [it.y, it.y + it.h]).concat([solve.contentY, solve.contentY + solve.pageH])
-  const originX = Math.min(0, ...xs) - STAGE_MARGIN
-  const originY = Math.min(0, ...ys) - STAGE_MARGIN
-  const maxX = Math.max(...xs, solve.contentX + solve.contentW) + STAGE_MARGIN
-  const maxY = Math.max(...ys, solve.contentY + solve.contentH) + STAGE_MARGIN
+  // ---- stage 几何 (渲染换算) ----
+  const { originX, originY, maxX, maxY } = geo!
   const toScreen = (v: number) => v * zoom
   const sx = (x: number) => toScreen(x - originX)
   const sy = (y: number) => toScreen(y - originY)
@@ -357,4 +388,4 @@ export const Canvas: React.FC<CanvasProps> = ({
       </div>
     </div>
   )
-}
+})

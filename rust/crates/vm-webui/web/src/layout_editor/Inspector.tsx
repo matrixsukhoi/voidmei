@@ -4,8 +4,8 @@
  * 下拉可自由输入) + 页面属性。坐标单位 = line_height 倍数 (字号相对)。
  */
 import React, { useEffect, useMemo, useState } from 'react'
-import { AutoComplete, Button, Input, InputNumber, Select, Space, Switch } from 'antd'
-import type { ComponentDoc, PageDoc, PropSchemaEntry } from './types'
+import { AutoComplete, Button, ColorPicker, Input, InputNumber, Select, Space, Switch, Tag } from 'antd'
+import type { ComponentDoc, ComponentCatalogEntry, PageDoc } from './types'
 import { getComponentCatalog } from './api'
 import { getVarCatalog } from '../api'
 
@@ -27,27 +27,37 @@ const VW_PRESETS = [
   { value: 'displayCrosshair', label: '准星开关 (displayCrosshair)' },
 ]
 
+/** 对齐方式 (多选批量栏; 按选中集包围盒) */
+export type AlignKind = 'left' | 'top' | 'hcenter' | 'vcenter'
+
 interface InspectorProps {
   page: PageDoc
   component: ComponentDoc | null
+  selectedIds: string[]
   onPatchPage: (mut: (doc: PageDoc) => PageDoc) => void
-  onPatchComponent: (id: string, mut: (c: ComponentDoc) => ComponentDoc) => void
+  onPatchComponent: (id: string, mut: (c: ComponentDoc) => ComponentDoc, coalesceKey?: string) => void
   /** 改名收口 (唯一性校验 + parent 重指); 返回 false = 撞名拒绝 */
   onRename: (oldId: string, newName: string) => boolean
   onRemove: (id: string) => void
+  onRemoveMany: (ids: string[]) => void
   onDuplicate: (id: string) => void
+  /** 多选对齐 (LayoutTab 持 solve 矩形换算) */
+  onAlign: (ids: string[], kind: AlignKind) => void
 }
 
 export const Inspector: React.FC<InspectorProps> = ({
   page,
   component,
+  selectedIds,
   onPatchPage,
   onPatchComponent,
   onRename,
   onRemove,
+  onRemoveMany,
   onDuplicate,
+  onAlign,
 }) => {
-  const [schema, setSchema] = useState<Record<string, PropSchemaEntry[]>>({})
+  const [catalogByName, setCatalogByName] = useState<Record<string, ComponentCatalogEntry>>({})
   const [varNames, setVarNames] = useState<{ value: string; label: string }[]>([])
   const [unitByName, setUnitByName] = useState<Record<string, string>>({})
   /** id 改名本地草稿 (onBlur/Enter 提交 → onRename 收口; 撞名回显 error) */
@@ -76,15 +86,15 @@ export const Inspector: React.FC<InspectorProps> = ({
     setIdError(null)
   }
 
-  // 目录一次拉取 (组件类型 → propsSchema)
+  // 目录一次拉取 (组件类型 → 完整条目: propsSchema + configKeys)
   useEffect(() => {
     getComponentCatalog()
       .then(r => {
-        const m: Record<string, PropSchemaEntry[]> = {}
-        for (const e of r.components ?? []) m[e.typeName] = e.propsSchema ?? []
-        setSchema(m)
+        const m: Record<string, ComponentCatalogEntry> = {}
+        for (const e of r.components ?? []) m[e.typeName] = e
+        setCatalogByName(m)
       })
-      .catch(() => setSchema({}))
+      .catch(() => setCatalogByName({}))
   }, [])
 
   // 公式目录 (Target 下拉数据源 + unit 自动带出表; 懒加载一次)
@@ -105,9 +115,43 @@ export const Inspector: React.FC<InspectorProps> = ({
   }, [])
 
   const activeSchema = useMemo(
-    () => (component ? schema[component.type] ?? [] : []),
-    [schema, component],
+    () => (component ? catalogByName[component.type]?.propsSchema ?? [] : []),
+    [catalogByName, component],
   )
+  /** 无 props 表单但受配置键驱动的组件 (minihud 行族等) — 标注而非空白 */
+  const configDrivenKeys = useMemo(
+    () =>
+      component && activeSchema.length === 0
+        ? catalogByName[component.type]?.configKeys ?? []
+        : [],
+    [catalogByName, component, activeSchema],
+  )
+
+  // 多选批量栏 (选中 > 1: 对齐/删除; 单个组件面板不适用)
+  if (!component && selectedIds.length > 1) {
+    return (
+      <div style={{ width: 280, flexShrink: 0, overflowY: 'auto', paddingLeft: 8 }}>
+        <SectionTitle>已选 {selectedIds.length} 个组件</SectionTitle>
+        <Space wrap style={{ marginBottom: 10 }}>
+          <Button size="small" onClick={() => onAlign(selectedIds, 'left')}>左对齐</Button>
+          <Button size="small" onClick={() => onAlign(selectedIds, 'top')}>顶对齐</Button>
+          <Button size="small" onClick={() => onAlign(selectedIds, 'hcenter')}>水平居中</Button>
+          <Button size="small" onClick={() => onAlign(selectedIds, 'vcenter')}>垂直居中</Button>
+        </Space>
+        <Space>
+          <Button size="small" onClick={() => selectedIds.forEach(onDuplicate)}>
+            逐个复制
+          </Button>
+          <Button size="small" danger onClick={() => onRemoveMany(selectedIds)}>
+            删除全部
+          </Button>
+        </Space>
+        <p style={{ fontSize: 12, color: '#999', marginTop: 10 }}>
+          多选: 画布 Shift/Ctrl 点选或拖框; 成组拖动同步位移。
+        </p>
+      </div>
+    )
+  }
 
   if (!component) {
     return (
@@ -137,6 +181,12 @@ export const Inspector: React.FC<InspectorProps> = ({
             onChange={v => onPatchPage(d => ({ ...d, padding: v ?? 0 }))}
           />
         </Field>
+        <Field label="字号增量">
+          <InputNumber
+            value={page.font.sizeAdd}
+            onChange={v => onPatchPage(d => ({ ...d, font: { ...d.font, sizeAdd: v ?? 0 } }))}
+          />
+        </Field>
         <Field label="组件数">
           <span>{page.components.length}</span>
         </Field>
@@ -147,11 +197,12 @@ export const Inspector: React.FC<InspectorProps> = ({
     )
   }
 
-  const patch = (mut: (c: ComponentDoc) => ComponentDoc) =>
-    onPatchComponent(component.id, mut)
+  const patch = (mut: (c: ComponentDoc) => ComponentDoc, coalesceKey?: string) =>
+    onPatchComponent(component.id, mut, coalesceKey)
 
+  /** props 单键修改: 同键连续输入合并为一步撤销 (500ms 窗口) */
   const patchProp = (key: string, value: unknown) =>
-    patch(c => ({ ...c, props: { ...c.props, [key]: value } }))
+    patch(c => ({ ...c, props: { ...c.props, [key]: value } }), `props:${key}`)
 
   return (
     <div style={{ width: 280, flexShrink: 0, overflowY: 'auto', paddingLeft: 8 }}>
@@ -195,6 +246,7 @@ export const Inspector: React.FC<InspectorProps> = ({
           step={0.1}
           value={component.pos[0]}
           onChange={v => patch(c => ({ ...c, pos: [v ?? 0, c.pos[1]] }))}
+          onBlur={() => patch(c => ({ ...c, pos: [Math.round(c.pos[0] * 10) / 10, c.pos[1]] }))}
         />
       </Field>
       <Field label="Y (行高倍)">
@@ -202,6 +254,7 @@ export const Inspector: React.FC<InspectorProps> = ({
           step={0.1}
           value={component.pos[1]}
           onChange={v => patch(c => ({ ...c, pos: [c.pos[0], v ?? 0] }))}
+          onBlur={() => patch(c => ({ ...c, pos: [c.pos[0], Math.round(c.pos[1] * 10) / 10] }))}
         />
       </Field>
       <Field label="自身锚点">
@@ -258,6 +311,19 @@ export const Inspector: React.FC<InspectorProps> = ({
       )}
 
       {/* props 表单 (schema 驱动; 黑盒组件空表) */}
+      {configDrivenKeys.length > 0 && (
+        <>
+          <SectionTitle>组件属性</SectionTitle>
+          <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
+            本组件外观由设置面板配置驱动:
+          </div>
+          <Space wrap size={4}>
+            {configDrivenKeys.map(k => (
+              <Tag key={k} style={{ fontSize: 11 }}>{k}</Tag>
+            ))}
+          </Space>
+        </>
+      )}
       {activeSchema.length > 0 && (
         <>
           <SectionTitle>组件属性</SectionTitle>
@@ -318,8 +384,20 @@ export const Inspector: React.FC<InspectorProps> = ({
                     />
                   </Field>
                 )
+              case 'Color':
+                return (
+                  <Field key={p.key} label={p.displayZh}>
+                    <ColorPicker
+                      size="small"
+                      format="hex"
+                      value={typeof v === 'string' && v.startsWith('#') ? v : undefined}
+                      onChange={color => patchProp(p.key, color.toHexString())}
+                      showText
+                    />
+                  </Field>
+                )
               default:
-                // Str / Color (Color 本期无组件使用, 同文本输入)
+                // Str (文本)
                 return (
                   <Field key={p.key} label={p.displayZh}>
                     <Input

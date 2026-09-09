@@ -1,5 +1,10 @@
-/** W4 palette: 常用字段预设 (出厂数据字段, 点击即完整配置) + 组件目录分组 */
-import React, { useEffect, useMemo, useState } from 'react'
+/**
+ * W4 palette: 常用字段预设 + 组件目录分组。
+ * C5 拖放: pointer 系 (与画布统一事件模型) — 按住拖到画布指定位置释放
+ * (落点换算经 LayoutTab 持有的 CanvasHandle); 位移 < 4px = 点击, 走原
+ * 画布中心落点添加。
+ */
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Tag } from 'antd'
 import type { CatalogResponse, ComponentCatalogEntry, FieldPreset } from './types'
 import { getComponentCatalog } from './api'
@@ -13,15 +18,27 @@ const CATEGORY_ZH: Record<string, string> = {
   Decor: '装饰',
 }
 
+/** 点击/拖放判定阈值 (px) */
+const DRAG_THRESHOLD = 4
+
 interface PaletteProps {
   onAdd: (typeName: string, displayZh: string, defaultProps?: Record<string, unknown>) => void
-  /** 常用字段预设添加 (props 完整配置) */
+  /** 拖放释放 (画布外释放由 LayoutTab 静默取消) */
+  onDrop: (
+    entry: { typeName: string; displayZh: string; defaultProps?: Record<string, unknown> },
+    clientX: number,
+    clientY: number,
+  ) => void
+  /** 常用字段预设添加 (props 完整配置; 拖放同 onDropField) */
   onAddField: (preset: FieldPreset) => void
 }
 
-export const Palette: React.FC<PaletteProps> = ({ onAdd, onAddField }) => {
+export const Palette: React.FC<PaletteProps> = ({ onAdd, onDrop, onAddField }) => {
   const [catalog, setCatalog] = useState<ComponentCatalogEntry[]>([])
   const [presets, setPresets] = useState<FieldPreset[]>([])
+  /** 拖动 ghost 位置 (null = 未拖) */
+  const [ghost, setGhost] = useState<{ label: string; x: number; y: number } | null>(null)
+  const pending = useRef<{ entry: { typeName: string; displayZh: string; defaultProps?: Record<string, unknown> }; start: [number, number] } | null>(null)
 
   useEffect(() => {
     getComponentCatalog()
@@ -43,6 +60,38 @@ export const Palette: React.FC<PaletteProps> = ({ onAdd, onAddField }) => {
     }
     return [...m.entries()]
   }, [catalog])
+
+  // window 级 move/up (拖出 palette 后仍跟踪)
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const p = pending.current
+      if (!p) return
+      const dist = Math.hypot(e.clientX - p.start[0], e.clientY - p.start[1])
+      if (dist >= DRAG_THRESHOLD) setGhost({ label: p.entry.displayZh, x: e.clientX, y: e.clientY })
+    }
+    const onUp = (e: PointerEvent) => {
+      const p = pending.current
+      pending.current = null
+      setGhost(null)
+      if (!p) return
+      const dist = Math.hypot(e.clientX - p.start[0], e.clientY - p.start[1])
+      if (dist < DRAG_THRESHOLD) {
+        onAdd(p.entry.typeName, p.entry.displayZh, p.entry.defaultProps) // 点击
+      } else {
+        onDrop(p.entry, e.clientX, e.clientY) // 拖放 (画布外 = LayoutTab 静默取消)
+      }
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [onAdd, onDrop])
+
+  const startEntryDrag = (e: React.PointerEvent, entry: { typeName: string; displayZh: string; defaultProps?: Record<string, unknown> }) => {
+    pending.current = { entry, start: [e.clientX, e.clientY] }
+  }
 
   return (
     <div
@@ -91,18 +140,19 @@ export const Palette: React.FC<PaletteProps> = ({ onAdd, onAddField }) => {
           {items.map(e => (
             <div
               key={e.typeName}
-              onClick={() => onAdd(e.typeName, e.displayZh, e.defaultProps)}
+              onPointerDown={ev => startEntryDrag(ev, e)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
                 padding: '4px 6px',
-                cursor: 'pointer',
+                cursor: 'grab',
                 borderRadius: 4,
                 fontSize: 13,
+                userSelect: 'none',
               }}
               className="palette-item"
-              title={e.typeName}
+              title={`${e.displayZh} (拖到画布放置)`}
             >
               <span style={{ fontSize: 10, color: '#999' }}>＋</span>
               <span style={{ flex: 1 }}>{e.displayZh}</span>
@@ -113,6 +163,25 @@ export const Palette: React.FC<PaletteProps> = ({ onAdd, onAddField }) => {
           ))}
         </div>
       ))}
+      {/* 拖放 ghost (跟随光标) */}
+      {ghost && (
+        <div
+          style={{
+            position: 'fixed',
+            left: ghost.x + 10,
+            top: ghost.y + 8,
+            padding: '2px 8px',
+            background: 'rgba(255,105,180,0.9)',
+            color: '#fff',
+            borderRadius: 4,
+            fontSize: 12,
+            pointerEvents: 'none',
+            zIndex: 1000,
+          }}
+        >
+          {ghost.label}
+        </div>
+      )}
       <style>{`
         .palette-item:hover { background: rgba(22,119,255,0.08); }
       `}</style>
