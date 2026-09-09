@@ -541,6 +541,13 @@ impl OverlayHost {
             .map(|e| (e.width, e.height))
     }
 
+    /// 条目窗口当前屏幕位置 (未开窗 = None; 编辑层 hover/手势坐标换算用)
+    pub fn entry_position(&self, id: &str) -> Option<(i32, i32)> {
+        let e = self.entries.iter().find(|e| e.id == id)?;
+        let sl = e.slot.as_ref()?;
+        Some(sl.window.position())
+    }
+
     fn resize_idx(&mut self, idx: usize, w: i32, h: i32) -> Result<(), String> {
         let same = self.entries[idx].width == w && self.entries[idx].height == h;
         if !same {

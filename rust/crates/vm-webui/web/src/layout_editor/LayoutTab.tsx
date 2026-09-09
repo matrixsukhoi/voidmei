@@ -8,6 +8,7 @@
  * 页清单/出厂文档 (页面管理操作基底)。
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { listen } from '@tauri-apps/api/event'
 import { Alert, Button, Popconfirm, Select, Space, Switch, Tooltip, message } from 'antd'
 import type { PageDoc } from './types'
 import { getPages } from './api'
@@ -100,7 +101,7 @@ export const LayoutTab: React.FC = () => {
     let un2: (() => void) | undefined
     let un3: (() => void) | undefined
     let un4: (() => void) | undefined
-    import('@tauri-apps/api/event').then(({ listen }) => {
+    {
       listen<string>('hud-edit-doc', e => {
         try {
           const p = JSON.parse(e.payload) as EditDocPayload
@@ -123,7 +124,7 @@ export const LayoutTab: React.FC = () => {
       listen<string>('hud-edit-error', e => {
         message.error(e.payload || '编辑命令失败')
       }).then(u => (un4 = u))
-    })
+    }
     return () => {
       un2?.()
       un3?.()
@@ -252,7 +253,7 @@ export const LayoutTab: React.FC = () => {
     (id: string, mut: (c: ComponentDocT) => ComponentDocT) => {
       if (!doc) return
       const cur = doc.components.find(c => c.id === id)
-      if (cur) sendCmd('updateComponent', { comp: mut(cur) })
+      if (cur) sendCmd('updateComponent', { oldId: id, comp: mut(cur) })
     },
     [doc, sendCmd],
   )
@@ -272,7 +273,7 @@ export const LayoutTab: React.FC = () => {
         size: null,
         props,
       }
-      sendCmd('updateComponent', { comp })
+      sendCmd('updateComponent', { oldId: comp.id, comp })
     },
     [doc, sendCmd],
   )
@@ -292,7 +293,7 @@ export const LayoutTab: React.FC = () => {
         size: null,
         props: { ...preset.props },
       }
-      sendCmd('updateComponent', { comp })
+      sendCmd('updateComponent', { oldId: comp.id, comp })
     },
     [doc, sendCmd],
   )
@@ -309,7 +310,7 @@ export const LayoutTab: React.FC = () => {
           onSelectionChange={ids => sendCmd('select', { ids }, false)}
           onToggleEnabled={(id, enabled) => {
             const cur = doc?.components.find(c => c.id === id)
-            if (cur) sendCmd('updateComponent', { comp: { ...cur, enabled } })
+            if (cur) sendCmd('updateComponent', { oldId: id, comp: { ...cur, enabled } })
           }}
         />
       </div>
@@ -451,7 +452,7 @@ export const LayoutTab: React.FC = () => {
           const c = doc.components.find(x => x.id === oldId)
           if (!c) return true
           if (newName !== oldId && doc.components.some(x => x.id === newName)) return false
-          sendCmd('updateComponent', { comp: { ...c, id: newName } })
+          sendCmd('updateComponent', { oldId: oldId, comp: { ...c, id: newName } })
           return true
         }}
         onRemove={id => sendCmd('removeComponents', { ids: [id] })}
@@ -461,6 +462,7 @@ export const LayoutTab: React.FC = () => {
           const src = doc.components.find(c => c.id === id)
           if (!src) return
           sendCmd('updateComponent', {
+            oldId: undefined,
             comp: {
               ...src,
               id: nextComponentId(doc, src.id),

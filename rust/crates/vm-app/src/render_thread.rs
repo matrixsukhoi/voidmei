@@ -191,7 +191,7 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
     fn store(&mut self, id: &str, x: f64, y: f64) {
         self.snapshot.insert(id.to_string(), (x, y));
         let _ = self.tx.send(MainEvent::PositionSaved {
-            host_key: id.to_string(),
+            page_id: id.to_string(),
             x,
             y,
         });
@@ -360,8 +360,7 @@ fn assemble_page_spec(
     lang: &Rc<Lang>,
     params: &Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
 ) -> PageSpecParams {
-    // 参数仓快照 (per-page 分差; gauge/字号与编辑器快照同源 — env.rs from_params
-    // + page_overlay.rs resolve_page_font_size 的收敛点)
+    // 参数仓快照 (per-page 分差; gauge 与编辑器快照同源 — env.rs from_params)
     let p = params.borrow();
     let dpi = env.dpi.get_scale();
     let gauge =
@@ -843,8 +842,12 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                 // FocusMonitor 通道桥目标 (Java hideAllOverlays/showAllOverlays;
                 // host 幂等标志防重复, shared 镜像供桥回读)
                 UiCommand::HideAllOverlays => {
-                    session.host.hide_all_overlays();
-                    session.shared.overlays_hidden.store(true, Ordering::SeqCst);
+                    // 编辑会话期忽略 (FocusMonitor 失焦隐藏会藏掉编辑画布;
+                    // 共享标志不同步 — FocusMonitor 的 show 分支对称恢复)
+                    if session.edit.is_none() {
+                        session.host.hide_all_overlays();
+                        session.shared.overlays_hidden.store(true, Ordering::SeqCst);
+                    }
                 }
                 UiCommand::ShowAllOverlays => {
                     session.host.show_all_overlays();
@@ -878,11 +881,23 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                                     Some(&e),
                                 );
                             }
-                            Ok(()) => {
-                                // 命令类修改统一整页重装配 (props/增删/页面属性) —
-                                // 编辑仓接管 params.pages 后走 reinit 链, 直改即所见
+                            // 分级处理: 结构变化 → 整页重装配; 节点直改 → 缓存刷新
+                            // + 即时渲染; 纯选择/选项 → 无渲染面动作 (此前一律
+                            // 重装配 — select 一下也全页重建)
+                            Ok(crate::edit_session::CommandEffect::Full) => {
                                 let mut es = es_rc.borrow_mut();
                                 session.rebuild_edit_target(&mut es);
+                            }
+                            Ok(crate::edit_session::CommandEffect::Light) => {
+                                let mut es = es_rc.borrow_mut();
+                                crate::edit_session::refresh_cache_public(
+                                    &mut es,
+                                    &session.handles.pages,
+                                );
+                                let _ = session.host.render_tick();
+                            }
+                            Ok(crate::edit_session::CommandEffect::None) => {
+                                let _ = session.host.render_tick(); // 装饰 (选中态) 刷新
                             }
                         }
                     }

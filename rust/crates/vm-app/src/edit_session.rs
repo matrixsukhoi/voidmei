@@ -74,6 +74,8 @@ pub enum EditGesture {
         start_root: (i32, i32),
         /// 手势起点组件画布系矩形 (含起点尺寸)
         start_rect: (i32, i32, i32, i32),
+        /// 手势起点组件 pos 单位 (origin 位移换算基准)
+        start_unit: [f64; 2],
         last_apply: Instant,
     },
     Marquee {
@@ -230,11 +232,18 @@ pub(crate) fn press_decision(s: &mut EditSession, entry_id: &str, root: (i32, i3
                 .iter()
                 .find(|(id, ..)| s.selection.first() == Some(id))
             {
+                // 起点 pos 单位 (doc 直查; origin 位移换算基准)
+                let start_unit = s
+                    .target_doc()
+                    .and_then(|d| d.components.iter().find(|c| c.id == s.selection[0]))
+                    .map(|c| c.pos)
+                    .unwrap_or([0.0, 0.0]);
                 s.gesture = Some(EditGesture::Resize {
                     id: s.selection[0].clone(),
                     handle: kind,
                     start_root: root,
                     start_rect: (*x, *y, *w, *h),
+                    start_unit,
                     last_apply: Instant::now(),
                 });
                 return true;
@@ -446,10 +455,10 @@ pub(crate) fn edit_pump(
         match ev {
             EditMouse::Move { x, y } => {
                 // hover 更新 (无手势时) / 手势推进
-                let win_pos = entry_window_pos(host, &entry_id);
+                let win_pos = entry_window_pos(host, &entry_id).unwrap_or((0, 0));
                 let local = (x - win_pos.0, y - win_pos.1);
-                match &s.gesture {
-                    None => {
+                match s.gesture.is_some() {
+                    false => {
                         let h = match hit_test(s, local) {
                             Hit::Component(id) => Some(id),
                             _ => None,
@@ -459,14 +468,41 @@ pub(crate) fn edit_pump(
                             need_render = true;
                         }
                     }
-                    Some(_) => {
-                        advance_gesture(s, &page, (x, y), host, &mut need_render);
+                    true => {
+                        // 手势推进 (Move 用屏幕差分; Marquee 需画布系 — 传 local)
+                        advance_gesture(s, &page, (x, y), local, host, &mut need_render);
                     }
                 }
             }
             EditMouse::Release => {
-                if s.gesture.take().is_some() {
-                    // 手势结束: 尺寸终值补齐 + doc 同步 (pos/size 已在推进中写入)
+                if let Some(g) = s.gesture.take() {
+                    match g {
+                        EditGesture::Marquee { start_canvas, cur_canvas } => {
+                            // 框选完成: 与缓存矩形求交 → 选中集 (位移 < 3px 视为
+                            // 空白点击 = 清选, 已在 press_decision 处理)
+                            let sel = {
+                                let (x0, y0) = (
+                                    start_canvas.0.min(cur_canvas.0),
+                                    start_canvas.1.min(cur_canvas.1),
+                                );
+                                let (x1, y1) = (
+                                    start_canvas.0.max(cur_canvas.0),
+                                    start_canvas.1.max(cur_canvas.1),
+                                );
+                                s.hit_rects
+                                    .iter()
+                                    .filter(|(_, x, y, w, h)| {
+                                        *x < x1 && x + w > x0 && *y < y1 && y + h > y0
+                                    })
+                                    .map(|(id, ..)| id.clone())
+                                    .collect::<Vec<_>>()
+                            };
+                            s.selection = sel;
+                        }
+                        _ => {
+                            // Move/Resize 结束: doc 已在推进中同步
+                        }
+                    }
                     s.doc_dirty = true;
                     need_render = true;
                 }
@@ -487,23 +523,24 @@ pub(crate) fn edit_pump(
         s.doc_dirty = false;
         s.last_doc_push = now;
     }
-    // ⑤ 即时渲染 (~100Hz 跟手; 静止时脏检查零提交)
-    let _ = need_render;
-    let _ = host.render_tick();
+    // ⑤ 即时渲染 (~100Hz 跟手) — 仅在有渲染面活动时 (事件/手势/待推送);
+    // 静止时不额外 tick (主循环 50ms 常规节拍足够, 省下每 10ms 全页重画)
+    if need_render || s.doc_dirty || s.gesture.is_some() {
+        let _ = host.render_tick();
+    }
 }
 
-/// 条目窗口位置 (host 无直查 — 经 active 槽位; 简化: 记在 session 缓存)
-fn entry_window_pos(_host: &OverlayHost, _id: &str) -> (i32, i32) {
-    // host 的 window.position 需要槽位借用; 编辑会话里窗口不移动期间位置不变,
-    // 简化为 (0,0) 相对坐标系 (on_press 的 win_pos 已带真实值; Move 用差分)
-    (0, 0)
+/// 条目窗口位置 (host 直查; 窗口未开 = None → 屏幕系退化)
+fn entry_window_pos(host: &OverlayHost, id: &str) -> Option<(i32, i32)> {
+    host.entry_position(id)
 }
 
-/// 手势推进核心 (直改页面节点 — 真渲染面)
+/// 手势推进核心 (直改页面节点 — 真渲染面; local = 窗口局部坐标, Marquee 用)
 fn advance_gesture(
     s: &mut EditSession,
     page: &PageHandle,
     root: (i32, i32),
+    local: (i32, i32),
     host: &mut OverlayHost,
     need_render: &mut bool,
 ) {
@@ -560,18 +597,29 @@ fn advance_gesture(
             handle,
             start_root,
             start_rect,
+            start_unit,
             last_apply,
         }) => {
             let d = (root.0 - start_root.0, root.1 - start_root.1);
-            let (_x, _y, w, h) = resize_rect(start_rect, handle, d);
+            let (x, y, w, h) = resize_rect(start_rect, handle, d);
+            // origin 位移 (N/W 向手柄拖动改变起点) → 新 pos = 起点 + 位移/行高
+            let lh = page.borrow().line_height().max(1.0);
+            let new_pos = [
+                snap_unit(start_unit[0] + (x - start_rect.0) as f64 / lh),
+                snap_unit(start_unit[1] + (y - start_rect.1) as f64 / lh),
+            ];
             {
                 let p = page.borrow_mut();
+                if let Some(node) = p.layout.engine.get_node(&id) {
+                    node.set_relative_position(new_pos[0], new_pos[1]);
+                }
                 if let Some(cell) = p.cells.get(&id) {
                     cell.set_size_override(Some((w, h)));
                 }
                 if let Some(doc) = s.target_doc_mut() {
                     if let Some(c) = doc.components.iter_mut().find(|c| c.id == id) {
                         c.size = Some([w, h]);
+                        c.pos = new_pos;
                     }
                 }
             }
@@ -583,6 +631,7 @@ fn advance_gesture(
                     handle,
                     start_root,
                     start_rect,
+                    start_unit,
                     last_apply: Instant::now(),
                 });
             } else {
@@ -591,17 +640,17 @@ fn advance_gesture(
                     handle,
                     start_root,
                     start_rect,
+                    start_unit,
                     last_apply,
                 });
             }
             *need_render = true;
         }
         Some(EditGesture::Marquee { start_canvas, .. }) => {
-            // Move 期间只更新当前点 (画布系换算靠缓存 offset — 窗口静止, 足够)
-            // 屏幕系差分 (窗口静止期等价画布系; on_press 起点已换算)
+            // 画布系当前点 (窗口局部 − auto-sizing 偏移; 与 on_press 起点同系)
             s.gesture = Some(EditGesture::Marquee {
                 start_canvas,
-                cur_canvas: root,
+                cur_canvas: (local.0 - s.canvas_off.0, local.1 - s.canvas_off.1),
             });
             *need_render = true;
         }
@@ -761,12 +810,12 @@ pub(crate) fn refresh_cache_public(s: &mut EditSession, pages: &[(String, PageHa
 // 命令执行面 (UiCommand 编辑命令的渲染线程处理体)
 // =====================================================================
 
-/// 编辑命令是否适用于当前会话 (None = 无会话, 调用方拒绝)
+/// 编辑命令执行 (返回渲染面效果分级; Err = 拒绝并回显)
 pub(crate) fn apply_command(
     s: &mut EditSession,
     pages: &[(String, PageHandle)],
     cmd: &EditCommand,
-) -> Result<(), String> {
+) -> Result<CommandEffect, String> {
     match cmd {
         EditCommand::SetTargetPage { page_id } => {
             if s.docs.iter().any(|d| d.id == *page_id) {
@@ -774,7 +823,7 @@ pub(crate) fn apply_command(
                 s.selection.clear();
                 s.doc_dirty = true;
             }
-            Ok(())
+            Ok(CommandEffect::Full) // 目标页切换 → 装饰/缓存转移
         }
         EditCommand::Select { ids } => {
             s.selection = ids
@@ -787,10 +836,12 @@ pub(crate) fn apply_command(
                 .cloned()
                 .collect();
             s.doc_dirty = true;
-            Ok(())
+            Ok(CommandEffect::None) // 选择是装饰面, 无渲染结构变化
         }
         EditCommand::Nudge { ids, d_unit } => {
             let d = *d_unit;
+            // doc + 真窗节点双写 (方向键微调即时生效 — 此前只写 doc 不动节点,
+            // 微调完全不生效)
             if let Some(doc) = s.target_doc_mut() {
                 for c in doc.components.iter_mut() {
                     if ids.contains(&c.id) {
@@ -798,23 +849,33 @@ pub(crate) fn apply_command(
                     }
                 }
             }
-            // 页面实例同步: 命令类修改统一走整页重装配 (render_thread 侧调 rebuild)
-            let _ = pages;
+            if let Some((_, page)) = pages.iter().find(|(id, _)| *id == s.target_page) {
+                let p = page.borrow();
+                let doc = s.target_doc().cloned();
+                if let Some(doc) = doc {
+                    for id in ids {
+                        if let Some(c) = doc.components.iter().find(|c| &c.id == id) {
+                            if let Some(node) = p.layout.engine.get_node(id) {
+                                node.set_relative_position(c.pos[0], c.pos[1]);
+                            }
+                        }
+                    }
+                }
+            }
             s.doc_dirty = true;
-            Ok(())
+            Ok(CommandEffect::Light)
         }
-        EditCommand::UpdateComponent { comp } => {
-            // 整组件替换 (props/改名/size/visibleWhen); 改名同步 parent 引用
-            let old_id = pages_placeholder_find_old(s, comp);
+        EditCommand::UpdateComponent { comp, old_id } => {
+            // 整组件替换 (props/改名/size/visibleWhen); 改名同步 parent 引用。
+            // old_id 显式传入 (改名 = 新 id 替换旧 id 槽位 — 此前按 comp.id
+            // 自匹配, 改名会误变"复制+残留")
+            let old_id = old_id.clone().unwrap_or_else(|| comp.id.clone());
             if let Some(doc) = s.target_doc_mut() {
                 // 撞名拒绝
                 if comp.id != old_id && doc.components.iter().any(|c| c.id == comp.id) {
                     return Err(format!("组件 id「{}」已存在", comp.id));
                 }
-                let pos = doc
-                    .components
-                    .iter()
-                    .position(|c| c.id == old_id);
+                let pos = doc.components.iter().position(|c| c.id == old_id);
                 if let Some(i) = pos {
                     doc.components[i] = comp.clone();
                 } else {
@@ -826,10 +887,16 @@ pub(crate) fn apply_command(
                             c.parent = Some(comp.id.clone());
                         }
                     }
+                    s.selection = s
+                        .selection
+                        .iter()
+                        .map(|x| if x == &old_id { &comp.id } else { x })
+                        .cloned()
+                        .collect();
                 }
             }
             s.doc_dirty = true;
-            Ok(())
+            Ok(CommandEffect::Full)
         }
         EditCommand::RemoveComponents { ids } => {
             if let Some(doc) = s.target_doc_mut() {
@@ -844,26 +911,26 @@ pub(crate) fn apply_command(
             }
             s.selection.retain(|id| !ids.contains(id));
             s.doc_dirty = true;
-            Ok(())
+            Ok(CommandEffect::Full)
         }
         EditCommand::ReorderComponent { id, to } => {
             if let Some(doc) = s.target_doc_mut() {
                 let Some(pos) = doc.components.iter().position(|c| c.id == *id) else {
-                    return Ok(());
+                    return Ok(CommandEffect::Full);
                 };
                 let c = doc.components.remove(pos);
                 let to = (*to).min(doc.components.len());
                 doc.components.insert(to, c);
             }
             s.doc_dirty = true;
-            Ok(())
+            Ok(CommandEffect::Full)
         }
         EditCommand::UpdatePage { page } => {
             if let Some(doc) = s.docs.iter_mut().find(|d| d.id == page.id) {
                 *doc = page.clone();
                 s.doc_dirty = true;
             }
-            Ok(())
+            Ok(CommandEffect::Full)
         }
         EditCommand::UpsertPage { page } => {
             match s.docs.iter_mut().find(|d| d.id == page.id) {
@@ -874,7 +941,7 @@ pub(crate) fn apply_command(
                 }
             }
             s.doc_dirty = true;
-            Ok(())
+            Ok(CommandEffect::Full)
         }
         EditCommand::DeletePage { page_id } => {
             s.docs.retain(|d| d.id != *page_id);
@@ -883,7 +950,7 @@ pub(crate) fn apply_command(
                 s.selection.clear();
             }
             s.doc_dirty = true;
-            Ok(())
+            Ok(CommandEffect::Full)
         }
         EditCommand::SetOptions {
             snapping,
@@ -899,18 +966,20 @@ pub(crate) fn apply_command(
             if let Some(v) = marquee {
                 s.marquee_mode = *v;
             }
-            Ok(())
+            Ok(CommandEffect::None)
         }
     }
 }
 
-fn pages_placeholder_find_old(s: &EditSession, comp: &ComponentDoc) -> String {
-    // 同位替换 (按槽位); 前端携带原 id 的场景在 dto 层展开, 此处按 id 匹配
-    // (改名场景前端先按 old id 查 — 简化: UpdateComponent 携带的就是新态,
-    // old_id 由"页内已存在且 props 相同"启发不可靠, 故约定前端改名单独走
-    // RenameComponent)
-    let _ = s;
-    comp.id.clone()
+/// 命令的渲染面效果 (render_thread 据此决定轻/重路径)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandEffect {
+    /// 无渲染面变化 (select/setOptions — 不重装配不即时渲染)
+    None,
+    /// 节点已直改 (nudge — 只需 refresh_cache + 即时渲染)
+    Light,
+    /// doc 结构变化 (增删改组件/页面 — 整页重装配)
+    Full,
 }
 
 /// 编辑命令 (UiCommand 变体的载荷面 — commands.rs 引用;
@@ -921,7 +990,12 @@ pub enum EditCommand {
     SetTargetPage { page_id: String },
     Select { ids: Vec<String> },
     Nudge { ids: Vec<String>, d_unit: [f64; 2] },
-    UpdateComponent { comp: ComponentDoc },
+    UpdateComponent {
+        comp: ComponentDoc,
+        /// 原 id (改名场景; 缺省 = comp.id 即原 id)
+        #[serde(default)]
+        old_id: Option<String>,
+    },
     RemoveComponents { ids: Vec<String> },
     ReorderComponent { id: String, to: usize },
     UpdatePage { page: PageDoc },

@@ -3,8 +3,6 @@
   "panels": [
     {
       "title": "欢迎",
-      "x": 0.5,
-      "y": 0.5,
       "alpha": 180,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -622,8 +620,6 @@
     },
     {
       "title": "MiniHUD",
-      "x": 0.3891,
-      "y": 0.7042,
       "alpha": 180,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -1434,8 +1430,6 @@
     },
     {
       "title": "飞行信息",
-      "x": 0.0602,
-      "y": 0.1188,
       "alpha": 180,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -1521,8 +1515,6 @@
     },
     {
       "title": "动力信息",
-      "x": 0.0613,
-      "y": 0.4806,
       "alpha": 180,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -1608,8 +1600,6 @@
     },
     {
       "title": "引擎控制",
-      "x": 0.1441,
-      "y": 0.4188,
       "alpha": 180,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -1671,8 +1661,6 @@
     },
     {
       "title": "舵面值",
-      "x": 0.8898,
-      "y": 0.3208,
       "alpha": 150,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -1783,8 +1771,6 @@
     },
     {
       "title": "起落襟翼",
-      "x": 0.1551,
-      "y": 0.2833,
       "alpha": 150,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -1895,8 +1881,6 @@
     },
     {
       "title": "地平仪",
-      "x": 0.6934,
-      "y": 0.1299,
       "alpha": 150,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -2103,8 +2087,6 @@
     },
     {
       "title": "FM拆包数据",
-      "x": 0.832,
-      "y": 0.3125,
       "alpha": 180,
       "visible": false,
       "fontName": "Sarasa Mono SC",
@@ -2867,8 +2849,6 @@
     },
     {
       "title": "语音告警",
-      "x": 0.01,
-      "y": 0.01,
       "alpha": 180,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -3555,8 +3535,6 @@
     },
     {
       "title": "飞行记录",
-      "x": 0.01,
-      "y": 0.01,
       "alpha": 180,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -3642,8 +3620,6 @@
     },
     {
       "title": "全局设置",
-      "x": 0.01,
-      "y": 0.01,
       "alpha": 180,
       "visible": true,
       "fontName": "Sarasa Mono SC",
@@ -5692,7 +5668,27 @@
         }
       ],
       "dataface": "sidecar",
-      "startHidden": true
+      "startHidden": true,
+      "interestKeys": [
+        "displayFmKey",
+        "selectedFM",
+        "showWeight",
+        "showCritSpeed",
+        "showGLoadLimits",
+        "showFlapLimits",
+        "showControlEffectiveness",
+        "showNitro",
+        "showHeatRecovery",
+        "showMaxLiftLoad",
+        "showInertia",
+        "showLift",
+        "showDrag",
+        "showNoFlapsWing",
+        "showFullFlapsWing",
+        "showFuselage",
+        "showFin",
+        "showStab"
+      ]
     },
     {
       "id": "thrust-chart-default",

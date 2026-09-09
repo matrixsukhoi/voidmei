@@ -754,17 +754,25 @@ fn reset_handles_preview_values_clears_live_residue() {
 // FM拆包数据装配面 (P5 组装契约销号: enableFMPrint 注册 + withInterest + 配置快照)
 // ------------------------------------------------------------------
 
-/// withInterest 键 ↔ Java Controller.java:739-743 逐字核对 (20 键; 审查 W1
-/// 同族回归锚 — 死键 fmInfoColumn 为 Java 原样, 见 const 注)
+/// FM拆包页兴趣键 (R3 后源 =
+/// factory_default.json 页文档 interestKeys — keys.rs 死表已退役;
+/// fmInfoColumn 死键删 [cfg 无该行, Java 原样保真已无意义])
 #[test]
-fn fm_unpacked_interest_keys_verbatim_java_controller() {
+fn fm_page_interest_keys_verbatim_java_controller() {
+    let keys = {
+        let cfg = vm_core::config::json_store::factory_default();
+        cfg.pages
+            .iter()
+            .find(|p| p.id == "fm-list-default")
+            .expect("fm-list-default 出厂页")
+            .interest_keys
+            .clone()
+    };
     assert_eq!(
-        FM_UNPACKED_INTEREST_KEYS,
-        [
+        keys,
+        vec![
             "displayFmKey",
             "selectedFM",
-            "fmInfoColumn",
-            "fontName",
             "showWeight",
             "showCritSpeed",
             "showGLoadLimits",

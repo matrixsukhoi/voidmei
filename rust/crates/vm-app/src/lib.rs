@@ -91,7 +91,7 @@ pub use crate::controller_state::ControllerState;
 pub use crate::debouncer::{ConfigDebouncer, CONFIG_DEBOUNCE_MS};
 pub use crate::env::Env;
 pub use crate::keys::{
-    FM_FIELD_KEYS, FM_UNPACKED_INTEREST_KEYS, GLOBAL_COLOR_KEYS, MINIHUD_INTEREST_KEYS,
+    FM_FIELD_KEYS, GLOBAL_COLOR_KEYS,
 };
 pub use crate::overlay_inputs::{ActivationCache, OverlayInputs, ACTIVATION_KEYS};
 pub use crate::render_thread::{render_thread_main, RenderThreadConfig};
@@ -475,17 +475,9 @@ impl AppShell {
                 logger::warn("EditSession", &msg);
                 self.ui_bus.publish("HUD_EDIT_ERROR", Some("EditSession"), Some(&msg));
             }
-            MainEvent::PositionSaved { host_key, x, y } => {
+            MainEvent::PositionSaved { page_id, x, y } => {
                 if let Some(c) = self.controller.as_ref() {
-                    let page_id = c
-                        .config
-                        .pages()
-                        .iter()
-                        .find(|p| &p.id == &host_key)
-                        .map(|p| p.id.clone());
-                    if let Some(page_id) = page_id {
-                        c.config.save_page_position(&page_id, x, y);
-                    }
+                    c.config.save_page_position(&page_id, x, y);
                 }
             }
             // Java configChangedHandler
@@ -586,6 +578,8 @@ impl AppShell {
                 }
             }
             MainEvent::Tray(TrayCommand::Activate) => {
+                // 编辑会话收尾 (核重建后编辑态无意义; 自动保存退出防编辑内容丢失)
+                self.send_ui(UiCommand::EndEditSession { commit: true });
                 // Java 托盘 mouseClicked: 旧核 stop + 新核构造。
                 // PORT(防重入窗口备案, 审查 A-W2): 托盘层 CAS (tray.rs dispatch_activate)
                 // 仅覆盖 handler.activate() 的 channel send (微秒级即复位), 远窄于
@@ -600,6 +594,8 @@ impl AppShell {
                 self.form_requested = true;
             }
             MainEvent::Tray(TrayCommand::Start) => {
+                // 编辑会话收尾 (进游戏前必先退出编辑 — 同 footer 开始按钮门控)
+                self.send_ui(UiCommand::EndEditSession { commit: true });
                 // tray.rs 拆分入口: Controller 重建的服务启动部分
                 if let Some(c) = self.controller.as_mut() {
                     c.start(&mut self.release_main_form);

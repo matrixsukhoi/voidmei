@@ -257,13 +257,8 @@ fn build_page(p: &PageSpecParams) -> Result<(PageOverlay, i32, i32), String> {
         Some(s) => (s.new_width, s.new_height),
         None => (300, 200),
     };
-    // fm-list 页: 全显 preview 初高钳屏高 (原 adjustPosition 上限; live 后由
-    // refresh_sizing 包围盒收敛逐 tick 调整)
-    let h = if p.doc.id == "fm-list-default" {
-        h.min(p.gauge_cfg.logical_height)
-    } else {
-        h
-    };
+    // (F 修复: fm-list 高度钳制特判退役 — 单列表组件自管高度,
+    // refresh_sizing 包围盒收敛链承接)
     Ok((page, w, h))
 }
 

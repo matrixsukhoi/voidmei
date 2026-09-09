@@ -94,8 +94,8 @@ pub enum MainEvent {
     /// section = 配置组标题 (Java OverlaySettings 按 sectionName 查 GroupConfig),
     /// 坐标归一化 (Java saveWindowPosition 的 gc.x/y 量纲)
     PositionSaved {
-        /// host 条目键 (主线程反查页 id)
-        host_key: String,
+        /// 页 id (R3 起条目键 = 页 id, 语义直通)
+        page_id: String,
         x: f64,
         y: f64,
     },

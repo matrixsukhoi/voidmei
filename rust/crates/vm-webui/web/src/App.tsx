@@ -372,15 +372,28 @@ export default function App() {
           透明样式) + 右组胶囊 [退　出|开　始] (Java BasePage 右组同款, 全角空格等宽) */}
       <div className="footerbar">
         <Space>
-          <Button type="text" className="footer-btn" onClick={() => act({ kind: 'Save' })}>
+          {/* 编辑会话期禁用: 保存/导入会绕过编辑仓直接落盘 (提交以编辑仓为准) */}
+          <Button
+            type="text"
+            className="footer-btn"
+            disabled={editSession}
+            onClick={() => act({ kind: 'Save' })}
+          >
             保存
           </Button>
-          <Button type="text" className="footer-btn" onClick={() => act({ kind: 'RefreshPreviews' })}>
+          <Button
+            type="text"
+            className="footer-btn"
+            disabled={editSession}
+            onClick={() => act({ kind: 'RefreshPreviews' })}
+          >
             刷新预览
           </Button>
           <Button
             type="text"
             className="footer-btn"
+            disabled={editSession}
+            title={editSession ? '编辑会话中不可导入' : undefined}
             onClick={() => importConfigDialog().catch((e) => message.error(`打开文件框失败: ${e}`))}
           >
             导入配置
