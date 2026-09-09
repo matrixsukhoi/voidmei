@@ -101,18 +101,32 @@ fn text_row_template_width() {
     assert!(!row.update("1", false), "同值 update 无变化");
 }
 
-/// HUDAkbRow: AoA 条几何 (drawHRect 1px 环 + 内芯) + α 文字右置 + 主文字左置。
+/// 等宽 advance 钉子: 出厂页机械化段间距 pos 换算的字体事实依据。
+/// 字母/空格 advance = 0.5em ("BRK " 4 字符 → 2.0 行高, 精确);
+/// 数字 advance 像素化略宽 ("F100 " ≈ 2.6 行高, ±1px)。换字体即醒目失败。
+#[test]
+fn monospace_advance_facts() {
+    let f = main_font();
+    assert_eq!(f.measure("BRK "), f.size * 2, "字母+空格段 = 2.0 行高 (精确)");
+    let flaps_seg = f.measure("F100 ") as f64 / f.size as f64;
+    assert!(
+        (flaps_seg - 2.6).abs() <= 0.05,
+        "F100 段 ≈ 2.6 行高 (实得 {flaps_seg})"
+    );
+}
+
+/// AoaGauge: AoA 条几何 (drawHRect 1px 环 + 内芯) + α 文字右置。
 /// rightDraw=60, aoaY=30, lineWidth=2 → 条 (x+30, liney) 宽 30 高 5。
 #[test]
-fn akb_row_bar_and_text_geometry() {
+fn aoa_gauge_bar_and_text_geometry() {
     let f = main_font();
     let sf = small_font();
-    let mut row = HUDAkbRow::new(0, 30, 60, 2);
-    row.update("500", false, "12", 30, COLOR_YELLOW, COLOR_YELLOW);
+    let mut g = AoaGauge::new(30, 60, 2);
+    g.update("12", 30, COLOR_YELLOW, COLOR_YELLOW);
 
     let mut cv = PixCanvas::new(140, 60).unwrap();
     let (x, y) = (10, 5);
-    row.draw(&mut cv, x, y, &f, &sf, false);
+    g.draw(&mut cv, x, y, &f, &sf, false);
 
     let ascent = f.metrics().ascent;
     let liney = y + ascent + 1;
@@ -130,37 +144,32 @@ fn akb_row_bar_and_text_geometry() {
         any_alpha_above(&cv, x + 60, liney - 20, x + 110, liney, 100),
         "α 文字在 x+rightDraw 右侧"
     );
-    // 主文字: colorNum, 位于条左侧区域
-    assert!(
-        any_alpha_above(&cv, x, y, x + 29, y + 28, 200),
-        "速度主文字在左侧"
-    );
 }
 
-/// HUDAkbRow onDataUpdate 条长计算 (Java:69-72): 截断 + rightDraw 钳制。
+/// AoaGauge 条长计算 (Java:69-72): 截断 + rightDraw 钳制。
 #[test]
-fn akb_row_aoa_ratio_clamp() {
-    let mut row = HUDAkbRow::new(0, 30, 60, 2);
-    row.set_style(60, 2, 100);
-    row.set_aoa_from_ratio(0.255);
-    assert_eq!(row.aoa_y, 25, "(int)(0.255*100) 截断");
-    row.set_aoa_from_ratio(2.0);
-    assert_eq!(row.aoa_y, 60, "钳到 rightDraw");
-    row.set_aoa_from_ratio(-0.2);
-    assert_eq!(row.aoa_y, -20, "负值不钳 (Java 仅上限钳制)");
+fn aoa_gauge_ratio_clamp() {
+    let mut g = AoaGauge::new(30, 60, 2);
+    g.set_style(60, 2, 100);
+    g.set_aoa_from_ratio(0.255);
+    assert_eq!(g.aoa_y, 25, "(int)(0.255*100) 截断");
+    g.set_aoa_from_ratio(2.0);
+    assert_eq!(g.aoa_y, 60, "钳到 rightDraw");
+    g.set_aoa_from_ratio(-0.2);
+    assert_eq!(g.aoa_y, -20, "负值不钳 (Java 仅上限钳制)");
 }
 
-/// HUDAkbRow 负宽分支 (UIBaseElements.java:106-109): aoaY<0 时条翻转到
+/// AoaGauge 负宽分支 (UIBaseElements.java:106-109): aoaY<0 时条翻转到
 /// x+rightDraw 右侧 (环自 x+rightDraw 起, 内芯 +1)。
 #[test]
-fn akb_row_negative_aoa_bar_flips_right() {
+fn aoa_gauge_negative_aoa_bar_flips_right() {
     let f = main_font();
     let sf = small_font();
-    let mut row = HUDAkbRow::new(0, 30, 40, 2);
-    row.update("500", false, "", -10, COLOR_YELLOW, COLOR_YELLOW);
+    let mut g = AoaGauge::new(30, 40, 2);
+    g.update("", -10, COLOR_YELLOW, COLOR_YELLOW);
     let mut cv = PixCanvas::new(120, 60).unwrap();
     let (x, y) = (10, 5);
-    row.draw(&mut cv, x, y, &f, &sf, false);
+    g.draw(&mut cv, x, y, &f, &sf, false);
     let liney = y + f.metrics().ascent + 1;
     // 环: drawRect(x+50-10, liney, 9, 4) → 列 x+40..x+49
     assert_eq!(a(&cv, x + 40, liney), 42, "负宽环左边");
@@ -170,353 +179,135 @@ fn akb_row_negative_aoa_bar_flips_right() {
     assert_eq!(a(&cv, x + 39, liney + 1), 0, "负宽条左侧无");
 }
 
-/// HUDAkbRow 组件级开关 (Java:38-40): 双关全闭无输出, 单开互不影响占位。
+/// AoaGauge/EnergyReadout.getPreferredSize: rightDraw + 模板宽恒占位
+/// (布局稳定, 原 Java:102-112 / 78-88)。
 #[test]
-fn akb_row_visibility_gates() {
-    let f = main_font();
+fn aoa_energy_preferred_size_uses_templates() {
     let sf = small_font();
-    let (x, y) = (10, 5);
-    let liney = y + f.metrics().ascent + 1;
+    let mut g = AoaGauge::new(30, 60, 2);
+    g.set_template(Some("88888"));
+    assert_eq!(g.preferred_size(&sf), (60 + sf.measure("88888"), 30));
+    // 模板 None 时回退实测文本 (Java:102)
+    g.set_template(None);
+    g.update("9", 30, COLOR_YELLOW, COLOR_YELLOW);
+    assert_eq!(g.preferred_size(&sf), (60 + sf.measure("9"), 30));
 
-    // 仅 AoA: 左侧主文字区无笔画, 条存在
-    let mut row = HUDAkbRow::new(0, 30, 60, 2);
-    row.update("500", false, "12", 30, COLOR_YELLOW, COLOR_YELLOW);
-    row.set_show_speed(false);
-    let mut cv = PixCanvas::new(140, 60).unwrap();
-    row.draw(&mut cv, x, y, &f, &sf, false);
-    assert!(
-        !any_alpha_above(&cv, x, y, x + 29, y + 28, 30),
-        "主文字隐藏"
-    );
-    assert_eq!(px(&cv, x + 31, liney + 1), COLOR_YELLOW, "条仍在");
-
-    // 仅速度: 条与 α 文字均无
-    let mut row2 = HUDAkbRow::new(0, 30, 60, 2);
-    row2.update("500", false, "12", 30, COLOR_YELLOW, COLOR_YELLOW);
-    row2.set_show_aoa(false);
-    let mut cv2 = PixCanvas::new(140, 60).unwrap();
-    row2.draw(&mut cv2, x, y, &f, &sf, false);
-    assert!(
-        any_alpha_above(&cv2, x, y, x + 29, y + 28, 200),
-        "主文字仍在"
-    );
-    assert!(
-        cv2.pixmap().data()[((liney * cv2.width() + x + 45) * 4) as usize + 3] == 0,
-        "条位置无"
-    );
-    assert!(
-        !any_alpha_above(&cv2, x + 60, 0, 140, 60, 30),
-        "α 文字区无输出"
-    );
-}
-
-/// HUDAkbRow/HUDEnergyRow.getPreferredSize: 模板 + rightDraw 占位取大,
-/// 隐藏开关不缩宽 (布局稳定, Java:102-112 / 78-88)。
-#[test]
-fn akb_energy_preferred_size_uses_templates() {
-    let f = main_font();
-    let sf = small_font();
-    let mut akb = HUDAkbRow::new(0, 30, 60, 2);
-    akb.update("888", false, "9", 30, COLOR_YELLOW, COLOR_YELLOW);
-    akb.set_show_aoa(false); // 隐藏仍占位
-    akb.set_template(Some("8888"), Some("88888"));
-    let (w, h) = akb.preferred_size(&f, &sf);
-    assert_eq!(w, (f.measure("8888")).max(60 + sf.measure("88888")));
-    assert_eq!(h, 30);
-
-    let mut en = HUDEnergyRow::new(1, 30, 50);
-    en.update("8888", false, "9.9");
-    en.set_show_energy(false);
-    en.set_template(Some("88888"), Some("88.8"));
-    let (w, _) = en.preferred_size(&f, &sf);
-    assert_eq!(w, (f.measure("88888")).max(50 + sf.measure("88.8")));
+    let mut en = EnergyReadout::new(30, 50);
+    en.update("9.9");
+    en.set_template(Some("88.8"));
+    assert_eq!(en.preferred_size(&sf), (50 + sf.measure("88.8"), 30));
     // 能量模板为 None 时回退实测文本 (Java:82)
-    en.set_template(Some("88888"), None);
-    let (w, _) = en.preferred_size(&f, &sf);
-    assert_eq!(w, (f.measure("88888")).max(50 + sf.measure("9.9")));
+    en.set_template(None);
+    assert_eq!(en.preferred_size(&sf), (50 + sf.measure("9.9"), 30));
 }
 
-/// HUDEnergyRow: 能量小字右置同基线 (Java:62-75), 双开关独立。
+/// EnergyReadout: 能量小字右置同基线 (Java:62-75); 纯辅件无左侧输出。
 #[test]
-fn energy_row_side_text_and_gates() {
+fn energy_readout_side_text() {
     let f = main_font();
     let sf = small_font();
     let (x, y) = (10, 5);
     let base_y = y + f.metrics().ascent;
 
-    let mut row = HUDEnergyRow::new(1, 30, 50);
-    row.update("88", false, "12.3");
+    let mut en = EnergyReadout::new(30, 50);
+    en.update("12.3");
     let mut cv = PixCanvas::new(140, 60).unwrap();
-    row.draw(&mut cv, x, y, &f, &sf, false);
-    assert!(
-        any_alpha_above(&cv, x, y, x + 40, y + 28, 200),
-        "高度主文字"
-    );
+    en.draw(&mut cv, x, y, &f, &sf, false);
     assert!(
         any_alpha_above(&cv, x + 50, base_y - 20, x + 110, base_y + 4, 200),
         "能量小字在 x+rightDraw 右侧"
     );
-
-    // 仅高度: 能量区无 (主文字 "88" 墨迹 ≤ x+27, 不入 x+50 起的右区)
-    let mut row2 = HUDEnergyRow::new(1, 30, 50);
-    row2.update("88", false, "12.3");
-    row2.set_show_energy(false);
-    let mut cv2 = PixCanvas::new(140, 60).unwrap();
-    row2.draw(&mut cv2, x, y, &f, &sf, false);
-    assert!(!any_alpha_above(&cv2, x + 45, 0, 140, 60, 30), "能量隐藏");
-
-    // 仅能量: 主文字区无
-    let mut row3 = HUDEnergyRow::new(1, 30, 50);
-    row3.update("88", false, "12.3");
-    row3.set_show_altitude(false);
-    let mut cv3 = PixCanvas::new(140, 60).unwrap();
-    row3.draw(&mut cv3, x, y, &f, &sf, false);
-    assert!(!any_alpha_above(&cv3, x, 0, x + 45, 60, 30), "高度隐藏");
-    assert!(any_alpha_above(&cv3, x + 50, 0, 140, 60, 200), "能量仍在");
+    assert!(
+        !any_alpha_above(&cv, 0, 0, x + 45, 60, 30),
+        "纯辅件: 右置区左侧无输出"
+    );
 }
 
-/// HUDMechanizationRow 模板解析与占位宽 (Java:72-81 / 115-131):
-/// 默认 W100/BRK/GEA; "    BRKGEAR" → 襟翼空段回退 F100; 占位宽 =
-/// w("W100 ")+w("BRK ")+w("GEA") (getStringWidth 逐字符求和, Java 同口径;
-/// 非等宽字符格 — 数字与空格 advance 不同, 见 font.rs charsWidth)。
+/// split_trim3 三段切分 (原 HUDMechanizationRow /75-80; 行族拆解后归
+/// MechPart 的 push_templates 解析原语)。
 #[test]
-fn mech_row_template_parse_and_preferred_size() {
-    let f = main_font();
-    // Java getStringWidth(tpl + " ") 的拼接串直译 基线
-    let seg = |t: &str| f.measure(&format!("{t} "));
-
-    let row = HUDMechanizationRow::new(2, 30);
-    assert_eq!(row.base.id(), "row.2");
+fn split_trim3_segments() {
     assert_eq!(
-        row.preferred_size(&f),
-        (seg("W100") + seg("BRK") + f.measure("GEA"), 30)
-    );
-
-    let mut row = HUDMechanizationRow::new(2, 30);
-    row.set_template(Some("    BRKGEAR")); // enableFlapAngleBar 预览串
-    assert_eq!(row.flaps_template, "F100", "空襟翼段回退 F100 (Java:77)");
-    assert_eq!(row.airbrake_template, "BRK");
-    assert_eq!(row.gear_template, "GEA");
-    // 基座模板同步锁宽 (super.setTemplate)
-    assert_eq!(row.base.template.as_deref(), Some("    BRKGEAR"));
-    assert_eq!(
-        row.preferred_size(&f),
-        (seg("F100") + seg("BRK") + f.measure("GEA"), 30)
-    );
-
-    // 短串 (<10) 不解析, 模板保持; None 不解析
-    row.set_template(Some("F100BRK"));
-    assert_eq!(row.flaps_template, "F100");
-    row.set_template(None);
-    assert_eq!(row.flaps_template, "F100");
-    // 模板带 F100 前缀的解析 (襟翼条禁用预览串)
-    row.set_template(Some("F100BRKGEA"));
-    assert_eq!(
+        split_trim3("F100BRKGEA").unwrap(),
         (
-            &row.flaps_template,
-            &row.airbrake_template,
-            &row.gear_template
+            "F100".to_string(),
+            "BRK".to_string(),
+            "GEA".to_string()
+        )
+    );
+    assert_eq!(
+        split_trim3("    BRKGEAR").unwrap(),
+        (
+            String::new(),
+            "BRK".to_string(),
+            "GEA".to_string()
         ),
-        (&"F100".to_string(), &"BRK".to_string(), &"GEA".to_string())
+        "4 空格段 trim 后为空 (GEAR 第 10 字符后截断, Java substring 同口径)"
     );
+    assert_eq!(
+        split_trim3("W 75BRKGEA").unwrap(),
+        ("W 75".to_string(), "BRK".to_string(), "GEA".to_string())
+    );
+    assert!(split_trim3("F100BRK").is_none(), "短串 (<10) 不解析");
+    assert!(split_trim3("").is_none());
 }
 
-/// HUDMechanizationRow.update 合并串解析 (Java:48-61): ≥10 逐段 trim,
-/// 短串三段全清; base.text 承载完整合并串。
+/// MechPart: 模板锁宽占位 (空数据不缩宽) + 空数据不绘制 + 警告色 + 脏检查。
 #[test]
-fn mech_row_update_parse() {
-    let mut row = HUDMechanizationRow::new(2, 30);
-    assert!(row.update("F100BRKGEA", false));
-    assert_eq!(
-        (&row.flaps_wing_str, &row.airbrake_str, &row.gear_str),
-        (&"F100".to_string(), &"BRK".to_string(), &"GEA".to_string())
-    );
-    assert_eq!(row.base.text, "F100BRKGEA");
-
-    assert!(row.update("    BRKGEAR", true), "内容与警告态均变");
-    assert_eq!(row.flaps_wing_str, "", "4 空格段 trim 后为空");
-    assert_eq!(
-        (&row.airbrake_str, &row.gear_str),
-        (&"BRK".to_string(), &"GEA".to_string())
-    );
-    assert!(row.base.is_warning);
-
-    assert!(!row.update("    BRKGEAR", true), "同值无变化");
-    assert!(row.update("    BRKGEAR", false), "仅警告态变化");
-    assert!(row.update("W50", false), "仅主文字变化");
-    assert_eq!(row.flaps_wing_str, "", "短串三段全清 (Java:56-59)");
-    assert_eq!(row.airbrake_str, "");
-    assert_eq!(row.gear_str, "");
-}
-
-/// HUDMechanizationRow.update_parts / on_data_update (Java:40-45 / 63-70):
-/// 前者清主文字, 后者不动 base.text 直写 isWarning。
-#[test]
-fn mech_row_update_parts_and_on_data() {
-    let mut row = HUDMechanizationRow::new(2, 30);
-    row.update("F100BRKGEA", false);
-    assert!(row.update_parts("F50", "BRK", "GEA", true));
-    assert_eq!(row.base.text, "", "主文字清空 (Java:41)");
-    assert!(row.base.is_warning);
-    assert_eq!(row.flaps_wing_str, "F50");
-    assert!(!row.update_parts("F50", "BRK", "GEA", true), "全同值无变化");
-    assert!(row.update_parts("F60", "BRK", "GEA", true), "仅襟翼段变化");
-
-    // on_data_update: base.text 保持, is_warning 直写 (Java:66-69)
-    let mut b = vm_core::derived::hud_data::Builder::default();
-    b.flaps_wing_str = "W 75".into();
-    b.airbrake_str = "".into();
-    b.gear_str = "GEA".into();
-    b.warn_configuration = false;
-    let data = b.build();
-    assert!(row.on_data_update(&data));
-    assert_eq!(
-        (&row.flaps_wing_str, &row.airbrake_str, &row.gear_str),
-        (&"W 75".to_string(), &String::new(), &"GEA".to_string())
-    );
-    assert!(!row.base.is_warning);
-    assert_eq!(row.base.text, "", "onDataUpdate 不触 update (Java 原样)");
-    assert!(!row.on_data_update(&data), "全同值无变化");
-}
-
-/// HUDMechanizationRow.draw 三段几何 (Java:83-113): 段起点 = 前段模板宽和
-/// (含尾随空格), 隐藏/空数据段仍占位推进; 三开关独立。
-#[test]
-fn mech_row_draw_segments_and_gates() {
+fn mech_part_template_and_draw() {
     let f = main_font();
     let (x, y) = (10, 5);
     let base_y = y + f.metrics().ascent;
-    // 模板 F100/BRK/GEA 的段宽 (getStringWidth(tpl+" ") 直译; 逐字符求和)
-    let seg = |t: &str| f.measure(&format!("{t} "));
-    let flaps_seg = seg("F100");
-    let brk_seg = seg("BRK");
-    let gear_x = x + flaps_seg + brk_seg;
-    let right_edge = gear_x + f.measure("GEA");
 
-    // 单段点亮: 起落架 (起点 = 襟翼段宽 + 减速板段宽)
-    let mut row = HUDMechanizationRow::new(2, 30);
-    row.set_template(Some("F100BRKGEA"));
-    row.update_parts("", "", "GEA", false);
-    let mut cv = PixCanvas::new(200, 60).unwrap();
-    row.draw(&mut cv, x, y, &f, false);
-    assert!(
-        !any_alpha_above(&cv, x, 0, gear_x, 60, 30),
-        "前两段空 → 左侧无笔画"
-    );
-    assert!(
-        any_alpha_above(&cv, gear_x, base_y - 25, right_edge, base_y + 5, 200),
-        "起落架段起点 = 前两段占位宽之和"
-    );
+    // 占位: 模板宽; 襟翼空段回退 F100 (Java:77), airbrake/gear 不回退
+    let mut p = MechPart::new(MechKind::Flaps, 30);
+    assert_eq!(p.preferred_size(&f), (f.measure("W100"), 30));
+    p.set_template("");
+    assert_eq!(p.template, "F100", "空襟翼段回退 F100");
+    assert_eq!(p.preferred_size(&f), (f.measure("F100"), 30));
+    let mut ab = MechPart::new(MechKind::Airbrake, 30);
+    ab.set_template("");
+    assert_eq!(ab.template, "", "减速板空段不回退");
+    assert_eq!(ab.preferred_size(&f).0, 0, "空模板宽 0");
 
-    // 隐藏段占位推进: 襟翼关而 BRK 仍从 x+襟翼段宽 起
-    let mut row2 = HUDMechanizationRow::new(2, 30);
-    row2.set_template(Some("F100BRKGEA"));
-    row2.update_parts("F100", "BRK", "", false);
-    row2.set_show_flaps(false);
-    let mut cv2 = PixCanvas::new(200, 60).unwrap();
-    row2.draw(&mut cv2, x, y, &f, false);
-    assert!(
-        !any_alpha_above(&cv2, x, 0, x + flaps_seg, 60, 30),
-        "襟翼隐藏 → 占位区无笔画"
-    );
+    // 空数据不绘制 (模板仍占位)
+    let mut cv = PixCanvas::new(120, 60).unwrap();
+    p.draw(&mut cv, x, y, &f, false);
+    assert!(!any_alpha_above(&cv, 0, 0, 120, 60, 1), "空数据无输出");
+
+    // 数据绘制 + 警告色三段同源
+    assert!(p.update("F100", true));
+    let mut cv2 = PixCanvas::new(120, 60).unwrap();
+    p.draw(&mut cv2, x, y, &f, false);
     assert!(
         any_alpha_above(
             &cv2,
-            x + flaps_seg,
+            x,
             base_y - 25,
-            x + flaps_seg + f.measure("BRK"),
+            x + f.measure("F100"),
             base_y + 5,
-            200
+            80
         ),
-        "减速板仍从占位推进处起"
-    );
-
-    // 全开: 三段首尾相接, 右缘 = 三段宽和; 警告态三段同色
-    let mut row3 = HUDMechanizationRow::new(2, 30);
-    row3.set_template(Some("F100BRKGEA"));
-    row3.update_parts("F100", "BRK", "GEA", true);
-    let mut cv3 = PixCanvas::new(200, 60).unwrap();
-    row3.draw(&mut cv3, x, y, &f, false);
-    assert!(
-        any_alpha_above(&cv3, x, base_y - 25, x + flaps_seg, base_y + 5, 80),
-        "襟翼段 (警告色)"
+        "警告色段"
     );
     assert!(
-        !any_alpha_above(&cv3, x, 0, right_edge, 60, 150),
+        !any_alpha_above(&cv2, x, 0, x + f.measure("F100"), 60, 150),
         "警告色无 240 级像素"
     );
     assert!(
-        !any_alpha_above(&cv3, right_edge, 0, 200, 60, 30),
-        "右缘外无"
+        !any_alpha_above(&cv2, x + f.measure("F100"), 0, 120, 60, 30),
+        "段宽外无"
     );
-
-    // 起落架段无尾随空格占位: gear_template 清空 → 段宽 0 (Java:109-112 无推进消费)
-    let mut row4 = HUDMechanizationRow::new(2, 30);
-    row4.set_template(Some("F100BRKGEA"));
-    row4.gear_template.clear();
-    row4.update_parts("", "", "GEA", false);
-    let mut cv4 = PixCanvas::new(200, 60).unwrap();
-    row4.draw(&mut cv4, x, y, &f, false);
-    assert_eq!(
-        row4.preferred_size(&f),
-        (flaps_seg + brk_seg, 30),
-        "空起落架模板不占宽"
-    );
+    // 脏检查
+    assert!(!p.update("F100", true), "同值无变化");
+    assert!(p.update("F50", true), "仅文本变化");
+    assert!(p.update("F50", false), "仅警告态变化");
 }
 
-/// 对拍口径锁定: enableFlapAngleBar 预览串 "    BRKGEAR" (模板同源) →
-/// 襟翼段空数据不绘制, BRK 从 x+襟翼段宽 / GEA 从前两段宽和起, 行宽三段和。
-#[test]
-fn mech_row_preview_placeholder_advance() {
-    let f = main_font();
-    let (x, y) = (10, 5);
-    let base_y = y + f.metrics().ascent;
-    let seg = |t: &str| f.measure(&format!("{t} "));
-    let flaps_seg = seg("F100"); // 模板 "    " → 空段回退 "F100"
-    let gear_x = x + flaps_seg + seg("BRK");
-
-    let mut row = HUDMechanizationRow::new(2, 30);
-    row.set_template(Some("    BRKGEAR"));
-    row.update("    BRKGEAR", false);
-    assert_eq!(row.flaps_wing_str, "");
-    let mut cv = PixCanvas::new(200, 60).unwrap();
-    row.draw(&mut cv, x, y, &f, false);
-    assert!(
-        !any_alpha_above(&cv, x, 0, x + flaps_seg, 60, 30),
-        "襟翼段空占位"
-    );
-    assert!(
-        any_alpha_above(
-            &cv,
-            x + flaps_seg,
-            base_y - 25,
-            x + flaps_seg + f.measure("BRK"),
-            base_y + 5,
-            200
-        ),
-        "BRK @ 襟翼段宽处"
-    );
-    assert!(
-        any_alpha_above(
-            &cv,
-            gear_x,
-            base_y - 25,
-            gear_x + f.measure("GEA"),
-            base_y + 5,
-            200
-        ),
-        "GEA @ 前两段宽和处"
-    );
-    assert_eq!(
-        row.preferred_size(&f),
-        (flaps_seg + seg("BRK") + f.measure("GEA"), 30)
-    );
-}
-
-/// HUDManeuverRow 刻度几何: len10 恒画, 0.1~0.4 阈值逐级点亮 (Java:87-102);
+/// ManeuverBar 刻度几何: len10 恒画, 0.1~0.4 阈值逐级点亮 (Java:87-102);
 /// 列 = x+rightDraw-len, 行 = baseY+halfLine .. +halfLine+2*lineWidth (1px)。
 #[test]
-fn maneuver_row_tick_thresholds() {
+fn maneuver_bar_tick_thresholds() {
     let f = main_font();
     let (x, y) = (10, 5);
     let (right_draw, half_line, line_width) = (60, 2, 2);
@@ -525,12 +316,10 @@ fn maneuver_row_tick_thresholds() {
         ticks: [10, 20, 30, 40, 50],
     };
 
-    let mut row = HUDManeuverRow::new(4, 30, right_draw, half_line, line_width, 4.0, 2.0);
-    // showGLoad=false: 排除主文字, 刻度列纯净 (色取主文字色规范语义)
-    row.set_show_g_load(false);
-    row.update("2.0", false, 0.35, 5, ticks);
+    let mut bar = ManeuverBar::new(30, right_draw, half_line, line_width, 4.0, 2.0);
+    bar.update(0.35, 5, ticks);
     let mut cv = PixCanvas::new(100, 60).unwrap();
-    row.draw(&mut cv, x, y, &f, false);
+    bar.draw(&mut cv, x, y, &f, false);
 
     let tick_top = base_y + half_line;
     let tick_bot = base_y + half_line + 2 * line_width;
@@ -548,11 +337,10 @@ fn maneuver_row_tick_thresholds() {
     assert_eq!(a(&cv, x + right_draw - 10, tick_bot + 1), 0, "刻度下方无");
 
     // 阈值边界: index=0.4 → len50 点亮 (>= 含等)
-    let mut row2 = HUDManeuverRow::new(4, 30, right_draw, half_line, line_width, 4.0, 2.0);
-    row2.set_show_g_load(false);
-    row2.update("2.0", false, 0.4, 5, ticks);
+    let mut bar2 = ManeuverBar::new(30, right_draw, half_line, line_width, 4.0, 2.0);
+    bar2.update(0.4, 5, ticks);
     let mut cv2 = PixCanvas::new(100, 60).unwrap();
-    row2.draw(&mut cv2, x, y, &f, false);
+    bar2.draw(&mut cv2, x, y, &f, false);
     assert_eq!(
         a(&cv2, x + right_draw - 50, tick_top + 2),
         240,
@@ -560,22 +348,19 @@ fn maneuver_row_tick_thresholds() {
     );
 }
 
-/// HUDManeuverRow 条线双层描边 (Java:104-114): thick shade 下层 + thin colorNum
+/// ManeuverBar 条线双层描边 (Java:104-114): thick shade 下层 + thin colorNum
 /// 上层, y = baseY+halfLine+lineWidth; 行覆盖 = thick 半径外扩。
 /// halfLine=2/lineWidth=2 → thin(2) 行 baseY+3..4, thick(4) 行 baseY+2..5。
 #[test]
-fn maneuver_row_bar_double_stroke_layers() {
+fn maneuver_bar_double_stroke_layers() {
     let f = main_font();
     let (x, y) = (10, 5);
     let (right_draw, half_line, line_width) = (60, 2, 2);
     let base_y = y + f.metrics().ascent;
     let line_y = base_y + half_line + line_width; // newY + lineWidth
 
-    let mut row = HUDManeuverRow::new(4, 30, right_draw, half_line, line_width, 4.0, 2.0);
-    row.set_show_g_load(false); // 排除文字, 条区纯净
-    row.update(
-        "2.0",
-        false,
+    let mut bar = ManeuverBar::new(30, right_draw, half_line, line_width, 4.0, 2.0);
+    bar.update(
         0.35,
         30,
         TickScale {
@@ -583,7 +368,7 @@ fn maneuver_row_bar_double_stroke_layers() {
         },
     );
     let mut cv = PixCanvas::new(100, 60).unwrap();
-    row.draw(&mut cv, x, y, &f, false);
+    bar.draw(&mut cv, x, y, &f, false);
 
     // 条横跨 x+30..x+60 (len=30), 采样列 x+58 (条体内, 非刻度列)
     let col = x + 58;
@@ -605,121 +390,57 @@ fn maneuver_row_bar_double_stroke_layers() {
     assert_eq!(a(&cv, x + 26, line_y), 0, "条长之外");
 }
 
-/// HUDManeuverRow 开关与 preferred_size (Java:123-128):
-/// max(主文字宽, rightDraw+5); 机动条关闭仅剩文字。
+/// ManeuverBar.getPreferredSize: rightDraw+5 (条右端占位)。
 #[test]
-fn maneuver_row_gates_and_preferred_size() {
-    let f = main_font();
-    let (x, y) = (10, 5);
-    let base_y = y + f.metrics().ascent;
-    let line_y = base_y + 2 + 2;
-
-    let mut row = HUDManeuverRow::new(4, 30, 60, 2, 2, 4.0, 2.0);
-    row.update(
-        "2.0",
-        false,
-        0.35,
-        30,
-        TickScale {
-            ticks: [10, 20, 30, 40, 50],
-        },
-    );
-    let (w, h) = row.preferred_size(&f);
-    assert_eq!(w, (f.measure("2.0")).max(60 + 5));
-    assert_eq!(h, 30);
-
-    // 机动条关: 条行无输出, 文字仍在
-    let mut cv = PixCanvas::new(100, 60).unwrap();
-    row.set_show_maneuver_bar(false);
-    row.draw(&mut cv, x, y, &f, false);
-    assert_eq!(a(&cv, x + 58, line_y), 0, "条关闭无条线");
-    assert_eq!(a(&cv, x + 50, base_y + 4), 0, "条关闭无刻度");
-    assert!(
-        any_alpha_above(&cv, x, y, x + 40, y + 28, 200),
-        "G 文字仍在"
-    );
-
-    // G 文字关: 仅条 (index=0.25 → len10/20/30 刻度点亮, 列 ≥ x+30 不入左区)
-    let mut row2 = HUDManeuverRow::new(4, 30, 60, 2, 2, 4.0, 2.0);
-    row2.update(
-        "2.0",
-        false,
-        0.25,
-        30,
-        TickScale {
-            ticks: [10, 20, 30, 40, 50],
-        },
-    );
-    row2.set_show_g_load(false);
-    let mut cv2 = PixCanvas::new(100, 60).unwrap();
-    row2.draw(&mut cv2, x, y, &f, false);
-    assert!(
-        !any_alpha_above(&cv2, x, y, x + 25, y + 28, 30),
-        "G 文字隐藏"
-    );
-    assert_a_close(a(&cv2, x + 58, line_y), src_over_a(240, 42), "条仍在");
+fn maneuver_bar_preferred_size() {
+    let bar = ManeuverBar::new(30, 60, 2, 2, 4.0, 2.0);
+    assert_eq!(bar.preferred_size(), (65, 30));
 }
 
 /// 脏检查契约回归: update 返回值必须覆盖组件全部可变字段 (Java 原方法
-/// 返回 void, bool 为 Rust 附加的组装侧重绘门控元数据)。HUDEnergyRow 的
-/// energy_text 与 HUDManeuverRow 的 index/len 族均逐帧变化而 base 文字
-/// 稳定, 漏比任一字段即冻结对应读数/条刻度。
+/// 返回 void, bool 为 Rust 附加的组装侧重绘门控元数据)。AoaGauge 的
+/// 文本/条长/双色, EnergyReadout 的文本, ManeuverBar 的 index/len/刻度族
+/// 均逐帧变化, 漏比任一字段即冻结对应读数/条刻度。
 #[test]
 fn update_changed_covers_all_fields() {
-    // HUDEnergyRow
-    let mut en = HUDEnergyRow::new(1, 30, 50);
-    en.update("1000", false, "E100");
-    assert!(!en.update("1000", false, "E100"), "全同值无变化");
-    assert!(en.update("1000", false, "E200"), "仅能量变化须报 changed");
-    assert!(!en.update("1000", false, "E200"), "重复同能量无变化");
+    // AoaGauge (文本/条长/双色全参与)
+    let mut g = AoaGauge::new(30, 60, 2);
+    g.set_style(60, 2, 100);
+    g.set_aoa_from_ratio(0.1);
+    let y = g.aoa_y;
+    g.update("12", y, COLOR_YELLOW, COLOR_YELLOW); // 初写 (空→"12")
+    assert!(!g.update("12", y, COLOR_YELLOW, COLOR_YELLOW), "全同值无变化");
+    assert!(g.update("13", y, COLOR_YELLOW, COLOR_YELLOW), "仅文本变化");
+    assert!(g.update("13", y + 1, COLOR_YELLOW, COLOR_YELLOW), "仅条长变化");
     assert!(
-        en.update("1001", false, "E200"),
-        "仅 base 文字变化仍报 changed"
+        g.update("13", y + 1, [1, 2, 3, 4], COLOR_YELLOW),
+        "仅文字色变化"
     );
-    assert!(en.update("1001", true, "E200"), "仅警告态变化仍报 changed");
-
-    // HUDManeuverRow (刻度尺整体 + 单档距离均须参与比较)
-    let t = |ticks: [i32; 5]| TickScale { ticks };
-    let mut mn = HUDManeuverRow::new(4, 30, 60, 2, 2, 4.0, 2.0);
-    mn.update("2.0", false, 0.1, 5, t([10, 20, 30, 40, 50]));
     assert!(
-        !mn.update("2.0", false, 0.1, 5, t([10, 20, 30, 40, 50])),
+        g.update("13", y + 1, [1, 2, 3, 4], [5, 6, 7, 8]),
+        "仅条色变化"
+    );
+
+    // EnergyReadout
+    let mut en = EnergyReadout::new(30, 50);
+    en.update("E100"); // 初写 (空→"E100")
+    assert!(!en.update("E100"), "全同值无变化");
+    assert!(en.update("E200"), "仅能量变化须报 changed");
+    assert!(!en.update("E200"), "重复同能量无变化");
+
+    // ManeuverBar (刻度尺整体 + 单档距离均须参与比较)
+    let t = |ticks: [i32; 5]| TickScale { ticks };
+    let mut mn = ManeuverBar::new(30, 60, 2, 2, 4.0, 2.0);
+    mn.update(0.1, 5, t([10, 20, 30, 40, 50])); // 初写 (default 刻度尺 → 非零)
+    assert!(
+        !mn.update(0.1, 5, t([10, 20, 30, 40, 50])),
         "全同值无变化"
     );
-    assert!(
-        mn.update("2.0", false, 0.2, 5, t([10, 20, 30, 40, 50])),
-        "仅 index 变化"
-    );
-    assert!(
-        mn.update("2.0", false, 0.2, 6, t([10, 20, 30, 40, 50])),
-        "仅 len 变化"
-    );
-    assert!(
-        mn.update("2.0", false, 0.2, 6, t([11, 20, 30, 40, 50])),
-        "仅 len10 变化"
-    );
-    assert!(
-        mn.update("2.0", false, 0.2, 6, t([11, 21, 30, 40, 50])),
-        "仅 len20 变化"
-    );
-    assert!(
-        mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 40, 50])),
-        "仅 len30 变化"
-    );
-    assert!(
-        mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 41, 50])),
-        "仅 len40 变化"
-    );
-    assert!(
-        mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 41, 51])),
-        "仅 len50 变化"
-    );
-    assert!(
-        mn.update("2.1", false, 0.2, 6, t([11, 21, 31, 41, 51])),
-        "仅文字变化"
-    );
-    assert!(
-        mn.update("2.1", true, 0.2, 6, t([11, 21, 31, 41, 51])),
-        "仅警告态变化"
-    );
+    assert!(mn.update(0.2, 5, t([10, 20, 30, 40, 50])), "仅 index 变化");
+    assert!(mn.update(0.2, 6, t([10, 20, 30, 40, 50])), "仅 len 变化");
+    assert!(mn.update(0.2, 6, t([11, 20, 30, 40, 50])), "仅 len10 变化");
+    assert!(mn.update(0.2, 6, t([11, 21, 30, 40, 50])), "仅 len20 变化");
+    assert!(mn.update(0.2, 6, t([11, 21, 31, 40, 50])), "仅 len30 变化");
+    assert!(mn.update(0.2, 6, t([11, 21, 31, 41, 50])), "仅 len40 变化");
+    assert!(mn.update(0.2, 6, t([11, 21, 31, 41, 51])), "仅 len50 变化");
 }

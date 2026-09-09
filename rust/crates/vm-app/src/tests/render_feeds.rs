@@ -577,8 +577,8 @@ fn reset_handles_preview_values_clears_live_residue() {
             .unwrap_or_else(|| panic!("页面 {id} 应在 pages"))
     };
     use vm_overlay::widgets::data_field::DataFieldWidget;
+    use vm_overlay::widgets::fm_field::FmFieldWidget;
     use vm_overlay::widgets::gauges_composite::{AttitudeWidget, AxesWidget};
-    use vm_overlay::widgets::fm_sidecar::FmListWidget;
 
     // ---- live 残留注入 (喂入面与生产同源: 通用页 UpdateEnv / fm 页 sidecar tick) ----
     let mut d = live_service_data("residue-plane");
@@ -614,26 +614,35 @@ fn reset_handles_preview_values_clears_live_residue() {
     for (_, page) in &handles.pages {
         page.borrow_mut().feed(&env);
     }
-    // fm-list live 残留: 游戏形态脉冲 (渲染线程 OpenAll 处理点同款 game_mode_pulse)
+    // fm-list live 残留: live 帧 + 无 FM → 字段行归零 (渲染线程 sidecar 节拍
+    // 同款 tick; 原子字段面 — fm.list 黑盒已退役)
     {
         let fm_mgr = FMManager::new(Arc::new(EventBus::new()));
         let h = page_of("fm-list-default");
         let page = h.borrow();
-        let cell = page.cells.get("list").expect("fm-list 页 list 组件");
+        let cell = page
+            .cells
+            .get("weight_empty")
+            .expect("fm-list 页 weight_empty 组件");
         let mut sctx = vm_overlay::widgets::SidecarCtx {
             now_ms: 10_000,
             page_id: "fm-list-default",
             fm: &fm_mgr,
             fm_field_config: &|_| None,
             display_fm_key: 0,
-            frame: None,
+            frame: Some(&frame),
             is_jet: false,
             toggle_pulse: false,
             game_mode_pulse: true,
             fm_changed: None,
         };
-        let mut sc = cell.sidecar().expect("fm.list sidecar 面");
+        let mut sc = cell.sidecar().expect("fm.field sidecar 面");
         sc.tick(&mut sctx);
+        drop(sc); // RefMut 守卫先放, 再借 downcast 断言面
+        let w = cell
+            .downcast_ref::<FmFieldWidget>()
+            .expect("fm.field 具体类型");
+        assert!(!w.shown(), "live 残留: 无 FM → 字段行已归零");
     }
     // 残留到位自检 (注入确实生效 — 否则后续复位断言平凡通过)
     {
@@ -718,13 +727,13 @@ fn reset_handles_preview_values_clears_live_residue() {
         let page = h.borrow();
         let w = page
             .cells
-            .get("list")
+            .get("weight_empty")
             .unwrap()
-            .downcast_ref::<FmListWidget>()
+            .downcast_ref::<FmFieldWidget>()
             .unwrap();
         assert!(
-            w.state().visible && w.state().base.is_preview,
-            "FM拆包数据回 preview 形态 (恒可见)"
+            w.shown() && w.text() == "3050.0",
+            "FM拆包字段回 preview 静态值"
         );
     }
 }

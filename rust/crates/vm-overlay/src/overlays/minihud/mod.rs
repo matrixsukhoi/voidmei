@@ -19,10 +19,11 @@
 //! 零分配纪律 (手册 §11.4): draw 路径不 new — 字体/颜色经 [`MiniHudFonts`] Rc 共享,
 //! 组件句柄 [`WidgetCell`] 克隆仅是引用计数。
 //!
-//! W2 裁决 (组件自治与编排器职责分界):
-//! - 组件细粒度开关 (setShowSpeed 族) 与风格注入 → HudWidget::apply_style (组件自取);
+//! W2 裁决 (组件自治与编排器职责分界; 行族原子化后修订):
+//! - 风格注入 → HudWidget::apply_style (组件自取); 行内细粒度开关已随
+//!   复合行拆解退役 — show* 键改控原子件外壳 visible (下行第二则);
 //! - 外壳 visible 的**组合门控** (drawHudText && enableFlapAngleBar 等跨键组合)
-//!   → 编排器 update_component_visibility (cells[id]);
+//!   → 编排器 update_component_visibility / update_row_visibility (cells[id]);
 //! - preview 模板与静态值推送 → HudWidget::push_templates (MiniHudTemplates 值包);
 //! - visibleWhen (displayCrosshair) → 建树门控 (widgets::page_layout, 不逐帧)。
 
@@ -350,7 +351,8 @@ impl MiniHudOverlay {
         vis(&self.cells, "speedBar", text_visible && show_speed);
     }
 
-    /// updateComponents 行可见性段 (外壳 visible; 细粒度开关在组件 apply_style)
+    /// updateComponents 行可见性段 (外壳 visible; 行族原子化后 show* 键
+    /// 直控各原子件 — 原复合行的"行级 = 各段之或"随拆解消解为逐件门控)
     fn update_row_visibility<S: HUDSettings>(&mut self, settings: &S) {
         // Java: master = drawHudText() (保真保留)
         let master = settings.draw_hud_text();
@@ -359,20 +361,16 @@ impl MiniHudOverlay {
                 c.set_visible(v);
             }
         };
-        let row0_speed = master && settings.show_hud_speed();
-        let row0_aoa = master && settings.show_hud_aoa();
-        vis(&self.cells, "row0", row0_speed || row0_aoa);
-        let row1_alt = master && settings.show_hud_altitude();
-        let row1_energy = master && settings.show_hud_energy();
-        vis(&self.cells, "row1", row1_alt || row1_energy);
-        let row2_flaps = master && settings.show_hud_flaps();
-        let row2_brk = master && settings.show_hud_airbrake();
-        let row2_gear = master && settings.show_hud_gear();
-        vis(&self.cells, "row2", row2_flaps || row2_brk || row2_gear);
-        vis(&self.cells, "row3", master && settings.show_hud_sep());
-        let row4_g = master && settings.show_hud_g_load();
-        let row4_bar = master && settings.show_hud_maneuver_bar();
-        vis(&self.cells, "row4", row4_g || row4_bar);
+        vis(&self.cells, "speed", master && settings.show_hud_speed());
+        vis(&self.cells, "aoa", master && settings.show_hud_aoa());
+        vis(&self.cells, "altitude", master && settings.show_hud_altitude());
+        vis(&self.cells, "energy", master && settings.show_hud_energy());
+        vis(&self.cells, "flaps", master && settings.show_hud_flaps());
+        vis(&self.cells, "airbrake", master && settings.show_hud_airbrake());
+        vis(&self.cells, "gear", master && settings.show_hud_gear());
+        vis(&self.cells, "sep", master && settings.show_hud_sep());
+        vis(&self.cells, "gload", master && settings.show_hud_g_load());
+        vis(&self.cells, "maneuverbar", master && settings.show_hud_maneuver_bar());
     }
 
     // --- Event-Driven Update ---

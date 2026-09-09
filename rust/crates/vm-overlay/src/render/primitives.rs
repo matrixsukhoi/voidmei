@@ -46,7 +46,7 @@ pub(crate) fn vline_1px(cv: &mut PixCanvas, x: i32, y0: i32, y1: i32, color: [u8
 
 /// UIBaseElements.drawHRect: shade 1px 外框环 +
 /// 内缩 borderwidth 填充条。width<0 时框/条翻转到起点右侧 (Java 原样分支)。
-/// borderwidth 调用点恒 1 (HUDAkbRow / drawVBarTextNum), 参数保留
+/// borderwidth 调用点恒 1 (AoaGauge / drawVBarTextNum), 参数保留
 /// 对齐 Java 签名。(重构波13: rows/gear_flaps 双副本合一)
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawHRect(g2d,x,y,width,height,borderwidth,c)
 pub(crate) fn draw_h_rect(

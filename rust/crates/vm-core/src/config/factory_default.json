@@ -4351,11 +4351,11 @@
         "sizeAdd": 0,
         "scaleSource": "crosshairScale"
       },
-      "contentVersion": 1,
+      "contentVersion": 2,
       "components": [
         {
-          "id": "row0",
-          "type": "core.minihud.row0",
+          "id": "aoa",
+          "type": "core.minihud.aoa",
           "pos": [
             2.1,
             3.5
@@ -4365,6 +4365,21 @@
             "TopLeft"
           ],
           "parent": null,
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "speed",
+          "type": "core.minihud.speed",
+          "pos": [
+            0.0,
+            0.0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": "aoa",
           "enabled": true,
           "props": null
         },
@@ -4379,13 +4394,13 @@
             "BottomLeft",
             "TopLeft"
           ],
-          "parent": "row0",
+          "parent": "speed",
           "enabled": true,
           "props": null
         },
         {
-          "id": "row1",
-          "type": "core.minihud.row1",
+          "id": "energy",
+          "type": "core.minihud.energy",
           "pos": [
             0.0,
             0.1
@@ -4394,13 +4409,13 @@
             "TopLeft",
             "BottomLeft"
           ],
-          "parent": "row0",
+          "parent": "speed",
           "enabled": true,
           "props": null
         },
         {
-          "id": "row2",
-          "type": "core.minihud.row2",
+          "id": "altitude",
+          "type": "core.minihud.altitude",
           "pos": [
             0.0,
             0.1
@@ -4409,13 +4424,13 @@
             "TopLeft",
             "BottomLeft"
           ],
-          "parent": "row1",
+          "parent": "speed",
           "enabled": true,
           "props": null
         },
         {
-          "id": "row3",
-          "type": "core.minihud.row3",
+          "id": "flaps",
+          "type": "core.minihud.flaps",
           "pos": [
             0.0,
             0.1
@@ -4424,13 +4439,43 @@
             "TopLeft",
             "BottomLeft"
           ],
-          "parent": "row2",
+          "parent": "altitude",
           "enabled": true,
           "props": null
         },
         {
-          "id": "row4",
-          "type": "core.minihud.row4",
+          "id": "airbrake",
+          "type": "core.minihud.airbrake",
+          "pos": [
+            2.6,
+            0.0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": "flaps",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "gear",
+          "type": "core.minihud.gear",
+          "pos": [
+            2.0,
+            0.0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": "airbrake",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "sep",
+          "type": "core.minihud.sep",
           "pos": [
             0.0,
             0.1
@@ -4439,7 +4484,37 @@
             "TopLeft",
             "BottomLeft"
           ],
-          "parent": "row3",
+          "parent": "flaps",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "gload",
+          "type": "core.minihud.gload",
+          "pos": [
+            0.0,
+            0.1
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "sep",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "maneuverbar",
+          "type": "core.minihud.maneuverbar",
+          "pos": [
+            0.0,
+            0.1
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "sep",
           "enabled": true,
           "props": null
         },
@@ -4454,7 +4529,7 @@
             "TopRight",
             "BottomRight"
           ],
-          "parent": "row2",
+          "parent": "gear",
           "enabled": true,
           "props": null
         },
@@ -4469,7 +4544,7 @@
             "TopRight",
             "BottomRight"
           ],
-          "parent": "row2",
+          "parent": "gear",
           "enabled": true,
           "props": null
         },
@@ -4484,7 +4559,7 @@
             "BottomRight",
             "BottomLeft"
           ],
-          "parent": "row4",
+          "parent": "gload",
           "enabled": true,
           "props": null
         },
@@ -4499,7 +4574,7 @@
             "BottomRight",
             "BottomLeft"
           ],
-          "parent": "row4",
+          "parent": "gload",
           "enabled": true,
           "props": null
         },
@@ -5728,11 +5803,11 @@
         "sizeAdd": 0,
         "scaleSource": ""
       },
-      "contentVersion": 1,
+      "contentVersion": 2,
       "components": [
         {
-          "id": "list",
-          "type": "core.fm.list",
+          "id": "fmver",
+          "type": "core.fm.meta",
           "pos": [
             0,
             0
@@ -5742,8 +5817,1569 @@
             "TopLeft"
           ],
           "parent": null,
+          "visibleWhen": null,
           "enabled": true,
-          "props": {}
+          "props": {
+            "key": "fm.version"
+          }
+        },
+        {
+          "id": "weight_empty",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "fmver",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "weight.empty",
+            "switchKey": "showWeight"
+          }
+        },
+        {
+          "id": "weight_maxfuel",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "weight_empty",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "weight.maxfuel",
+            "switchKey": "showWeight"
+          }
+        },
+        {
+          "id": "speed_crit",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "weight_maxfuel",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "speed.crit",
+            "switchKey": "showCritSpeed"
+          }
+        },
+        {
+          "id": "speed_vne",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "speed_crit",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "speed.vne",
+            "switchKey": "showCritSpeed"
+          }
+        },
+        {
+          "id": "gload_full_neg",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "speed_vne",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "gload.full_neg",
+            "switchKey": "showGLoadLimits"
+          }
+        },
+        {
+          "id": "gload_full_pos",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "gload_full_neg",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "gload.full_pos",
+            "switchKey": "showGLoadLimits"
+          }
+        },
+        {
+          "id": "gload_half_neg",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "gload_full_pos",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "gload.half_neg",
+            "switchKey": "showGLoadLimits"
+          }
+        },
+        {
+          "id": "gload_half_pos",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "gload_half_neg",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "gload.half_pos",
+            "switchKey": "showGLoadLimits"
+          }
+        },
+        {
+          "id": "flap_0_pct",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "gload_half_pos",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.0.pct",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_0_speed",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_0_pct",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.0.speed",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_1_pct",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_0_speed",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.1.pct",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_1_speed",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_1_pct",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.1.speed",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_2_pct",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_1_speed",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.2.pct",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_2_speed",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_2_pct",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.2.speed",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_3_pct",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_2_speed",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.3.pct",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_3_speed",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_3_pct",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.3.speed",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_4_pct",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_3_speed",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.4.pct",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_4_speed",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_4_pct",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.4.speed",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_5_pct",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_4_speed",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.5.pct",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "flap_5_speed",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_5_pct",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "flap_limit.5.speed",
+            "switchKey": "showFlapLimits"
+          }
+        },
+        {
+          "id": "ctrl_elev_eff",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "flap_5_speed",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "ctrl.elev_eff",
+            "switchKey": "showControlEffectiveness"
+          }
+        },
+        {
+          "id": "ctrl_aileron_eff",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "ctrl_elev_eff",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "ctrl.aileron_eff",
+            "switchKey": "showControlEffectiveness"
+          }
+        },
+        {
+          "id": "ctrl_rudder_eff",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "ctrl_aileron_eff",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "ctrl.rudder_eff",
+            "switchKey": "showControlEffectiveness"
+          }
+        },
+        {
+          "id": "ctrl_elev_loss",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "ctrl_rudder_eff",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "ctrl.elev_loss",
+            "switchKey": "showControlEffectiveness"
+          }
+        },
+        {
+          "id": "ctrl_aileron_loss",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "ctrl_elev_loss",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "ctrl.aileron_loss",
+            "switchKey": "showControlEffectiveness"
+          }
+        },
+        {
+          "id": "ctrl_rudder_loss",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "ctrl_aileron_loss",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "ctrl.rudder_loss",
+            "switchKey": "showControlEffectiveness"
+          }
+        },
+        {
+          "id": "nitro_amount",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "ctrl_rudder_loss",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "nitro.amount",
+            "switchKey": "showNitro"
+          }
+        },
+        {
+          "id": "nitro_minutes",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "nitro_amount",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "nitro.minutes",
+            "switchKey": "showNitro"
+          }
+        },
+        {
+          "id": "heat_avg_recovery",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "nitro_minutes",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "heat.avg_recovery",
+            "switchKey": "showHeatRecovery"
+          }
+        },
+        {
+          "id": "lift350_no_flap",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "heat_avg_recovery",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "lift350.no_flap",
+            "switchKey": "showMaxLiftLoad"
+          }
+        },
+        {
+          "id": "lift350_full_flap",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "lift350_no_flap",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "lift350.full_flap",
+            "switchKey": "showMaxLiftLoad"
+          }
+        },
+        {
+          "id": "inertia_p",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "lift350_full_flap",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "inertia.p",
+            "switchKey": "showInertia"
+          }
+        },
+        {
+          "id": "inertia_r",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "inertia_p",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "inertia.r",
+            "switchKey": "showInertia"
+          }
+        },
+        {
+          "id": "inertia_y",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "inertia_r",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "inertia.y",
+            "switchKey": "showInertia"
+          }
+        },
+        {
+          "id": "wing_area",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "inertia_y",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "wing.area",
+            "switchKey": "showLift"
+          }
+        },
+        {
+          "id": "fuselage_area",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wing_area",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "fuselage.area",
+            "switchKey": "showLift"
+          }
+        },
+        {
+          "id": "wing_load_no_flap",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "fuselage_area",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "wing.load_no_flap",
+            "switchKey": "showLift"
+          }
+        },
+        {
+          "id": "wing_load_full_flap",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wing_load_no_flap",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "wing.load_full_flap",
+            "switchKey": "showLift"
+          }
+        },
+        {
+          "id": "wing_oswalds",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wing_load_full_flap",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "wing.oswalds",
+            "switchKey": "showLift"
+          }
+        },
+        {
+          "id": "wing_aspect_ratio",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wing_oswalds",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "wing.aspect_ratio",
+            "switchKey": "showLift"
+          }
+        },
+        {
+          "id": "wing_sweep_angle",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wing_aspect_ratio",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "wing.sweep_angle",
+            "switchKey": "showLift"
+          }
+        },
+        {
+          "id": "drag_cd_s",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "wing_sweep_angle",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "drag.cd_s",
+            "switchKey": "showDrag"
+          }
+        },
+        {
+          "id": "drag_cd_accel",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "drag_cd_s",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "drag.cd_accel",
+            "switchKey": "showDrag"
+          }
+        },
+        {
+          "id": "drag_ind_cd",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "drag_cd_accel",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "drag.ind_cd",
+            "switchKey": "showDrag"
+          }
+        },
+        {
+          "id": "drag_ind_accel",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "drag_ind_cd",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "drag.ind_accel",
+            "switchKey": "showDrag"
+          }
+        },
+        {
+          "id": "drag_radiator",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "drag_ind_accel",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "drag.radiator",
+            "switchKey": "showDrag"
+          }
+        },
+        {
+          "id": "drag_oil_radiator",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "drag_radiator",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "drag.oil_radiator",
+            "switchKey": "showDrag"
+          }
+        },
+        {
+          "id": "parts_nfw_name",
+          "type": "core.fm.meta",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "drag_oil_radiator",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.no_flaps_wing.name",
+            "switchKey": "showNoFlapsWing"
+          }
+        },
+        {
+          "id": "parts_nfw_cd_min",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_nfw_name",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.no_flaps_wing.cd_min",
+            "switchKey": "showNoFlapsWing"
+          }
+        },
+        {
+          "id": "parts_nfw_cl0",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_nfw_cd_min",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.no_flaps_wing.cl0",
+            "switchKey": "showNoFlapsWing"
+          }
+        },
+        {
+          "id": "parts_nfw_aoa_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_nfw_cl0",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.no_flaps_wing.aoa_low",
+            "switchKey": "showNoFlapsWing"
+          }
+        },
+        {
+          "id": "parts_nfw_aoa_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_nfw_aoa_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.no_flaps_wing.aoa_high",
+            "switchKey": "showNoFlapsWing"
+          }
+        },
+        {
+          "id": "parts_nfw_cl_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_nfw_aoa_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.no_flaps_wing.cl_low",
+            "switchKey": "showNoFlapsWing"
+          }
+        },
+        {
+          "id": "parts_nfw_cl_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_nfw_cl_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.no_flaps_wing.cl_high",
+            "switchKey": "showNoFlapsWing"
+          }
+        },
+        {
+          "id": "parts_ffw_name",
+          "type": "core.fm.meta",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_nfw_cl_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.full_flaps_wing.name",
+            "switchKey": "showFullFlapsWing"
+          }
+        },
+        {
+          "id": "parts_ffw_cd_min",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_ffw_name",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.full_flaps_wing.cd_min",
+            "switchKey": "showFullFlapsWing"
+          }
+        },
+        {
+          "id": "parts_ffw_cl0",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_ffw_cd_min",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.full_flaps_wing.cl0",
+            "switchKey": "showFullFlapsWing"
+          }
+        },
+        {
+          "id": "parts_ffw_aoa_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_ffw_cl0",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.full_flaps_wing.aoa_low",
+            "switchKey": "showFullFlapsWing"
+          }
+        },
+        {
+          "id": "parts_ffw_aoa_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_ffw_aoa_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.full_flaps_wing.aoa_high",
+            "switchKey": "showFullFlapsWing"
+          }
+        },
+        {
+          "id": "parts_ffw_cl_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_ffw_aoa_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.full_flaps_wing.cl_low",
+            "switchKey": "showFullFlapsWing"
+          }
+        },
+        {
+          "id": "parts_ffw_cl_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_ffw_cl_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.full_flaps_wing.cl_high",
+            "switchKey": "showFullFlapsWing"
+          }
+        },
+        {
+          "id": "parts_fuse_name",
+          "type": "core.fm.meta",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_ffw_cl_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fuselage.name",
+            "switchKey": "showFuselage"
+          }
+        },
+        {
+          "id": "parts_fuse_cd_min",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fuse_name",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fuselage.cd_min",
+            "switchKey": "showFuselage"
+          }
+        },
+        {
+          "id": "parts_fuse_cl0",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fuse_cd_min",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fuselage.cl0",
+            "switchKey": "showFuselage"
+          }
+        },
+        {
+          "id": "parts_fuse_aoa_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fuse_cl0",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fuselage.aoa_low",
+            "switchKey": "showFuselage"
+          }
+        },
+        {
+          "id": "parts_fuse_aoa_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fuse_aoa_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fuselage.aoa_high",
+            "switchKey": "showFuselage"
+          }
+        },
+        {
+          "id": "parts_fuse_cl_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fuse_aoa_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fuselage.cl_low",
+            "switchKey": "showFuselage"
+          }
+        },
+        {
+          "id": "parts_fuse_cl_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fuse_cl_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fuselage.cl_high",
+            "switchKey": "showFuselage"
+          }
+        },
+        {
+          "id": "parts_fin_name",
+          "type": "core.fm.meta",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fuse_cl_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fin.name",
+            "switchKey": "showFin"
+          }
+        },
+        {
+          "id": "parts_fin_cd_min",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fin_name",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fin.cd_min",
+            "switchKey": "showFin"
+          }
+        },
+        {
+          "id": "parts_fin_cl0",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fin_cd_min",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fin.cl0",
+            "switchKey": "showFin"
+          }
+        },
+        {
+          "id": "parts_fin_aoa_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fin_cl0",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fin.aoa_low",
+            "switchKey": "showFin"
+          }
+        },
+        {
+          "id": "parts_fin_aoa_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fin_aoa_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fin.aoa_high",
+            "switchKey": "showFin"
+          }
+        },
+        {
+          "id": "parts_fin_cl_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fin_aoa_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fin.cl_low",
+            "switchKey": "showFin"
+          }
+        },
+        {
+          "id": "parts_fin_cl_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fin_cl_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.fin.cl_high",
+            "switchKey": "showFin"
+          }
+        },
+        {
+          "id": "parts_stab_name",
+          "type": "core.fm.meta",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_fin_cl_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.stab.name",
+            "switchKey": "showStab"
+          }
+        },
+        {
+          "id": "parts_stab_cd_min",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_stab_name",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.stab.cd_min",
+            "switchKey": "showStab"
+          }
+        },
+        {
+          "id": "parts_stab_cl0",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_stab_cd_min",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.stab.cl0",
+            "switchKey": "showStab"
+          }
+        },
+        {
+          "id": "parts_stab_aoa_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_stab_cl0",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.stab.aoa_low",
+            "switchKey": "showStab"
+          }
+        },
+        {
+          "id": "parts_stab_aoa_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_stab_aoa_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.stab.aoa_high",
+            "switchKey": "showStab"
+          }
+        },
+        {
+          "id": "parts_stab_cl_low",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_stab_aoa_high",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.stab.cl_low",
+            "switchKey": "showStab"
+          }
+        },
+        {
+          "id": "parts_stab_cl_high",
+          "type": "core.fm.field",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "parts_stab_cl_low",
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "key": "parts.stab.cl_high",
+            "switchKey": "showStab"
+          }
         }
       ]
     },

@@ -202,9 +202,9 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
 ///   config("enableFMPrint").and(jetOnly) 经 [`strategy_for`] 实际生效,
 ///   固定几何 (0, screenH-500, 900, 500) 经 host set_entry_fixed_pos,
 ///   run 循环 (自管可见性 + displayFmKey==0 收腿退场) 经 sidecar tick)。
-/// - 特注 enableFMPrint (FMUnpackedData, 8 键之一) — 动态窗口高/逐条目可见性
-///   经 fm.list 组件 sidecar tick 的动作返回值落 host (resize_entry/
-///   set_entry_visible)。
+/// - 特注 enableFMPrint (FM拆包数据页, 8 键之一) — 字段原子化 (core.fm.field/
+///   meta 逐字段组件): 数据面 = 逐组件 sidecar tick (200ms 自节流 + FM 直读 +
+///   show* 段开关), 行归零/恢复 → 页面 refresh_sizing 包围盒收敛 → resize_entry。
 /// - 非窗口 1 (键在激活缓存 ACTIVATION_KEYS / strategy_for 留有映射, 不建窗口):
 ///   - enableVoiceWarn: VoiceWarning 为线程形态非窗口 — 装配在 OpenAllOverlays/
 ///     CloseAllOverlays 命令处理点 ([`open_voice_warning`]/VoiceWarnSession,
@@ -708,14 +708,49 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                         game_mode_pulse: session.fm_game_mode_pending,
                         fm_changed: fm_changed.clone(),
                     };
-                    let action = {
+                    // 逐组件 tick (fm-list 字段原子化: 每字段/文本行一组件, 各自
+                    // 200ms 自节流 + 段开关/FM 取值; 动作只可能出自推力曲线 —
+                    // 原子组件恒 None)
+                    let mut action = vm_overlay::widgets::SidecarAction::None;
+                    {
                         let page_ref = page.borrow();
-                        let Some(cell) = page_ref.cells.values().next() else {
-                            continue;
+                        for cell in page_ref.cells.values() {
+                            let Some(mut sc) = cell.sidecar() else { continue };
+                            let a = sc.tick(&mut sctx);
+                            if a != vm_overlay::widgets::SidecarAction::None {
+                                action = a;
+                            }
+                        }
+                    }
+                    // fm-list 页编排面 (原子组件无整窗语义, 由本节拍承担):
+                    // 热键切换/游戏形态隐藏起步 (原 FmUnpacked 自管 visible 的
+                    // 页面级承接) + 包围盒高度跟随 (替代行数滞回 Resize, 无滞回;
+                    // 屏高钳制 = 原 adjustPosition 上限)
+                    if page_id == "fm-list-default" {
+                        if session.fm_game_mode_pending {
+                            session.fm_list_visible = false; // 游戏形态隐藏起步
+                        }
+                        if toggle_pulse {
+                            session.fm_list_visible = !session.fm_list_visible;
+                        }
+                        let preview_mode =
+                            session.shared.overlay_ctx_preview.load(Ordering::SeqCst);
+                        let want = if preview_mode {
+                            true // preview 恒显 (原 isPreview 语义)
+                        } else {
+                            session.fm_list_visible
                         };
-                        let Some(mut sc) = cell.sidecar() else { continue };
-                        sc.tick(&mut sctx)
-                    };
+                        session.host.set_entry_visible(entry, want);
+                        let sized = page.borrow_mut().refresh_sizing(0);
+                        if let (Some(cur), Some((w, h))) =
+                            (session.host.entry_size(entry), sized)
+                        {
+                            let h = h.min(session.fm_list_max_h);
+                            if cur != (w, h) {
+                                let _ = session.host.resize_entry(entry, w, h);
+                            }
+                        }
+                    }
                     match action {
                         vm_overlay::widgets::SidecarAction::None => {}
                         vm_overlay::widgets::SidecarAction::Resize(w, h) => {
@@ -810,8 +845,14 @@ struct RenderSession {
     fm_changed_sub: Subscription<FMHandle>,
     /// FM_CHANGED 中转通道接收端 (载荷 = blkx 深拷)
     fm_data_rx: Receiver<Option<vm_core::fm::data::FmData>>,
-    /// FM show* 开关快照 (sidecar tick 的 generate_lines 读面; 注册期借用之外的自持)
+    /// FM show* 开关快照 (sidecar tick 的 fm.field 段开关读面; 注册期借用之外的自持)
     fm_field_snapshot: Arc<Mutex<HashMap<String, String>>>,
+    /// fm-list 页窗口高度上限 (屏幕逻辑高 — 原 adjustPosition 钳制语义,
+    /// refresh_sizing 包围盒收敛时套用)
+    fm_list_max_h: i32,
+    /// fm-list 页整窗可见态 (热键切换; 游戏形态隐藏起步 — 原 FmUnpacked
+    /// 自管 visible 的页面级承接)
+    fm_list_visible: bool,
     /// openpad 的 FM 会话脉冲 (on_open_all 置位, 下一节拍 sidecar 消费后清除)
     fm_game_mode_pending: bool,
     /// FM_OVERLAY_TOGGLE 订阅 (RAII 保活, 同上; 热键切换经通道中转)
@@ -977,6 +1018,8 @@ impl RenderSession {
             fm_changed_sub,
             fm_data_rx,
             fm_field_snapshot: snapshots.fm_field.clone(),
+            fm_list_max_h: env.dpi.get_logical_screen_height(),
+            fm_list_visible: false,
             fm_game_mode_pending: false,
             fm_toggle_sub,
             fm_toggle_rx,

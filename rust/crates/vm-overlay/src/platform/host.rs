@@ -476,6 +476,14 @@ impl OverlayHost {
         self.resize_idx(idx, w, h)
     }
 
+    /// 条目当前尺寸 (sidecar 包围盒收敛的比较面; None = 未注册)
+    pub fn entry_size(&self, id: &str) -> Option<(i32, i32)> {
+        self.entries
+            .iter()
+            .find(|e| e.id == id)
+            .map(|e| (e.width, e.height))
+    }
+
     fn resize_idx(&mut self, idx: usize, w: i32, h: i32) -> Result<(), String> {
         let same = self.entries[idx].width == w && self.entries[idx].height == h;
         if !same {

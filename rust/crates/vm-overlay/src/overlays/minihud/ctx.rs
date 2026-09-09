@@ -26,7 +26,7 @@ pub struct MiniHudFonts {
 /// Immutable context object holding pre-calculated metrics and resources for
 /// MinimalHUD. Generated from HUDSettings. (Java javadoc 原文)
 ///
-/// BasicStroke 字段按 rows.rs HUDManeuverRow 口径折为 f32 宽度 —
+/// BasicStroke 字段按 rows.rs ManeuverBar 口径折为 f32 宽度 —
 /// CAP_ROUND+JOIN_ROUND 由 PixCanvas::draw_line 线型族固定承载。
 #[derive(Clone)]
 pub struct MinimalHudContext {

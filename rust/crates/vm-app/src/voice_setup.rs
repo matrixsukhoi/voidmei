@@ -27,8 +27,8 @@ pub struct ConfigSnapshots {
     /// voice_* 配置键快照 ([`SnapshotConfigProvider`] 数据面; VoiceWarning
     /// 的 reload 链跨线程读)
     pub voice: Arc<Mutex<HashMap<String, String>>>,
-    /// FM拆包数据 show* 配置键快照 (FMUnpackedData 的 generate_lines 每
-    /// tick 读, CONFIG_CHANGED 逐键刷新)
+    /// FM拆包数据 show* 配置键快照 (core.fm.field/meta 原子组件的 sidecar
+    /// tick 每 200ms 读 — 原 generateLines 直读面, CONFIG_CHANGED 逐键刷新)
     pub fm_field: Arc<Mutex<HashMap<String, String>>>,
 }
 

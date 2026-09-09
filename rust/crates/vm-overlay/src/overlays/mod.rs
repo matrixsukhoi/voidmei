@@ -16,17 +16,16 @@ pub mod gauges; // MarkedGauge 条+可插拔标记系统 (Field 系共用)
 pub mod engine_control;
 pub mod gear_flaps;
 
-// ---- Field 系内容组件 (原 overlays_field2 壳: control_surfaces/fm_unpacked) ----
+// ---- Field 系内容组件 (原 overlays_field2 壳: control_surfaces;
+// fm_unpacked 已随字段原子化退役 — 见 widgets/fm_field) ----
 pub mod control_surfaces;
-pub mod fm_unpacked;
 
 // ---- 列表/信息组件 ----
 pub mod draw_frame_simpl; // FM 曲线可视化 (Java DrawFrameSimpl)
 pub mod flight_info; // 飞行数据文本
-pub mod list; // 斑马纹列表基座 (BaseListOverlay/ZebraList)
 pub mod minihud; // 主 HUD (组件化架构)
-pub mod rows;
-pub mod warning; // 告警闪烁 (WarningOverlay) // HUD 行组件 (HUDTextRow/HUDAkbRow/HUDEnergyRow/HUDManeuverRow)
+pub mod rows; // HUD 行原子组件 (HUDTextRow/AoaGauge/EnergyReadout/MechPart/ManeuverBar)
+pub mod warning; // 告警闪烁 (WarningOverlay)
 
 // ---- spec 工厂公共脚手架 (波15: 字体热换槽 + 键控 spec 构造) ----
 pub(crate) mod spec_common;

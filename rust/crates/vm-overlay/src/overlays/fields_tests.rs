@@ -3,19 +3,13 @@
 //! 取数面 = 下方显式 use (波16 裁撤 mod.rs 转发面, 单一真相路径)。
 
 use super::control_surfaces::{ControlSurfacesOverlay, CsFonts};
-use super::fm_unpacked::{add_lines, generate_lines, FmUnpackedDataOverlay};
 use super::gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::{aa, colors};
 #[cfg(test)]
 use crate::render::primitives::butt_line;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::sync::Arc;
 use vm_core::base::format::{fmt_f, java_string_format, FmtArg};
-use vm_core::config::config_api::ConfigProvider;
-use vm_core::fm::data::{FmData, FmParts};
 use vm_core::formula::registry::FormulaView;
 
 // ==== 原 overlays_field1/tests.rs (engine_control/gauges/gear_flaps/power_info) ====
@@ -513,7 +507,8 @@ fn all_overlay_var_consumers_reachable() {
     }
 }
 
-// ==== 原 overlays_field2/tests.rs (control_surfaces/fm_unpacked) ====
+// ==== 原 overlays_field2/tests.rs (control_surfaces; fm_unpacked 段已随
+// 字段原子化退役 — 语义测试改写至 widgets/fm_field) ====
 
 const BOLD: &str = "../../../fonts/sarasa-mono-sc-bold.ttf";
 const REGULAR: &str = "../../../fonts/sarasa-mono-sc-regular.ttf";
@@ -597,18 +592,6 @@ fn java_string_format_f_at_d_panics() {
 #[should_panic(expected = "IllegalFormatConversionException")]
 fn java_string_format_s_at_d_panics() {
     let _ = java_string_format("%d", &[FmtArg::S("x")]);
-}
-
-/// addLines 的 Java trim 语义: 只剥 ≤ U+0020, 全角空格 U+3000 保留
-/// (Rust `str::trim` 会多剥一层 — 域内不可达, 本测试锁定复刻边界)
-#[test]
-fn add_lines_java_trim_semantics() {
-    let mut lines = Vec::new();
-    add_lines(&mut lines, "a\u{3000}  \nb\u{3000}\n  \t\n");
-    assert_eq!(
-        lines,
-        vec!["a\u{3000}".to_string(), "b\u{3000}".to_string()]
-    );
 }
 
 // ---- ControlSurfacesOverlay ----
@@ -845,330 +828,16 @@ fn control_surfaces_draw_text_zones() {
     assert!(has_ink(108, 132, 156, 170), "条值数字带");
 }
 
-// ---- FmUnpackedDataOverlay ----
 
-/// 测试用 ConfigProvider stub (HashMap + RefCell, 与 vm-core config_provider 测试同式)
-struct MapConfig {
-    values: RefCell<HashMap<String, String>>,
-}
-
-impl MapConfig {
-    fn new() -> Self {
-        MapConfig {
-            values: RefCell::new(HashMap::new()),
-        }
-    }
-    fn set(&self, k: &str, v: &str) {
-        self.values
-            .borrow_mut()
-            .insert(k.to_string(), v.to_string());
-    }
-}
-
-impl ConfigProvider for MapConfig {
-    fn get_config(&self, key: &str) -> Option<String> {
-        self.values.borrow().get(key).cloned()
-    }
-    fn set_config(&self, key: &str, value: &str) {
-        self.values
-            .borrow_mut()
-            .insert(key.to_string(), value.to_string());
-    }
-    fn is_field_disabled(&self, _key: &str) -> bool {
-        false
-    }
-}
-
-/// 全字段齐备的测试 blkx (期望值 = 历史基线 手算, HALF_UP 判别值混入)
-fn full_fmdata() -> FmData {
-    let mut b = FmData::default();
-    b.read_file_name = Some("spitfire_mk24".to_string());
-    b.version = Some("2.35.0.9".to_string());
-    b.emptyweight = 3050.0;
-    b.maxfuelweight = 780.45; // %.1f HALF_UP → "780.5"
-    b.critical_speed = 230.0; // ×3.6 = 828.000...01 → "828"
-    b.vne = 1050.0;
-    b.raw_wing_crit_overload = Some([-196000.0, 441000.0]);
-    b.grossweight = 5000.0; // full: 1.2·(2·raw/(g·w)∓1) → (-8.4, 20.4)
-    b.halfweight = 4000.0; // half → (-10.8, 25.8)
-    b.flaps_destruction_num = 2;
-    let mut flaps = [[0.0; 2]; 6];
-    flaps[0] = [0.0, 640.0];
-    flaps[1] = [0.95, 520.0]; // ×100 = 94.99... → %.0f → "95"
-    b.flaps_destruction_ind_speed = Some(flaps);
-    b.elav_eff = 580.0;
-    b.aileron_eff = 640.0;
-    b.rudder_eff = 700.0;
-    b.elav_power_loss = 0.25; // %.1f HALF_UP → "0.3"
-    b.aileron_power_loss = 0.35; // → "0.4"
-    b.rudder_power_loss = 0.45; // → "0.5"
-    b.nitro = 120.0;
-    b.nitro_decr = 2.0; // 120/(2·60) = 1.0
-    b.avg_eng_recovery_rate = 3.25; // %.1f HALF_UP → "3.3"
-    b.no_flap_wll = 9.0; // (9+1)/2 = 5.0
-    b.full_flap_wll = 13.0; // 7.0
-    b.moment_of_inertia = Some([12000.0, 25000.0, 8000.0]); // [P:m[2], R:m[0], Y:m[1]]
-    b.a_wing = 25.8;
-    b.a_fuselage = 5.4;
-    b.oswalds_efficiency_number = 0.75;
-    b.aspect_ratio = 6.0;
-    b.swept_wing_angle = 0.0;
-    b.cd_s = 0.42;
-    b.ind_cd_f = 0.003; // 4000·0.003 ≈ 12.000...002 → "12"
-    b.radiator_cd = 0.021;
-    b.oil_radiator_cd = 0.017;
-    let mut wing = FmParts::default();
-    wing.name = Some("机翼 无襟翼".to_string());
-    wing.cd_min = 0.0285; // %.3f HALF_UP → "0.029"
-    wing.cl0 = 0.05;
-    wing.aoa_crit_low = -14.4;
-    wing.aoa_crit_high = 18.6;
-    wing.cl_crit_low = -1.15;
-    wing.cl_crit_high = 1.55;
-    b.no_flaps_wing = Some(wing.clone());
-    let mut ff = FmParts::default();
-    ff.name = Some("机翼 全襟翼".to_string());
-    ff.cd_min = 0.0331;
-    ff.cl0 = 0.12;
-    ff.aoa_crit_low = -13.1;
-    ff.aoa_crit_high = 20.2;
-    ff.cl_crit_low = -1.35;
-    ff.cl_crit_high = 1.85;
-    b.full_flaps_wing = Some(ff);
-    let mut fuse = FmParts::default();
-    fuse.name = Some("机身".to_string());
-    fuse.cd_min = 0.0151;
-    fuse.cl0 = 0.02;
-    fuse.aoa_crit_low = -27.9;
-    fuse.aoa_crit_high = 27.9;
-    fuse.cl_crit_low = -0.41;
-    fuse.cl_crit_high = 0.49;
-    b.fuselage = Some(fuse);
-    let mut fin = FmParts::default();
-    fin.name = Some("垂尾".to_string());
-    fin.cd_min = 0.0081;
-    fin.cl0 = 0.0;
-    fin.aoa_crit_low = -16.2;
-    fin.aoa_crit_high = 16.2;
-    fin.cl_crit_low = -0.62;
-    fin.cl_crit_high = 0.62;
-    b.fin = Some(fin);
-    let mut stab = FmParts::default();
-    stab.name = Some("平尾".to_string());
-    stab.cd_min = 0.0062;
-    stab.cl0 = -0.06;
-    stab.aoa_crit_low = -15.5;
-    stab.aoa_crit_high = 15.5;
-    stab.cl_crit_low = -0.55;
-    stab.cl_crit_high = 0.55;
-    b.stab = Some(stab);
-    b
-}
-
-/// generateLines 全量 (config None → 全启用) 的逐行 基线
-#[test]
-fn generate_lines_full_field_list() {
-    let lines = generate_lines(Some(&full_fmdata()), None);
-    let expect_prefix = [
-        "FM文件: spitfire_mk24 - 2.35.0.9",
-        "空重(kg): 3050.0",
-        "最大燃油重量(kg): 780.5", // %.1f HALF_UP 判别
-        "临界速度(km/h): [828, 1050]",
-        "允许过载(满/半油): [-8.4, 20.4], [-10.8, 25.8]",
-        "襟翼限速(km/h)0: 0% / 640",
-        "襟翼限速(km/h)1: 95% / 520",
-        "三舵有效速度(km/h): [ 升降580, 副翼640, 方向700 ]",
-        "三舵锁舵因数: [ 升降0.2, 副翼0.3, 方向0.5 ]", // %.1f HALF_UP ×3
-        "加力(kg)/时限(分钟): 120.0 / 1.0",
-        "平均耐热条恢复速率: 3.2", // %.1f HALF_UP 判别
-        "千米最大升力过载: 5.0 / 7.0(襟) @ 350IAS",
-        "三轴转动惯量: [ P: 8000, R: 12000, Y: 25000 ]",
-        "主升力面积: 25.8机翼, 5.4机身",
-        "主升力面积因数载荷: 9.00 / 13.00(襟)",
-        "翼展效率: 0.75 展弦比: 6.0 后掠角: 0.0",
-        "主阻力面积因数及加速度系数: 0.42 / 0.105",
-        "诱导阻力因数及加速度系数: 0.003 / 12",
-        "散热/油冷器阻力系数: 0.021 / 0.017",
-    ];
-    assert!(
-        lines.len() >= expect_prefix.len() + 25,
-        "全字段行数 ≥ 44, 实 {}",
-        lines.len()
-    );
-    for (i, want) in expect_prefix.iter().enumerate() {
-        assert_eq!(&lines[i], want, "第 {i} 行");
-    }
-    // FM 器件段 (addFmParts ×5 段, 每段表头+4 行)
-    assert_eq!(lines[19], "------fm器件 机翼 无襟翼------");
-    assert_eq!(lines[20], "零升阻力系数: 0.029", "%.3f HALF_UP 判别");
-    assert_eq!(lines[21], "零攻角升力: 0.050");
-    assert_eq!(lines[22], "临界攻角: [-14.4, 18.6]");
-    assert_eq!(lines[23], "临界攻角升力系数: [-1.15, 1.55]");
-    let idx = lines
-        .iter()
-        .position(|l| l == "------fm器件 平尾------")
-        .expect("第五段 (Stab)");
-    assert_eq!(
-        &lines[idx + 1..idx + 5],
-        [
-            "零升阻力系数: 0.006",
-            "零攻角升力: -0.060",
-            "临界攻角: [-15.5, 15.5]",
-            "临界攻角升力系数: [-0.55, 0.55]",
-        ]
-    );
-}
-
-/// 无数据 / null 字段 ("null" 文本) / 空白模板行裁剪
-#[test]
-fn generate_lines_no_data_and_null_fields() {
-    assert_eq!(
-        generate_lines(None, None),
-        vec![
-            "FM Data Preview".to_string(),
-            "[No Data Loaded]".to_string()
-        ]
-    );
-    // readFileName/version 为 null → %s 打 "null" (Java Formatter 行为)
-    let mut b = FmData::default();
-    b.emptyweight = 1.0;
-    let lines = generate_lines(Some(&b), None);
-    assert_eq!(lines[0], "FM文件: null - null");
-}
-
-/// 字段开关: false 关 / 空串与缺失默认开 / parseBoolean 仅 "true" (忽略大小写)
-#[test]
-fn generate_lines_field_switches() {
-    let cfg = MapConfig::new();
-    cfg.set("showWeight", "false");
-    cfg.set("showCritSpeed", "FALSE"); // parseBoolean 忽略大小写 → false
-    cfg.set("showLift", ""); // 空串 → 默认启用
-    cfg.set("showDrag", "yes"); // 非 "true" → false
-    let lines = generate_lines(Some(&full_fmdata()), Some(&cfg));
-    assert!(
-        !lines.iter().any(|l| l.starts_with("空重")),
-        "showWeight=false 关"
-    );
-    assert!(
-        !lines.iter().any(|l| l.starts_with("临界速度")),
-        "FALSE (忽略大小写) 关"
-    );
-    assert!(
-        lines.iter().any(|l| l.starts_with("主升力面积")),
-        "空串默认开"
-    );
-    assert!(
-        !lines.iter().any(|l| l.starts_with("主阻力面积")),
-        "yes → false"
-    );
-    assert!(
-        lines.iter().any(|l| l.starts_with("加力")),
-        "其余段不受影响"
-    );
-    // fmVersion 恒显 → "[No Fields Enabled]" 占位不可达 (Java 同)
-    assert!(lines.iter().any(|l| l.starts_with("FM文件")));
-}
-
-/// nitro ≤ 0 段隐藏 (Java :212 blkx.nitro > 0 门控)
-#[test]
-fn generate_lines_nitro_gate() {
-    let mut b = full_fmdata();
-    b.nitro = 0.0;
-    let lines = generate_lines(Some(&b), None);
-    assert!(!lines.iter().any(|l| l.contains("加力")));
-    b.nitro = 60.0;
-    b.nitro_decr = 1.0;
-    let lines = generate_lines(Some(&b), None);
-    assert!(lines.iter().any(|l| l == "加力(kg)/时限(分钟): 60.0 / 1.0"));
-}
-
-/// 表头谓词 (Java :87/:118 startsWith 覆盖默认 contains) + 斑马交互
-#[test]
-fn fm_overlay_header_matcher() {
-    let f = font(REGULAR, 14);
-    let mut ov = FmUnpackedDataOverlay::new(1440, 1.0, 12);
-    ov.init(None, &f);
-    assert!(ov.base.zebra.is_header("FM文件: x"));
-    assert!(ov.base.zebra.is_header("------fm器件: 机翼"));
-    assert!(
-        !ov.base.zebra.is_header("prefix FM文件"),
-        "startsWith 不含中缀"
-    );
-    assert!(
-        !ov.base.zebra.is_header("含 fm器件 中缀的行"),
-        "默认 contains 已被覆盖"
-    );
-}
-
-/// 游戏模式门控: 初始隐藏不取数; toggle 后取数并脏; 同数据不脏 (Java :67/:318)
-#[test]
-fn fm_overlay_toggle_visibility_gating() {
-    let f = font(REGULAR, 14);
-    let mut ov = FmUnpackedDataOverlay::new(1440, 1.0, 12);
-    ov.init(None, &f);
-    assert!(!ov.is_visible_now(), "游戏模式初始隐藏");
-    assert!(!ov.tick(), "隐藏分支不取数不显示");
-    assert!(!ov.base.window_visible);
-
-    ov.toggle();
-    assert!(ov.is_visible_now());
-    ov.reload_fm_data(Some(Arc::new(full_fmdata())));
-    assert!(ov.tick(), "首帧脏 (lastData=null → 行清单入基座)");
-    assert!(ov.base.window_visible);
-    assert!(!ov.tick(), "同数据 equals → 不脏");
-
-    ov.toggle();
-    assert!(!ov.tick(), "再隐藏 → 不取数");
-    assert!(!ov.base.window_visible);
-}
-
-/// reload/reinit 换 blkx → 行清单随脏检查刷新; None → 占位 (Java :130-151)
-#[test]
-fn fm_overlay_reload_and_reinit() {
-    let f = font(REGULAR, 14);
-    let mut ov = FmUnpackedDataOverlay::new(1440, 1.0, 12);
-    ov.init(None, &f);
-    ov.toggle(); // 可见化以走取数分支
-
-    // last_data 为基座私有字段, 内容经 generate_lines() 断言、刷新经脏标志断言
-    ov.reload_fm_data(Some(Arc::new(full_fmdata())));
-    assert!(ov.tick());
-    assert!(ov.generate_lines()[0].starts_with("FM文件: spitfire"));
-
-    ov.reload_fm_data(None);
-    assert!(ov.tick(), "清单变化 ([No Data Loaded]) → 脏");
-    assert_eq!(
-        ov.generate_lines(),
-        vec![
-            "FM Data Preview".to_string(),
-            "[No Data Loaded]".to_string()
-        ]
-    );
-    assert!(!ov.tick(), "同清单 → 不脏");
-
-    // reinit_config: FMManager.current() 快照注入 (Java :146-147)
-    let mut b = FmData::default();
-    b.read_file_name = Some("tempest_mk5".to_string());
-    ov.reinit_config(Some(Arc::new(b)), &f);
-    assert!(ov.tick(), "reinit 换机 → 清单变化 → 脏");
-    assert!(ov.generate_lines()[0].starts_with("FM文件: tempest_mk5"));
-    // 预览模式绕过可见门控 (BaseOverlay.run:235 isPreview ||)
-    let mut pv = FmUnpackedDataOverlay::new(1440, 1.0, 12);
-    pv.init_preview(None, &f);
-    assert!(pv.is_visible_now());
-    assert!(pv.base.is_preview);
-    assert!(pv.tick(), "preview 隐藏语义下仍取数");
-}
-
-/// QA 批十终检: 五个 overlay (field1 三件 + 本文件两件) 的内容渲染函数经
-/// OverlaySpec 装入 OverlayHost 走全链 (register → open_all → render_tick →
-/// present → close_all)。field2 两组件的完整组装 (动态窗口高/逐条目可见性/
-/// 预览闭包工厂) 按模块头 PORT 注留组装层, 此处只证 host 的 render 闭包通道
-/// (RenderFn) 对二者同样可用 — Java 侧五件同经 OverlayManager 注册装载。
+/// QA 批十终检: 四个 overlay (field1 三件 + 本文件 ControlSurfaces) 的内容
+/// 渲染函数经 OverlaySpec 装入 OverlayHost 走全链 (register → open_all →
+/// render_tick → present → close_all)。ControlSurfaces 的完整组装 (动态窗口
+/// 高/逐条目可见性/预览闭包工厂) 按模块头 PORT 注留组装层, 此处只证 host 的
+/// render 闭包通道 (RenderFn) 同样可用。
 /// 窗口生命周期语义 (销毁序/分流/拖拽) 由 host.rs 自有测试覆盖, 此处 mock 只记
 /// present 次数并断言缓冲尺寸。
 #[test]
-fn five_overlays_mount_into_overlay_host() {
+fn four_overlays_mount_into_overlay_host() {
     use crate::platform::host::{OverlayHost, OverlaySpec};
     use crate::platform::{OverlayEvent, OverlayWindow, WindowConfig};
     use std::cell::Cell;
@@ -1247,35 +916,20 @@ fn five_overlays_mount_into_overlay_host() {
         }),
         reinit: None,
     });
-    // ⑤ FMUnpackedData (Java 键 enableFMPrint): render(&mut) 同通道
-    let f_list = font(REGULAR, 14);
-    let mut fm = FmUnpackedDataOverlay::new(1440, 1.0, 12);
-    fm.init_preview(None, &f_list);
-    assert!(fm.tick(), "preview 首帧取数 (占位两行清单)");
-    let (fw, fh) = (fm.base.width, fm.base.height);
-    assert!(fw > 0 && fh > 0);
-    host.register(OverlaySpec {
-        id: "enableFMPrint".into(),
-        config_key: "enableFMPrint".into(),
-        width: fw,
-        height: fh,
-        render: Box::new(move |cv| {
-            fm.render(cv, &f_list, aa());
-        }),
-        reinit: None,
-    });
+    // ⑤ FMUnpackedData 段已随字段原子化退役 (fm.list 黑盒 → core.fm.field/meta,
+    // widgets/fm_field; 挂载链断言见 vm-app render_feeds 的 fm-list 页用例)
 
-    // 全链: 开 → 首帧五窗各 present 一次 (尺寸逐窗断言) → 静态内容脏检查抑制
+    // 全链: 开 → 首帧四窗各 present 一次 (尺寸逐窗断言) → 静态内容脏检查抑制
     // → close_all 后槽位全空不再渲染
     host.open_all().unwrap();
-    assert_eq!(host.active_ids().len(), 5, "五个 overlay 全部装载打开");
+    assert_eq!(host.active_ids().len(), 4, "四个 overlay 全部装载打开");
     host.render_tick().unwrap();
-    assert_eq!(presents.get(), 5, "首帧五窗各一次 present");
+    assert_eq!(presents.get(), 4, "首帧四窗各一次 present");
     host.render_tick().unwrap();
-    assert_eq!(presents.get(), 5, "静态预览内容: 脏检查抑制");
+    assert_eq!(presents.get(), 4, "静态预览内容: 脏检查抑制");
     host.close_all();
     host.render_tick().unwrap();
-    assert_eq!(presents.get(), 5, "槽位全空: 不再 present");
+    assert_eq!(presents.get(), 4, "槽位全空: 不再 present");
     assert!(host.active_ids().is_empty());
 }
 
@@ -1312,90 +966,4 @@ fn control_surfaces_reset_preview_restores_initial_values() {
         (cs.width / 2, cs.height / 2, (50 + 100) * cs.width / 200),
         "游标居中 + 舵条半量程"
     );
-}
-
-// ---- FmUnpackedData (spec 工厂/Feed 泵测试已随 W3 组件化退役:
-// ---- 挂载面 = widgets::fm_sidecar FmListWidget 的 sidecar tick, 数据推进
-// ---- 链断言见 vm-app render_feeds; 本段保留 state 面语义测试) ----
-
-/// show* 开关实效 (engine_disables 实效测试先例): config 全关 → 仅 FM 版本行
-/// (最小面) vs 全开 (None = 默认启用) → 显著更高
-// PORT(allow): MapConfig 含 RefCell (!Sync) — init 签名的 Arc<dyn ConfigProvider>
-// 无 Send 约束 (Rc 句柄恒留本线程), 与 Java 引用共享同构
-#[test]
-#[allow(clippy::arc_with_non_send_sync)]
-fn fm_unpacked_field_switches_change_height() {
-    let row_h = crate::overlays::list::ZebraList::row_height(&font(REGULAR, 14));
-    // 全关 (16 键 "false" → 仅 fmVersion 恒显行)
-    let cfg_off = MapConfig::new();
-    for key in [
-        "showWeight",
-        "showCritSpeed",
-        "showGLoadLimits",
-        "showFlapLimits",
-        "showControlEffectiveness",
-        "showNitro",
-        "showHeatRecovery",
-        "showMaxLiftLoad",
-        "showInertia",
-        "showLift",
-        "showDrag",
-        "showNoFlapsWing",
-        "showFullFlapsWing",
-        "showFuselage",
-        "showFin",
-        "showStab",
-    ] {
-        cfg_off.set(key, "false");
-    }
-    let mut h_off = FmUnpackedDataOverlay::new(1080, 1.0, 12);
-    h_off.init_preview(Some(Arc::new(cfg_off)), &font(REGULAR, 14));
-    h_off.reload_fm_data(Some(Arc::new(full_fmdata())));
-    h_off.tick();
-    assert_eq!(
-        h_off.base.height, row_h,
-        "全关 = 仅 FM 版本一行的高度"
-    );
-    // 全开 (config None → isFieldEnabled 默认启用)
-    let mut h_on = FmUnpackedDataOverlay::new(1080, 1.0, 12);
-    h_on.init_preview(None, &font(REGULAR, 14));
-    h_on.reload_fm_data(Some(Arc::new(full_fmdata())));
-    h_on.tick();
-    assert!(
-        h_on.base.height > 20 * row_h,
-        "全开显著更高 (实测 {} vs 最小 {})",
-        h_on.base.height,
-        row_h
-    );
-}
-
-/// reset_preview (渲染线程 CloseAllOverlays → 组件 reset_preview 的 state 面):
-/// live 行残留 → 预览重开为空面板 (Java closeAll 销毁实例 + 预览工厂新建)
-#[test]
-fn fm_unpacked_reset_preview_clears_live_lines() {
-    let f_list = font(REGULAR, 14);
-    let mut fm = FmUnpackedDataOverlay::new(1080, 1.0, 12);
-    fm.init_preview(None, &f_list);
-    let (w0, h0) = (fm.base.width, fm.base.height.min(200));
-    // live 会话残留: 游戏形态 + FM 数据 + 可见
-    fm.base.is_preview = false;
-    fm.visible = true;
-    fm.reload_fm_data(Some(Arc::new(full_fmdata())));
-    assert!(fm.tick(), "数据到达 (dirty)");
-    // 行内容入画: 文本带存在白色墨迹 (斑马行白字)
-    let has_ink = |c: &PixCanvas| {
-        c.pixmap()
-            .data()
-            .chunks_exact(4)
-            .any(|p| p[3] > 200 && p[0] > 200 && p[1] > 200 && p[2] > 200)
-    };
-    let mut cv = PixCanvas::new(w0, h0).unwrap();
-    fm.render(&mut cv, &f_list, aa());
-    assert!(has_ink(&cv), "live 行文本墨迹");
-    // 重置: 可见/预览态/lastData 清空 → 空面板
-    fm.reset_preview();
-    assert!(fm.visible && fm.base.is_preview, "preview 形态");
-    let mut cv2 = PixCanvas::new(w0, h0).unwrap();
-    fm.render(&mut cv2, &f_list, aa());
-    assert!(!has_ink(&cv2), "重置后无文本行 (Java 新实例空面板)");
 }

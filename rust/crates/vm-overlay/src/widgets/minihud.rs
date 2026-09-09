@@ -1,7 +1,10 @@
-//! MiniHUD 组件族注册 (W2: 原 MiniHudComponentInner 枚举分发的 trait 化)。
+//! MiniHUD 组件族注册 (W2: 原 MiniHudComponentInner 枚举分发的 trait 化;
+//! 行族原子化: 复合行 row0/1/2/4 拆为单语义原子件)。
 //!
 //! impl 体 = 原 comp.rs 的各枚举臂 + mod.rs update_component/row_visibility
-//! 的组件自治段 (组件从 settings 自算可见性 — "配置驱动可见性属于组件")。
+//! 的组件自治段。行内细粒度开关 (setShowSpeed 族) 随拆解退役 —
+//! 开关语义 = 编排器对原子件外壳 visible 的门控 (update_row_visibility)
+//! 或用户在页面里删组件。
 
 use vm_core::base::format::pad_width;
 
@@ -12,7 +15,8 @@ use crate::overlays::bars::{FlapAngleBar, LinearGauge, SpeedRatioBar};
 use crate::overlays::compass::CompassGauge;
 use crate::overlays::crosshair::CrosshairGauge;
 use crate::overlays::rows::{
-    HUDAkbRow, HUDEnergyRow, HUDManeuverRow, HUDMechanizationRow, HUDTextRow,
+    split_trim3, AltitudeReadout, AoaGauge, EnergyReadout, GLoadReadout, HUDTextRow, MechKind,
+    MechPart, ManeuverBar, SepReadout, SpeedReadout,
 };
 use crate::render::canvas::PixCanvas;
 
@@ -21,10 +25,129 @@ use super::registry::{HudWidget, PropSchema, WidgetCategory, WidgetMeta};
 use super::registry::PageFonts;
 
 // =====================================================================
-// 行族
+// 行主读数 (HUDTextRow 包装; 数据槽/模板槽各異)
 // =====================================================================
 
-impl HudWidget for HUDAkbRow {
+impl HudWidget for SpeedReadout {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn apply_style(&mut self, env: &StyleEnv) {
+        self.0.set_style(env.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size);
+    }
+
+    fn push_templates(&mut self, t: &MiniHudTemplates) {
+        self.0.set_template(Some(&t.lines[0]));
+        self.0.update(&t.lines[0], false);
+    }
+
+    fn on_data_update(&mut self, env: &UpdateEnv) {
+        self.0.update(&env.data.speed_str, env.data.warn_vne);
+    }
+
+    fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
+        self.0.draw(cv, x, y, &fonts.draw, aa)
+    }
+
+    fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
+        let (w, h) = self.0.preferred_size(&fonts.draw);
+        Dimension::new(w, h)
+    }
+}
+
+impl HudWidget for AltitudeReadout {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn apply_style(&mut self, env: &StyleEnv) {
+        self.0.set_style(env.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size);
+    }
+
+    fn push_templates(&mut self, t: &MiniHudTemplates) {
+        self.0.set_template(Some(&t.lines[1]));
+        self.0.update(&t.lines[1], false);
+    }
+
+    fn on_data_update(&mut self, env: &UpdateEnv) {
+        self.0.update(&env.data.alt_str, env.data.warn_altitude);
+    }
+
+    fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
+        self.0.draw(cv, x, y, &fonts.draw, aa)
+    }
+
+    fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
+        let (w, h) = self.0.preferred_size(&fonts.draw);
+        Dimension::new(w, h)
+    }
+}
+
+impl HudWidget for SepReadout {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn apply_style(&mut self, env: &StyleEnv) {
+        self.0.set_style(env.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size);
+        // Row3 无行内细粒度开关 (可见性 = master, 编排器外壳门控)
+    }
+
+    fn push_templates(&mut self, t: &MiniHudTemplates) {
+        self.0.set_template(Some(&t.lines[3]));
+        self.0.update(&t.lines[3], false);
+    }
+
+    fn on_data_update(&mut self, env: &UpdateEnv) {
+        // live: SEP (原 update_legacy_components 桥)
+        self.0.update(&env.data.sep_str, false);
+    }
+
+    fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
+        self.0.draw(cv, x, y, &fonts.draw, aa)
+    }
+
+    fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
+        let (w, h) = self.0.preferred_size(&fonts.draw);
+        Dimension::new(w, h)
+    }
+}
+
+impl HudWidget for GLoadReadout {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn apply_style(&mut self, env: &StyleEnv) {
+        self.0.set_style(env.minihud_ctx.expect("minihud 族组件需 minihud_ctx").hud_font_size);
+    }
+
+    fn push_templates(&mut self, t: &MiniHudTemplates) {
+        self.0.set_template(Some(&t.lines[4]));
+        self.0.update(&t.lines[4], false);
+    }
+
+    fn on_data_update(&mut self, env: &UpdateEnv) {
+        // live: G 文字 (原 update_legacy_components 桥; is_warning 恒 false)
+        self.0.update(&env.data.maneuver_state_str, false);
+    }
+
+    fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
+        self.0.draw(cv, x, y, &fonts.draw, aa)
+    }
+
+    fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
+        let (w, h) = self.0.preferred_size(&fonts.draw);
+        Dimension::new(w, h)
+    }
+}
+
+// =====================================================================
+// 行辅件 (AoaGauge / EnergyReadout / MechPart / ManeuverBar)
+// =====================================================================
+
+impl HudWidget for AoaGauge {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -32,142 +155,108 @@ impl HudWidget for HUDAkbRow {
     fn apply_style(&mut self, env: &StyleEnv) {
         let ctx = env.minihud_ctx.expect("minihud 族组件需 minihud_ctx");
         self.set_style(ctx.right_draw, ctx.line_width, ctx.aoa_length as i32);
-        // 原 update_row_visibility 的 Row0 段 (master = drawHudText)
-        let master = env.settings.draw_hud_text;
-        self.set_show_speed(master && env.settings.show_hud_speed);
-        self.set_show_aoa(master && env.settings.show_hud_aoa);
     }
 
     fn push_templates(&mut self, t: &MiniHudTemplates) {
-        self.set_template(Some(&t.lines[0]), Some(&t.line_aoa));
         // preview 值推送 (原 update_row_values 的 service 缺席分支)
-        self.update(
-            &t.lines[0],
-            false,
-            &t.line_aoa,
-            t.aoa_y,
-            t.aoa_color,
-            t.aoa_bar_color,
-        );
+        self.set_template(Some(&t.line_aoa));
+        self.update(&t.line_aoa, t.aoa_y, t.aoa_color, t.aoa_bar_color);
     }
 
     fn on_data_update(&mut self, env: &UpdateEnv) {
         let data = env.data;
-        self.base.update(&data.speed_str, data.warn_vne);
-        self.aoa_text.clear();
-        self.aoa_text.push_str(&data.aoa_str);
-        self.aoa_color = data.aoa_color;
-        self.aoa_bar_color = data.aoa_bar_color;
         self.set_aoa_from_ratio(data.aoa_ratio);
+        self.update(
+            &data.aoa_str,
+            self.aoa_y,
+            data.aoa_color,
+            data.aoa_bar_color,
+        );
     }
 
     fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
-        HUDAkbRow::draw(self, cv, x, y, &fonts.draw, &fonts.small, aa)
+        AoaGauge::draw(self, cv, x, y, &fonts.draw, &fonts.small, aa)
     }
 
     fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
-        let (w, h) = HUDAkbRow::preferred_size(self, &fonts.draw, &fonts.small);
+        let (w, h) = AoaGauge::preferred_size(self, &fonts.small);
         Dimension::new(w, h)
     }
 }
 
-impl HudWidget for HUDEnergyRow {
+impl HudWidget for EnergyReadout {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
         self.set_style(env.minihud_ctx.expect("minihud 族组件需 minihud_ctx").right_draw);
-        let master = env.settings.draw_hud_text;
-        self.set_show_altitude(master && env.settings.show_hud_altitude);
-        self.set_show_energy(master && env.settings.show_hud_energy);
     }
 
     fn push_templates(&mut self, t: &MiniHudTemplates) {
-        self.set_template(Some(&t.lines[1]), Some(&t.rel_energy));
-        self.update(&t.lines[1], false, &t.rel_energy);
+        self.set_template(Some(&t.rel_energy));
+        self.update(&t.rel_energy);
     }
 
     fn on_data_update(&mut self, env: &UpdateEnv) {
-        let data = env.data;
-        self.update(&data.alt_str, data.warn_altitude, &data.energy_str);
+        self.update(&env.data.energy_str);
     }
 
     fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
-        HUDEnergyRow::draw(self, cv, x, y, &fonts.draw, &fonts.small, aa)
+        EnergyReadout::draw(self, cv, x, y, &fonts.draw, &fonts.small, aa)
     }
 
     fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
-        let (w, h) = HUDEnergyRow::preferred_size(self, &fonts.draw, &fonts.small);
+        let (w, h) = EnergyReadout::preferred_size(self, &fonts.small);
         Dimension::new(w, h)
     }
 }
 
-impl HudWidget for HUDMechanizationRow {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn apply_style(&mut self, env: &StyleEnv) {
-        self.base.set_style(env.minihud_ctx.expect("minihud ctx").hud_font_size);
-        let master = env.settings.draw_hud_text;
-        self.set_show_flaps(master && env.settings.show_hud_flaps);
-        self.set_show_airbrake(master && env.settings.show_hud_airbrake);
-        self.set_show_gear(master && env.settings.show_hud_gear);
-    }
-
-    fn push_templates(&mut self, t: &MiniHudTemplates) {
-        // 完整 set_template (内部三段重解析, 原注: 虚分派语义)
-        self.set_template(Some(&t.lines[2]));
-        self.update(&t.lines[2], t.in_action);
-    }
-
-    fn on_data_update(&mut self, env: &UpdateEnv) {
-        HUDMechanizationRow::on_data_update(self, env.data);
-    }
-
-    fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
-        HUDMechanizationRow::draw(self, cv, x, y, &fonts.draw, aa)
-    }
-
-    fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
-        let (w, h) = HUDMechanizationRow::preferred_size(self, &fonts.draw);
-        Dimension::new(w, h)
-    }
-}
-
-impl HudWidget for HUDTextRow {
+impl HudWidget for MechPart {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
     fn apply_style(&mut self, env: &StyleEnv) {
         self.set_style(env.minihud_ctx.expect("minihud ctx").hud_font_size);
-        // Row3 无行内细粒度开关 (可见性 = master, WidgetBox 层)
-        let _ = env.settings.draw_hud_text;
     }
 
     fn push_templates(&mut self, t: &MiniHudTemplates) {
-        self.set_template(Some(&t.lines[3]));
-        self.update(&t.lines[3], false);
+        // 三段共享 lines[2] (旧 mechanization 合并串), 各取本段槽
+        let (fw, ab, g) = match split_trim3(&t.lines[2]) {
+            Some((a, b, c)) => (a, b, c),
+            None => (String::new(), String::new(), String::new()),
+        };
+        let seg = match self.kind {
+            MechKind::Flaps => fw,
+            MechKind::Airbrake => ab,
+            MechKind::Gear => g,
+        };
+        self.set_template(&seg);
+        self.update(&seg, false);
     }
 
     fn on_data_update(&mut self, env: &UpdateEnv) {
-        // live: SEP (原 update_legacy_components 桥)
-        self.update(&env.data.sep_str, false);
+        let data = env.data;
+        let text = match self.kind {
+            MechKind::Flaps => data.flaps_wing_str.as_str(),
+            MechKind::Airbrake => data.airbrake_str.as_str(),
+            MechKind::Gear => data.gear_str.as_str(),
+        };
+        self.update(text, data.warn_configuration);
     }
 
     fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
-        HUDTextRow::draw(self, cv, x, y, &fonts.draw, aa)
+        MechPart::draw(self, cv, x, y, &fonts.draw, aa)
     }
 
     fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
-        let (w, h) = HUDTextRow::preferred_size(self, &fonts.draw);
+        let (w, h) = MechPart::preferred_size(self, &fonts.draw);
         Dimension::new(w, h)
     }
 }
 
-impl HudWidget for HUDManeuverRow {
+impl HudWidget for ManeuverBar {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -182,35 +271,24 @@ impl HudWidget for HUDManeuverRow {
             ctx.stroke_thick_w,
             ctx.stroke_thin_w,
         );
-        let master = env.settings.draw_hud_text;
-        self.set_show_g_load(master && env.settings.show_hud_g_load);
-        self.set_show_maneuver_bar(master && env.settings.show_hud_maneuver_bar);
     }
 
     fn push_templates(&mut self, t: &MiniHudTemplates) {
-        self.base.set_template(Some(&t.lines[4]));
-        self.update(&t.lines[4], false, t.maneuver.0, t.maneuver.1, t.maneuver.2);
+        // preview 机动条 (maneuver 长度/刻度属编排器会话量, 经模板值包透传)
+        self.update(t.maneuver.0, t.maneuver.1, t.maneuver.2);
     }
 
     fn on_data_update(&mut self, env: &UpdateEnv) {
-        // live: G + 机动条 (原 update_legacy_components 桥; maneuver 长度/刻度
-        // 属编排器会话量, 经 env 透传)
-        let data = env.data;
-        self.update(
-            &data.maneuver_state_str,
-            false,
-            data.maneuver_index,
-            env.maneuver_len,
-            env.maneuver_ticks,
-        );
+        // live: 机动条 (maneuver 长度/刻度属编排器会话量, 经 env 透传)
+        self.update(env.data.maneuver_index, env.maneuver_len, env.maneuver_ticks);
     }
 
     fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, fonts: &PageFonts, aa: bool) {
-        HUDManeuverRow::draw(self, cv, x, y, &fonts.draw, aa)
+        ManeuverBar::draw(self, cv, x, y, &fonts.draw, aa)
     }
 
-    fn preferred_size(&self, fonts: &PageFonts) -> Dimension {
-        let (w, h) = HUDManeuverRow::preferred_size(self, &fonts.draw);
+    fn preferred_size(&self, _fonts: &PageFonts) -> Dimension {
+        let (w, h) = ManeuverBar::preferred_size(self);
         Dimension::new(w, h)
     }
 }
@@ -449,12 +527,17 @@ const fn meta(
     }
 }
 
-/// 行组件可见性键集 (update_row_visibility 消费)
-const ROW0_KEYS: &[&str] = &["drawHUDtext", "showHUDSpeed", "showHUDAoA"];
-const ROW1_KEYS: &[&str] = &["drawHUDtext", "showHUDAltitude", "showHUDEnergy"];
-const ROW2_KEYS: &[&str] = &["drawHUDtext", "showHUDFlaps", "showHUDAirbrake", "showHUDGear"];
-const ROW3_KEYS: &[&str] = &["drawHUDtext", "showHUDSep"];
-const ROW4_KEYS: &[&str] = &["drawHUDtext", "showHUDGLoad", "showHUDManeuverBar"];
+/// 行族原子件可见性键集 (update_row_visibility 消费; 键 = 原行内开关迁移)
+const SPEED_KEYS: &[&str] = &["drawHUDtext", "showHUDSpeed"];
+const AOA_KEYS: &[&str] = &["drawHUDtext", "showHUDAoA"];
+const ALTITUDE_KEYS: &[&str] = &["drawHUDtext", "showHUDAltitude"];
+const ENERGY_KEYS: &[&str] = &["drawHUDtext", "showHUDEnergy"];
+const FLAPS_KEYS: &[&str] = &["drawHUDtext", "showHUDFlaps"];
+const AIRBRAKE_KEYS: &[&str] = &["drawHUDtext", "showHUDAirbrake"];
+const GEAR_KEYS: &[&str] = &["drawHUDtext", "showHUDGear"];
+const SEP_KEYS: &[&str] = &["drawHUDtext", "showHUDSep"];
+const GLOAD_KEYS: &[&str] = &["drawHUDtext", "showHUDGLoad"];
+const MANEUVERBAR_KEYS: &[&str] = &["drawHUDtext", "showHUDManeuverBar"];
 
 /// minihud 族 ctx 取用 (缺 ctx = 编排器未提供 → 工厂 Err 跳过该节点, 不 panic)
 fn need_ctx<'a>(
@@ -464,33 +547,81 @@ fn need_ctx<'a>(
         .ok_or_else(|| "minihud 族组件需 minihud_ctx (页面编排器未提供)".to_string())
 }
 
-fn f_row0(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_speed(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     let ctx = need_ctx(fctx)?;
-    Ok(Box::new(HUDAkbRow::new(
+    Ok(Box::new(SpeedReadout(HUDTextRow::new(
         0,
+        ctx.hud_font_size,
+    ))))
+}
+
+fn f_aoa(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    let ctx = need_ctx(fctx)?;
+    Ok(Box::new(AoaGauge::new(
         ctx.hud_font_size,
         ctx.right_draw,
         ctx.line_width,
     )))
 }
 
-fn f_row1(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_altitude(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     let ctx = need_ctx(fctx)?;
-    Ok(Box::new(HUDEnergyRow::new(1, ctx.hud_font_size, ctx.right_draw)))
+    Ok(Box::new(AltitudeReadout(HUDTextRow::new(
+        1,
+        ctx.hud_font_size,
+    ))))
 }
 
-fn f_row2(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(HUDMechanizationRow::new(2, need_ctx(fctx)?.hud_font_size)))
-}
-
-fn f_row3(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
-    Ok(Box::new(HUDTextRow::new(3, need_ctx(fctx)?.hud_font_size)))
-}
-
-fn f_row4(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_energy(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     let ctx = need_ctx(fctx)?;
-    Ok(Box::new(HUDManeuverRow::new(
+    Ok(Box::new(EnergyReadout::new(
+        ctx.hud_font_size,
+        ctx.right_draw,
+    )))
+}
+
+fn f_flaps(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    Ok(Box::new(MechPart::new(
+        MechKind::Flaps,
+        need_ctx(fctx)?.hud_font_size,
+    )))
+}
+
+fn f_airbrake(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    Ok(Box::new(MechPart::new(
+        MechKind::Airbrake,
+        need_ctx(fctx)?.hud_font_size,
+    )))
+}
+
+fn f_gear(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    Ok(Box::new(MechPart::new(
+        MechKind::Gear,
+        need_ctx(fctx)?.hud_font_size,
+    )))
+}
+
+fn f_sep(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    Ok(Box::new(SepReadout(HUDTextRow::new(
+        3,
+        need_ctx(fctx)?.hud_font_size,
+    ))))
+}
+
+fn f_gload(_props: &serde_json::Value, fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+    let ctx = need_ctx(fctx)?;
+    Ok(Box::new(GLoadReadout(HUDTextRow::new(
         4,
+        ctx.hud_font_size,
+    ))))
+}
+
+fn f_maneuverbar(
+    _props: &serde_json::Value,
+    fctx: &FactoryCtx,
+) -> Result<Box<dyn HudWidget>, String> {
+    let ctx = need_ctx(fctx)?;
+    Ok(Box::new(ManeuverBar::new(
         ctx.hud_font_size,
         ctx.right_draw,
         ctx.half_line,
@@ -504,7 +635,7 @@ fn f_flap(_props: &serde_json::Value, _fctx: &FactoryCtx) -> Result<Box<dyn HudW
     Ok(Box::new(FlapAngleBar::new()))
 }
 
-fn f_speed(_props: &serde_json::Value, _fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
+fn f_speed_bar(_props: &serde_json::Value, _fctx: &FactoryCtx) -> Result<Box<dyn HudWidget>, String> {
     Ok(Box::new(SpeedRatioBar::new()))
 }
 
@@ -533,15 +664,20 @@ fn f_crosshair(
     Ok(Box::new(CrosshairGauge::new()))
 }
 
-/// MiniHUD 族注册表 (W2 首批; 顺序 = palette 展示序)
+/// MiniHUD 族注册表 (顺序 = palette 展示序; 行原子件按行序排列)
 pub(super) const REGISTRY_ENTRIES: &[WidgetMeta] = &[
-    meta("core.minihud.row0", "速度/AoA 行", WidgetCategory::Text, ROW0_KEYS, &["ias", "aoa"], f_row0),
-    meta("core.minihud.row1", "高度/能量 行", WidgetCategory::Text, ROW1_KEYS, &["altitude", "vy"], f_row1),
-    meta("core.minihud.row2", "襟翼/减速板/起落架", WidgetCategory::Text, ROW2_KEYS, &["flaps", "airbrake", "gear"], f_row2),
-    meta("core.minihud.row3", "SEP 行", WidgetCategory::Text, ROW3_KEYS, &["sep"], f_row3),
-    meta("core.minihud.row4", "过载/机动条", WidgetCategory::Text, ROW4_KEYS, &["ny", "maneuver_index"], f_row4),
+    meta("core.minihud.speed", "速度读数", WidgetCategory::Text, SPEED_KEYS, &["ias"], f_speed),
+    meta("core.minihud.aoa", "AoA 指示", WidgetCategory::Text, AOA_KEYS, &["aoa"], f_aoa),
+    meta("core.minihud.altitude", "高度读数", WidgetCategory::Text, ALTITUDE_KEYS, &["altitude"], f_altitude),
+    meta("core.minihud.energy", "能量读数", WidgetCategory::Text, ENERGY_KEYS, &["energy"], f_energy),
+    meta("core.minihud.flaps", "襟翼/可变翼", WidgetCategory::Text, FLAPS_KEYS, &["flaps"], f_flaps),
+    meta("core.minihud.airbrake", "减速板", WidgetCategory::Text, AIRBRAKE_KEYS, &["airbrake"], f_airbrake),
+    meta("core.minihud.gear", "起落架", WidgetCategory::Text, GEAR_KEYS, &["gear"], f_gear),
+    meta("core.minihud.sep", "SEP 读数", WidgetCategory::Text, SEP_KEYS, &["sep"], f_sep),
+    meta("core.minihud.gload", "G 读数", WidgetCategory::Text, GLOAD_KEYS, &["ny"], f_gload),
+    meta("core.minihud.maneuverbar", "机动刻度条", WidgetCategory::Text, MANEUVERBAR_KEYS, &["maneuver_index"], f_maneuverbar),
     meta("core.minihud.flapBar", "智能襟翼条", WidgetCategory::Gauge, &["drawHUDtext", "enableFlapAngleBar"], &["flaps"], f_flap),
-    meta("core.minihud.speedBar", "速度条", WidgetCategory::Gauge, &["drawHUDtext", "showSpeedBar"], &["ias"], f_speed),
+    meta("core.minihud.speedBar", "速度条", WidgetCategory::Gauge, &["drawHUDtext", "showSpeedBar"], &["ias"], f_speed_bar),
     meta("core.minihud.throttleBar", "油门条", WidgetCategory::Gauge, &["drawHUDtext", "showSpeedBar"], &["throttle"], f_throttle),
     meta("core.gauge.attitude", "姿态指示器", WidgetCategory::Gauge, &["drawHUDtext", "showAttitudeGauge", "attitudeIndicatorInertialMode"], &["roll"], f_attitude),
     meta("core.gauge.compass", "罗盘", WidgetCategory::Gauge, &["drawHUDtext", "showAttitudeGauge", "attitudeIndicatorInertialMode"], &["compass"], f_compass),

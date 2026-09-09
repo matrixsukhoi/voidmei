@@ -378,7 +378,7 @@ impl DrawFrameSimpl {
     /// CloseAll 后回 preview 会话形态 (Java closeAll = 实例销毁 + refreshPreview
     /// 工厂新建 initPreview 实例): visible=true / is_preview=true。fm 缓存保留 —
     /// FM_CHANGED 常驻订阅 (initPreview 亦挂) 使其与 FMManager 恒同步。
-    /// (FmUnpackedDataOverlay::reset_preview / ControlSurfaces::reset_preview 同族)
+    /// (ControlSurfaces::reset_preview 同族)
     pub fn reset_preview(&mut self) {
         self.visible = true;
         self.is_preview = true;

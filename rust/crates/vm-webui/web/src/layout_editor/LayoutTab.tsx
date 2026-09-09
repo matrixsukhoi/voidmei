@@ -21,6 +21,13 @@ import { Inspector } from './Inspector'
 /** 网格吸附步长 (line_height 单位) */
 const SNAP = 0.1
 
+/** palette 新建组件的可用初值 (空 props 工厂 Err → 组件不建, 画布无反馈) */
+const PRESET_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
+  'core.data.field': { target: 'ias', label: '表  速', unit: 'Km/h', precision: 0, previewValue: '500' },
+  'core.fm.field': { key: 'weight.empty' },
+  'core.fm.meta': { key: 'fm.version' },
+}
+
 export const LAYOUT_TAB_KEY = '__hud_layout__'
 
 export const LayoutTab: React.FC = () => {
@@ -81,11 +88,8 @@ export const LayoutTab: React.FC = () => {
     (typeName: string, displayZh: string) => {
       if (!active) return
       const cx = Math.round((active.components.length ? 2 : 1) / SNAP) * SNAP
-      // data.field 默认绑定 ias (可用初值 — 空 target 工厂 Err 组件不显示)
-      const defaultProps: Record<string, unknown> =
-        typeName === 'core.data.field'
-          ? { target: 'ias', label: '表  速', unit: 'Km/h', precision: 0, previewValue: '500' }
-          : {}
+      // 各类型的可用初值 (空 props 工厂 Err → 组件不建, 画布无反馈)
+      const defaultProps: Record<string, unknown> = PRESET_DEFAULT_PROPS[typeName] ?? {}
       const comp: ComponentDoc = {
         id: `${displayZh}-${active.components.length + 1}`,
         type: typeName,

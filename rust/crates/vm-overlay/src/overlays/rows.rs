@@ -1,14 +1,18 @@
-//! rows: HUD 文本行组件族 C 类语义复刻 (MiniHUD 左侧数据列的 5 行)
+//! rows: HUD 文本行组件族 (MiniHUD 左侧数据列) — 行族原子化产物。
 //!
-//! - HUDTextRow — 主文本行: 基线 = y+ascent, 警告色/常态色, 模板锁宽。
-//! - HUDAkbRow — 速度行: 左主文字 + 右 AoA 横条(drawHRect)与 α 小字。
-//! - HUDEnergyRow — 高度行: 左主文字 + 右能量小字 (同基线)。
-//! - HUDMechanizationRow — Row 2 生产组件: 襟翼/减速板/起落架三段拆分,
-//!   模板占位推进 curX, 独立三开关 (Java 前代 HUDFlapsRow 已随波12 死代码清扫删除)。
-//! - HUDManeuverRow — G 行: 左主文字 + 右机动指数条(thick 影线/thin 主线)与刻度。
+//! - HUDTextRow — 主文本行基座: 基线 = y+ascent, 警告色/常态色, 模板锁宽。
+//! - SpeedReadout/AltitudeReadout/GLoadReadout/SepReadout — 行主读数
+//!   (HUDTextRow 包装; 数据槽/模板槽由 widgets::minihud 的 HudWidget impl 区分)。
+//! - AoaGauge — 速度行辅件: AoA 横条(drawHRect) + α 小字 (条右端 x+rightDraw)。
+//! - EnergyReadout — 高度行辅件: 右置能量小字 (左缘 x+rightDraw, 同基线)。
+//! - MechPart — 机械化行单段 (襟翼/减速板/起落架, MechKind 分数据槽);
+//!   段间距由页面布局 pos 表达 (原行内 curX 模板宽推进的换算:
+//!   等宽字体 advance = 0.5em → 段推进 = (模板字符数+尾随空格) × 0.5 行高)。
+//! - ManeuverBar — G 行辅件: 机动指数刻度 + thick 影线/thin 主线双层条
+//!   (右端固定 x+rightDraw, 向左延展)。
 //!
 //! 绘制目标 = render2d::PixCanvas; Java extends HUDTextRow 统一映射为组合
-//! (`base: HUDTextRow` 字段, 禁止造继承); 颜色/坐标公式逐项对照
+//! (newtype 包装/独立结构, 禁止造继承); 颜色/坐标公式逐项对照
 //! Java paint 逻辑 (关键处 // 标注)。
 //!
 //! // Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
@@ -16,7 +20,6 @@
 
 use crate::render::palette::colors;
 use crate::render::primitives::{self, draw_h_rect};
-use vm_core::derived::hud_data::HUDData;
 
 use crate::render::font::LoadedFont;
 
@@ -112,18 +115,32 @@ impl HUDTextRow {
 }
 
 // ---------------------------------------------------------------------------
-// HUDAkbRow (速度 + AoA 指示)
+// 行主读数 newtype (同结构异数据面 — HudWidget impl 按类型分发)
 // ---------------------------------------------------------------------------
 
-/// Row 0: 速度文字 + 攻角横条。
-pub struct HUDAkbRow {
-    /// Java extends HUDTextRow → 组合基座
-    pub base: HUDTextRow,
+/// 速度读数 (原 Row0 速度主文字段)。
+pub struct SpeedReadout(pub HUDTextRow);
+
+/// 高度读数 (原 Row1 高度主文字段)。
+pub struct AltitudeReadout(pub HUDTextRow);
+
+/// SEP 读数 (原 Row3 整行)。
+pub struct SepReadout(pub HUDTextRow);
+
+/// G 读数 (原 Row4 G 主文字段)。
+pub struct GLoadReadout(pub HUDTextRow);
+
+// ---------------------------------------------------------------------------
+// AoaGauge (速度行辅件: AoA 横条 + α 小字)
+// ---------------------------------------------------------------------------
+
+/// AoA 指示器: 横条右端锚 x+rightDraw (向左延展), α 小字续于条右端。
+pub struct AoaGauge {
     /// AoA 读数文字 (小字号)
     pub aoa_text: String,
     /// AoA 条有效长度像素 (aoaRatio × aoaLength, 钳到 rightDraw)
     pub aoa_y: i32,
-    /// 右侧绘制基准 X 偏移 (α 文字左缘 = x + rightDraw)
+    /// 右侧绘制基准 X 偏移 (条右端/α 文字左缘 = x + rightDraw)
     pub right_draw: i32,
     pub line_width: i32,
     /// aoaLength 默认 100 (setStyle 注入生产值)
@@ -132,19 +149,16 @@ pub struct HUDAkbRow {
     pub aoa_color: [u8; 4],
     /// AoA 条填充色 (Java aoaBarColor, 构造默认 YELLOW)
     pub aoa_bar_color: [u8; 4],
-    /// AoA 文字模板 (宽度估算用)
+    /// α 文字模板 (宽度估算用)
     pub aoa_template: Option<String>,
-    /// 组件级可见性开关: 速度文字
-    pub show_speed: bool,
-    /// 组件级可见性开关: 攻角指示器
-    pub show_aoa: bool,
+    /// 行高 (布局盒高)
+    pub height: i32,
 }
 
-impl HUDAkbRow {
+impl AoaGauge {
     /// 构造 (fonts 为 draw 参数)
-    pub fn new(index: i32, height: i32, right_draw: i32, line_width: i32) -> Self {
-        HUDAkbRow {
-            base: HUDTextRow::new(index, height),
+    pub fn new(height: i32, right_draw: i32, line_width: i32) -> Self {
+        AoaGauge {
             aoa_text: String::new(),
             aoa_y: 0,
             right_draw,
@@ -153,33 +167,23 @@ impl HUDAkbRow {
             aoa_color: COLOR_YELLOW,
             aoa_bar_color: COLOR_YELLOW,
             aoa_template: None,
-            show_speed: true,
-            show_aoa: true,
+            height,
         }
     }
 
-    /// setStyle (font/height 走 base, 此处为 AoA 专属几何)
+    /// setStyle (AoA 专属几何)
     pub fn set_style(&mut self, right_draw: i32, line_width: i32, aoa_length: i32) {
         self.right_draw = right_draw;
         self.line_width = line_width;
         self.aoa_length = aoa_length;
     }
 
-    /// 可见性开关
-    pub fn set_show_speed(&mut self, v: bool) {
-        self.show_speed = v;
-    }
-    pub fn set_show_aoa(&mut self, v: bool) {
-        self.show_aoa = v;
-    }
-
-    /// setTemplate(main, aoa)
-    pub fn set_template(&mut self, main: Option<&str>, aoa: Option<&str>) {
-        self.base.set_template(main);
+    /// setTemplate 的 aoa 槽
+    pub fn set_template(&mut self, aoa: Option<&str>) {
         self.aoa_template = aoa.map(|s| s.to_string());
     }
 
-    /// onDataUpdate 的条长计算段 (69-72):
+    /// 条长计算 (Java onDataUpdate 69-72):
     /// aoaY = (int)(aoaRatio * aoaLength), 钳到 rightDraw。
     /// // Java double→int 强转 (JLS 5.1.3) = NaN→0 + 超范围饱和到
     /// MIN/MAX, 与 Rust as i32 语义完全一致 — 两语言无差异 (§2.2 的截断/
@@ -192,24 +196,18 @@ impl HUDAkbRow {
     }
 
     /// 手动 update (预览模式路径; 游戏模式数据映射见 set_aoa_from_ratio)
-    #[allow(clippy::too_many_arguments)] // 对齐 Java update(text,isWarning,aoaText,aoaY,aoaColor,aoaBarColor)
     pub fn update(
         &mut self,
-        text: &str,
-        is_warning: bool,
         aoa_text: &str,
         aoa_y: i32,
         aoa_color: [u8; 4],
         aoa_bar_color: [u8; 4],
     ) -> bool {
-        // 先判后写 (基座 update 内部同理)
-        let changed = self.base.text != text
-            || self.base.is_warning != is_warning
-            || self.aoa_text != aoa_text
+        // 先判后写 (脏检查全字段参与)
+        let changed = self.aoa_text != aoa_text
             || self.aoa_y != aoa_y
             || self.aoa_color != aoa_color
             || self.aoa_bar_color != aoa_bar_color;
-        self.base.update(text, is_warning);
         self.aoa_text.clear();
         self.aoa_text.push_str(aoa_text);
         self.aoa_y = aoa_y;
@@ -218,7 +216,7 @@ impl HUDAkbRow {
         changed
     }
 
-    /// draw。图层序: AoA 条+文字先, 速度主文字后 (重叠时主文字在上)。
+    /// draw (ascent 取主字体; liney = baseY + 1)。
     pub fn draw(
         &self,
         cv: &mut PixCanvas,
@@ -228,81 +226,61 @@ impl HUDAkbRow {
         small_font: &LoadedFont,
         aa: bool,
     ) {
-        // ascent 取主字体; liney = baseY + 1
         let ascent = font.metrics().ascent;
-        let base_y = y + ascent;
-        let liney = base_y + 1;
-
-        if self.show_aoa {
-            // drawHRect(x + (rightDraw - aoaY), liney, aoaY, lineWidth+3, 1, aoaBarColor)
-            draw_h_rect(
-                cv,
-                x + (self.right_draw - self.aoa_y),
-                liney,
-                self.aoa_y,
-                self.line_width + 3,
-                1,
-                self.aoa_bar_color,
-            );
-            // α 文字基线 liney - 1, 小字号
-            primitives::text_shaded_auto(
-                cv,
-                small_font,
-                x + self.right_draw,
-                liney - 1,
-                &self.aoa_text,
-                self.aoa_color,
-                aa,
-            );
-        }
-
-        if self.show_speed {
-            self.base.draw(cv, x, y, font, aa);
-        }
+        let liney = y + ascent + 1;
+        // drawHRect(x + (rightDraw - aoaY), liney, aoaY, lineWidth+3, 1, aoaBarColor)
+        draw_h_rect(
+            cv,
+            x + (self.right_draw - self.aoa_y),
+            liney,
+            self.aoa_y,
+            self.line_width + 3,
+            1,
+            self.aoa_bar_color,
+        );
+        // α 文字基线 liney - 1, 小字号
+        primitives::text_shaded_auto(
+            cv,
+            small_font,
+            x + self.right_draw,
+            liney - 1,
+            &self.aoa_text,
+            self.aoa_color,
+            aa,
+        );
     }
 
-    /// getPreferredSize: 主文字宽与 rightDraw+α宽取大
-    /// (隐藏组件保留占位, 布局稳定)。
-    pub fn preferred_size(&self, font: &LoadedFont, small_font: &LoadedFont) -> (i32, i32) {
-        let mut w = self.base.preferred_size(font).0;
+    /// getPreferredSize: rightDraw + α 宽 (rightDraw 恒占位, 布局稳定)。
+    pub fn preferred_size(&self, small_font: &LoadedFont) -> (i32, i32) {
         // aoaTemplate != null ? aoaTemplate : aoaText (无空串检查)
         let measure_aoa: &str = self.aoa_template.as_deref().unwrap_or(&self.aoa_text);
-        let extra_w = self.right_draw + small_font.measure(measure_aoa);
-        if extra_w > w {
-            w = extra_w;
-        }
-        (w, self.base.height)
+        (self.right_draw + small_font.measure(measure_aoa), self.height)
     }
 }
 
 // ---------------------------------------------------------------------------
-// HUDEnergyRow (高度 + 能量)
+// EnergyReadout (高度行辅件: 右置能量小字)
 // ---------------------------------------------------------------------------
 
-/// Row 1: 高度文字 + 右侧能量读数。
-pub struct HUDEnergyRow {
-    pub base: HUDTextRow,
-    /// 能量读数 (小字号, colorNum)
+/// 能量读数: 小字号, 左缘 = x + rightDraw, 与行主文字同基线, 色恒 colorNum。
+pub struct EnergyReadout {
+    /// 能量读数串
     pub energy_text: String,
-    /// 能量文字左缘 = x + rightDraw
+    /// 文字左缘 = x + rightDraw
     pub right_draw: i32,
     pub energy_template: Option<String>,
-    /// 组件级可见性开关: 高度文字
-    pub show_altitude: bool,
-    /// 组件级可见性开关: 能量读数
-    pub show_energy: bool,
+    /// 行高 (布局盒高)
+    pub height: i32,
 }
 
-impl HUDEnergyRow {
+impl EnergyReadout {
     /// 构造
-    pub fn new(index: i32, height: i32, right_draw: i32) -> Self {
-        HUDEnergyRow {
-            base: HUDTextRow::new(index, height),
+    pub fn new(height: i32, right_draw: i32) -> Self {
+        EnergyReadout {
             energy_text: String::new(),
             right_draw,
             energy_template: None,
-            show_altitude: true,
-            show_energy: true,
+            height,
         }
     }
 
@@ -311,34 +289,20 @@ impl HUDEnergyRow {
         self.right_draw = right_draw;
     }
 
-    /// 可见性开关
-    pub fn set_show_altitude(&mut self, v: bool) {
-        self.show_altitude = v;
-    }
-    pub fn set_show_energy(&mut self, v: bool) {
-        self.show_energy = v;
-    }
-
-    /// setTemplate(main, energy)
-    pub fn set_template(&mut self, main: Option<&str>, energy: Option<&str>) {
-        self.base.set_template(main);
+    /// setTemplate (energy 槽)
+    pub fn set_template(&mut self, energy: Option<&str>) {
         self.energy_template = energy.map(|s| s.to_string());
     }
 
-    /// update (预览/手动路径; 游戏模式 = altStr/warnAltitude/energyStr 映射)
-    pub fn update(&mut self, text: &str, is_warning: bool, energy_text: &str) -> bool {
-        // 先判后写, 全字段参与 (与 HUDAkbRow::update 同口径): 能量逐帧变化而
-        // 高度文字稳定, 漏比 energy_text 会让按返回值门控重绘的组装侧冻结能量读数
-        let changed = self.base.text != text
-            || self.base.is_warning != is_warning
-            || self.energy_text != energy_text;
-        self.base.update(text, is_warning);
+    /// update (返回是否变化 — 能量逐帧变化, 脏检查参与)
+    pub fn update(&mut self, energy_text: &str) -> bool {
+        let changed = self.energy_text != energy_text;
         self.energy_text.clear();
         self.energy_text.push_str(energy_text);
         changed
     }
 
-    /// draw。图层序: 能量读数先, 高度主文字后。
+    /// draw (ascent 取主字体, 能量文字与主文字同基线 baseY)。
     /// 能量色恒 colorNum (注释: 已统一, 不再传色)。
     pub fn draw(
         &self,
@@ -349,65 +313,121 @@ impl HUDEnergyRow {
         small_font: &LoadedFont,
         aa: bool,
     ) {
-        // ascent 取主字体, 能量文字与主文字同基线 baseY
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
-
-        if self.show_energy {
-            // __drawStringShade(x + rightDraw, baseY, 1, energyText, smallFont, colorNum)
-            primitives::text_shaded_auto(
-                cv,
-                small_font,
-                x + self.right_draw,
-                base_y,
-                &self.energy_text,
-                colors().num,
-                aa,
-            );
-        }
-
-        if self.show_altitude {
-            self.base.draw(cv, x, y, font, aa);
-        }
+        // __drawStringShade(x + rightDraw, baseY, 1, energyText, smallFont, colorNum)
+        primitives::text_shaded_auto(
+            cv,
+            small_font,
+            x + self.right_draw,
+            base_y,
+            &self.energy_text,
+            colors().num,
+            aa,
+        );
     }
 
-    /// getPreferredSize: 主文字宽与 rightDraw+能量宽取大。
-    pub fn preferred_size(&self, font: &LoadedFont, small_font: &LoadedFont) -> (i32, i32) {
-        let mut w = self.base.preferred_size(font).0;
+    /// getPreferredSize: rightDraw + 能量宽 (rightDraw 恒占位)。
+    pub fn preferred_size(&self, small_font: &LoadedFont) -> (i32, i32) {
         // energyTemplate != null ? energyTemplate : energyText
         let measure_en: &str = self.energy_template.as_deref().unwrap_or(&self.energy_text);
-        let extra_w = self.right_draw + small_font.measure(measure_en);
-        if extra_w > w {
-            w = extra_w;
-        }
-        (w, self.base.height)
+        (self.right_draw + small_font.measure(measure_en), self.height)
     }
 }
 
 // ---------------------------------------------------------------------------
-// HUDMechanizationRow (襟翼/减速板/起落架三段拆分行)
+// MechPart (机械化行单段: 襟翼/减速板/起落架)
 // ---------------------------------------------------------------------------
 
-/// Row 2 组件级拆分：襟翼/可变翼 + 减速板 + 起落架。
-/// 三个子组件各有一个独立的可见性开关 (Java javadoc 原文)。
-pub struct HUDMechanizationRow {
-    /// Java extends HUDTextRow → 组合基座。draw 全覆写 (base.text 不参与渲染),
-    /// base.is_warning 参与三段取色; setStyle/模板锁宽复用基座。
-    pub base: HUDTextRow,
-    /// 组件级可见性开关：襟翼/可变翼
-    pub show_flaps: bool,
-    /// 组件级可见性开关：减速板
-    pub show_airbrake: bool,
-    /// 组件级可见性开关：起落架
-    pub show_gear: bool,
-    /// 三段数据串 (构造置 "")
-    pub flaps_wing_str: String,
-    pub airbrake_str: String,
-    pub gear_str: String,
-    /// 各子组件模板字符串（用于宽度估算）(Java 注释原文; 默认 W100/BRK/GEA)
-    pub flaps_template: String,
-    pub airbrake_template: String,
-    pub gear_template: String,
+/// 机械化段种类 (数据槽/默认模板区分; 三段同色源 = warnConfiguration)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MechKind {
+    /// 襟翼/可变翼段 (0..4; 空模板回退 "F100")
+    Flaps,
+    /// 减速板段 (4..7)
+    Airbrake,
+    /// 起落架段 (7..10)
+    Gear,
+}
+
+/// 机械化行单段: 数据非空才绘制, 模板恒锁宽 (空数据不缩布局)。
+/// 段间距由页面布局 pos 表达 (见模块头换算注)。
+pub struct MechPart {
+    pub kind: MechKind,
+    /// 段数据串 (空 = 不绘制)
+    pub text: String,
+    /// 段模板 (宽度估算; 默认 W100/BRK/GEA 对应 Java 前代)
+    pub template: String,
+    /// 警告态 → colorWarning, 否则 colorNum
+    pub is_warning: bool,
+    /// 行高 (布局盒高)
+    pub height: i32,
+}
+
+impl MechPart {
+    /// 构造 (font 为 draw/preferred 参数, 不入结构体)
+    pub fn new(kind: MechKind, height: i32) -> Self {
+        let template = match kind {
+            MechKind::Flaps => "W100",
+            MechKind::Airbrake => "BRK",
+            MechKind::Gear => "GEA",
+        };
+        MechPart {
+            kind,
+            text: String::new(),
+            template: template.to_string(),
+            is_warning: false,
+            height,
+        }
+    }
+
+    /// setStyle (仅 height)
+    pub fn set_style(&mut self, height: i32) {
+        self.height = height;
+    }
+
+    /// setTemplate 单段槽 (襟翼空段回退 "F100", Java:77)
+    pub fn set_template(&mut self, seg: &str) {
+        self.template = seg.to_string();
+        if self.kind == MechKind::Flaps && self.template.is_empty() {
+            self.template = "F100".to_string();
+        }
+    }
+
+    /// update (先判后写, text/is_warning 全参与)
+    pub fn update(&mut self, text: &str, is_warning: bool) -> bool {
+        let changed = self.text != text || self.is_warning != is_warning;
+        self.text.clear();
+        self.text.push_str(text);
+        self.is_warning = is_warning;
+        changed
+    }
+
+    /// draw: 数据非空才绘制文字 (同基线 baseY, 主字体)。
+    pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
+        if self.text.is_empty() {
+            return;
+        }
+        // ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
+        let base_y = y + font.metrics().ascent;
+        // isWarning ? colorWarning : colorNum
+        let c = if self.is_warning {
+            colors().warning
+        } else {
+            colors().num
+        };
+        primitives::text_shaded_auto(cv, font, x, base_y, &self.text, c, aa);
+    }
+
+    /// getPreferredSize: 模板宽 (段间距归布局 pos, 不含尾随空格)。
+    pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
+        let w = if self.template.is_empty() {
+            0
+        } else {
+            font.measure(&self.template)
+        };
+        (w, self.height)
+    }
 }
 
 /// / 75-80 共用的三段切分: 0..4 / 4..7 / 7..10 各自 trim。
@@ -415,7 +435,7 @@ pub struct HUDMechanizationRow {
 /// HUDCalculator 的 mechanization 格式串 (纯 ASCII: F/W 前缀+数字+空格+BRK/GEA),
 /// 字节索引与 UTF-16 索引等价。Java trim() 删两端 <=U+0020, Rust trim()
 /// 删 Unicode 空白 — ASCII 域内等价。
-fn split_trim3(text: &str) -> Option<(String, String, String)> {
+pub(crate) fn split_trim3(text: &str) -> Option<(String, String, String)> {
     let b = text.as_bytes();
     if b.len() < 10 {
         return None;
@@ -434,182 +454,8 @@ fn split_trim3(text: &str) -> Option<(String, String, String)> {
     Some((seg(0..4), seg(4..7), seg(7..10)))
 }
 
-/// Java getStringWidth(template + " ", font) (内部
-/// FontMetrics.stringWidth — javadoc 明示串 advance 不必等于各字符 advance 之和):
-/// 拼接串宽按 模板宽 + 空格 advance 拆分。Rust 侧 font.measure 逐字符求和
-/// (font.rs charsWidth 口径), 拆分在 Rust 内部严格恒等; Java 侧等价性非规范
-/// 保证, 依据 = JDK8 无 layout 属性字体 stringWidth 的逐字符累加实现语义,
-/// 经 历史基线 (1.8.0_342, 6 字号 × 6 段串 ALL-EQUAL) + 555×270
-/// 整帧对拍右缘 dx=0 背书 (换字体/字号理论可差 1px)。免 draw 路径堆分配
-/// (Java 原码每帧拼新串 — Rust 以拆分复刻); 空模板段宽 0 (Java isEmpty 分支)。
-fn seg_width(font: &LoadedFont, template: &str) -> i32 {
-    if template.is_empty() {
-        0
-    } else {
-        font.measure(template) + font.char_width(' ')
-    }
-}
-
-impl HUDMechanizationRow {
-    /// 构造 (font 为 draw/preferred 参数, 不入结构体)
-    pub fn new(index: i32, height: i32) -> Self {
-        HUDMechanizationRow {
-            base: HUDTextRow::new(index, height),
-            show_flaps: true,
-            show_airbrake: true,
-            show_gear: true,
-            flaps_wing_str: String::new(),
-            airbrake_str: String::new(),
-            gear_str: String::new(),
-            flaps_template: "W100".to_string(),
-            airbrake_template: "BRK".to_string(),
-            gear_template: "GEA".to_string(),
-        }
-    }
-
-    /// 可见性开关
-    pub fn set_show_flaps(&mut self, v: bool) {
-        self.show_flaps = v;
-    }
-    pub fn set_show_airbrake(&mut self, v: bool) {
-        self.show_airbrake = v;
-    }
-    pub fn set_show_gear(&mut self, v: bool) {
-        self.show_gear = v;
-    }
-
-    /// updateParts (游戏模式数据入口)。
-    /// super.update("", isWarning) 清空主文字（不使用）。
-    pub fn update_parts(
-        &mut self,
-        flaps_wing_str: &str,
-        airbrake_str: &str,
-        gear_str: &str,
-        is_warning: bool,
-    ) -> bool {
-        // 先判后写, 全字段参与 (update_changed_covers_all_fields 契约):
-        // 三段串逐帧变化而 isWarning 低频, 漏比任一即冻结对应段
-        let changed = !self.base.text.is_empty()
-            || self.base.is_warning != is_warning
-            || self.flaps_wing_str != flaps_wing_str
-            || self.airbrake_str != airbrake_str
-            || self.gear_str != gear_str;
-        self.base.update("", is_warning);
-        self.flaps_wing_str.clear();
-        self.flaps_wing_str.push_str(flaps_wing_str);
-        self.airbrake_str.clear();
-        self.airbrake_str.push_str(airbrake_str);
-        self.gear_str.clear();
-        self.gear_str.push_str(gear_str);
-        changed
-    }
-
-    /// update(text, isWarning) 预览模式更新（兼容旧接口）。
-    /// 从合并字符串解析回子组件（预览用，格式: "F100BRKGEA" 或 "    BRKGEA"）
-    ///。
-    pub fn update(&mut self, text: &str, is_warning: bool) -> bool {
-        let parts = split_trim3(text);
-        let (fw, ab, g) = match &parts {
-            Some((a, b, c)) => (a.as_str(), b.as_str(), c.as_str()),
-            None => ("", "", ""),
-        };
-        let changed = self.base.text != text
-            || self.base.is_warning != is_warning
-            || self.flaps_wing_str != fw
-            || self.airbrake_str != ab
-            || self.gear_str != g;
-        self.base.update(text, is_warning);
-        self.flaps_wing_str.clear();
-        self.flaps_wing_str.push_str(fw);
-        self.airbrake_str.clear();
-        self.airbrake_str.push_str(ab);
-        self.gear_str.clear();
-        self.gear_str.push_str(g);
-        changed
-    }
-
-    /// onDataUpdate: 直接写三段串 + isWarning (不走 update ——
-    /// base.text 保持不动, 不参与渲染)。
-    pub fn on_data_update(&mut self, data: &HUDData) -> bool {
-        let changed = self.flaps_wing_str != data.flaps_wing_str
-            || self.airbrake_str != data.airbrake_str
-            || self.gear_str != data.gear_str
-            || self.base.is_warning != data.warn_configuration;
-        self.flaps_wing_str.clear();
-        self.flaps_wing_str.push_str(&data.flaps_wing_str);
-        self.airbrake_str.clear();
-        self.airbrake_str.push_str(&data.airbrake_str);
-        self.gear_str.clear();
-        self.gear_str.push_str(&data.gear_str);
-        self.base.is_warning = data.warn_configuration;
-        changed
-    }
-
-    /// setTemplate（预览模式），格式同旧 mechanizationStr
-    ///。空襟翼段回退 "F100"。
-    pub fn set_template(&mut self, template: Option<&str>) {
-        self.base.set_template(template);
-        if let Some((fw, ab, g)) = template.and_then(split_trim3) {
-            self.flaps_template = fw;
-            if self.flaps_template.is_empty() {
-                self.flaps_template = "F100".to_string();
-            }
-            self.airbrake_template = ab;
-            self.gear_template = g;
-        }
-    }
-
-    /// draw。三段沿 curX 依次推进: 模板非空段恒占位 (模板宽 + 尾随
-    /// 空格), 数据非空且开关开才绘制文字; 段序 = 图层序, 同基线 baseY, 主字体。
-    pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        // ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
-        let base_y = y + font.metrics().ascent;
-        // isWarning ? colorWarning : colorNum (三段同色)
-        let c = if self.base.is_warning {
-            colors().warning
-        } else {
-            colors().num
-        };
-
-        let mut cur_x = x;
-
-        // 襟翼/可变翼：始终占位推进 curX，隐藏时仅不绘制文字
-        let flaps_width = seg_width(font, &self.flaps_template);
-        if self.show_flaps && !self.flaps_wing_str.is_empty() {
-            primitives::text_shaded_auto(cv, font, cur_x, base_y, &self.flaps_wing_str, c, aa);
-        }
-        cur_x += flaps_width;
-
-        // 减速板：始终占位推进 curX，隐藏时仅不绘制文字
-        let brk_width = seg_width(font, &self.airbrake_template);
-        if self.show_airbrake && !self.airbrake_str.is_empty() {
-            primitives::text_shaded_auto(cv, font, cur_x, base_y, &self.airbrake_str, c, aa);
-        }
-        cur_x += brk_width;
-
-        // 起落架：始终占位推进 curX，隐藏时仅不绘制文字 (Java 注释原文;
-        // 末段, 其后无推进消费)
-        if self.show_gear && !self.gear_str.is_empty() {
-            primitives::text_shaded_auto(cv, font, cur_x, base_y, &self.gear_str, c, aa);
-        }
-    }
-
-    /// getPreferredSize: 三段模板宽之和 (襟翼/减速板含尾随空格,
-    /// 起落架无 — Java 原样); 隐藏段保留占位符。
-    pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
-        let mut w = 0;
-        // 始终使用模板估算完整宽度，隐藏的组件保留占位符，保持布局稳定
-        w += seg_width(font, &self.flaps_template);
-        w += seg_width(font, &self.airbrake_template);
-        if !self.gear_template.is_empty() {
-            w += font.measure(&self.gear_template);
-        }
-        (w, self.base.height)
-    }
-}
-
 // ---------------------------------------------------------------------------
-// HUDManeuverRow (G 值 + 机动指数条)
+// ManeuverBar (G 行辅件: 机动指数刻度条)
 // ---------------------------------------------------------------------------
 
 /// 机动条满量程 (Java lenN = N/0.5 × rightDraw 系列公式的 0.5)
@@ -638,12 +484,12 @@ impl TickScale {
     }
 }
 
-/// Row 4: G 力文字 + 机动指数条。
+/// 机动指数刻度条: 各档 1px 竖刻度 + 当前值条线 (thick 影线/thin 主线双层描边),
+/// 右端固定 x+rightDraw 向左延展。
 /// Java 的 strokeThick/strokeThin (BasicStroke, CAP_ROUND+JOIN_ROUND,
 /// MinimalHUDContext 造: 宽 halfLine+2 / halfLine) 在 Rust 侧
 /// 仅宽度可变 → 存 f32 宽度, 线型由 PixCanvas::draw_line (Round) 固定。
-pub struct HUDManeuverRow {
-    pub base: HUDTextRow,
+pub struct ManeuverBar {
     pub right_draw: i32,
     pub half_line: i32,
     pub line_width: i32,
@@ -657,17 +503,16 @@ pub struct HUDManeuverRow {
     pub stroke_thick_w: f32,
     /// strokeThin 宽 (主线)
     pub stroke_thin_w: f32,
-    /// 组件级可见性开关: G 力文字
-    pub show_g_load: bool,
-    /// 组件级可见性开关: 机动条
-    pub show_maneuver_bar: bool,
+    /// 刻度色态 (warning → colorWarning; live 恒 false, 原行 G 文字警告位)
+    pub is_warning: bool,
+    /// 行高 (布局盒高)
+    pub height: i32,
 }
 
-impl HUDManeuverRow {
+impl ManeuverBar {
     /// 构造 (strokes 以宽度入参, cap/join 恒 ROUND)
     #[allow(clippy::too_many_arguments)] // 对齐 Java 构造 8 参
     pub fn new(
-        index: i32,
         height: i32,
         right_draw: i32,
         half_line: i32,
@@ -675,8 +520,7 @@ impl HUDManeuverRow {
         stroke_thick_w: f32,
         stroke_thin_w: f32,
     ) -> Self {
-        HUDManeuverRow {
-            base: HUDTextRow::new(index, height),
+        ManeuverBar {
             right_draw,
             half_line,
             line_width,
@@ -685,8 +529,8 @@ impl HUDManeuverRow {
             tick_scale: TickScale::default(),
             stroke_thick_w,
             stroke_thin_w,
-            show_g_load: true,
-            show_maneuver_bar: true,
+            is_warning: false,
+            height,
         }
     }
 
@@ -701,7 +545,7 @@ impl HUDManeuverRow {
         stroke_thick_w: f32,
         stroke_thin_w: f32,
     ) {
-        self.base.set_style(height);
+        self.height = height;
         self.right_draw = right_draw;
         self.half_line = half_line;
         self.line_width = line_width;
@@ -709,32 +553,12 @@ impl HUDManeuverRow {
         self.stroke_thin_w = stroke_thin_w;
     }
 
-    /// 可见性开关
-    pub fn set_show_g_load(&mut self, v: bool) {
-        self.show_g_load = v;
-    }
-    pub fn set_show_maneuver_bar(&mut self, v: bool) {
-        self.show_maneuver_bar = v;
-    }
-
-    /// update (len = 当前条长, tick_scale = 各阈值刻度到右端距离)
-    pub fn update(
-        &mut self,
-        text: &str,
-        is_warning: bool,
-        maneuver_index: f64,
-        len: i32,
-        tick_scale: TickScale,
-    ) -> bool {
-        // 先判后写, 全字段参与 (与 HUDAkbRow::update 同口径): G 文字低频变化而
-        // 机动条/刻度逐帧变化, 漏比 index 与刻度尺会让按返回值门控重绘的
-        // 组装侧几乎永不重绘条与刻度
-        let changed = self.base.text != text
-            || self.base.is_warning != is_warning
-            || self.maneuver_index != maneuver_index
+    /// update (len = 当前条长, tick_scale = 各阈值刻度到右端距离)。
+    /// 先判后写, 全字段参与: 条/刻度逐帧变化, 漏比任一即冻结
+    pub fn update(&mut self, maneuver_index: f64, len: i32, tick_scale: TickScale) -> bool {
+        let changed = self.maneuver_index != maneuver_index
             || self.maneuver_index_len != len
             || self.tick_scale != tick_scale;
-        self.base.update(text, is_warning);
         self.maneuver_index = maneuver_index;
         self.maneuver_index_len = len;
         self.tick_scale = tick_scale;
@@ -767,23 +591,14 @@ impl HUDManeuverRow {
         cv.fill_rect(x + right_draw - len, ya, 1, yb - ya + 1, color);
     }
 
-    /// draw。图层序: G 文字先, 刻度线, 最后 thick 影线 + thin 主线。
+    /// draw。图层序: 刻度线, 最后 thick 影线 + thin 主线。
     pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        // G 主文字
-        if self.show_g_load {
-            self.base.draw(cv, x, y, font, aa);
-        }
-        // 机动条开关关闭即返回
-        if !self.show_maneuver_bar {
-            return;
-        }
-
         // 基线换算 (刻度/条线相对 Baseline 定位)
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
 
         // 刻度颜色 = 主文字色 (见 draw_line_mark 的 PORT 注)
-        let mark_color = if self.base.is_warning {
+        let mark_color = if self.is_warning {
             colors().warning
         } else {
             colors().num
@@ -828,15 +643,9 @@ impl HUDManeuverRow {
         );
     }
 
-    /// getPreferredSize: 主文字宽与 rightDraw+5 取大。
-    pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
-        let w = self.base.preferred_size(font).0;
-        let w = if self.right_draw + 5 > w {
-            self.right_draw + 5
-        } else {
-            w
-        };
-        (w, self.base.height)
+    /// getPreferredSize: rightDraw+5 (条右端占位, 布局稳定)。
+    pub fn preferred_size(&self) -> (i32, i32) {
+        (self.right_draw + 5, self.height)
     }
 }
 

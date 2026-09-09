@@ -801,54 +801,76 @@ fn build_page_default(
     build_page_layout(&inputs)
 }
 
-/// 出厂页全树: 11 组件 cell/节点全建, DFS 前序 = factory components 挂载序;
+/// 出厂页全树: 16 组件 cell/节点全建, DFS 前序 = factory components 挂载序;
 /// 逐节点锚点关系式手算 (单位偏移 ×24 截断 + 锚点对齐 — 组件尺寸字体相关
 /// 不入字面量表, 关系式即 doc 拓扑值的 oracle)。
+/// 行族原子化拓扑: aoa(根)→speed 同位 (AoA 先渲染 = 原行0 图层序),
+/// 行链 speed→energy/altitude→flaps→airbrake→gear→sep→gload/maneuverbar
+/// (各行主件挂链, 辅件同位/横链; 段间距 2.5/2.0 = 模板字符数×0.5 行高)。
 #[test]
 fn page_layout_full_tree_topology_and_geometry() {
     let doc = factory_page();
     let built = build_page(&doc, &|_| Some(true), 600, 200);
-    assert_eq!(built.cells.len(), 11);
-    // DFS 前序: row 链 (row0→flap→row1..row4) 先于 row2 右挂件
-    // (attitude/compass), row4 子 (speedBar/throttle) 先于 attitude/compass
-    // (挂载序), crosshair 根最后
+    assert_eq!(built.cells.len(), 16);
+    // DFS 前序: aoa 根 → speed(主文字后渲染) → flap → 行1 (energy 先 altitude
+    // 后, 原"能量先画"图层序) → 行2 三段 → attitude/compass (gear 右缘挂件)
+    // → sep → gload 子 (speedBar/throttle) → maneuverbar → crosshair 根最后
     assert_eq!(
         render_ids(&built.engine),
         [
-            "row0", "flap", "row1", "row2", "row3", "row4", "speedBar", "throttle",
-            "attitude", "compass", "crosshair"
+            "aoa", "speed", "flap", "energy", "altitude", "flaps", "airbrake", "gear",
+            "attitude", "compass", "sep", "gload", "speedBar", "throttle", "maneuverbar",
+            "crosshair"
         ]
     );
     let rect = |id: &str| built.engine.get_node(id).unwrap().get_pixel_rect();
-    // row0 根: TopLeft/TopLeft 于 canvas(0,0) + (2.1,3.5)*24 = (50.4,84)→(50,84)
-    assert_eq!((rect("row0").x, rect("row0").y), (50, 84));
-    // flap: BottomLeft 挂 row0 TopLeft + (0,-0.1)*24=-2.4→-2 → 底贴 row0 顶上 2px
-    assert_eq!(rect("flap").x, rect("row0").x);
-    assert_eq!(rect("flap").y + rect("flap").height, rect("row0").y - 2);
-    // row 链: TopLeft 挂前一行 BottomLeft + (0,0.1)*24=2.4→2
-    for (prev, next) in [("row0", "row1"), ("row1", "row2"), ("row2", "row3"), ("row3", "row4")] {
+    // aoa 根: TopLeft/TopLeft 于 canvas(0,0) + (2.1,3.5)*24 = (50.4,84)→(50,84)
+    assert_eq!((rect("aoa").x, rect("aoa").y), (50, 84));
+    // speed 同位挂 aoa (0,0): 行0 主文字与 AoA 辅件共左缘
+    assert_eq!((rect("speed").x, rect("speed").y), (rect("aoa").x, rect("aoa").y));
+    // flap: BottomLeft 挂 speed TopLeft + (0,-0.1)*24=-2.4→-2 → 底贴 speed 顶上 2px
+    assert_eq!(rect("flap").x, rect("speed").x);
+    assert_eq!(rect("flap").y + rect("flap").height, rect("speed").y - 2);
+    // 行链: TopLeft 挂前件 BottomLeft + (0,0.1)*24=2.4→2
+    for (prev, next) in [
+        ("speed", "energy"),
+        ("speed", "altitude"),
+        ("altitude", "flaps"),
+        ("flaps", "sep"),
+        ("sep", "gload"),
+        ("sep", "maneuverbar"),
+    ] {
         assert_eq!(
             rect(next).y - (rect(prev).y + rect(prev).height),
             2,
             "{next} 链间距 0.1×24 截断"
         );
     }
-    // attitude/compass: TopRight 挂 row2 BottomRight + (0,0.5)/ (0,0.1) ×24
-    let row2_bottom = rect("row2").y + rect("row2").height;
-    let row2_right = rect("row2").x + rect("row2").width;
-    assert_eq!(rect("attitude").y - row2_bottom, 12); // 0.5*24
-    assert_eq!(rect("attitude").x + rect("attitude").width, row2_right);
-    assert_eq!(rect("compass").y - row2_bottom, 2); // 0.1*24=2.4→2
-    assert_eq!(rect("compass").x + rect("compass").width, row2_right);
-    // speedBar/throttle: BottomRight 挂 row4 BottomLeft + (-0.3,0)*24=-7.2→-7
-    let row4_bottom = rect("row4").y + rect("row4").height;
+    // 行2 三段横链: airbrake 左缘 = flaps 左缘 + 2.6×24=62.4→62 (F100+空格
+    // 段 ≈ 2.6 行高, 数字字形像素化略宽); gear 左缘 = airbrake 左缘 +
+    // 2.0×24=48 (BRK+空格 4 字符 × 0.5 行高, 精确); 三段同行同基线
+    assert_eq!(rect("airbrake").x - rect("flaps").x, 62);
+    assert_eq!(rect("gear").x - rect("airbrake").x, 48);
+    assert_eq!(rect("airbrake").y, rect("flaps").y);
+    assert_eq!(rect("gear").y, rect("flaps").y);
+    // attitude/compass: TopRight 挂 gear BottomRight + (0,0.5)/(0,0.1) ×24
+    // (gear = 行2 末段 → 右缘对齐原复合行 row2 右缘)
+    let gear_bottom = rect("gear").y + rect("gear").height;
+    let gear_right = rect("gear").x + rect("gear").width;
+    assert_eq!(rect("attitude").y - gear_bottom, 12); // 0.5*24
+    assert_eq!(rect("attitude").x + rect("attitude").width, gear_right);
+    assert_eq!(rect("compass").y - gear_bottom, 2); // 0.1*24=2.4→2
+    assert_eq!(rect("compass").x + rect("compass").width, gear_right);
+    // speedBar/throttle: BottomRight 挂 gload BottomLeft + (-0.3,0)*24=-7.2→-7
+    // (gload = 行4 主件, 左缘即原 row4 左缘)
+    let gload_bottom = rect("gload").y + rect("gload").height;
     for id in ["speedBar", "throttle"] {
-        assert_eq!(rect(id).y + rect(id).height, row4_bottom, "{id} 底贴 row4 底");
-        assert_eq!(rect(id).x + rect(id).width, rect("row4").x - 7, "{id} 左让 7px");
+        assert_eq!(rect(id).y + rect(id).height, gload_bottom, "{id} 底贴 gload 底");
+        assert_eq!(rect(id).x + rect(id).width, rect("gload").x - 7, "{id} 左让 7px");
     }
     // crosshair 独立根: MiddleRight 自/父锚 → 右缘贴画布, 垂直居中
     assert!(built.engine.get_node("crosshair").unwrap().get_parent().is_none());
-    assert!(built.engine.get_node("row0").unwrap().get_parent().is_none());
+    assert!(built.engine.get_node("aoa").unwrap().get_parent().is_none());
     let ch = rect("crosshair");
     assert_eq!(ch.x + ch.width, 600);
     assert_eq!(ch.y + ch.height / 2, 100);
@@ -867,12 +889,12 @@ fn page_layout_full_tree_topology_and_geometry() {
 fn page_layout_without_crosshair() {
     let doc = factory_page();
     let built = build_page(&doc, &|k| (k == "displayCrosshair").then_some(false), 300, 200);
-    assert_eq!(built.cells.len(), 10);
+    assert_eq!(built.cells.len(), 15);
     assert!(!built.cells.contains_key("crosshair"));
     assert!(built.engine.get_node("crosshair").is_none());
     // 行链几何不受裁剪影响
-    let row0 = built.engine.get_node("row0").unwrap().get_pixel_rect();
-    assert_eq!((row0.x, row0.y), (50, 84));
+    let aoa = built.engine.get_node("aoa").unwrap().get_pixel_rect();
+    assert_eq!((aoa.x, aoa.y), (50, 84));
     // padding 语义同全树
     let bounds = built.engine.get_content_bounds();
     let plan = built.sizing.unwrap();
@@ -882,7 +904,7 @@ fn page_layout_without_crosshair() {
     // 求值源缺键 → unwrap_or(false) 不建 (原 MiniHudLayoutConfig::from_bool_source
     // 两层缺省的字面兜底分支)
     let built2 = build_page(&doc, &|_| None, 300, 200);
-    assert_eq!(built2.cells.len(), 10);
+    assert_eq!(built2.cells.len(), 15);
     assert!(built2.engine.get_node("crosshair").is_none());
 }
 
@@ -898,7 +920,7 @@ fn page_layout_visible_default_true_keeps_unknown_cond() {
     // None + default=true: 宽容建成 (通用页)
     let kept = build_page_default(&doc, &|_| None, true, 600, 200);
     assert!(kept.cells.contains_key("crosshair"));
-    assert_eq!(kept.cells.len(), 11);
+    assert_eq!(kept.cells.len(), 16);
 }
 
 /// 父组件缺席 (用户编辑删父) → 子组件退化根, 不无故消失 (W2 宽容裁决;
@@ -906,7 +928,7 @@ fn page_layout_visible_default_true_keeps_unknown_cond() {
 #[test]
 fn page_layout_missing_parent_degrades_to_root() {
     let mut doc = factory_page();
-    doc.components.retain(|c| c.id != "row4"); // 删父, speedBar/throttle 悬空
+    doc.components.retain(|c| c.id != "gload"); // 删父, speedBar/throttle 悬空
     let built = build_page(&doc, &|_| Some(true), 300, 200);
     // 悬空子仍在 (cells/节点), 退化根
     for id in ["speedBar", "throttle"] {
@@ -923,8 +945,8 @@ fn page_layout_missing_parent_degrades_to_root() {
         assert_eq!(r.y + r.height, 200, "{id} 底贴画布底");
         assert_eq!(r.x + r.width, -7, "{id} 右缘 = 0-7");
     }
-    // row 链不受影响 (row3 的父 row2 在场)
-    assert!(built.engine.get_node("row3").unwrap().get_parent().is_some());
+    // 行链不受影响 (sep 的父 flaps 在场)
+    assert!(built.engine.get_node("sep").unwrap().get_parent().is_some());
 }
 
 /// 硬开关 enabled=false 与未注册类型: 组件不建 (warn 跳过, 出厂页不可达分支)。
@@ -936,13 +958,13 @@ fn page_layout_skips_disabled_and_unknown_types() {
         components: vec![
             ComponentDoc {
                 id: "off".into(),
-                r#type: "core.minihud.row0".into(),
+                r#type: "core.minihud.speed".into(),
                 enabled: false, // 硬开关关 → 不建
                 ..Default::default()
             },
             ComponentDoc {
                 id: "on".into(),
-                r#type: "core.minihud.row1".into(),
+                r#type: "core.minihud.altitude".into(),
                 enabled: true,
                 ..Default::default()
             },
@@ -970,6 +992,6 @@ fn page_layout_empty_components_no_sizing() {
     let doc = PageDoc::default();
     let built = build_page(&doc, &|_| Some(true), 300, 200);
     assert!(built.cells.is_empty());
-    assert!(built.engine.get_node("row0").is_none());
+    assert!(built.engine.get_node("speed").is_none());
     assert!(built.sizing.is_none());
 }

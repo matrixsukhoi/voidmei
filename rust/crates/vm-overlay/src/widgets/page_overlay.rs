@@ -136,6 +136,17 @@ impl PageOverlay {
     pub fn sizing(&self) -> Option<AutoSizingPlan> {
         self.layout.sizing
     }
+
+    /// 运行时包围盒收敛 (sidecar 数据推进后): 重算布局 → 返回新窗口尺寸。
+    /// fm-list 原子页的窗口高度跟随面 — 行归零/恢复 → 链式补位 → 包围盒
+    /// 收缩/扩张; 替代旧 fm.list sidecar 的行数滞回 Resize (无滞回, 每 tick
+    /// 收敛一步)。尺寸无变化时调用方按 entry 现值比较后免 resize (保持脏检查)。
+    pub fn refresh_sizing(&mut self, padding: i32) -> Option<(i32, i32)> {
+        let plan = self.layout.engine.apply_auto_sizing(padding);
+        let (w, h) = (plan.new_width, plan.new_height);
+        self.layout.sizing = Some(plan);
+        Some((w, h))
+    }
 }
 
 // =====================================================================
@@ -225,6 +236,13 @@ fn build_page(p: &PageSpecParams) -> Result<(PageOverlay, i32, i32), String> {
     let (w, h) = match page.sizing() {
         Some(s) => (s.new_width, s.new_height),
         None => (300, 200),
+    };
+    // fm-list 页: 全显 preview 初高钳屏高 (原 adjustPosition 上限; live 后由
+    // refresh_sizing 包围盒收敛逐 tick 调整)
+    let h = if p.doc.id == "fm-list-default" {
+        h.min(p.gauge_cfg.logical_height)
+    } else {
+        h
     };
     Ok((page, w, h))
 }

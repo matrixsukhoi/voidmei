@@ -47,9 +47,11 @@ pub const FM_UNPACKED_INTEREST_KEYS: [&str; 20] = [
     "showStab",
 ];
 
-/// FM拆包数据 generateLines 逐 tick 直读的开关键集 (Java isFieldEnabled
-/// 实参全集, 16 键; interest 键 displayFmKey/
-/// selectedFM/fmInfoColumn/fontName 不入 — generateLines 不读它们)
+/// FM拆包数据 show* 开关键集 (Java isFieldEnabled 实参全集, 16 键;
+/// interest 键 displayFmKey/selectedFM/fmInfoColumn/fontName 不入 —
+/// 段开关不读它们)。消费面 = core.fm.field/meta 原子组件的 sidecar tick
+/// 逐 tick 直读 (原 generateLines 的同一直读面), 快照链 =
+/// ConfigSnapshots.fm_field)
 pub const FM_FIELD_KEYS: [&str; 16] = [
     "showWeight",
     "showCritSpeed",

@@ -23,7 +23,8 @@ pub struct StyleEnv<'a> {
 /// preview 模板与静态值 (原 refreshTemplates + update_row_values 的组件推送面)
 #[derive(Clone)]
 pub struct MiniHudTemplates {
-    /// 行模板 [row0..row4] (row2 = 机械化三段旧格式串)
+    /// 行模板 (槽序 speed/alt/mech/sep/gload; 槽 2 = 机械化三段旧格式串,
+    /// 各 MechPart 独立解析本段)
     pub lines: [String; 5],
     pub line_aoa: String,
     pub rel_energy: String,
