@@ -1,4 +1,4 @@
-// W4 布局编辑器命令封装 (六命令 + 快照 PNG 转换)
+// 布局编辑器只读命令 (写面全走 editApi 的编辑会话命令)
 import type {
   CatalogResponse,
   PageDoc,
@@ -15,19 +15,11 @@ export async function getComponentCatalog(): Promise<CatalogResponse> {
 export async function getPages(): Promise<{
   pages: PageSummary[];
   docs: PageDoc[];
+  /** 出厂文档全量 (编辑控制台「恢复出厂页」的源) */
+  factoryDocs: PageDoc[];
   upgradeHints: UpgradeHint[];
 }> {
   return invoke('get_pages');
 }
 
-export async function savePage(page: PageDoc): Promise<void> {
-  await invoke('save_page', { page });
-}
 
-export async function deletePage(id: string): Promise<void> {
-  await invoke('delete_page', { id });
-}
-
-export async function resetPageToFactory(id: string): Promise<void> {
-  await invoke('reset_page_to_factory', { id });
-}

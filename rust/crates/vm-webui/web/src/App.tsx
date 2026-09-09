@@ -18,7 +18,7 @@ import { getAppVersion, getAssetRoot, getLayoutTree, importConfig, sendFormMessa
 import { RowRenderer } from './rows'
 import { AppDialogs } from './dialogs'
 import { FORMULA_TAB, FormulaTab } from './formulas/FormulaTab'
-import { LAYOUT_TAB_KEY, LayoutTab } from './layout_editor/LayoutTab'
+import { LayoutTab } from './layout_editor/LayoutTab'
 import { beginEditSession, endEditSession } from './layout_editor/editApi'
 
 const { Title, Text } = Typography
@@ -143,7 +143,7 @@ export default function App() {
       setValues({})
       // 手工 "公式" tab 不在 cfg 树里, 但同样是合法停留位 (config-changed 重拉不踢出)
       setActiveTab((cur) =>
-        tree.some((p) => p.title === cur) || cur === FORMULA_TAB || cur === LAYOUT_TAB_KEY
+        tree.some((p) => p.title === cur) || cur === FORMULA_TAB
           ? cur
           : tree[0]?.title ?? '',
       )
@@ -171,7 +171,7 @@ export default function App() {
   // 布局编辑器 tab 例外: 固定大窗 1280×800 (三栏工作区), 用户可拖拽调节,
   // 尺寸记忆经 localStorage (重启还原)
   useEffect(() => {
-    if (activeTab === LAYOUT_TAB_KEY) {
+    if (editSession) {
       const saved = localStorage.getItem('vm-layout-win-size')
       const [w, h] = saved ? JSON.parse(saved) : [1280, 800]
       appWindow.innerSize().then(({ width, height }) => {
@@ -198,13 +198,13 @@ export default function App() {
         .catch(() => undefined)
     }, 300)
     return () => clearTimeout(t)
-  }, [activeTab, panels])
+  }, [editSession, activeTab, panels])
 
   // 布局 tab 窗口尺寸写回 (修复只读不写 — 记忆从未生效过): onResized 防抖
   // 500ms 落 localStorage; onResized 载荷是物理像素, 存逻辑像素 (读回走
   // setSize(LogicalSize), DPI≠1 时两口径一致)
   useEffect(() => {
-    if (activeTab !== LAYOUT_TAB_KEY) return
+    if (!editSession) return
     let timer = 0
     const unlisten = appWindow.onResized(({ payload }) => {
       window.clearTimeout(timer)
@@ -337,16 +337,6 @@ export default function App() {
         {watermark && <img className="watermark" src={watermark} alt="" />}
       </div>
     ),
-  }).concat({
-    // 手工 tab: "HUD 布局"编辑器 (W4 三栏: palette/画布/inspector —
-    // 页面数据驱动编辑, 桌面真窗实时预览经既有 WYSIWYG 链)
-    key: LAYOUT_TAB_KEY,
-    label: 'HUD 布局',
-    children: (
-      <div style={{ padding: '6px 10px 12px', height: 'calc(100vh - 36px - 52px)', overflow: 'hidden' }}>
-        <LayoutTab />
-      </div>
-    ),
   })
 
   return (
@@ -355,7 +345,13 @@ export default function App() {
       {/* 批3小件弹窗宿主: checkUpdate 一次 + 托盘关于/config 弹窗监听 (渲染 null) */}
       <AppDialogs ready={ready} />
       <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF' }}>
-        {tabs.length ? (
+        {/* 真窗编辑会话: MainForm 整体切换为编辑控制台 (画布 = 桌面真窗,
+            常规设置面板整体退场; 退出编辑恢复) */}
+        {editSession ? (
+          <div style={{ padding: '6px 10px 12px', height: 'calc(100vh - 36px - 52px)', overflow: 'hidden' }}>
+            <LayoutTab />
+          </div>
+        ) : tabs.length ? (
           <Tabs
             tabPosition="left"
             items={tabs}
@@ -395,9 +391,7 @@ export default function App() {
               type="text"
               className="footer-btn"
               onClick={() => {
-                beginEditSession()
-                  .then(() => setActiveTab(LAYOUT_TAB_KEY))
-                  .catch(e => message.error(`${e}`))
+                beginEditSession().catch(e => message.error(`${e}`))
               }}
             >
               编辑HUD

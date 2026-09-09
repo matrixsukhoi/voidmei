@@ -183,52 +183,18 @@ fn dispatch_form(
                 "pages": list,
                 // 文档全量 (编辑器前端全量编辑面)
                 "docs": pages.iter().map(|p| serde_json::to_value(p).unwrap_or_default()).collect::<Vec<_>>(),
+                // 出厂文档全量 (R7 编辑控制台「恢复出厂页」的源; 会话内 UpdatePage
+                // 回出厂内容 = 恢复出厂, 退出提交时统一落盘)
+                "factoryDocs": vm_core::config::json_store::factory().pages
+                    .iter()
+                    .map(|p| serde_json::to_value(p).unwrap_or_default())
+                    .collect::<Vec<_>>(),
                 "upgradeHints": hints.iter().map(|(id, base, cur)| serde_json::json!({
                     "id": id, "userVersion": base, "factoryVersion": cur,
                 })).collect::<Vec<_>>(),
             }))
             .map(IpcReply::Ok)
             .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
-        }
-        RequestKind::SavePage { page } => {
-            let doc: Result<_, _> = serde_json::from_value(page);
-            let s = shell.borrow();
-            let config = s
-                .controller
-                .as_ref()
-                .map(|c| c.config.clone())
-                .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
-            match doc {
-                Ok(doc) => {
-                    config.save_page(doc);
-                    IpcReply::Ok(serde_json::json!({ "ok": true }))
-                }
-                Err(e) => IpcReply::Err(format!("页面解析失败: {e}")),
-            }
-        }
-        RequestKind::DeletePage { id } => {
-            let s = shell.borrow();
-            let config = s
-                .controller
-                .as_ref()
-                .map(|c| c.config.clone())
-                .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
-            match config.delete_page(&id) {
-                Ok(()) => IpcReply::Ok(serde_json::json!({ "ok": true })),
-                Err(e) => IpcReply::Err(e),
-            }
-        }
-        RequestKind::ResetPageToFactory { id } => {
-            let s = shell.borrow();
-            let config = s
-                .controller
-                .as_ref()
-                .map(|c| c.config.clone())
-                .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
-            match config.reset_page_to_factory(&id) {
-                Ok(()) => IpcReply::Ok(serde_json::json!({ "ok": true })),
-                Err(e) => IpcReply::Err(e),
-            }
         }
         // ---- R6/R7 真窗编辑会话 (主线程中转 → UiCommand 送渲染线程) ----
         RequestKind::BeginEditSession => {

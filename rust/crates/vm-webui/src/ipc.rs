@@ -44,12 +44,6 @@ pub enum RequestKind {
     GetComponentCatalog,
     /// 页面列表 (id/name/switchKey + 升级提示)
     GetPages,
-    /// 页面保存 (出厂 id → owned 提升; 用户 id → upsert)
-    SavePage { page: serde_json::Value },
-    /// 页面删除 (owned 删除 = 回跟随出厂; user 删除; 出厂本体不可删)
-    DeletePage { id: String },
-    /// 页面恢复出厂
-    ResetPageToFactory { id: String },
     // ---- R6/R7 真窗编辑会话 ----
     /// 进入编辑会话 (渲染线程: 压 z 序/全页 preview 开窗/挂 EditBridge)
     BeginEditSession,
@@ -178,9 +172,6 @@ pub fn dispatch(kind: RequestKind, rt: &mut FormRuntime) -> IpcReply {
         // W4 布局编辑器域 (同上: vm-app dispatcher 承担)
         | RequestKind::GetComponentCatalog
         | RequestKind::GetPages
-        | RequestKind::SavePage { .. }
-        | RequestKind::DeletePage { .. }
-        | RequestKind::ResetPageToFactory { .. }
         // R6/R7 编辑会话域 (同上)
         | RequestKind::BeginEditSession
         | RequestKind::EndEditSession { .. }

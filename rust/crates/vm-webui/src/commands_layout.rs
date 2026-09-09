@@ -17,24 +17,3 @@ pub async fn get_component_catalog(state: tauri::State<'_, IpcState>) -> Result<
 pub async fn get_pages(state: tauri::State<'_, IpcState>) -> Result<Value, String> {
     roundtrip(&state.tx, RequestKind::GetPages).await
 }
-
-/// 页面保存 (delta: 出厂 → owned 提升 / 用户 → upsert)
-#[tauri::command]
-pub async fn save_page(state: tauri::State<'_, IpcState>, page: Value) -> Result<Value, String> {
-    roundtrip(&state.tx, RequestKind::SavePage { page }).await
-}
-
-/// 页面删除
-#[tauri::command]
-pub async fn delete_page(state: tauri::State<'_, IpcState>, id: String) -> Result<Value, String> {
-    roundtrip(&state.tx, RequestKind::DeletePage { id }).await
-}
-
-/// 页面恢复出厂
-#[tauri::command]
-pub async fn reset_page_to_factory(
-    state: tauri::State<'_, IpcState>,
-    id: String,
-) -> Result<Value, String> {
-    roundtrip(&state.tx, RequestKind::ResetPageToFactory { id }).await
-}

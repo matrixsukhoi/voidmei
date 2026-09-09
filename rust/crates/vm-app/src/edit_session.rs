@@ -129,7 +129,8 @@ impl EditSession {
             canvas_off: (0, 0),
             pending: VecDeque::new(),
             last_doc_push: Instant::now(),
-            doc_dirty: false,
+            // begin 即推首帧镜像 (前端控制台进场有数据, 不等首次编辑)
+            doc_dirty: true,
         }
     }
 

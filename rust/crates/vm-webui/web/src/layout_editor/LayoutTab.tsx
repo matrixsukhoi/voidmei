@@ -1,17 +1,17 @@
 /**
- * R7 HUD 编辑面板 (真窗即画布形态):
- * - 非会话态: 页面管理 (列表/新建/复制/删除/恢复出厂) + 「开始编辑」按钮 —
- *   进入后桌面真实 overlay 直接可编辑 (拖拽/resize/吸附在真窗上), 本面板
- *   退化为控制台 (palette/属性/大纲/工具栏), 不再有画布快照。
- * - 会话态: 数据源 = hud-edit-doc 事件推送 (80ms 节流镜像: 页文档+矩形+选中),
- *   全部修改经 edit_command 发渲染线程 (整页重装配即所见)。
- * - 退出: 保存 (逐页落盘) / 放弃 (全量重建)。
+ * R7+ 编辑控制台 (真窗即画布形态的 MainForm 会话面板):
+ * App 在编辑会话期间整体渲染本组件 (常规设置面板退场) — 画布 = 桌面真实
+ * overlay 窗口 (点选/拖拽/resize/吸附全在真窗上), 本面板是控制台:
+ * palette + 大纲 | 工具栏 (含页面管理: 目标页切换/新建/复制/删除/恢复出厂,
+ * 全走编辑命令, 退出时统一提交) | inspector。
+ * 数据源 = hud-edit-doc 事件推送 (80ms 节流镜像) + mount 时 get_pages 的
+ * 页清单/出厂文档 (页面管理操作基底)。
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Button, Popconfirm, Space, Switch, Tooltip, message } from 'antd'
-import type { ComponentDoc, PageDoc, PageSummary } from './types'
-import { deletePage, getPages, resetPageToFactory, savePage } from './api'
-import { beginEditSession, editCommand, endEditSession } from './editApi'
+import { Alert, Button, Popconfirm, Select, Space, Switch, Tooltip, message } from 'antd'
+import type { PageDoc } from './types'
+import { getPages } from './api'
+import { editCommand, endEditSession } from './editApi'
 import { Palette } from './Palette'
 import { Inspector } from './Inspector'
 import { Outline } from './Outline'
@@ -26,8 +26,6 @@ const PRESET_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
   'core.fm.meta': { key: 'fm.version' },
 }
 
-export const LAYOUT_TAB_KEY = '__hud_layout__'
-
 const newPageId = () =>
   `user-page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
@@ -40,6 +38,12 @@ const nextComponentId = (page: PageDoc, base: string) => {
 const roundSnap = (v: number) => Math.round(v / SNAP) * SNAP
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
+
+interface PageListEntry {
+  id: string
+  name: string
+  isFactory: boolean
+}
 
 /** hud-edit-doc 推送载荷 */
 interface EditDocPayload {
@@ -63,10 +67,6 @@ const EMPTY_PAGE: PageDoc = {
 }
 
 export const LayoutTab: React.FC = () => {
-  const [pages, setPages] = useState<PageSummary[]>([])
-  const [loaded, setLoaded] = useState(false)
-  /** 会话态 (true = 桌面真窗编辑中) */
-  const [inSession, setInSession] = useState(false)
   /** 编辑镜像 (hud-edit-doc 推送) */
   const [doc, setDoc] = useState<PageDoc | null>(null)
   const [items, setItems] = useState<EditDocPayload['items']>([])
@@ -76,41 +76,31 @@ export const LayoutTab: React.FC = () => {
   const [showGuides, setShowGuides] = useState(true)
   const [undoDepth, setUndoDepth] = useState(0)
   const [redoDepth, setRedoDepth] = useState(0)
-  /** 撤销栈 (前端快照; 命令前压栈) */
+  /** 页清单 + 出厂文档 (页面管理操作基底; 会话内命令后本地同步) */
+  const [pageList, setPageList] = useState<PageListEntry[]>([])
+  const factoryDocs = useRef<Map<string, PageDoc>>(new Map())
   const undoStack = useRef<PageDoc[]>([])
   const redoStack = useRef<PageDoc[]>([])
 
-  const refreshList = useCallback(async () => {
-    const { pages: list } = await getPages()
-    setPages(list)
-    setLoaded(true)
-  }, [])
-
+  // 页清单/出厂文档拉取 (mount = 会话开始, 一次)
   useEffect(() => {
-    refreshList()
-  }, [refreshList])
+    getPages().then(({ pages, docs, factoryDocs: factory }) => {
+      setPageList(pages.map(p => ({ id: p.id, name: p.name, isFactory: p.isFactory })))
+      const m = new Map<string, PageDoc>()
+      for (const d of factory ?? []) m.set(d.id, d)
+      factoryDocs.current = m
+      // 恢复出厂/复制需要完整文档 — docs 全量备查
+      allDocs.current = new Map(docs.map(d => [d.id, d]))
+    }).catch(e => message.error(`页清单拉取失败: ${e}`))
+  }, [])
+  const allDocs = useRef<Map<string, PageDoc>>(new Map())
 
   // ---- 会话事件监听 (渲染线程 UIStateBus 桥) ----
   useEffect(() => {
-    let un1: (() => void) | undefined
     let un2: (() => void) | undefined
     let un3: (() => void) | undefined
     let un4: (() => void) | undefined
     import('@tauri-apps/api/event').then(({ listen }) => {
-      listen<string>('hud-edit-session', e => {
-        if (e.payload === 'begin') {
-          setInSession(true)
-          undoStack.current = []
-          redoStack.current = []
-          setUndoDepth(0)
-          setRedoDepth(0)
-          message.info('编辑模式: 在桌面 HUD 窗口上直接点选/拖拽组件')
-        } else if (e.payload === 'end') {
-          setInSession(false)
-          setDoc(null)
-          refreshList()
-        }
-      }).then(u => (un1 = u))
       listen<string>('hud-edit-doc', e => {
         try {
           const p = JSON.parse(e.payload) as EditDocPayload
@@ -135,12 +125,11 @@ export const LayoutTab: React.FC = () => {
       }).then(u => (un4 = u))
     })
     return () => {
-      un1?.()
       un2?.()
       un3?.()
       un4?.()
     }
-  }, [refreshList])
+  }, [])
 
   /** 命令发送 (带撤销快照) */
   const sendCmd = useCallback(
@@ -179,7 +168,6 @@ export const LayoutTab: React.FC = () => {
 
   // ---- 键盘 (方向键微调/Delete/Ctrl+Z; 画布交互在真窗上, 键盘在面板) ----
   useEffect(() => {
-    if (!inSession) return
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
       if (t.closest('input, textarea, [contenteditable="true"]')) return
@@ -222,15 +210,7 @@ export const LayoutTab: React.FC = () => {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [inSession, selection, doc, sendCmd, onUndo, onRedo])
-
-  const onBeginEdit = useCallback(async () => {
-    try {
-      await beginEditSession()
-    } catch (e) {
-      message.error(`${e}`)
-    }
-  }, [])
+  }, [selection, doc, sendCmd, onUndo, onRedo])
 
   const onEndEdit = useCallback(async (commit: boolean) => {
     try {
@@ -241,95 +221,20 @@ export const LayoutTab: React.FC = () => {
     }
   }, [])
 
-  // ---- 非会话态: 页面管理 ----
-  if (!loaded) return <div style={{ padding: 24 }}>加载页面中…</div>
-
-  if (!inSession) {
-    return (
-      <div style={{ padding: 16 }}>
-        <Space wrap style={{ marginBottom: 12 }}>
-          <Button type="primary" onClick={onBeginEdit}>
-            开始编辑 (桌面 HUD 直接拖拽)
-          </Button>
-        </Space>
-        <Space wrap direction="vertical" style={{ width: '100%' }}>
-          {pages.map(p => (
-            <div
-              key={p.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '6px 10px',
-                border: '1px solid #eee',
-                borderRadius: 6,
-                minWidth: 420,
-              }}
-            >
-              <span style={{ flex: 1 }}>
-                {p.name}
-                <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>
-                  {p.componentCount} 组件{p.isFactory ? ' · 出厂' : ''}
-                </span>
-              </span>
-              <Popconfirm
-                title="恢复出厂"
-                description={`丢弃「${p.name}」的全部修改?`}
-                onConfirm={async () => {
-                  await resetPageToFactory(p.id)
-                  message.success('已恢复出厂')
-                  refreshList()
-                }}
-              >
-                <Button size="small">恢复出厂</Button>
-              </Popconfirm>
-              <Popconfirm
-                title="删除页面"
-                description={`删除「${p.name}」?`}
-                onConfirm={async () => {
-                  await deletePage(p.id)
-                  message.success('已删除')
-                  refreshList()
-                }}
-              >
-                <Button size="small" danger disabled={pages.length <= 1}>
-                  删除
-                </Button>
-              </Popconfirm>
-              <Button
-                size="small"
-                onClick={() => {
-                  getPages().then(({ docs }) => {
-                    const srcDoc = docs.find(d => d.id === p.id)
-                    if (!srcDoc) return
-                    savePage({ ...srcDoc, id: newPageId(), name: `${srcDoc.name} 副本` }).then(
-                      () => refreshList(),
-                    )
-                  })
-                }}
-              >
-                复制
-              </Button>
-            </div>
-          ))}
-          <Button
-            onClick={() => {
-              savePage({
-                ...EMPTY_PAGE,
-                id: newPageId(),
-                name: '新页面',
-              }).then(() => refreshList())
-            }}
-          >
-            新建页
-          </Button>
-        </Space>
-      </div>
+  // ---- 页面管理 (会话内命令, 退出时统一提交) ----
+  const upsertPage = useCallback((page: PageDoc, target: boolean) => {
+    setPageList(prev =>
+      prev.some(p => p.id === page.id)
+        ? prev.map(p => (p.id === page.id ? { id: page.id, name: page.name, isFactory: false } : p))
+        : [...prev, { id: page.id, name: page.name, isFactory: false }],
     )
-  }
+    allDocs.current.set(page.id, page)
+    sendCmd('upsertPage', { page }, false)
+    if (target) sendCmd('setTargetPage', { pageId: page.id }, false)
+  }, [sendCmd])
 
-  // ---- 会话态: 控制台 (palette + outline | 工具栏/状态 | inspector) ----
   const targetName = doc?.name ?? ''
+
   const selected =
     selection.length === 1
       ? doc?.components.find(c => c.id === selection[0]) ?? null
@@ -344,7 +249,7 @@ export const LayoutTab: React.FC = () => {
   )
 
   const patchComponent = useCallback(
-    (id: string, mut: (c: ComponentDoc) => ComponentDoc) => {
+    (id: string, mut: (c: ComponentDocT) => ComponentDocT) => {
       if (!doc) return
       const cur = doc.components.find(c => c.id === id)
       if (cur) sendCmd('updateComponent', { comp: mut(cur) })
@@ -357,7 +262,7 @@ export const LayoutTab: React.FC = () => {
       if (!doc) return
       const cx = roundSnap(doc.components.length ? 2 : 1)
       const props = { ...(defaultProps ?? {}), ...(PRESET_DEFAULT_PROPS[typeName] ?? {}) }
-      const comp: ComponentDoc = {
+      const comp = {
         id: nextComponentId(doc, displayZh),
         type: typeName,
         pos: [cx, doc.components.length * SNAP * 10],
@@ -377,7 +282,7 @@ export const LayoutTab: React.FC = () => {
       if (!doc) return
       const type = preset.props.kind ? 'core.engine.gauge' : 'core.data.field'
       const idBase = String(preset.props.target ?? preset.props.kind ?? 'field')
-      const comp: ComponentDoc = {
+      const comp = {
         id: nextComponentId(doc, idBase),
         type,
         pos: [0, 0],
@@ -449,11 +354,77 @@ export const LayoutTab: React.FC = () => {
             />
           </Space>
         </Space>
+        {/* 页面管理: 目标页切换 + 新建/复制/恢复出厂/删除 (全会话内命令) */}
+        <Space wrap>
+          <Select
+            value={doc?.id}
+            style={{ minWidth: 180 }}
+            placeholder="目标页"
+            onChange={(id: string) => sendCmd('setTargetPage', { pageId: id }, false)}
+            options={pageList.map(p => ({
+              value: p.id,
+              label: `${p.name}${p.isFactory ? ' (出厂)' : ''}`,
+            }))}
+          />
+          <Button
+            size="small"
+            onClick={() => {
+              const page: PageDoc = {
+                ...EMPTY_PAGE,
+                id: newPageId(),
+                name: `新页面 ${pageList.filter(p => !p.isFactory).length + 1}`,
+              }
+              upsertPage(page, true)
+            }}
+          >
+            新建页
+          </Button>
+          <Button
+            size="small"
+            disabled={!doc}
+            onClick={() => {
+              if (!doc) return
+              upsertPage(
+                { ...clone(doc), id: newPageId(), name: `${doc.name} 副本` },
+                true,
+              )
+            }}
+          >
+            复制页
+          </Button>
+          <Button
+            size="small"
+            disabled={!doc || !factoryDocs.current.has(doc.id)}
+            onClick={() => {
+              if (!doc) return
+              const factoryDoc = factoryDocs.current.get(doc.id)
+              if (!factoryDoc) return
+              sendCmd('updatePage', { page: clone(factoryDoc) })
+              message.info(`「${doc.name}」已恢复出厂内容 (退出时落盘)`)
+            }}
+          >
+            恢复出厂
+          </Button>
+          <Popconfirm
+            title="删除页面"
+            description={`删除「${targetName}」? (退出编辑时生效)`}
+            onConfirm={() => {
+              if (!doc) return
+              const id = doc.id
+              setPageList(prev => prev.filter(p => p.id !== id))
+              sendCmd('deletePage', { pageId: id }, false)
+            }}
+          >
+            <Button size="small" danger disabled={!doc || pageList.length <= 1}>
+              删除页
+            </Button>
+          </Popconfirm>
+        </Space>
         <Alert
           type="info"
           showIcon
           message={`正在编辑「${targetName}」— 画布就是桌面上的 HUD 窗口`}
-          description="点选组件、拖动移动、拖角调整大小; 方向键微调 (Shift 大步) / Delete 删除 / Ctrl+Z 撤销; 空白处拖动 = 移动整窗"
+          description="点选组件、拖动移动、拖角调整大小; 方向键微调 (Shift 大步) / Delete 删除 / Ctrl+Z 撤销; 空白处拖动 = 移动整窗位置; 点击其它 HUD 窗口切换目标页"
         />
         {errors.length > 0 && (
           <Alert
@@ -464,8 +435,7 @@ export const LayoutTab: React.FC = () => {
           />
         )}
         <div style={{ color: '#999', fontSize: 12 }}>
-          切换目标页: 点击桌面上其它 HUD 窗口
-          {items.length > 0 && ` · ${items.length} 组件 · 选中 ${selection.length}`}
+          {items.length > 0 && `${items.length} 组件 · 选中 ${selection.length} · 页面改动退出时统一保存`}
         </div>
       </div>
 
@@ -533,3 +503,6 @@ export const LayoutTab: React.FC = () => {
     </div>
   )
 }
+
+// 局部类型别名 (组件文档 — 与 types.ts ComponentDoc 同构, 减 import 面)
+type ComponentDocT = import('./types').ComponentDoc
