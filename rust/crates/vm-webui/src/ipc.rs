@@ -52,6 +52,13 @@ pub enum RequestKind {
     DeletePage { id: String },
     /// 页面恢复出厂
     ResetPageToFactory { id: String },
+    // ---- R6/R7 真窗编辑会话 ----
+    /// 进入编辑会话 (渲染线程: 压 z 序/全页 preview 开窗/挂 EditBridge)
+    BeginEditSession,
+    /// 退出编辑会话 (commit=true 提交 / false 丢弃)
+    EndEditSession { commit: bool },
+    /// 编辑命令 (载荷 = EditCommand 的 serde Value; 主线程转发渲染线程)
+    EditCommand { payload: serde_json::Value },
 }
 
 /// 一条 IPC 请求 (含回执通道; 单向通知类 reply=None)
@@ -176,7 +183,11 @@ pub fn dispatch(kind: RequestKind, rt: &mut FormRuntime) -> IpcReply {
         | RequestKind::SolvePage { .. }
         | RequestKind::SavePage { .. }
         | RequestKind::DeletePage { .. }
-        | RequestKind::ResetPageToFactory { .. } => {
+        | RequestKind::ResetPageToFactory { .. }
+        // R6/R7 编辑会话域 (同上)
+        | RequestKind::BeginEditSession
+        | RequestKind::EndEditSession { .. }
+        | RequestKind::EditCommand { .. } => {
             IpcReply::Err("壳形态 dispatcher 不支持数据面请求 (应由 vm-app 注入)".to_string())
         }
     }

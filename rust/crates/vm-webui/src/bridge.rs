@@ -31,6 +31,29 @@ pub struct FmChangedPayload {
     pub status: String,
 }
 
+/// R7 真窗编辑会话事件桥: 渲染线程 UIStateBus (HUD_EDIT_* 四键) → 前端 emit。
+/// 会话 begin/end 切面板形态; doc/selection 载荷是 JSON 字符串 (data 域透传,
+/// 前端 parse — UIStateBus 载荷是纯 String, 结构化在前端解)
+pub fn bridge_hud_edit(app: AppHandle<Wry>, bus: &UIStateBus) -> [Subscription<UiStateEvent>; 4] {
+    const KEYS: [&str; 4] = [
+        "HUD_EDIT_SESSION",
+        "HUD_EDIT_DOC",
+        "HUD_EDIT_SELECTION",
+        "HUD_EDIT_ERROR",
+    ];
+    let mut subs: Vec<Subscription<UiStateEvent>> = Vec::new();
+    for key in KEYS {
+        let app = app.clone();
+        let event_name = format!("hud-edit-{}", key.trim_start_matches("HUD_EDIT_").to_lowercase());
+        subs.push(bus.subscribe(key, move |ev: &UiStateEvent| {
+            if let Err(e) = app.emit(&event_name, ev.data.clone()) {
+                logger::warn("WebBridge", &format!("{event_name} 事件发送失败: {e}"));
+            }
+        }));
+    }
+    subs.try_into().unwrap_or_else(|_: Vec<_>| unreachable!("长度恒 4"))
+}
+
 /// FM_CHANGED → 前端 `fm-changed` (MISSING/CORRUPT toast, 对位 NotificationService)
 pub fn bridge_fm_changed(
     app: AppHandle<Wry>,

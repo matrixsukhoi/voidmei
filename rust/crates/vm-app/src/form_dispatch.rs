@@ -231,6 +231,26 @@ fn dispatch_form(
                 Err(e) => IpcReply::Err(e),
             }
         }
+        // ---- R6/R7 真窗编辑会话 (主线程中转 → UiCommand 送渲染线程) ----
+        RequestKind::BeginEditSession => {
+            shell.borrow().send_ui(UiCommand::BeginEditSession);
+            IpcReply::Ok(serde_json::json!({ "ok": true }))
+        }
+        RequestKind::EndEditSession { commit } => {
+            shell.borrow().send_ui(UiCommand::EndEditSession { commit });
+            IpcReply::Ok(serde_json::json!({ "ok": true }))
+        }
+        RequestKind::EditCommand { payload } => {
+            // 载荷 = EditCommand serde Value (前端 camelCase; 反序列化在主线程,
+            // 装箱送渲染线程)
+            match serde_json::from_value::<crate::edit_session::EditCommand>(payload) {
+                Ok(cmd) => {
+                    shell.borrow().send_ui(UiCommand::Edit(Box::new(cmd)));
+                    IpcReply::Ok(serde_json::json!({ "ok": true }))
+                }
+                Err(e) => IpcReply::Err(format!("编辑命令解析失败: {e}")),
+            }
+        }
         RequestKind::OpenComparisonWindow { fm0, fm1 } => {
             // FMLIST 行 对比按钮 (批3): Java FMListRowRenderer 的 View 键 —
             // 选中机型单机视图 (fm1 恒 null) 开对比窗; 参数由前端显式传 (对位 Java

@@ -20,6 +20,7 @@ pub mod bridge;
 pub mod commands;
 pub mod commands_comparison;
 pub mod commands_formula;
+pub mod commands_edit;
 pub mod commands_layout;
 pub mod commands_powercurve;
 pub mod dto;
@@ -86,6 +87,9 @@ impl ShellForm {
                 // 公式管理编辑器 (直算: 只依赖 vm-core formula 模块, 见模块头)
                 commands_formula::get_formula_list,
                 // W4 HUD 布局编辑器 (经主线程 dispatcher — pages 编辑/solve 快照)
+                commands_edit::begin_edit_session,
+                commands_edit::end_edit_session,
+                commands_edit::edit_command,
                 commands_layout::get_component_catalog,
                 commands_layout::get_pages,
                 commands_layout::solve_page,

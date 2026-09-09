@@ -18,6 +18,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use vm_core::base::bus::ui_state_bus::UIStateBus;
+use serde::{Deserialize, Serialize};
 use vm_core::config::json_model::{ComponentDoc, PageDoc};
 
 use vm_overlay::layout::hud_layout_node::HUDLayoutNodeExt;
@@ -911,8 +912,10 @@ fn pages_placeholder_find_old(s: &EditSession, comp: &ComponentDoc) -> String {
     comp.id.clone()
 }
 
-/// 编辑命令 (UiCommand 变体的载荷面 — commands.rs 引用)
-#[derive(Debug, Clone, PartialEq)]
+/// 编辑命令 (UiCommand 变体的载荷面 — commands.rs 引用;
+/// serde: IPC 载荷 (vm-webui 经 serde_json Value 中转, vm-app 侧反序列化))
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "kind")]
 pub enum EditCommand {
     SetTargetPage { page_id: String },
     Select { ids: Vec<String> },

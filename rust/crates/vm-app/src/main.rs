@@ -181,6 +181,8 @@ fn desktop_main(debug: bool) -> i32 {
         (
             vm_webui::bridge::bridge_config_changed(f.app_handle(), &ui_bus),
             vm_webui::bridge::bridge_fm_changed(f.app_handle(), &fm_changed_bus),
+            // R7 真窗编辑会话事件 (begin/end/doc/selection/error → 前端)
+            vm_webui::bridge::bridge_hud_edit(f.app_handle(), &ui_bus),
         )
     });
 

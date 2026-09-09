@@ -62,6 +62,8 @@ export interface ComponentDoc {
   parent: string | null;
   visibleWhen?: string | null;
   enabled: boolean;
+  /** 尺寸覆盖 (物理 px; null = 内容自适应 — 真窗 resize 手柄写回) */
+  size?: [number, number] | null;
   props: Record<string, unknown>;
 }
 
