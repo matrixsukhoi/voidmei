@@ -1,0 +1,48 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/kernel",
+    "crates/data",
+    "crates/overlay",
+    "crates/voidmei",
+    "crates/ui",
+    "crates/webui",
+]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+
+[workspace.dependencies]
+kernel = { path = "crates/kernel" }
+data = { path = "crates/data" }
+overlay = { path = "crates/overlay" }
+ui = { path = "crates/ui" }
+webui = { path = "crates/webui" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+png = "0.18"
+swash = "0.2"
+ttf-parser = "0.25"
+windows = { version = "0.62", features = [
+    "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse",
+] }
+
+[profile.release]
+# overlay 低频渲染, 体积与启动优先。thin LTO (fat→thin): 跨 crate 优化收益
+# 保留 95%+, 链接时间大幅下降 — fat LTO 下每次增量都要全图重优化+重链
+# (改一行 voidmei 实测 1m43s), thin 只重链受影响分区
+opt-level = 3
+lto = "thin"
+incremental = true
+strip = true
+
+# workspace 级 lint 豁免 (clippy 1.97 新 lint 对存量迁移代码的误伤; 各 crate
+# [lints] workspace = true 生效)
+[workspace.lints.clippy]
+# 中文 //! 模块注释是技术注非 markdown 文档, 无序列表续行判定恒误报
+doc_lazy_continuation = "allow"
+# Java 构造器直译的测试惯用形 (new X() 逐字段赋值 → Default 后赋值),
+# 字面量改写无语义收益
+field_reassign_with_default = "allow"

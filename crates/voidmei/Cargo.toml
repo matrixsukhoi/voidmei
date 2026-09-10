@@ -1,0 +1,31 @@
+[package]
+name = "voidmei"
+version.workspace = true
+edition.workspace = true
+description = "VoidMei 应用组装 bin (Controller/生命周期/MainForm 入口)"
+
+[lib]
+name = "voidmei"
+
+[[bin]]
+name = "voidmei"
+path = "src/main.rs"
+
+[dependencies]
+kernel = { workspace = true }
+data = { workspace = true }
+overlay = { workspace = true }
+ui = { workspace = true }
+webui = { workspace = true }
+# D9 表单 IPC dispatcher 的 dto 序列化 + 主循环事件 emit (Emitter trait)
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = "2"
+
+# 语音子系统装配批: winmm waveOut 播放器 (winmm_player.rs)
+# feature 写法对齐 overlay Cargo.toml (基线见 workspace 根)
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = ["Win32_Media_Audio"] }
+
+[lints]
+workspace = true

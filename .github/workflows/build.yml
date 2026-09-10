@@ -37,11 +37,10 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: rust
+          workspaces: "."
 
       - name: Build web frontend
         run: python script/build.py web
 
       - name: Test
         run: cargo test --workspace
-        working-directory: rust

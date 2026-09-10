@@ -15,7 +15,7 @@
   python script/build.py rustdist           rust 构建链后组装 Rust 版分发包 -> dist/VoidMei_Rust_*.zip
   python script/build.py fmdata             从 War Thunder 客户端解包并裁剪 FM 数据 (blkx 文本, Java 端数据源)
   python script/build.py fmdatajson         解包 JSON 版 FM 数据 (Rust 端数据源, 与 blkx 同名并存 data/)
-  python script/build.py web                D9 前端构建 (pnpm → rust/crates/vm-webui/web/dist)
+  python script/build.py web                D9 前端构建 (pnpm → crates/webui/web/dist)
   python script/build.py rust               D9 Rust 构建链 (web 前端 + cargo release → voidmei.exe)
   python script/build.py clean              清理 bin/ build/ dist/
 
@@ -444,7 +444,7 @@ def cmd_dist():
 
 
 # ---------- rustdist: 组装 Rust 版分发包 ----------
-RUST_REL = ROOT / "rust" / "target" / "release"
+RUST_REL = ROOT / "target" / "release"
 RUST_EXE = RUST_REL / "voidmei.exe"
 # Rust 渲染 (tiny-skia/swash) 实际使用的字体白名单; DIN Pro 是 Java 商业字体, 绝不进包
 RUST_DIST_FONTS = ("sarasa-mono-sc-bold.ttf", "sarasa-mono-sc-regular.ttf")
@@ -475,7 +475,7 @@ def cmd_rustdist():
         if src.is_file():
             shutil.copy2(src, stage / name)
         else:
-            warn("%s 不在 rust/target/release/, 跳过 (%s)" % (name, why))
+            warn("%s 不在 target/release/, 跳过 (%s)" % (name, why))
     # --- fonts: 白名单两文件 (与 Java dist 整目录拷不同, 从根上杜绝商业字体混入) ---
     (stage / "fonts").mkdir()
     for f in RUST_DIST_FONTS:
@@ -775,13 +775,13 @@ def _find_pnpm():
 
 def cmd_web():
     """D9 前端构建: pnpm install + build → web/dist (cargo 编译期被 generate_context! 嵌入)。"""
-    web_dir = ROOT / "rust" / "crates" / "vm-webui" / "web"
+    web_dir = ROOT / "crates" / "webui" / "web"
     pnpm = _find_pnpm()
     lock = web_dir / "pnpm-lock.yaml"
     install = pnpm + (["install", "--frozen-lockfile"] if lock.exists() else ["install"])
     run(install, cwd=str(web_dir))
     run(pnpm + ["build"], cwd=str(web_dir))
-    log("前端 dist 构建完成 (rust/crates/vm-webui/web/dist)")
+    log("前端 dist 构建完成 (crates/webui/web/dist)")
 
 
 def cmd_rust():
@@ -792,14 +792,14 @@ def cmd_rust():
         err("未找到 cargo (Rust 工具链, 见 rust/README.md)")
         raise SystemExit(1)
     # rustc 不把 option_env! 读的环境变量计入编译指纹, VOIDMEI_VERSION 变化不会触发重编
-    # (exe 内嵌版本号会陈旧)。用版本戳检测变化, 变了就 clean vm-webui (option_env! 所在
-    # crate), 下游 vm-app 随依赖 hash 连锁重编; 版本不变零代价。
+    # (exe 内嵌版本号会陈旧)。用版本戳检测变化, 变了就 clean webui (option_env! 所在
+    # crate), 下游 voidmei crate 随依赖 hash 连锁重编; 版本不变零代价。
     stamp = BUILD / "rust_version.stamp"
     prev = stamp.read_text(encoding="utf-8").strip() if stamp.is_file() else None
     if prev is not None and prev != VERSION:
-        warn("VOIDMEI_VERSION 变化 (%s -> %s), 强制重编 vm-webui 使 exe 内嵌版本号生效" % (prev, VERSION))
-        run([cargo, "clean", "--release", "-p", "vm-webui"], cwd=str(ROOT / "rust"))
-    run([cargo, "build", "--release"], cwd=str(ROOT / "rust"))
+        warn("VOIDMEI_VERSION 变化 (%s -> %s), 强制重编 webui 使 exe 内嵌版本号生效" % (prev, VERSION))
+        run([cargo, "clean", "--release", "-p", "webui"], cwd=str(ROOT))
+    run([cargo, "build", "--release"], cwd=str(ROOT))
     BUILD.mkdir(exist_ok=True)
     stamp.write_text(VERSION + "\n", encoding="utf-8")
     log("Rust 构建完成: %s (注入版本: %s)" % (RUST_EXE, VERSION))

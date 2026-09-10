@@ -1,0 +1,25 @@
+[package]
+name = "overlay"
+version.workspace = true
+edition.workspace = true
+description = "VoidMei overlay 层: 平台窗口/渲染"
+
+[lib]
+name = "overlay"
+
+[dependencies]
+serde_json = { workspace = true }
+kernel = { workspace = true }
+png = { workspace = true }
+swash = { workspace = true }
+ttf-parser = { workspace = true }
+tiny-skia = "0.12.0"
+[target.'cfg(windows)'.dependencies]
+# 增补 feature (基线见 workspace 根):
+# - Win32_UI_Shell: Shell_NotifyIconW 系统托盘 (tray.rs)
+# - Win32_System_Threading: OpenProcess/QueryFullProcessImageNameW (platform_extras 焦点检测进程名);
+#   GetCurrentThreadId (hotkey.rs 钩子线程 id 回传, PostThreadMessageW 投 WM_QUIT 退泵用)
+windows = { workspace = true, features = ["Win32_UI_Shell", "Win32_System_Threading"] }
+
+[lints]
+workspace = true

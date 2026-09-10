@@ -1,0 +1,1123 @@
+//! D9 表单 IPC dispatcher (主线程执行体): tauri command (async 线程) → mpsc →
+//! [`ShellForm::pump_once`] 内 drain → 本模块 → MainFormState 写链 / AppShell 命令。
+//! 组装层单点粘合 `FormMessageDto ↔ Message` (webui 不依赖 ui)。
+
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use crate::{AppShell, UiCommand};
+use kernel::base::java_compat::java_parse_boolean;
+use kernel::config::configuration_service::ConfigurationService;
+use ui::main_form::{self, MainFormState, Message};
+use webui::dto::FormMessageDto;
+use webui::ipc::{self, FormRuntime, IpcReply, RequestKind};
+
+/// 主线程共享的表单态 cell (Rc 单线程: dispatcher 与主循环同在主线程;
+/// 托盘 rebuild 后由主循环整体替换 — 对位原相 A 每次构造新 MainForm)
+pub type FormCell = Rc<RefCell<Option<MainFormState>>>;
+
+/// 构建表单态 (对位原相 A 的 build_form_state: 与当前核共享 ConfigurationService,
+/// Arc<ServiceInner> 克隆 = Java tc.configService 单对象语义)
+pub fn build_form_state(shell: &AppShell) -> MainFormState {
+    let config = shell
+        .controller
+        .as_ref()
+        .map(|c| c.config.clone())
+        .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&shell.ui_bus))));
+    MainFormState::new(config, Arc::clone(&shell.ui_bus))
+}
+
+/// dispatcher 构造 (注入 ShellForm; 主线程调用, 无 Send 约束)
+pub fn make_dispatcher(shell: &Rc<RefCell<AppShell>>, cell: FormCell) -> webui::Dispatcher {
+    let shell = Rc::clone(shell);
+    Box::new(move |kind, rt| dispatch_form(kind, rt, &shell, &cell))
+}
+
+/// 请求执行体 (纯流程函数 — 可不开 webview 单测: shell/cell 以真对象驱动)
+fn dispatch_form(
+    kind: RequestKind,
+    rt: &mut FormRuntime,
+    shell: &Rc<RefCell<AppShell>>,
+    cell: &FormCell,
+) -> IpcReply {
+    match kind {
+        // 壳态请求走默认实现 (UiReady/WindowEcho)
+        RequestKind::UiReady | RequestKind::WindowEcho => ipc::dispatch(kind, rt),
+        RequestKind::GetLayoutTree => {
+            // serde 模型直出 (Phase 1: dto 映射层退役)
+            let panels = cell
+                .borrow()
+                .as_ref()
+                .map(|f| f.groups().to_vec())
+                .unwrap_or_default();
+            serde_json::to_value(panels)
+                .map(IpcReply::Ok)
+                .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+        }
+        RequestKind::GetComboOptions { source, current } => {
+            let borrowed = cell.borrow();
+            match borrowed.as_ref() {
+                Some(f) => serde_json::to_value(f.options_for(&source, &current))
+                    .map(IpcReply::Ok)
+                    .unwrap_or_else(|e| IpcReply::Err(e.to_string())),
+                None => IpcReply::Err("表单态未初始化 (重建中)".to_string()),
+            }
+        }
+        RequestKind::GetAssetRoot => std::env::current_dir()
+            .map(|p| IpcReply::Ok(serde_json::json!(p.to_string_lossy())))
+            .unwrap_or_else(|e| IpcReply::Err(e.to_string())),
+        RequestKind::FormMessage(dto) => form_message(dto, shell, cell, rt),
+        // ---- W4 HUD 布局编辑器 ----
+        RequestKind::GetComponentCatalog => {
+            use overlay::widgets::registry::PropKind;
+            let catalog: Vec<_> = overlay::widgets::widget_registry()
+                .iter()
+                .map(|m| {
+                    let schema: Vec<_> = m
+                        .props_schema
+                        .iter()
+                        .map(|p| {
+                            let mut o = serde_json::json!({
+                                "key": p.key,
+                                "displayZh": p.display_zh,
+                                "kind": match p.kind {
+                                    PropKind::Bool => "Bool",
+                                    PropKind::Int => "Int",
+                                    PropKind::Str => "Str",
+                                    PropKind::Color => "Color",
+                                    PropKind::Target => "Target",
+                                    PropKind::Enum(_) => "Enum",
+                                },
+                            });
+                            if let PropKind::Enum(values) = p.kind {
+                                o["values"] = serde_json::json!(values);
+                            }
+                            o
+                        })
+                        .collect();
+                    serde_json::json!({
+                        "typeName": m.type_name,
+                        "displayZh": m.display_zh,
+                        "category": format!("{:?}", m.category),
+                        "composite": m.composite,
+                        "configKeys": m.config_keys,
+                        "dataShorts": m.data_shorts,
+                        "propsSchema": schema,
+                        // palette 新建初值 (const JSON 文本 → 对象直传; 空值工厂
+                        // Err → 组件静默不建是 P0 静默失败问题的根源)
+                        "defaultProps": serde_json::from_str::<serde_json::Value>(m.default_props)
+                            .unwrap_or_else(|_| serde_json::json!({})),
+                    })
+                })
+                .collect();
+            // 常用字段预设 (出厂页 data.field/engine.gauge 组件原样导出 — palette
+            // 直接列「表速」「节流阀」…, 点击即完整配置组件; 单一数据源)
+            let lang = kernel::lang::Lang::init_lang();
+            let engine_names: std::collections::HashMap<&str, String> =
+                overlay::overlays::engine_control::ENGINE_GAUGE_DEFS
+                    .iter()
+                    .map(|def| (def.key, (def.label)(&lang).to_string()))
+                    .collect();
+            let field_presets: Vec<_> = kernel::config::json_store::factory()
+                .pages
+                .iter()
+                .filter(|p| {
+                    p.id == "flight-info-default" || p.id == "power-info-default"
+                })
+                .flat_map(|p| p.components.iter())
+                .filter(|c| c.r#type == "core.data.field")
+                .map(|c| {
+                    serde_json::json!({
+                        "label": c.props.get("label").and_then(|v| v.as_str()).unwrap_or(&c.id),
+                        "props": c.props,
+                    })
+                })
+                .chain(
+                    // 引擎仪表预设 (7 仪表中文名; 出厂引擎页同款 props)
+                    overlay::overlays::engine_control::ENGINE_GAUGE_DEFS
+                        .iter()
+                        .map(|def| {
+                            serde_json::json!({
+                                "label": engine_names.get(def.key).cloned().unwrap_or_else(|| def.key.to_string()),
+                                "props": serde_json::json!({ "kind": def.key }),
+                            })
+                        }),
+                )
+                .collect();
+            serde_json::to_value(serde_json::json!({
+                "components": catalog,
+                "fieldPresets": field_presets,
+            }))
+            .map(IpcReply::Ok)
+            .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+        }
+        RequestKind::GetPages => {
+            let s = shell.borrow();
+            let config = s
+                .controller
+                .as_ref()
+                .map(|c| c.config.clone())
+                .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
+            let pages = config.pages();
+            let factory_ids: Vec<String> = kernel::config::json_store::factory()
+                .pages
+                .iter()
+                .map(|p| p.id.clone())
+                .collect();
+            let hints = config.page_upgrade_hints();
+            let list: Vec<_> = pages
+                .iter()
+                .map(|p| {
+                    serde_json::json!({
+                        "id": p.id,
+                        "name": p.name,
+                        "activation": p.activation,
+                        "isFactory": factory_ids.contains(&p.id),
+                        "componentCount": p.components.len(),
+                        "upgradeAvailable": hints.iter().any(|(id, _, _)| *id == p.id),
+                    })
+                })
+                .collect();
+            serde_json::to_value(serde_json::json!({
+                "pages": list,
+                // 文档全量 (编辑器前端全量编辑面)
+                "docs": pages.iter().map(|p| serde_json::to_value(p).unwrap_or_default()).collect::<Vec<_>>(),
+                // 出厂文档全量 (R7 编辑控制台「恢复出厂页」的源; 会话内 UpdatePage
+                // 回出厂内容 = 恢复出厂, 退出提交时统一落盘)
+                "factoryDocs": kernel::config::json_store::factory().pages
+                    .iter()
+                    .map(|p| serde_json::to_value(p).unwrap_or_default())
+                    .collect::<Vec<_>>(),
+                "upgradeHints": hints.iter().map(|(id, base, cur)| serde_json::json!({
+                    "id": id, "userVersion": base, "factoryVersion": cur,
+                })).collect::<Vec<_>>(),
+            }))
+            .map(IpcReply::Ok)
+            .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+        }
+        // ---- R6/R7 真窗编辑会话 (主线程中转 → UiCommand 送渲染线程) ----
+        RequestKind::BeginEditSession => {
+            shell.borrow().send_ui(UiCommand::BeginEditSession);
+            IpcReply::Ok(serde_json::json!({ "ok": true }))
+        }
+        RequestKind::EndEditSession { commit } => {
+            shell.borrow().send_ui(UiCommand::EndEditSession { commit });
+            IpcReply::Ok(serde_json::json!({ "ok": true }))
+        }
+        RequestKind::EditCommand { payload } => {
+            // 载荷 = EditCommand serde Value (前端 camelCase; 反序列化在主线程,
+            // 装箱送渲染线程)
+            match serde_json::from_value::<crate::edit_session::EditCommand>(payload) {
+                Ok(cmd) => {
+                    shell.borrow().send_ui(UiCommand::Edit(Box::new(cmd)));
+                    IpcReply::Ok(serde_json::json!({ "ok": true }))
+                }
+                Err(e) => IpcReply::Err(format!("编辑命令解析失败: {e}")),
+            }
+        }
+        RequestKind::OpenComparisonWindow { fm0, fm1 } => {
+            // FMLIST 行 对比按钮 (批3): Java FMListRowRenderer 的 View 键 —
+            // 选中机型单机视图 (fm1 恒 null) 开对比窗; 参数由前端显式传 (对位 Java
+            // 按钮体直取 combo 当前项), 不读 cfg。空 fm1 由 web_windows 归一为单机模式
+            open_web_window(&WebWindowRequest::Comparison { fm0, fm1 }, rt)
+        }
+        RequestKind::GetVoicePacks => {
+            // Java VoiceResourceManager.getInstance().get_available_packs():
+            // "default" + voice/ 子目录。共享实例 = shell.voice (AppShell 字段,
+            // Java 单例落位, winmm waveOut 播放器; 试听/告警装配复用同一实例)
+            let mgr = Arc::clone(&shell.borrow().voice);
+            serde_json::to_value(mgr.get_available_packs())
+                .map(IpcReply::Ok)
+                .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+        }
+        RequestKind::PreviewVoice { key, pack } => {
+            // Java VoiceRowRenderer 试听按钮 (按钮体提取为
+            // preview_voice_clip 以注入 mock 播放器断言 load/play 与 pack 传递);
+            // 忽略 enable 态 (preview 语义), 失败无声, 回执恒 Ok (Java 按钮无失败反馈面)
+            let mgr = Arc::clone(&shell.borrow().voice);
+            let _ = preview_voice_clip(&mgr, &key, &pack); // 保活线程自持至播完
+            IpcReply::Ok(serde_json::json!({ "ok": true }))
+        }
+        RequestKind::GetFmList => {
+            // Java FMListRowRenderer 扫 flightmodels 根的中央文件名 (去扩展)。
+            // 收敛点 list_fm_names: 只收 .json (blkx→json 迁移, data/ 双格式同名
+            // 并存不过滤会重复), 排序去重, 目录不存在 → 空 vec
+            let names = kernel::fm::data_paths::list_fm_names("");
+            serde_json::to_value(names)
+                .map(IpcReply::Ok)
+                .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
+        }
+        RequestKind::ImportConfig { path } => {
+            // 导入 = 外部 delta 文件覆盖当前 delta + 重合成 + 落盘 (json_store 链)
+            let ok = {
+                let s = shell.borrow();
+                s.controller
+                    .as_ref()
+                    .is_some_and(|c| c.config.import_config(&path))
+            };
+            if ok {
+                // 重建表单快照 (对位 Java import 后 rebuild; 与核共享的 config 服务)
+                let s = shell.borrow_mut();
+                *cell.borrow_mut() = Some(build_form_state(&s));
+                drop(s);
+                // 广播整树变更 (前端重拉 + overlay 全量刷新, reset 链同款全局键)
+                let s = shell.borrow();
+                s.ui_bus.publish(
+                    kernel::base::event::ui_state_events::CONFIG_CHANGED,
+                    Some("ConfigImport"),
+                    Some("ui_layout.cfg"),
+                );
+                IpcReply::Ok(serde_json::json!({ "ok": true }))
+            } else {
+                IpcReply::Err(format!("导入失败: {path} (解析错误, 原配置未动)"))
+            }
+        }
+    }
+}
+
+
+// (R8: solve_page_ipc 快照链退役 — 真窗即画布, 编辑在渲染线程侧)
+
+/// 批3 open* 按钮的开窗请求 (Java ButtonRowRenderer 直接 new 窗口的入参面)
+#[derive(Debug, Clone, PartialEq)]
+pub enum WebWindowRequest {
+    /// CompactComparisonWindow(parent, ctr, fm0, fm1)
+    Comparison { fm0: String, fm1: Option<String> },
+    /// PowerCurveWindow(parent, fm0, fm1, speedKmh, wep)
+    PowerCurve {
+        fm0: String,
+        fm1: Option<String>,
+        speed_kmh: i32,
+        wep: bool,
+    },
+}
+
+// Java 标准库语义助手 (java_parse_int_or / java_parse_boolean) 已收敛
+// kernel::base::java_compat, 本模块不再持本地副本。
+
+/// open* 按钮分派 (Java ButtonRowRenderer 按钮体): 读 cfg 组装开窗
+/// 入参; 非 open* 键返回 None (走原表单链)。纯流程函数 — cfg 读写可注入观测。
+///
+/// cfg 读取对位 Java RenderContext:
+/// getString(key, def) = getConfig 为 null/空 → def; getBool(key, false) 同。
+fn route_open_action(action: &str, shell: &Rc<RefCell<AppShell>>) -> Option<WebWindowRequest> {
+    use kernel::config::config_api::ConfigProvider as _;
+
+    let get_string = |key: &str, default: &str| -> String {
+        let s = shell
+            .borrow()
+            .controller
+            .as_ref()
+            .and_then(|c| c.config.get_config(key))
+            .unwrap_or_default();
+        if s.is_empty() {
+            default.to_string()
+        } else {
+            s
+        }
+    };
+
+    match action {
+        // Java 缺省: selectedFM0 → "a_4h", selectedFM1 → "a6m5_zero"
+        "openComparison" => Some(WebWindowRequest::Comparison {
+            fm0: get_string("selectedFM0", "a_4h"),
+            fm1: Some(get_string("selectedFM1", "a6m5_zero")),
+        }),
+        // Java 缺省: fm0 "bf-109f-4", fm1 ""; speed parseInt 异常→0;
+        // wep = Boolean.parseBoolean(powerCurveWep)
+        "openPowerCurve" => Some(WebWindowRequest::PowerCurve {
+            fm0: get_string("selectedFM0", "bf-109f-4"),
+            fm1: Some(get_string("selectedFM1", "")),
+            speed_kmh: get_string("powerCurveSpeed", "0").parse().unwrap_or(0),
+            wep: java_parse_boolean(&get_string("powerCurveWep", "false")),
+        }),
+        _ => None,
+    }
+}
+
+/// 开窗执行体: dispatcher 恰在主线程泵内 (ShellForm::pump_once), 满足 tao 建窗
+/// 的主线程约束; 无 AppHandle (web 壳不可用/测试形态) 显式 Err 不静默
+fn open_web_window(req: &WebWindowRequest, rt: &FormRuntime) -> IpcReply {
+    let Some(handle) = rt.app_handle.as_ref() else {
+        return IpcReply::Err("web 壳不可用, 无法打开辅助窗口".to_string());
+    };
+    let res = match req {
+        WebWindowRequest::Comparison { fm0, fm1 } => {
+            webui::web_windows::open_comparison_window(handle, fm0, fm1.as_deref())
+        }
+        WebWindowRequest::PowerCurve {
+            fm0,
+            fm1,
+            speed_kmh,
+            wep,
+        } => webui::web_windows::open_power_curve_window(
+            handle,
+            fm0,
+            fm1.as_deref(),
+            *speed_kmh,
+            *wep,
+        ),
+    };
+    match res {
+        Ok(()) => IpcReply::Ok(serde_json::json!({ "ok": true })),
+        Err(e) => IpcReply::Err(e),
+    }
+}
+
+/// 表单消息: 数据面全链 (WYSIWYG 写回在 update 内闭环);
+/// StartGame/EndGame 附带 shell 命令 (对位原 iced 壳 hooks 的 tc 侧序列)。
+fn form_message(
+    dto: FormMessageDto,
+    shell: &Rc<RefCell<AppShell>>,
+    cell: &FormCell,
+    rt: &FormRuntime,
+) -> IpcReply {
+    let msg = to_message(dto);
+    // 批3: open* 两键在表单写链前拦截 — Java ButtonRowRenderer 直接开窗 (无确认
+    // 模态/无表单副作用); ui main_form 对 open* 只 warn+Ignore, 放行会丢动作
+    if let Message::ButtonAction { action } = &msg {
+        if let Some(req) = route_open_action(action, shell) {
+            return open_web_window(&req, rt);
+        }
+    }
+    match &msg {
+        Message::StartGame | Message::EndGame => {
+            // 保存链先行 (Java MainForm.confirm/mCancel 的 saveConfig), 再 tc 侧命令
+            if let Some(f) = cell.borrow_mut().as_mut() {
+                main_form::update(f, msg.clone());
+            }
+            let cmd = match &msg {
+                Message::StartGame => UiCommand::StartGame,
+                _ => UiCommand::EndGame,
+            };
+            shell.borrow_mut().dispatch(cmd);
+            IpcReply::Ok(serde_json::json!({ "ok": true }))
+        }
+        _ => {
+            let mut borrowed = cell.borrow_mut();
+            match borrowed.as_mut() {
+                Some(f) => {
+                    main_form::update(f, msg);
+                    IpcReply::Ok(serde_json::json!({ "ok": true }))
+                }
+                None => IpcReply::Err("表单态未初始化 (重建中)".to_string()),
+            }
+        }
+    }
+}
+
+/// Java VoiceRowRenderer ▶ 按钮体: pKey = stripVoicePrefix(property),
+/// clip = loadClip(pKey, 当前选中包), 非 null → setFramePosition(0) + start。
+/// clip==null 静默返回 (Java 无声失败, 不弹错误); // ignoring enable state for preview
+/// (试听无视 enable 开关)。提取为独立纯流程函数 — 可注入 mock SoundPlayer 断言
+/// load/play 调用序列与 pack 传递 (AppShell 的共享实例持 winmm 播放器, 不可 mock)。
+///
+/// 返回保活线程 JoinHandle (审查 B-B1 修复): Java 局部 clip 引用出作用域后
+/// 原生 line 靠 GC finalizer 非确定性延迟释放而自然播完; Rust 确定性 Drop
+/// (RAII close → waveOutReset+Close) 会掐断刚提交的播放 — clip 交
+/// [`kernel::audio::voice_warning::hold_clip_until_done`] 持至播完 (对位 GC 延迟
+/// 语义)。生产调用点忽略返回值; 测试 join 后断言收尾。
+fn preview_voice_clip(
+    mgr: &kernel::audio::voice_resource_manager::VoiceResourceManager,
+    key: &str,
+    pack: &str,
+) -> Option<std::thread::JoinHandle<()>> {
+    let p_key = kernel::audio::VoicePackConfig::strip_voice_prefix(Some(key)).unwrap_or_default();
+    if let Some(clip) = mgr.load_clip(&p_key, Some(pack)) {
+        clip.set_frame_position(0);
+        clip.start();
+        Some(kernel::audio::voice_warning::hold_clip_until_done(clip))
+    } else {
+        None
+    }
+}
+
+/// dto → Message (一一对应; 组装层单点)
+fn to_message(dto: FormMessageDto) -> Message {
+    match dto {
+        FormMessageDto::Toggle { panel, key, value } => Message::Toggle { panel, key, value },
+        FormMessageDto::Slider { panel, key, value } => Message::Slider { panel, key, value },
+        FormMessageDto::Combo { panel, key, value } => Message::Combo { panel, key, value },
+        FormMessageDto::ColorPicked { panel, key, value } => {
+            Message::ColorPicked { panel, key, value }
+        }
+        FormMessageDto::Save => Message::Save,
+        FormMessageDto::StartGame => Message::StartGame,
+        FormMessageDto::EndGame => Message::EndGame,
+        FormMessageDto::RefreshPreviews => Message::RefreshPreviews,
+        FormMessageDto::ButtonAction { action } => Message::ButtonAction { action },
+        FormMessageDto::ConfirmPending => Message::ConfirmPending,
+        FormMessageDto::CancelPending => Message::CancelPending,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex; // mock 播放器记录面 (原顶层 use 转发, Rc 化后局部补)
+
+    /// dto→Message 映射完整性: IPC 序列正确性的前提 (与 iced 基线 diff=0 验收配套)
+    #[test]
+    fn to_message_全变体逐字段映射() {
+        assert!(matches!(
+            to_message(FormMessageDto::Toggle { panel: "p".into(), key: "k".into(), value: true }),
+            Message::Toggle { panel, key, value: true } if panel == "p" && key == "k"
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::Slider {
+                panel: "p".into(),
+                key: "k".into(),
+                value: 42
+            }),
+            Message::Slider { value: 42, .. }
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::Combo { panel: "p".into(), key: "k".into(), value: "v".into() }),
+            Message::Combo { value, .. } if value == "v"
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::ColorPicked {
+                panel: "p".into(),
+                key: "k".into(),
+                value: [1, 2, 3, 4]
+            }),
+            Message::ColorPicked {
+                value: [1, 2, 3, 4],
+                ..
+            }
+        ));
+        assert!(matches!(to_message(FormMessageDto::Save), Message::Save));
+        assert!(matches!(
+            to_message(FormMessageDto::StartGame),
+            Message::StartGame
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::EndGame),
+            Message::EndGame
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::RefreshPreviews),
+            Message::RefreshPreviews
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::ButtonAction { action: "resetConfig".into() }),
+            Message::ButtonAction { action } if action == "resetConfig"
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::ConfirmPending),
+            Message::ConfirmPending
+        ));
+        assert!(matches!(
+            to_message(FormMessageDto::CancelPending),
+            Message::CancelPending
+        ));
+    }
+
+    /// 最小树 (autoStartGameMode=false 单行)
+    fn min_panels() -> Vec<kernel::config::json_model::GroupConfig> {
+        use kernel::config::json_model::{ConfigValue, GroupConfig, RowConfig};
+        vec![GroupConfig {
+            title: "T".to_string(),
+            visible: true,
+            rows: vec![RowConfig {
+                label: "auto".to_string(),
+                r#type: "SWITCH".to_string(),
+                property: Some("autoStartGameMode".to_string()),
+                value: Some(ConfigValue::Bool(false)),
+                default_value: Some(ConfigValue::Bool(false)),
+                ..RowConfig::default()
+            }],
+            ..GroupConfig::default()
+        }]
+    }
+
+    /// 最小壳装配 (app_shell tests fixture 的 bin 侧本地版 — dispatcher 需真 shell;
+    /// Rc 单线程共享 = 生产 main.rs 同款形态)
+    fn min_shell() -> Rc<RefCell<AppShell>> {
+        // 最小树 (tag 与 open* 测试的 tmp 文件互不覆盖)
+        shell_with_cfg(min_panels(), "min")
+    }
+
+    /// 按给定 cfg 文本建壳 (min_shell 的可配置版; 测试并行各自独立 tmp 文件)
+    fn shell_with_cfg(panels: Vec<kernel::config::json_model::GroupConfig>, tag: &str) -> Rc<RefCell<AppShell>> {
+        use crate::ShellParts;
+        let ui_bus = Arc::new(kernel::base::bus::ui_state_bus::UIStateBus::new());
+        let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
+        let cfg =
+            std::env::temp_dir().join(format!("vm_app_formdisp_{tag}_{}.json", std::process::id()));
+        config.install_for_test(panels, cfg.to_str().unwrap());
+        let (hotkey, hotkey_rx) = overlay::platform::hotkey::HotkeyManager::with_channel();
+        let env = crate::Env::probe(&kernel::lang::Lang::init_lang(), false);
+        Rc::new(RefCell::new(AppShell::with_parts(ShellParts {
+            env,
+            config,
+            ui_bus,
+            flight_bus: Arc::new(kernel::base::bus::flight_data_bus::FlightDataBus::new()),
+            fm: Arc::new(kernel::fm::FMManager::new(Arc::new(
+                kernel::base::bus::EventBus::new(),
+            ))),
+            hotkey,
+            hotkey_rx,
+            debounce_delay: std::time::Duration::from_millis(30),
+        })))
+    }
+
+    /// GetVoicePacks 走共享实例 shell.voice (Java getInstance() 单例; NoopPlayer
+    /// 已退役, 播放器为 winmm waveOut 腿): 列表含 default + voice/ 子目录
+    #[test]
+    fn get_voice_packs_走共享实例含_default() {
+        let shell = min_shell();
+        let cell: FormCell = Rc::new(RefCell::new(None));
+        let mut disp = make_dispatcher(&shell, Rc::clone(&cell));
+        let mut rt = FormRuntime::default();
+        let reply = disp(RequestKind::GetVoicePacks, &mut rt);
+        let IpcReply::Ok(v) = reply else {
+            panic!("期望 Ok: {reply:?}")
+        };
+        let arr = v.as_array().expect("语音包列表应为 JSON 数组");
+        assert!(
+            arr.iter().any(|p| p == "default"),
+            "必须含 default (Java getAvailablePacks 恒含): {v}"
+        );
+    }
+
+    /// 试听 (Java VoiceRowRenderer): voice_ 前缀 strip 后经共享
+    /// 实例 load_clip; CWD 无 voice/<key>.wav → clip==null 静默 (Java 同款无声
+    /// 失败), 回执恒 Ok — 不假成功也不报错 (Java 按钮无失败反馈面)
+    #[test]
+    fn preview_voice_缺失文件_静默ok() {
+        let shell = min_shell();
+        let cell: FormCell = Rc::new(RefCell::new(None));
+        let mut disp = make_dispatcher(&shell, Rc::clone(&cell));
+        let mut rt = FormRuntime::default();
+        let reply = disp(
+            RequestKind::PreviewVoice {
+                key: "voice_aoaCrit".into(),
+                pack: "default".into(),
+            },
+            &mut rt,
+        );
+        assert!(
+            matches!(reply, IpcReply::Ok(_)),
+            "缺失文件应静默 Ok (Java clip==null 无声): {reply:?}"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // mock SoundPlayer 面向: preview_voice_clip 的 strip/load/play/pack 断言
+    // (共享实例持 winmm 播放器不可 mock — 按钮体已提取为独立纯流程函数)
+    // ------------------------------------------------------------------
+
+    /// mock SoundClip: 按序记录控制面调用 ("seek:N"/"start"/…);
+    /// 音量控件不支持 (master_gain_range=None → applyVolume 空 catch 路径, §2.7)。
+    /// 履行 trait 文档的 RAII 兜底契约 (Drop 等价 close, WaveOutClip 同款,
+    /// 审查 B-B2); close 幂等 (closed 标志) — 保活线程显式 close 后 Drop 兜底
+    /// 不再双记, "恰好一次 close" 断言语义保持
+    struct MockClip {
+        calls: Arc<Mutex<Vec<String>>>,
+        closed: std::sync::atomic::AtomicBool,
+    }
+    impl kernel::audio::voice_resource_manager::SoundClip for MockClip {
+        fn start(&self) {
+            self.calls.lock().unwrap().push("start".into());
+        }
+        fn stop(&self) {
+            self.calls.lock().unwrap().push("stop".into());
+        }
+        fn is_running(&self) -> bool {
+            false
+        }
+        fn set_frame_position(&self, frame: i32) {
+            self.calls.lock().unwrap().push(format!("seek:{frame}"));
+        }
+        fn close(&self) {
+            if self.closed.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                return; // 已 close 再 close 无副作用 (Java line close 状态机)
+            }
+            self.calls.lock().unwrap().push("close".into());
+        }
+        fn master_gain_range(&self) -> Option<(f32, f32)> {
+            None // Control not supported
+        }
+        fn set_master_gain(&self, _value: f32) {
+            self.calls.lock().unwrap().push("gain".into());
+        }
+    }
+    impl Drop for MockClip {
+        fn drop(&mut self) {
+            // RAII 兜底契约 (trait 文档); trait 方法全限定调用 (模块未 use SoundClip)
+            kernel::audio::voice_resource_manager::SoundClip::close(self);
+        }
+    }
+
+    /// mock SoundPlayer: 记录 open_clip 收到的解析路径 (pack 传递的观测面)
+    struct MockPlayer {
+        opened: Arc<Mutex<Vec<std::path::PathBuf>>>,
+        calls: Arc<Mutex<Vec<String>>>,
+    }
+    impl kernel::audio::voice_resource_manager::SoundPlayer for MockPlayer {
+        fn open_clip(
+            &self,
+            path: &std::path::Path,
+        ) -> Result<
+            Box<dyn kernel::audio::voice_resource_manager::SoundClip>,
+            kernel::audio::voice_resource_manager::SoundError,
+        > {
+            self.opened.lock().unwrap().push(path.to_path_buf());
+            Ok(Box::new(MockClip {
+                calls: Arc::clone(&self.calls),
+                closed: std::sync::atomic::AtomicBool::new(false),
+            }))
+        }
+    }
+
+    /// mock_voice_mgr 的返回束: (管理器, open_clip 路径记录, 控制面调用记录, voice 根)
+    /// — 四元组直书触发 clippy type_complexity, 别名收口
+    type MockVoiceFixture = (
+        kernel::audio::voice_resource_manager::VoiceResourceManager,
+        Arc<Mutex<Vec<std::path::PathBuf>>>,
+        Arc<Mutex<Vec<String>>>,
+        std::path::PathBuf,
+    );
+
+    /// 临时 voice 根 + mock 管理器 (new_with_voice_dir 测试注入先例)
+    fn mock_voice_mgr() -> MockVoiceFixture {
+        let root = std::env::temp_dir().join(format!("vm_preview_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("jarvis")).unwrap();
+        // default 根与 jarvis/ 各放一份 (pack 解析优先级观测)
+        std::fs::write(root.join("aoaCrit.wav"), b"").unwrap();
+        std::fs::write(root.join("jarvis/aoaCrit.wav"), b"").unwrap();
+        let opened: Arc<Mutex<Vec<std::path::PathBuf>>> = Arc::new(Mutex::new(Vec::new()));
+        let calls: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let mgr = kernel::audio::voice_resource_manager::VoiceResourceManager::new_with_voice_dir(
+            Box::new(MockPlayer {
+                opened: Arc::clone(&opened),
+                calls: Arc::clone(&calls),
+            }),
+            root.to_string_lossy().into_owned(),
+        );
+        (mgr, opened, calls, root)
+    }
+
+    /// 试听按钮体全链: voice_ 前缀 strip + pack 传达到文件解析 +
+    /// setFramePosition(0) 先于 start (Java 按钮序, 逐句对齐)。
+    /// B-B1 后按钮序多了保活收尾 close (播完后释放设备) — join 保活线程
+    /// 消除与断言的竞态, 再核对完整调用序
+    #[test]
+    fn preview_voice_clip_strip前缀_load_play_与pack传递() {
+        let (mgr, opened, calls, root) = mock_voice_mgr();
+        let hold = preview_voice_clip(&mgr, "voice_aoaCrit", "jarvis");
+        {
+            let o = opened.lock().unwrap();
+            assert_eq!(o.len(), 1, "恰好一次 load (Java loadClip 单调用)");
+            assert!(
+                o[0].ends_with(std::path::Path::new("jarvis").join("aoaCrit.wav")),
+                "pack 必须传达到文件解析 (voice/jarvis/aoaCrit.wav): {}",
+                o[0].display()
+            );
+        }
+        hold.expect("clip 加载成功应有保活线程").join().unwrap();
+        // 完整序 (join 后无竞态): seek 先于 start (Java 按钮序) + 保活收尾
+        // close (mock is_running 恒 false → 保活线程立即收尾, B-B1 对位
+        // GC finalizer 延迟释放)
+        assert_eq!(
+            *calls.lock().unwrap(),
+            vec![
+                "seek:0".to_string(),
+                "start".to_string(),
+                "close".to_string()
+            ],
+            "按钮序: setFramePosition(0) → start → 播完 close"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// pack 无该文件时回退 default 根 (Java resolveAudioFile 第 2 步) — pack 仍传递
+    #[test]
+    fn preview_voice_clip_pack缺失回退default根() {
+        let (mgr, opened, calls, root) = mock_voice_mgr();
+        let hold = preview_voice_clip(&mgr, "voice_aoaCrit", "nosuch");
+        {
+            let o = opened.lock().unwrap();
+            assert_eq!(o.len(), 1, "回退路径也只 load 一次");
+            assert!(
+                o[0].ends_with(std::path::Path::new("aoaCrit.wav"))
+                    && !o[0].components().any(|c| c.as_os_str() == "nosuch"),
+                "应回退 voice/aoaCrit.wav 而非 voice/nosuch/: {}",
+                o[0].display()
+            );
+        }
+        hold.expect("回退命中应有保活线程").join().unwrap();
+        assert_eq!(
+            *calls.lock().unwrap(),
+            vec![
+                "seek:0".to_string(),
+                "start".to_string(),
+                "close".to_string()
+            ],
+            "回退路径照常播放 + 保活收尾同款"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 键与包全缺失 → 零调用零 panic (clip==null 静默, Java 无声失败)
+    #[test]
+    fn preview_voice_clip_全缺失_零调用静默() {
+        let (mgr, opened, calls, root) = mock_voice_mgr();
+        let hold = preview_voice_clip(&mgr, "voice_nosuch", "default");
+        assert!(hold.is_none(), "clip==null 无保活线程 (Java 无声失败面)");
+        assert!(
+            opened.lock().unwrap().is_empty(),
+            "文件不存在不得触达播放器 (resolve 阶段即 None)"
+        );
+        assert!(
+            calls.lock().unwrap().is_empty(),
+            "无 clip 则无任何控制面调用"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// B-B1 回归锚 (fire-and-forget 存活性): 在播 clip 不得被立即 Drop 关闭 —
+    /// 原 bug 形态 = preview_voice_clip 返回即 drop → close, 提交的播放被掐断
+    /// (真实 winmm 播放器下试听无声; mock clip 的 drop 无副作用故旧测试探测
+    /// 不到)。LatchClip 的 is_running 由测试侧控制: 起播后 150ms 内 close 不得
+    /// 发生 (close 只会由保活线程在 is_running 翻 false / 60s 超时后调用,
+    /// 正常实现下无竞态), 翻 false + join 后 close 恰好一次
+    #[test]
+    fn preview_voice_clip_在播期间不被提前close() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        struct LatchClip {
+            running: Arc<AtomicBool>,
+            closed: Arc<AtomicBool>,
+            calls: Arc<Mutex<Vec<String>>>,
+        }
+        impl kernel::audio::voice_resource_manager::SoundClip for LatchClip {
+            fn start(&self) {
+                self.calls.lock().unwrap().push("start".into());
+            }
+            fn stop(&self) {}
+            fn is_running(&self) -> bool {
+                self.running.load(Ordering::SeqCst)
+            }
+            fn set_frame_position(&self, frame: i32) {
+                self.calls.lock().unwrap().push(format!("seek:{frame}"));
+            }
+            fn close(&self) {
+                // swap 兼做幂等闸 (首调返回 false): 保活线程显式 close 后
+                // Drop 兜底不再双记 "close" (MockClip 同款契约)
+                if self.closed.swap(true, Ordering::SeqCst) {
+                    return;
+                }
+                self.calls.lock().unwrap().push("close".into());
+            }
+            fn master_gain_range(&self) -> Option<(f32, f32)> {
+                None
+            }
+            fn set_master_gain(&self, _value: f32) {}
+        }
+        impl Drop for LatchClip {
+            fn drop(&mut self) {
+                // RAII 兜底契约 (trait 文档); trait 方法全限定调用 (测试 fn 内无 use)
+                kernel::audio::voice_resource_manager::SoundClip::close(self);
+            }
+        }
+        struct LatchPlayer {
+            running: Arc<AtomicBool>,
+            closed: Arc<AtomicBool>,
+            calls: Arc<Mutex<Vec<String>>>,
+        }
+        impl kernel::audio::voice_resource_manager::SoundPlayer for LatchPlayer {
+            fn open_clip(
+                &self,
+                _path: &std::path::Path,
+            ) -> Result<
+                Box<dyn kernel::audio::voice_resource_manager::SoundClip>,
+                kernel::audio::voice_resource_manager::SoundError,
+            > {
+                Ok(Box::new(LatchClip {
+                    running: Arc::clone(&self.running),
+                    closed: Arc::clone(&self.closed),
+                    calls: Arc::clone(&self.calls),
+                }))
+            }
+        }
+
+        let root = std::env::temp_dir().join(format!("vm_b1latch_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("aoaCrit.wav"), b"").unwrap();
+        let running = Arc::new(AtomicBool::new(true));
+        let closed = Arc::new(AtomicBool::new(false));
+        let calls: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let mgr = kernel::audio::voice_resource_manager::VoiceResourceManager::new_with_voice_dir(
+            Box::new(LatchPlayer {
+                running: Arc::clone(&running),
+                closed: Arc::clone(&closed),
+                calls: Arc::clone(&calls),
+            }),
+            root.to_string_lossy().into_owned(),
+        );
+
+        let hold =
+            preview_voice_clip(&mgr, "voice_aoaCrit", "default").expect("应加载 clip 并起保活线程");
+        // 在播窗口内 (running=true): close 不得发生 — 若 clip 被函数尾 Drop
+        // (原 bug), 150ms 时 close 必已置位
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        assert!(
+            !closed.load(Ordering::SeqCst),
+            "在播 clip 不得被提前 close (B-B1: Drop 掐断 fire-and-forget 播放)"
+        );
+        assert_eq!(
+            *calls.lock().unwrap(),
+            vec!["seek:0".to_string(), "start".to_string()],
+            "在播窗口内只有 seek+start"
+        );
+        // 播完 (is_running 翻 false) → 保活线程收尾 close
+        running.store(false, Ordering::SeqCst);
+        hold.join().unwrap();
+        assert!(
+            closed.load(Ordering::SeqCst),
+            "播完后保活线程应 close 释放设备"
+        );
+        assert_eq!(
+            *calls.lock().unwrap(),
+            vec![
+                "seek:0".to_string(),
+                "start".to_string(),
+                "close".to_string()
+            ],
+            "完整序: seek → start → (播完) close"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    // ------------------------------------------------------------------
+    // 批3: open* 按钮分派 (route_open_action 读 cfg 组装开窗入参) + 表单链前拦截
+    // ------------------------------------------------------------------
+
+    /// 建核 (route_open_action 读 controller.config — with_parts 不建核, 须显式
+    /// rebuild; 注入的 tmp cfg 被首核原样复用, 无写盘副作用)
+    fn with_controller(shell: Rc<RefCell<AppShell>>) -> Rc<RefCell<AppShell>> {
+        shell.borrow_mut().rebuild_controller(true);
+        shell
+    }
+
+    /// open* 行树壳 + 建核 (set_config 只改树中已有行 — kernel
+    /// ServiceInner.set_config 逐行匹配的 Java 保真语义, 故 set_cfg 透传
+    /// 断言需行在位; 缺行→缺省分支用 with_controller(min_shell()) 单独断)
+    fn min_shell_with_controller() -> Rc<RefCell<AppShell>> {
+        with_controller(shell_with_cfg(open_rows_panels(), "openrows"))
+    }
+
+    /// open* 相关键在位的 cfg (对位 ui_layout.cfg:272-278 的 fmlist/slider/switch
+    /// 行 — set_config 只改树中已有行, 缺行的键走 Java 硬缺省分支)
+    /// open* 相关键在位的树 (对位 ui_layout.cfg 的 fmlist/slider/switch 行)
+    fn open_rows_panels() -> Vec<kernel::config::json_model::GroupConfig> {
+        use kernel::config::json_model::{ConfigValue, GroupConfig, RowConfig};
+        let row = |label: &str, ty: &str, target: &str, v: ConfigValue| RowConfig {
+            label: label.to_string(),
+            r#type: ty.to_string(),
+            property: Some(target.to_string()),
+            value: Some(v.clone()),
+            default_value: Some(v),
+            ..RowConfig::default()
+        };
+        vec![GroupConfig {
+            title: "FM数据对比".to_string(),
+            visible: true,
+            rows: vec![
+                row("FM 0", "FMLIST", "selectedFM0", ConfigValue::Str("spitfire_f24".into())),
+                row("FM 1", "FMLIST", "selectedFM1", ConfigValue::Str("p-51c-10-nt".into())),
+                row("选定速度", "SLIDER", "powerCurveSpeed", ConfigValue::Int(350)),
+                row("WEP模式", "SWITCH", "powerCurveWep", ConfigValue::Bool(false)),
+            ],
+            ..GroupConfig::default()
+        }]
+    }
+
+    /// 写壳内核 cfg 键 (controller 与表单态共享同一 ConfigurationService —
+    /// 对位 Java ButtonRowRenderer 经 RenderContext 读 configService)
+    fn set_cfg(shell: &Rc<RefCell<AppShell>>, key: &str, value: &str) {
+        use kernel::config::config_api::ConfigProvider as _;
+        let s = shell.borrow();
+        let c = s.controller.as_ref().expect("rebuild 后应有核");
+        c.config.set_config(key, value);
+    }
+
+    /// openComparison 读 cfg: 缺键/空值 → Java ButtonRowRenderer 缺省对
+    /// (a_4h / a6m5_zero); 行在位非空 → 透传
+    #[test]
+    fn route_open_action_对比窗口_cfg与缺省() {
+        // 缺行壳 → 缺省对 (get_config 空串 → route_open_action 的缺省回退)
+        let bare = with_controller(min_shell());
+        assert_eq!(
+            route_open_action("openComparison", &bare),
+            Some(WebWindowRequest::Comparison {
+                fm0: "a_4h".into(),
+                fm1: Some("a6m5_zero".into())
+            })
+        );
+        // 行在位壳 → 行值透传 (OPEN_ROWS_CFG 的 fmlist 行)
+        let shell = min_shell_with_controller();
+        assert_eq!(
+            route_open_action("openComparison", &shell),
+            Some(WebWindowRequest::Comparison {
+                fm0: "spitfire_f24".into(),
+                fm1: Some("p-51c-10-nt".into())
+            })
+        );
+        // fm1 显式清空 → 仍回缺省 (Java getStringFromConfigService 空串→default
+        // 语义, RenderContext 各实现一致 — 单机
+        // 模式 Some("") 在 Java openComparison 路径不可达, 修正中断 agent 的假设)
+        set_cfg(&shell, "selectedFM1", "");
+        assert_eq!(
+            route_open_action("openComparison", &shell),
+            Some(WebWindowRequest::Comparison {
+                fm0: "spitfire_f24".into(),
+                fm1: Some("a6m5_zero".into())
+            })
+        );
+        // 非 open* 键不分派 (resetConfig 走原确认模态链)
+        assert_eq!(route_open_action("resetConfig", &shell), None);
+        assert_eq!(route_open_action("factoryReset", &shell), None);
+        assert_eq!(route_open_action("importConfig", &shell), None);
+    }
+
+    /// openPowerCurve 读 cfg (Java ButtonRowRenderer): 缺省 bf-109f-4 / "" /
+    /// speed 0 / wep false; speed 非法串 parseInt 异常→0; wep 仅 "true" (忽略
+    /// 大小写) 为真 — Boolean.parseBoolean 语义 ("1" 为 false)
+    #[test]
+    fn route_open_action_功率曲线_缺省与解析容错() {
+        // PowerCurve 请求字段解构 (variant 无结构更新语法, 逐字段断言)
+        let params = |req: Option<WebWindowRequest>| -> (String, Option<String>, i32, bool) {
+            match req {
+                Some(WebWindowRequest::PowerCurve {
+                    fm0,
+                    fm1,
+                    speed_kmh,
+                    wep,
+                }) => (fm0, fm1, speed_kmh, wep),
+                other => panic!("期望 PowerCurve 请求: {other:?}"),
+            }
+        };
+        // 缺行壳 → Java 缺省 (bf-109f-4 / "" / 0 / false)
+        let bare = with_controller(min_shell());
+        assert_eq!(
+            params(route_open_action("openPowerCurve", &bare)),
+            ("bf-109f-4".into(), Some(String::new()), 0, false)
+        );
+        // 行在位壳 → fmlist 行值 + slider 350 透传 (wep 行 false)
+        let shell = min_shell_with_controller();
+        assert_eq!(
+            params(route_open_action("openPowerCurve", &shell)),
+            (
+                "spitfire_f24".into(),
+                Some("p-51c-10-nt".into()),
+                350,
+                false
+            )
+        );
+        set_cfg(&shell, "selectedFM0", "spitfire_f24");
+        set_cfg(&shell, "selectedFM1", "p-51c-10-nt");
+        set_cfg(&shell, "powerCurveSpeed", "350");
+        set_cfg(&shell, "powerCurveWep", "true");
+        assert_eq!(
+            params(route_open_action("openPowerCurve", &shell)),
+            ("spitfire_f24".into(), Some("p-51c-10-nt".into()), 350, true)
+        );
+        // parseInt 异常面: 非数字 / 空白 → 0 (Java 抛 NumberFormatException)。
+        // '+' 前缀在 Java 7+ 为合法正号 (收敛点 java_parse_int 保真, 原本地副本
+        // 误拒 → 旧断言 "+350"→0 与 Java 8 实测不符, 随收割修正)
+        for bad in ["abc", " 350"] {
+            set_cfg(&shell, "powerCurveSpeed", bad);
+            assert_eq!(
+                params(route_open_action("openPowerCurve", &shell)).2,
+                0,
+                "非法速度串应回 0: {bad}"
+            );
+        }
+        set_cfg(&shell, "powerCurveSpeed", "+350");
+        assert_eq!(params(route_open_action("openPowerCurve", &shell)).2, 350);
+        // Boolean.parseBoolean: "1" 非 true; "TRUE" 忽略大小写真
+        set_cfg(&shell, "powerCurveSpeed", "350");
+        set_cfg(&shell, "powerCurveWep", "1");
+        assert!(
+            !params(route_open_action("openPowerCurve", &shell)).3,
+            "\"1\" 应为 false"
+        );
+        set_cfg(&shell, "powerCurveWep", "TRUE");
+        assert!(
+            params(route_open_action("openPowerCurve", &shell)).3,
+            "\"TRUE\" 应为 true"
+        );
+    }
+
+    /// 拦截面: open* ButtonAction 不再落 main_form::update — 无 webview 形态
+    /// (rt 无 AppHandle) 显式 Err("web 壳不可用"); 对照组 resetConfig 走表单链
+    /// (cell 空时报"表单态未初始化", 与开窗 Err 不同源 → 拦截路径可区分),
+    /// Ping 证明 dispatcher 本身健在
+    #[test]
+    fn dispatch_open动作_表单链前拦截() {
+        let shell = min_shell();
+        let cell: FormCell = Rc::new(RefCell::new(None));
+        let mut disp = make_dispatcher(&shell, Rc::clone(&cell));
+        let mut rt = FormRuntime::default(); // 无 app_handle (不开 webview 的测试形态)
+        for action in ["openComparison", "openPowerCurve"] {
+            let reply = disp(
+                RequestKind::FormMessage(FormMessageDto::ButtonAction {
+                    action: action.into(),
+                }),
+                &mut rt,
+            );
+            match &reply {
+                IpcReply::Err(e) => assert!(
+                    e.contains("web 壳不可用"),
+                    "拦截后应报 web 壳缺失而非静默 Ok: {e}"
+                ),
+                IpcReply::Ok(_) => panic!("{action} 放行表单链会丢开窗动作 (应拦截): {reply:?}"),
+            }
+        }
+        // FMLIST 对比按钮链 (显式参数版) 同款
+        let reply = disp(
+            RequestKind::OpenComparisonWindow {
+                fm0: "spitfire_f24".into(),
+                fm1: None,
+            },
+            &mut rt,
+        );
+        assert!(
+            matches!(reply, IpcReply::Err(ref e) if e.contains("web 壳不可用")),
+            "开窗请求无 webview 应显式 Err: {reply:?}"
+        );
+        // 对照组 1: 非开窗按钮动作走原表单链 (cell 空的 Err 与开窗 Err 不同文案)
+        let reply = disp(
+            RequestKind::FormMessage(FormMessageDto::ButtonAction {
+                action: "resetConfig".into(),
+            }),
+            &mut rt,
+        );
+        assert!(
+            matches!(reply, IpcReply::Err(ref e) if e.contains("表单态未初始化")),
+            "resetConfig 应走表单链: {reply:?}"
+        );
+        // 对照组 2: 壳态请求照常 Ok (dispatcher 健在)
+        let reply = disp(RequestKind::UiReady, &mut rt);
+        assert!(
+            matches!(reply, IpcReply::Ok(_)),
+            "UiReady 不受拦截影响: {reply:?}"
+        );
+    }
+
+    /// parse 回退边界: 负数 / 溢出 / 空串 (原 java_parse_int_or 已退役, std parse 同语义)
+    #[test]
+    fn parse_int_边界() {
+        assert_eq!("-25".parse::<i32>().unwrap_or(7), -25);
+        assert_eq!("".parse::<i32>().unwrap_or(7), 7);
+        assert_eq!("-".parse::<i32>().unwrap_or(7), 7);
+        assert_eq!("99999999999".parse::<i32>().unwrap_or(7), 7); // 溢出 → 异常 → 7
+        assert_eq!("0".parse::<i32>().unwrap_or(7), 0);
+    }
+}

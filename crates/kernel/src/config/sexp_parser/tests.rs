@@ -1,0 +1,552 @@
+use super::*;
+use std::fs;
+use std::path::Path;
+
+/// 解析并取各顶层表达式的 Display 形式 (测试辅助)
+fn parse_str(s: &str) -> Vec<String> {
+    let mut parser = SExpParser::new();
+    parser.parse(s).iter().map(|e| e.to_string()).collect()
+}
+
+/// 解析并取唯一顶层表达式
+fn parse_one(s: &str) -> Rc<SExp> {
+    let mut parser = SExpParser::new();
+    let es = parser.parse(s);
+    assert_eq!(es.len(), 1);
+    es.into_iter().next().unwrap()
+}
+
+/// 顶层原子序列的 (值, 类型) — 分类测试辅助
+fn atom_types(s: &str) -> Vec<(String, AtomType)> {
+    let mut parser = SExpParser::new();
+    parser
+        .parse(s)
+        .into_iter()
+        .map(|e| {
+            let a = e.as_atom();
+            (a.get_string().to_string(), a.r#type)
+        })
+        .collect()
+}
+
+// ---- tokenize / parse 边界 ----
+
+#[test]
+fn empty_and_whitespace_input_yield_no_expressions() {
+    assert_eq!(parse_str(""), Vec::<String>::new());
+    assert_eq!(parse_str("   \t\r\n"), Vec::<String>::new());
+}
+
+#[test]
+fn simple_list_of_symbols() {
+    let e = parse_one("(a b c)");
+    assert!(e.is_list() && !e.is_atom());
+    let l = e.as_list();
+    assert_eq!(l.children.len(), 3);
+    for c in &l.children {
+        assert!(c.is_atom() && c.as_atom().is_symbol());
+    }
+    assert_eq!(l.children[1].as_atom().get_string(), "b");
+    assert_eq!(e.to_string(), "(a b c)");
+}
+
+#[test]
+fn multiple_top_level_expressions() {
+    assert_eq!(parse_str("a b c"), vec!["a", "b", "c"]);
+}
+
+#[test]
+fn nested_lists() {
+    let e = parse_one("(a (b c) d)");
+    let l = e.as_list();
+    assert_eq!(l.children.len(), 3);
+    let inner = l.children[1].as_list();
+    assert_eq!(inner.to_string(), "(b c)");
+    assert_eq!(e.to_string(), "(a (b c) d)");
+}
+
+#[test]
+fn empty_list_and_nested_empty() {
+    let e = parse_one("()");
+    assert_eq!(e.as_list().children.len(), 0);
+    assert_eq!(e.to_string(), "()");
+    assert_eq!(parse_one("(())").to_string(), "(())");
+}
+
+#[test]
+fn string_literal_with_spaces() {
+    let e = parse_one("(a \"hello world\")");
+    let a = e.as_list().children[1].as_atom();
+    assert_eq!(a.r#type, AtomType::String);
+    assert_eq!(a.get_string(), "hello world");
+    assert_eq!(e.to_string(), "(a \"hello world\")");
+}
+
+#[test]
+fn string_escape_handling() {
+    // 输入字符: " a \" b \\ c " — \" → ", \\ → \
+    let e = parse_one(r#""a\"b\\c""#);
+    let a = e.as_atom();
+    assert_eq!(a.r#type, AtomType::String);
+    assert_eq!(a.get_string(), "a\"b\\c");
+}
+
+#[test]
+fn string_escape_keeps_char_verbatim() {
+    let e = parse_one(r#""\n""#);
+    assert_eq!(e.as_atom().get_string(), "n");
+}
+
+#[test]
+fn string_escape_at_end_appends_backslash() {
+    // 末尾孤立反斜杠 (i+1 == len): 条件不满足, 走 else 原样收编 '\'
+    let e = parse_one(r#""ab\"#);
+    assert_eq!(e.as_atom().get_string(), "ab\\");
+}
+
+#[test]
+fn unterminated_string_takes_rest() {
+    let e = parse_one("\"abc");
+    let a = e.as_atom();
+    assert_eq!(a.r#type, AtomType::String);
+    assert_eq!(a.get_string(), "abc");
+}
+
+#[test]
+fn quote_does_not_break_atom() {
+    // Java 原子定界符不含引号 — a"b" 整体是一个 SYMBOL
+    let e = parse_one("a\"b\"c");
+    let a = e.as_atom();
+    assert!(a.is_symbol());
+    assert_eq!(a.get_string(), "a\"b\"c");
+}
+
+#[test]
+fn semicolon_inside_string_kept() {
+    let e = parse_one(r#"("a;b")"#);
+    let a = e.as_list().children[0].as_atom();
+    assert_eq!(a.r#type, AtomType::String);
+    assert_eq!(a.get_string(), "a;b");
+}
+
+#[test]
+fn comments_skipped_to_end_of_line() {
+    assert_eq!(parse_str("; (a)\n(b)"), vec!["(b)"]);
+    assert_eq!(parse_str("(a) ; trailing comment"), vec!["(a)"]);
+    // \r\n: 注释循环只认 \n, \r 留在注释里, \n 交回外层当空白
+    assert_eq!(parse_str("x ; c\r\ny"), vec!["x", "y"]);
+}
+
+#[test]
+fn comment_without_newline_swallows_rest() {
+    assert_eq!(parse_str("(a) ; no newline (b)"), vec!["(a)"]);
+    // 未加引号的 a;b — 原子断在 ';', 注释吞掉 b
+    assert_eq!(parse_str("a;b"), vec!["a"]);
+}
+
+#[test]
+fn keyword_atoms() {
+    let types = atom_types(":x :type :cols");
+    assert!(types.iter().all(|(_, t)| *t == AtomType::Keyword));
+    // ':' 前缀优先于布尔/数字判定 — :true 是 KEYWORD 不是 BOOLEAN
+    assert_eq!(
+        atom_types(":true :5"),
+        vec![
+            (":true".into(), AtomType::Keyword),
+            (":5".into(), AtomType::Keyword),
+        ]
+    );
+}
+
+#[test]
+fn boolean_atoms_exact_case() {
+    assert_eq!(
+        atom_types("true false"),
+        vec![
+            ("true".into(), AtomType::Boolean),
+            ("false".into(), AtomType::Boolean),
+        ]
+    );
+    // tokenizer 用 equals 精确匹配 — "True"/"TRUE" 落 SYMBOL
+    assert_eq!(
+        atom_types("True TRUE"),
+        vec![
+            ("True".into(), AtomType::Symbol),
+            ("TRUE".into(), AtomType::Symbol),
+        ]
+    );
+}
+
+#[test]
+fn number_atom_classification() {
+    // 波22: std parse 语义 — hex 浮点与 f/d 尾缀不再识别 (Java 域特性退役),
+    // 小写 nan/infinity/INF 则开始被识别 (std 大小写不敏感)
+    assert!(
+        atom_types("123 12.34 -5 +5 1e5 1E-5 .5 5. NaN -NaN nan Infinity -Infinity inf")
+            .iter()
+            .all(|(_, t)| *t == AtomType::Number)
+    );
+    assert!(
+        atom_types("5,5 abc 12.34.56 1_000 5f 5d 1e5f 0x8 0x1p1 e5 5-")
+            .iter()
+            .all(|(_, t)| *t == AtomType::Symbol)
+    );
+}
+
+#[test]
+fn stray_rparen_becomes_symbol_atom() {
+    // parseExpression 对非 LPAREN 一律走 parseAtom — 顶层多余的 ) 收编为 SYMBOL 原子
+    let types = atom_types("a) b");
+    assert_eq!(
+        types,
+        vec![
+            ("a".into(), AtomType::Symbol),
+            (")".into(), AtomType::Symbol),
+            ("b".into(), AtomType::Symbol),
+        ]
+    );
+    assert_eq!(parse_str("(a))"), vec!["(a)", ")"]);
+}
+
+#[test]
+fn unclosed_paren_terminates_at_eof() {
+    let e = parse_one("(a b");
+    assert_eq!(e.as_list().children.len(), 2);
+    assert_eq!(e.to_string(), "(a b)");
+}
+
+#[test]
+fn parser_instance_reusable() {
+    // Java 字段 pos/tokens 在 parse() 开头重置 — 同实例多次 parse 互不残留
+    let mut parser = SExpParser::new();
+    assert_eq!(parser.parse("(a) (b)").len(), 2);
+    let second = parser.parse("(x y)");
+    assert_eq!(second.len(), 1);
+    assert_eq!(second[0].to_string(), "(x y)");
+}
+
+#[test]
+fn cjk_and_astral_chars_in_atoms() {
+    // Vec<char> 逐步推进: CJK/BMP 内与 Java charAt 等价
+    let e = parse_one("(速度 🚀)");
+    let a = e.as_list().children[1].as_atom();
+    assert_eq!(a.get_string(), "🚀");
+    assert_eq!(e.to_string(), "(速度 🚀)");
+}
+
+// ---- 空白语义 (Character.isWhitespace 复刻) ----
+
+#[test]
+fn java_is_whitespace_matches_jdk8_oracle() {
+    for c in [
+        ' ', '\t', '\n', '\u{b}', '\u{c}', '\r', '\u{1c}', '\u{1d}', '\u{1e}', '\u{1f}',
+        '\u{1680}', '\u{180e}', '\u{2000}', '\u{200a}', '\u{2028}', '\u{2029}', '\u{205f}',
+        '\u{3000}',
+    ] {
+        assert!(java_is_whitespace(c), "U+{:04X} 应为空白", c as u32);
+    }
+    for c in [
+        '\u{85}', '\u{a0}', '\u{2007}', '\u{202f}', '\u{feff}', '\u{1b}', 'a', '0',
+    ] {
+        assert!(!java_is_whitespace(c), "U+{:04X} 不应为空白", c as u32);
+    }
+}
+
+#[test]
+fn nbsp_is_not_a_delimiter() {
+    // U+00A0/U+202F 是 Java 非空白 → 原子的一部分 (与 Rust is_whitespace 相反, 保真点)
+    for ws in ['\u{a0}', '\u{202f}'] {
+        let src = format!("a{}b", ws);
+        let e = parse_one(&src);
+        let a = e.as_atom();
+        assert!(a.is_symbol());
+        assert_eq!(a.get_string(), src);
+    }
+}
+
+#[test]
+fn info_separators_and_mongolian_vowel_split_atoms() {
+    // U+001C..U+001F/U+180E 在 JDK8 是空白 → 切分原子 (Rust 原生不切, 保真点)
+    for ws in ['\u{1c}', '\u{1f}', '\u{180e}'] {
+        let src = format!("a{}b", ws);
+        assert_eq!(parse_str(&src), vec!["a", "b"]);
+    }
+    assert_eq!(parse_str("a\r\nb"), vec!["a", "b"]);
+    assert_eq!(parse_str("a\rb"), vec!["a", "b"]);
+}
+
+// ---- SAtom getters (历史基线 数值) ----
+
+#[test]
+fn get_double_oracle_table() {
+    let cases = [
+        ("123", 123.0),
+        ("12.34", 12.34),
+        (" 42 ", 42.0), // parseDouble 隐含 trim
+        ("\t+5\n", 5.0),
+        (".5", 0.5),
+        ("5.", 5.0),
+        ("+.5", 0.5),
+        ("1e5", 100000.0),
+        ("1E-5", 1.0e-5),
+        ("5.e2", 500.0),
+        ("2147483647.9", 2147483647.9),
+    ];
+    for (s, want) in cases {
+        let a = SAtom::new(s.into(), AtomType::Number);
+        let got = a.get_double();
+        assert!(
+            (got - want).abs() < f64::EPSILON * want.abs().max(1.0),
+            "{} → {} != {}",
+            s,
+            got,
+            want
+        );
+    }
+    // 特殊值
+    assert!(SAtom::new("NaN".into(), AtomType::Number)
+        .get_double()
+        .is_nan());
+    assert!(SAtom::new("-NaN".into(), AtomType::Number)
+        .get_double()
+        .is_nan());
+    assert_eq!(
+        SAtom::new("Infinity".into(), AtomType::Number).get_double(),
+        f64::INFINITY
+    );
+    assert_eq!(
+        SAtom::new("-Infinity".into(), AtomType::Number).get_double(),
+        f64::NEG_INFINITY
+    );
+    assert_eq!(
+        SAtom::new("1e310".into(), AtomType::Number).get_double(),
+        f64::INFINITY
+    );
+    // 次正规数: 0 < 1e-310 < 最小正规数
+    let sub = SAtom::new("1e-310".into(), AtomType::Number).get_double();
+    assert!(sub > 0.0 && sub < f64::MIN_POSITIVE);
+}
+
+#[test]
+fn get_double_rejects_invalid() {
+    // 波22: std parse 语义 (nan/infinity 大小写不敏感已被上面收编; hex 全拒)
+    for s in [
+        "", "-", "+", "1e", "1e+", "1_000", "5,5", "0x8", "0x8f", "0x1p", "0x.p1", "5-", "..5",
+        "5..", "e5", "E5", "+.e5", ".e2", "00x1p1", "0 x1", "0x1p 2", "1e 5", "--5", "true",
+        "5.5.5", "5f", "5d",
+    ] {
+        assert!(parse_double(s).is_err(), "[{}] 应解析失败", s);
+    }
+}
+
+#[test]
+#[should_panic(expected = "非法数值 atom")]
+fn get_double_panics_on_invalid() {
+    // 非法数值 atom 是 cfg 语法错误 → panic (load_config 的 catch_unwind 兜住);
+    // 波22: Java NumberFormatException 消息分支复刻退役, 统一中文消息
+    SAtom::new("abc".into(), AtomType::String).get_double();
+}
+
+#[test]
+fn get_int_jls_saturation_semantics() {
+    // Java (int) double = JLS 5.1.3; Rust f64 as i32 同义 — 基线 逐值核对
+    let cases = [
+        ("3.99", 3),
+        ("-3.99", -3),
+        ("0.9999999999", 0),
+        ("1e10", 2147483647),
+        ("-1e10", i32::MIN),
+        ("2.5e9", 2147483647),
+        ("-2.5e9", i32::MIN),
+        ("2147483647.9", 2147483647),
+        ("-2147483648.9", i32::MIN),
+        ("NaN", 0),
+        ("Infinity", 2147483647),
+        ("-Infinity", i32::MIN),
+        ("9999", 9999),
+    ];
+    for (s, want) in cases {
+        let a = SAtom::new(s.into(), AtomType::Number);
+        assert_eq!(a.get_int(), want, "{}", s);
+    }
+}
+
+#[test]
+fn get_bool_matches_java_parse_boolean() {
+    // 基线: "TRUE"/"True" → true; 带空格/其他串 → false
+    for s in ["true", "TRUE", "True"] {
+        assert!(SAtom::new(s.into(), AtomType::Boolean).get_bool(), "{}", s);
+    }
+    for s in [
+        " false",
+        "false ",
+        "yes",
+        "",
+        "truetrue",
+        "ｔｒｕｅ",
+        "false",
+    ] {
+        assert!(!SAtom::new(s.into(), AtomType::Boolean).get_bool(), "{}", s);
+    }
+}
+
+#[test]
+fn get_string_and_type_predicates() {
+    let kw = SAtom::new(":type".into(), AtomType::Keyword);
+    assert!(kw.is_keyword() && !kw.is_symbol());
+    assert_eq!(kw.get_string(), ":type");
+    let sym = SAtom::new("panel".into(), AtomType::Symbol);
+    assert!(sym.is_symbol() && !sym.is_keyword());
+    assert_eq!(sym.get_string(), "panel");
+}
+
+// ---- asList/asAtom 异常路径 ----
+
+#[test]
+#[should_panic(expected = "Not a list")]
+fn as_list_on_atom_panics() {
+    parse_one("a").as_list();
+}
+
+#[test]
+#[should_panic(expected = "Not an atom")]
+fn as_atom_on_list_panics() {
+    parse_one("(a)").as_atom();
+}
+
+// ---- Display (Java toString) ----
+
+#[test]
+fn display_list_joins_with_single_space() {
+    let mut l = SList::new();
+    l.add(Rc::new(SExp::Atom(SAtom::new(
+        "a".into(),
+        AtomType::Symbol,
+    ))));
+    l.add(Rc::new(SExp::Atom(SAtom::new(
+        "b".into(),
+        AtomType::Symbol,
+    ))));
+    l.add(Rc::new(SExp::Atom(SAtom::new(
+        "c".into(),
+        AtomType::Symbol,
+    ))));
+    assert_eq!(l.to_string(), "(a b c)");
+}
+
+#[test]
+fn display_string_atom_does_not_reescape() {
+    // Java toString: 直接拼引号, 内部引号不转义 (忠实保留原行为)
+    let a = SAtom::new("he\"llo".into(), AtomType::String);
+    assert_eq!(a.to_string(), "\"he\"llo\"");
+    // 键值/数字/布尔原子原样输出
+    for (v, t) in [
+        (":type", AtomType::Keyword),
+        ("12.34", AtomType::Number),
+        ("true", AtomType::Boolean),
+        ("panel", AtomType::Symbol),
+    ] {
+        assert_eq!(SAtom::new(v.into(), t).to_string(), v);
+    }
+}
+
+#[test]
+fn display_is_virtual_dispatch() {
+    // Rc<SExp> 的 Display 派发到运行时类型 (对应 Java toString 虚分派)
+    let inner = Rc::new(SExp::List(SList::new()));
+    let mut outer = SList::new();
+    outer.add(inner.clone());
+    outer.add(Rc::new(SExp::Atom(SAtom::new(
+        "x".into(),
+        AtomType::Symbol,
+    ))));
+    assert_eq!(outer.to_string(), "(() x)");
+    assert_eq!(Rc::new(SExp::List(outer)).to_string(), "(() x)");
+}
+
+// ---- :na-when 语义 (TestNaWhenParsing.java 用例移植) ----
+
+#[test]
+fn na_when_expression_structure() {
+    // ui_layout.cfg 转半径: :na-when (> value 9999)
+    let e = parse_one("(> value 9999)");
+    let l = e.as_list();
+    assert_eq!(l.children.len(), 3);
+    assert_eq!(l.children[0].as_atom().get_string(), ">");
+    assert!(l.children[0].as_atom().is_symbol());
+    assert_eq!(l.children[1].as_atom().get_string(), "value");
+    let n = l.children[2].as_atom();
+    assert_eq!(n.r#type, AtomType::Number);
+    assert_eq!(n.get_double(), 9999.0);
+    assert_eq!(n.get_int(), 9999);
+
+    // 复合表达式 (visible-when 形态): (and (not (isJetEngine)) (> value 0))
+    let e = parse_one("(and (not (isJetEngine)) (> value 0))");
+    let l = e.as_list();
+    assert_eq!(l.children.len(), 3);
+    assert_eq!(l.children[0].as_atom().get_string(), "and");
+    assert_eq!(l.children[1].to_string(), "(not (isJetEngine))");
+    assert_eq!(l.children[2].to_string(), "(> value 0)");
+    // 与 Java toString 一致 — ConfigLoader.saveConfig 按此回写 cfg
+    assert_eq!(e.to_string(), "(and (not (isJetEngine)) (> value 0))");
+}
+
+/// 模拟 ConfigLoader.getKeywordSExp: 递归收集 keyword 后一个兄弟节点
+fn collect_keyword_values(exprs: &[Rc<SExp>], keyword: &str, out: &mut Vec<Rc<SExp>>) {
+    for e in exprs {
+        if let SExp::List(l) = &**e {
+            let n = l.children.len();
+            for i in 0..n {
+                if i + 1 < n {
+                    if let SExp::Atom(a) = &*l.children[i] {
+                        if a.is_keyword() && a.get_string().eq_ignore_ascii_case(keyword) {
+                            out.push(l.children[i + 1].clone());
+                        }
+                    }
+                }
+            }
+            collect_keyword_values(&l.children, keyword, out);
+        }
+    }
+}
+
+#[test]
+fn formulas_cfg_sexp_expressions_parsed() {
+    // W5: ui_layout.cfg 已退役 (JSON 化) — S-expr 解析器的生产消费面仅剩
+    // formulas.cfg 外壳 (:formula/:unit 等关键字值 + 中缀表达式体)。
+    // 守卫: formulas.cfg 可解析出顶层公式条目, 关键字值形态健康。
+    let cfg_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../formulas.cfg");
+    let content = fs::read_to_string(&cfg_path).expect("formulas.cfg 应在仓库根");
+    let mut parser = SExpParser::new();
+    let forms = parser.parse(&content);
+    assert!(!forms.is_empty(), "formulas.cfg 应解析出顶层条目");
+
+    for keyword in [":expr"] {
+        let mut values = Vec::new();
+        collect_keyword_values(&forms, keyword, &mut values);
+        assert!(!values.is_empty(), "{} 在 formulas.cfg 中应存在", keyword);
+        for v in &values {
+            assert!(
+                !v.as_atom().get_string().is_empty(),
+                "{} 的值应为非空表达式体",
+                keyword
+            );
+        }
+        if keyword == ":na-when" {
+            // 当前 cfg 有 7 处 :na-when (grep 核对), 快照防回归
+            assert!(values.len() >= 7, ":na-when 数量 {}", values.len());
+            let reprs: Vec<String> = values.iter().map(|v| v.to_string()).collect();
+            for expect in [
+                "(> value 9999)",
+                "(<= value 0)",
+                "(= value -65535)",
+                "(> value 90000)",
+                "(<= value -65535)",
+            ] {
+                assert!(reprs.iter().any(|r| r == expect), "缺 {}", expect);
+            }
+        }
+    }
+
+}
+

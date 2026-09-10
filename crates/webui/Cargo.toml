@@ -1,0 +1,38 @@
+# 用途: D9 MainForm = Tauri 2 + Web 前端 (React/AntD, 取代 D1 iced)。
+# 窗口常驻隐藏预热, 主线程手动泵 (App::run_iteration) — 与 D8 拓扑零冲突
+# (AppShell !Send 恒留主线程, IPC 经 mpsc→主线程 dispatch, 见 ipc.rs)。
+[package]
+name = "webui"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "webui"
+path = "src/lib.rs"
+
+# POC/验收 bin: 阶段①五项验证 (show/hide 长跑 / bench-reopen / 共存)
+[[bin]]
+name = "webui-selftest"
+path = "src/main.rs"
+
+[dependencies]
+# protocol-asset: desc-img 图片气泡的 asset protocol (tauri.conf assetProtocol 对应)
+tauri = { version = "2", features = ["protocol-asset"] }
+# 阶段③ importConfig 的系统文件选择框 (前端 open())
+tauri-plugin-dialog = "2"
+# checkUpdate 的 GitHub API 请求 (前端 fetch; scope 仅 api.github.com, capabilities 限定)
+tauri-plugin-http = "2"
+# 更新弹窗链接打开浏览器 (Java Desktop.browse; scope 仅 releases 页)
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { workspace = true }
+# IPC 回执 (command 异步线程 → oneshot → 主线程 dispatch 结果)
+tokio = { version = "1", features = ["sync"] }
+# 阶段② dto (GroupConfig→PanelDto) 与事件桥
+kernel = { workspace = true }
+
+[build-dependencies]
+tauri-build = { version = "2" }
+
+[lints]
+workspace = true
