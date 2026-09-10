@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -*- coding: utf-8 -*-
 #
-# Rust 版 e2e 编排 (对齐 script/e2e_fm.sh 的编排结构, 断言器复用 e2e_assert.py)
+# Rust 版 e2e 编排 (断言器复用 e2e_assert.py)
 #
 # 流程 (每场景): 端口空闲探测(被占 SKIP) → 起 mock → 起 voidmei --live --port
 #   (日志落文件) → 启动锚点校验 → 跑 duration 秒(每秒探活) → taskkill 杀进程树 →
@@ -10,13 +10,13 @@
 # 防空转通过 (审查警告 W1): 应用秒崩/中途退出时残缺日志上的断言可能整体空转
 # PASS, 故门禁三重收口:
 #   1) 启动锚点: 日志必须在 30s 内出现 "Auto-start enabled"/"Starting Game Mode
-#      Services" (live 模式进入的必经日志, 文本对位 Java), 否则 FAIL;
+#      Services" (live 模式进入的必经日志, java_compat 模拟的历史栈格式), 否则 FAIL;
 #   2) 运行期探活: duration 内每秒 kill -0 探活, 应用中途死亡立即 FAIL;
 #   3) --require-run: 全场景 SKIP (零实跑) 时退出码 1, 供 CI/P6 门禁拒绝空转绿。
 #
-# 与 Java e2e_fm.sh 的差异:
+# 编排要点:
 #   - live 模式由 `voidmei --live` CLI 注入 (等价 autoStartGameMode=true),
-#     无需临时翻转 ui_layout.user.cfg (也就无需备份/还原)。
+#     不动任何用户配置文件。
 #   - 断言结果同时落 JSON (build/e2e_rust_<场景>_<时间戳>.json) 供 CI/收口读取。
 #
 # 用法:
@@ -28,16 +28,16 @@
 #   --scenario <name>  s2_preview_live / s5_missing_fm / menu_flag_false / all(默认)
 #   --duration  <s>    每场景运行秒数 (默认 20)
 #   --port      <p>    mock+应用端口 (默认 9222; 应用经 --port CLI 同步覆盖。
-#                      白盒测试端口约定: 9222 = Java 备用端口 (appPortBkp) 域,
+#                      白盒测试端口约定: 9222 = 历史备用端口 (appPortBkp) 域,
 #                      游戏本地 API 恒占 8111 而 9222 游戏永不监听 — 真机在跑
 #                      测试也不再被挤掉/误读游戏数据)
 #   --log       <path> 应用日志输出 (默认 build/e2e_rust_<场景>_<时间戳>.log;
 #                      仅单场景时生效, all 模式每场景独立文件)
-#   --no-build        跳过预热构建, 直接用既有 rust/target/release/voidmei
+#   --no-build        跳过预热构建, 直接用既有 target/release/voidmei
 #                      (共享工作区源码被并行改动编译不过时, 用上一稳定产物验收;
 #                      二进制缺失仍 FAIL —— 不假通过)
 #   --require-run     门禁模式: 全部场景 SKIP (零实跑) 时退出码 1。
-#                      默认关 (对齐 e2e_fm.sh "被占自动跳过"惯例); CI/P6 验收门禁
+#                      默认关 ("被占自动跳过"惯例); CI/P6 验收门禁
 #                      应带上, 避免 9222 被占时零实跑也绿。
 #
 # 产物 (每场景, build/ 下): <场景>.log 应用日志 / mock_<场景>.log mock 日志 /
@@ -213,7 +213,7 @@ run_scenario() {
   #    直起二进制而非 rust_run.sh: 预热构建已保证产物新鲜, rust_run.sh 内的
   #    cargo build 输出会混入应用日志污染断言 (build + cd 根 + exec 的语义
   #    已被预热步骤与本处 cd 完整覆盖)
-  VOIDMEI_BIN="$ROOT/rust/target/release/voidmei"
+  VOIDMEI_BIN="$ROOT/target/release/voidmei"
   if [[ ! -f "$VOIDMEI_BIN" ]]; then
     echo "[rust-e2e] FAIL: $VOIDMEI_BIN 不存在 (预热构建异常)"
     LAST_RESULT="FAIL:$SC"
@@ -361,11 +361,11 @@ PYEOF
 
 # ---- 预热构建 (同步完成, 避免首个场景的 duration 计时被增量编译吃掉) ----
 if [[ "$NO_BUILD" == "1" ]]; then
-  if [[ ! -f "$ROOT/rust/target/release/voidmei.exe" && ! -f "$ROOT/rust/target/release/voidmei" ]]; then
-    echo "[rust-e2e] FAIL: --no-build 但二进制缺失 (rust/target/release/voidmei)"
+  if [[ ! -f "$ROOT/target/release/voidmei.exe" && ! -f "$ROOT/target/release/voidmei" ]]; then
+    echo "[rust-e2e] FAIL: --no-build 但二进制缺失 (target/release/voidmei)"
     exit 1
   fi
-  echo "[rust-e2e] --no-build: 沿用既有二进制 ($((ls -l "$ROOT/rust/target/release/voidmei.exe" 2>/dev/null || ls -l "$ROOT/rust/target/release/voidmei") | awk '{print $6, $7, $8}'))"
+  echo "[rust-e2e] --no-build: 沿用既有二进制 ($((ls -l "$ROOT/target/release/voidmei.exe" 2>/dev/null || ls -l "$ROOT/target/release/voidmei") | awk '{print $6, $7, $8}'))"
 else
   echo "[rust-e2e] 预热构建 (cargo build --release --bin voidmei) ..."
   if ! ( cd "$ROOT/rust" && cargo build --release --bin voidmei ); then
