@@ -3,8 +3,7 @@ https://github.com/matrixsukhoi/voidmei
 ————————————————————————————————————
 安装与使用问题说明
 
-1、打开后若提示JVM NOT FOUND，请下载安装最新的JAVA运行环境JRE
-https://www.java.com/zh-CN/download/
+1、本程序为原生程序，无需安装任何运行环境（如Java），解压即可运行
 
 2、游戏请设为全屏窗口（无边框）模式或窗口模式运行
 

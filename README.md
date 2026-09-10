@@ -1,68 +1,47 @@
-# VoidMei - 战争雷霆8111端口Java图形前端
+# VoidMei - 战争雷霆 8111 端口遥测 HUD
+
+Rust 实现(原生 exe,无需 JRE 等任何运行时依赖)。
 
 # 工作原理
-- 通过HTTP/GET请求读取127.0.01:8111端口中的飞行状态(state)以及飞行仪表(indicators)数据
-- 解析离线拆包的气动模型文件(FM blkx)
-- 处理/计算上述信息,以图形界面的形式呈现给用户
 
+- 通过 HTTP/GET 请求读取 127.0.0.1:8111 端口的飞行状态(state)与飞行仪表(indicators)数据
+- 解析离线拆包的气动模型文件(FM, JSON 格式)
+- 处理/计算上述信息, 以 HUD 悬浮窗 + 设置窗的形式呈现给用户
 
-# 编译方式1: 统一构建脚本 (推荐)
-**需确保 JDK 1.8 与 git-bash (Windows) 环境**
-- clone 本仓库后, 将 FM 数据放入 `data/` (运行 `python script/build.py fmdata` 从游戏客户端解包生成, 或从 release 包中复制)
+# 从源码构建
+
+**需 Rust 工具链(stable)与 Node.js(含 pnpm/corepack), Windows 构建**(overlay 用 Win32 API)。
+
 ```bash
-python script/build.py compile   # 编译 src/ → bin/
-python script/build.py run       # 本地运行 (classpath 直跑, 免打 jar)
-python script/build.py test      # 运行单元测试
-python script/build.py dist      # 组装完整分发包 → dist/VoidMei_v*.zip
-java -jar VoidMei.jar       # 本地运行 (项目根即运行目录, 需先 jar)
+git clone https://github.com/matrixsukhoi/voidmei.git
+cd voidmei
+# FM 数据: 运行 python script/build.py fmdata 从游戏客户端解包生成, 或从 release 包复制 data/
+python script/build.py rust       # web 前端 + cargo release 一键构建
+python script/build.py rustdist   # 组装分发包 → dist/VoidMei_Rust_*.zip (解压即用)
+bash script/rust_run.sh           # 本地运行 (仓库根即工作区)
+cargo test --workspace            # 单元测试
 ```
 
-# 编译方式2: 命令行手动编译
-```bash
-mkdir bin
-javac -encoding UTF-8 -d bin -classpath dep/* src/prog/* src/parser/* src/ui/*
-jar -cvfm VoidMei.jar MANIFEST.MF -C ./bin .
-java -jar VoidMei.jar
-# 使用launch4j打包为exe, 确保launch4j环境目录已配置
-launch4jc ./script/voidmeil4j.xml
+也可直接用 cargo: `cargo build --release`(前提: 先 `python script/build.py web` 生成前端 dist, 它被编译期嵌入 exe)。
+
+# 目录速览
+
+```
+crates/{kernel,data,overlay,ui,webui,voidmei}/   cargo workspace 六 crate
+script/          build.py(构建入口) / rust_run.sh / rust_e2e.sh / mock_8111.py
+lang/ fonts/ image/ voice/ data/                 运行时资源 (data 为派生数据不进 git)
+formulas.cfg     公式槽唯一真相
+doc/             开发文档
+更新日志.txt      发版记录
 ```
 
-# 编译方式3: Eclipse IDE
-- 使用eclipse导入工程,程序入口设置为app.java中的main函数
-- 设置jdk/jre版本为1.8 (java 8)
-- 导入外部UI库 weblaf-complete-1.29.jar
-- 下载release版本,将其他缺失的资源文件复制到本目录
-- 运行、调试或导出jar文件
+架构与开发指南详见 `CLAUDE.md`。
 
-# 编译方式4: VSCode IDE
-- 安装java插件
-- 下载release版本,将其他缺失的资源文件复制到本目录
-- 打开本目录,选择app.java并点击运行或调试
-- 在JAVA PROJECTS选项下点击export jar可导出可执行的jar文件
+# Windows 命令行模式安装 VoidMei (scoop)
 
-# 代码结构说明
-由于编程过程比较随意,目前代码结构与变量命名比较混乱,后面有时间会调整
-主要代码结构描述如下:
-- src/prog/app.java - 程序入口
-- src/prog/controller.java - 程序状态转换控制
-- src/prog/service.java - HTTP数据请求与数据处理线程,
-- src/prog/uiThread.java - UI绘制线程
-- src/parser - state/indicator/blkx等解析器代码
-- src/ui - 各ui界面的绘制代码
-- src/ui/mainform.java - 主界面
-- src/ui/minimalHUD.java - 最小HUD界面
-- src/ui/flightInfo.java - 飞行状态信息界面
-- src/ui/engineInfo.java - 引擎状态信息界面
-- src/ui/stickValue.java - 飞行控制信息界面
-- src/ui/engineControl.java - 发动机控制信息界面
+打开非管理员模式的终端[按下 WIN+R - 输入 cmd - 按下回车], 输入以下命令
 
-# 执行环境
-- 安装 Jave Runtime Environment 1.8(jre 1.8) 即可
-
-## Windows命令行模式安装VoidMei
-打开非管理员模式的终端[按下WIN+R-输入cmd-按下回车]，跳出终端窗口后输入以下命令
-
-先安装scoop(如果已安装可跳过)
+先安装 scoop(如果已安装可跳过)
 ```
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 irm get.scoop.sh | iex
@@ -73,17 +52,17 @@ irm get.scoop.sh | iex
 scoop config proxy [ip:port]
 ```
 
-安装git(如果已安装可跳过)
+安装 git(如果已安装可跳过)
 ```
 scoop install git
 ```
 
-添加@Lustra-Fs大佬提供的bucket
+添加 @Lustra-Fs 大佬提供的 bucket
 ```
 scoop bucket add Lutra-Fs_scoop-bucket https://github.com/Lutra-Fs/scoop-bucket
 ```
 
-安装Voidmei，安装完成后开始菜单中应该能看到VoidMei可执行文件
+安装 VoidMei, 安装完成后开始菜单中应该能看到 VoidMei 可执行文件
 ```
 scoop install Lutra-Fs_scoop-bucket/voidmei
 ```
@@ -91,54 +70,4 @@ scoop install Lutra-Fs_scoop-bucket/voidmei
 版本升级请用该命令
 ```
 scoop update voidmei
-```
-
-## Linux执行环境配置 
-VoidMei可使用Linux wine执行(测试环境Fedora 35, GNOME 41.7, Wine 7.10),执行步骤如下: 
-- winecfg 兼容性设置为win10 
-- 安装jre8, 执行wine jre-8uXXX-windows-x64.exe /s
-- 运行VoidMei
-
-### 准备编译环境
-
-``` bash
-# 下载voidmei源码
-pushd ~/project/
-git clone git@github.com:matrixsukhoi/voidmei.git
-popd
-
-# 准备资源文件
-pushd ~/downloads/
-# download VoidMei_v1_573.zip to ~/downloads/voidmei_v1_573.zip from github release
-mkdir -p voidmei
-cp VoidMei_v1_573.zip voidmei/
-cd voidmei
-unzip VoidMei_v1_573.zip
-popd
-
-# 准备wine和java环境
-pushd ~/downloads/
-# download jre8 zip from https://www.azul.com/downloads/?version=java-8-lts&os=windows&architecture=x86-64-bit&package=jre
-unzip zulu8.90.0.19-ca-jre8.0.472-win_x64.zip
-cp -r ~/Downloads/zulu/zulu8.90.0.19-ca-jre8.0.472-win_x64/ ./
-WINEPREFIX=$(pwd)/.wine_voidmei winetricks corefonts fakechinese cjkfonts
-## 运行voidmei
-WINEPREFIX=$(pwd)/.wine_voidmei wine ./zulu8.90.0.19-ca-jre8.0.472-win_x64/bin/java.exe -jar VoidMei.jar
-popd
-
-# 准备其他工具
-sudo pacman -Ss launch4j
-
-```
-
-### 本地编译voidmei并运行
-
-项目根目录即运行工作区 (data/fonts/voice 等资源就位后):
-
-``` bash
-pushd ~/project/voidmei
-python script/build.py jar
-WINEPREFIX=~/downloads/.wine_voidmei wine ~/downloads/zulu8.90.0.19-ca-jre8.0.472-win_x64/bin/java.exe -jar VoidMei.jar
-popd
-
 ```

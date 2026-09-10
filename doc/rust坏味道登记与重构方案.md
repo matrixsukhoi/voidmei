@@ -8,8 +8,8 @@
 
 1. **Java 参照系退役**：CLAUDE.md 裁决迁移已完成、不再对齐 Java。注释不再以 Java
    源码/行号为解释主轴，改写为 Rust 自解释；`TODO(port)` 逐条裁决清零。
-2. **单一真相路径**：延续波9 为 vm-core 确立的原则——vm-overlay 根 re-export 壳退役，
-   全库统一 `vm_overlay::<域>::<模块>`。
+2. **单一真相路径**：延续波9 为 kernel 确立的原则——overlay 根 re-export 壳退役，
+   全库统一 `overlay::<域>::<模块>`。
 3. **收敛点收割**：`base::format` / `render::primitives` / `power_curve` 等收敛点早已
    建立，但各处本地副本未回头清除——逐族收割，并加守卫测试防回归。
 4. 每波结束：`cargo test --workspace` 全绿 + clippy 无新增。
@@ -22,7 +22,7 @@
 | 13 | 重复收敛 | java 兼容助手族全库唯一化（base::java_compat）、printf 族归 base::format、像素基元归 primitives、power_curve 切换、WEP 四胞胎、跨 crate 常量/扫描/fm1 规则收敛 | ✅ 7889747 (~1600 行重复出库, 1256 绿, clippy 0) |
 | 14 | 长函数拆解·计算层 | getload_from(775)/variabler(376)/calculate(277)/parse_obj(254)/build_registry(233)/extract_stages(184)/process_polling_cycle(176)/identify_inflection(172) | ✅ 45d1827 (编排层化+锁样板 46 处, 1256 绿, clippy 0) |
 | 15 | 长函数拆解·装配层 | win32_thread_main(454)/desktop_main(260)/TrayIcon::new(160)/minihud update_components(155)+apply_style(124)/9 段注册样板/9 份 spec 工厂脚手架 | ✅ 0ba5f03 (FontSlot/spec_common/map_inner, 1256 绿, clippy 0) |
-| 16 | 结构归位 | vm-overlay 根壳退役、minihud.rs 四拆、commands_windows 三域拆分、config_manager 拆 ui_state_storage/key_text、extras.rs 三拆、win32.rs 更名、AppShell 收口 | ✅ 1a3a9d8+3e750cd (阶段1 四路+阶段2 根壳退役/更名, 1256 绿, clippy 0) |
+| 16 | 结构归位 | overlay 根壳退役、minihud.rs 四拆、commands_windows 三域拆分、config_manager 拆 ui_state_storage/key_text、extras.rs 三拆、win32.rs 更名、AppShell 收口 | ✅ 1a3a9d8+3e750cd (阶段1 四路+阶段2 根壳退役/更名, 1256 绿, clippy 0) |
 | 17 | 数据形态升级 | EngineType 枚举化、is_imperial()、F_INVALID 哨兵统一、WarningSlot、CompressorData、GroupConfig 表驱动、DTO 枚举化、镜像字段删除 | ✅ e1f56fa (六域并行; A6 含边角语义变化已备案, 1256 绿, clippy 0) |
 | 18 | 文档焕新 | Java 引用注释清扫（3534 处分批）、rust/README 新人导览重写、crate 级架构地图 | ✅ ae8dd3c (行号锚 493→0, README 重写, 1256 绿, clippy 0) |
 | 19 | 复核收尾 | fresh-eyes 两路复核揪出的收敛漏网收割 + iced 残留/mirror 行级 zip/命名纠正 + 全库 fmt | ✅ c46d9fe (1256 绿, clippy 0, fmt 干净) |
@@ -35,38 +35,38 @@
 |---|---|---|---|---|
 | A1 | overlays/gear_flaps.rs:284 | render 闭包 AA 钉死 `true`，`AAEnable` 配置对该窗失效 | 改读 `palette::aa()` | 12 |
 | A2 | render/renderers.rs:102 | `RenderContext::new` 钉死 `graph_aa:true,text_aa:true`，power_info 恒 AA | AA 上下文化 | 12 |
-| A3 | vm-app/vm-data/vm-core 三处 | 备份端口 `+1111` 溢出策略不一致（panic/wrapping/saturating） | `bkp_port()` 单一函数（saturating） | 12 |
-| A4 | vm-ui/main_form.rs:496 | mirror 按位 zip 依赖两树同构，整树替换后静默错位 | 按 title 配对 | 17 |
-| A5 | vm-ui/renderer_config_helper.rs:296 | cfg 用户输入越型绑定即 panic 主线程 | 改 warn+忽略 | 12 |
-| A6 | vm-core/audio/voice_warning.rs:1103 | `fuel_p_check` 一个计数器被两个不相关告警共用 | 拆独立计数器 | 17 |
+| A3 | voidmei/data/kernel 三处 | 备份端口 `+1111` 溢出策略不一致（panic/wrapping/saturating） | `bkp_port()` 单一函数（saturating） | 12 |
+| A4 | ui/main_form.rs:496 | mirror 按位 zip 依赖两树同构，整树替换后静默错位 | 按 title 配对 | 17 |
+| A5 | ui/renderer_config_helper.rs:296 | cfg 用户输入越型绑定即 panic 主线程 | 改 warn+忽略 | 12 |
+| A6 | kernel/audio/voice_warning.rs:1103 | `fuel_p_check` 一个计数器被两个不相关告警共用 | 拆独立计数器 | 17 |
 | A7 | 4 处"AA 恒开"过时注释 | 审查轮修复后注释未同步 | 清理 | 12 |
 
 ### B. 死代码（迁移保真残留退役）
 
 | # | 位置 | 内容 | 波 |
 |---|---|---|---|
-| B1 | vm-core/fm/power_curve.rs | 整模块零调用（piston_model 8 个内联副本未切换）→ 波13 切换后复活为真相 | 13 |
-| B2 | vm-core/audio/voice_warning.rs | `play_wav`/`get_clip` 全库无调用方 | 12 |
-| B3 | vm-core/derived/flight_log.rs:856 | `run()` "Java 中从未启动"保真保留 | 12 |
-| B4 | vm-core/config/config_manager.rs:567 | `show_parse_error_dialog` Java 侧即不可达 | 12 |
-| B5 | vm-core/config/config_loader.rs:715 | 空 legacy INI 判定块 | 12 |
-| B6 | vm-overlay/platform/position.rs | 整文件死（host 走 PositionStore trait） | 12 |
-| B7 | vm-overlay/ui_model/gauge_field.rs | GaugeField/LinearGaugePlaceholder/MarkedGaugePlaceholder 零构造 | 12 |
-| B8 | vm-overlay/overlays/rows.rs:437 | `HUDFlapsRow` 零实例化 | 12 |
-| B9 | vm-overlay/render/canvas.rs:120 | 自由函数 `to_premul_bgra` | 12 |
-| B10 | vm-overlay/render/fields.rs:50,131 | `render_fields`/`save_png` 双份 | 12 |
-| B11 | vm-overlay/render/renderers.rs:46,54 | `APPLICATION_COLORS`/`WHITE` | 12 |
-| B12 | vm-overlay/layout/minihud_layout.rs:491 | `MINIHUD_PANEL_ITEMS` 等仅测试消费（cfg 第二份手工快照） | 12 |
-| B13 | vm-ui/renderers/*.rs | 读链函数群（read_display/read_current/is_hex_format/to_hex_string/rgb_to_hsb/hsb_to_rgb）生产零消费 | 12 |
-| B14 | vm-ui/row_renderer_registry.rs | RowRenderer trait/BUILTIN_ROW_TYPES/RowRendererRegistry ~100 行死结构（D9 已裁决渲染归 web） | 12 |
-| B15 | vm-ui/main_form.rs:79 | `Message::Ignore` 不可达变体 | 12 |
-| B16 | vm-app/controller_state.rs:42 | `get/from_legacy_value` 仅测试调用 | 12 |
-| B17 | vm-app/env.rs:24 | `Env.app_port_bkp` 零消费（随 A3 收敛） | 12 |
-| B18 | vm-data service_fields/frame | `s_loc` 字段恒 None 纯搬运 | 12 |
-| B19 | vm-webui/lib.rs:117 | `let _ = &mut app;` 残留 | 12 |
-| B20 | vm-core #[allow(dead_code)] ×14 | 逐条裁决：真死删、有意保真标注 `DEAD(kept)` | 12 |
-| B21 | vm-overlay/layout/hud_layout_node.rs:233 | `set_ignore_bounds` 零调用 | 12 |
-| B22 | vm-core/fm/handle.rs 等 TODO(port) ~20 处 | 逐条裁决清零 | 12/18 |
+| B1 | kernel/fm/power_curve.rs | 整模块零调用（piston_model 8 个内联副本未切换）→ 波13 切换后复活为真相 | 13 |
+| B2 | kernel/audio/voice_warning.rs | `play_wav`/`get_clip` 全库无调用方 | 12 |
+| B3 | kernel/derived/flight_log.rs:856 | `run()` "Java 中从未启动"保真保留 | 12 |
+| B4 | kernel/config/config_manager.rs:567 | `show_parse_error_dialog` Java 侧即不可达 | 12 |
+| B5 | kernel/config/config_loader.rs:715 | 空 legacy INI 判定块 | 12 |
+| B6 | overlay/platform/position.rs | 整文件死（host 走 PositionStore trait） | 12 |
+| B7 | overlay/ui_model/gauge_field.rs | GaugeField/LinearGaugePlaceholder/MarkedGaugePlaceholder 零构造 | 12 |
+| B8 | overlay/overlays/rows.rs:437 | `HUDFlapsRow` 零实例化 | 12 |
+| B9 | overlay/render/canvas.rs:120 | 自由函数 `to_premul_bgra` | 12 |
+| B10 | overlay/render/fields.rs:50,131 | `render_fields`/`save_png` 双份 | 12 |
+| B11 | overlay/render/renderers.rs:46,54 | `APPLICATION_COLORS`/`WHITE` | 12 |
+| B12 | overlay/layout/minihud_layout.rs:491 | `MINIHUD_PANEL_ITEMS` 等仅测试消费（cfg 第二份手工快照） | 12 |
+| B13 | ui/renderers/*.rs | 读链函数群（read_display/read_current/is_hex_format/to_hex_string/rgb_to_hsb/hsb_to_rgb）生产零消费 | 12 |
+| B14 | ui/row_renderer_registry.rs | RowRenderer trait/BUILTIN_ROW_TYPES/RowRendererRegistry ~100 行死结构（D9 已裁决渲染归 web） | 12 |
+| B15 | ui/main_form.rs:79 | `Message::Ignore` 不可达变体 | 12 |
+| B16 | voidmei/controller_state.rs:42 | `get/from_legacy_value` 仅测试调用 | 12 |
+| B17 | voidmei/env.rs:24 | `Env.app_port_bkp` 零消费（随 A3 收敛） | 12 |
+| B18 | data service_fields/frame | `s_loc` 字段恒 None 纯搬运 | 12 |
+| B19 | webui/lib.rs:117 | `let _ = &mut app;` 残留 | 12 |
+| B20 | kernel #[allow(dead_code)] ×14 | 逐条裁决：真死删、有意保真标注 `DEAD(kept)` | 12 |
+| B21 | overlay/layout/hud_layout_node.rs:233 | `set_ignore_bounds` 零调用 | 12 |
+| B22 | kernel/fm/handle.rs 等 TODO(port) ~20 处 | 逐条裁决清零 | 12/18 |
 
 ### C. 重复代码（收敛族）
 
@@ -90,13 +90,13 @@
 | C16 | text_shade ≡ text_shaded_auto | 1+1 | 删副本 | 13 |
 | C17 | draw_rect_perimeter ≈ ring1px / butt_line / hline_butt2 / vline_square2 / stroke_outline ×2 | 6 | render::primitives | 13 |
 | C18 | GLOBAL_KEYS/GLOBAL_PREFIXES 跨 crate | 2 | host pub 化 | 13 |
-| C19 | FM 目录扫描（GetFmList/load_planes） | 2 | vm-core fm::list_fm_names | 13 |
+| C19 | FM 目录扫描（GetFmList/load_planes） | 2 | kernel fm::list_fm_names | 13 |
 | C20 | fm1 归一化/标题规则 | 4 | normalize_secondary + title 单源 | 13 |
 | C21 | overlay 键集（LIVE_OVERLAYS/OVERLAY_SECTIONS/备案注释） | 3 | keys.rs 单源 | 13 |
 | C22 | 9 段 register_live_overlays 样板 | 9 | register_one 泛型 | 15 |
 | C23 | 9 份 *_overlay_spec 工厂脚手架 | 9 | spec helper + FontSlot | 15 |
 | C24 | minihud RefCell 借用样板 | 29 | with_row/map_inner | 15 |
-| C25 | vm-data 锁三段式样板 | 10+ | with_snapshot/apply | 14 |
+| C25 | data 锁三段式样板 | 10+ | with_snapshot/apply | 14 |
 | C26 | find_group 族四种写法 | 4 | group_by_title | 13 |
 | C27 | minihud 占位/正式构造双份 + throttle 更新双份 | 2+2 | 局部 helper | 15 |
 
@@ -105,15 +105,15 @@
 | # | 函数 | 行数 | 波 |
 |---|---|---|---|
 | D1 | fm/data/reader.rs getload_from | 775 | 14 |
-| D2 | vm-app/win32.rs win32_thread_main | 454 | 15 |
+| D2 | voidmei/win32.rs win32_thread_main | 454 | 15 |
 | D3 | fm/piston_model.rs variabler | 376 | 14 |
 | D4 | derived/hud_calculator.rs calculate | 277 | 14 |
-| D5 | vm-app/main.rs desktop_main | 260 | 15 |
+| D5 | voidmei/main.rs desktop_main | 260 | 15 |
 | D6 | telemetry/parser/map_obj.rs parse_obj | 254 | 14 |
 | D7 | formula/registry.rs build_registry | 233 | 14 |
 | D8 | fm/power_extractor.rs extract_stages_with_fuel | 184 | 14 |
-| D9 | vm-data service_loop.rs process_polling_cycle | 176 | 14 |
-| D10 | vm-webui identify_inflection_points_for_curve | 172 | 14 |
+| D9 | data service_loop.rs process_polling_cycle | 176 | 14 |
+| D10 | webui identify_inflection_points_for_curve | 172 | 14 |
 | D11 | platform/tray.rs TrayIcon::new | 160 | 15 |
 | D12 | overlays/minihud.rs update_components | 155 | 15 |
 | D13 | overlays/fm_unpacked.rs generate_lines | 193 | 15 |
@@ -124,17 +124,17 @@
 
 | # | 位置 | 问题 | 波 |
 |---|---|---|---|
-| E1 | vm-overlay/lib.rs 根 re-export 壳 | 2.5 倍于消费面，双路径并存 | 16 |
+| E1 | overlay/lib.rs 根 re-export 壳 | 2.5 倍于消费面，双路径并存 | 16 |
 | E2 | overlays/mod.rs 域级转发面 | 零消费者 | 16 |
 | E3 | overlays/minihud.rs 1538 行 | 四职责（printf/ctx/装配/编排） | 16 |
-| E4 | vm-webui/commands_windows.rs 1341 行 | 三域合一 + 命名误导 | 16 |
-| E5 | vm-core/config/config_manager.rs 891 行 | 本体+UIStateStorage 桩+弹窗转发三职 | 16 |
+| E4 | webui/commands_windows.rs 1341 行 | 三域合一 + 命名误导 | 16 |
+| E5 | kernel/config/config_manager.rs 891 行 | 本体+UIStateStorage 桩+弹窗转发三职 | 16 |
 | E6 | config_loader.rs jnativehook 键码表 139 项 | 与装载无关 | 16 |
-| E7 | vm-overlay/platform/extras.rs | DPI+焦点+声音三合一 | 16 |
-| E8 | vm-app/win32.rs 名不符实 | 实为渲染线程装配层 | 16（更名） |
+| E7 | overlay/platform/extras.rs | DPI+焦点+声音三合一 | 16 |
+| E8 | voidmei/win32.rs 名不符实 | 实为渲染线程装配层 | 16（更名） |
 | E9 | AppShell 19 字段 + pub ui_cmd_tx | 旁路直发绕过 dispatch | 16 |
-| E10 | vm-ui/main_form.rs run_headless 125 行 | 验收工具混在 lib 核心 | 16 |
-| E11 | vm-webui 三种状态注入形态 | dispatcher/OnceLock 桥/ABOUT 静态 | 16 |
+| E10 | ui/main_form.rs run_headless 125 行 | 验收工具混在 lib 核心 | 16 |
+| E11 | webui 三种状态注入形态 | dispatcher/OnceLock 桥/ABOUT 静态 | 16 |
 | E12 | config_manager.rs 桩 + ui_state_storage | TODO(port) 备案待落地 | 16 |
 
 ### F. 数据形态（基本类型偏执/平行结构）
@@ -164,9 +164,9 @@
 |---|---|---|---|
 | G1 | 3534 处 Java 引用 | 注释以死去的 Java 实现为主参照系 | 18 |
 | G2 | TODO(port) ~20 处 | 迁移完成裁决落地 | 12/18 |
-| G3 | vm-data service_loop 孤儿注释尸体 3 段 | 删除后函数的 doc 错位 | 12 |
+| G3 | data service_loop 孤儿注释尸体 3 段 | 删除后函数的 doc 错位 | 12 |
 | G4 | host.rs 锁纪律注释过时（锁已摘） | 措辞更新 | 12 |
-| G5 | vm-app/lib.rs 头注还说 iced | D9 后过时 | 12 |
+| G5 | voidmei/lib.rs 头注还说 iced | D9 后过时 | 12 |
 | G6 | fallback_physical_file doc 与实现不符 + 单元素循环 | 改 doc | 12 |
 | G7 | rust/README.md 偏历史记录 | 新人架构导览重写 | 18 |
 | G8 | Java typo 保真（thurst_percent 等） | 择机更名 | 17 |
@@ -229,7 +229,7 @@ Java 保真移植时代的产物换为业界方案。分四步提交, 每步测�
 
 - 哨兵 -65535 (I_INVALID/F_INVALID): hud_calculator/voice_warning/formula registry
   的缺数据守卫判定契约, serde 版保持"缺键→哨兵"产出。
-- State::update 返回 -1 = 端口翻转协议 (vm-data 轮询依赖)。
+- State::update 返回 -1 = 端口翻转协议 (data 轮询依赖)。
 - str_state Arc<Mutex> 测试注入面; /state 失败双双空串复位; 250ms/500ms 超时上限。
 - 引擎数组"先写哨兵再 break"产出形态; 哨兵归一化 (rpm_throttle→-1 等)。
 
@@ -246,7 +246,7 @@ mock_8111.py 真 HTTP 互通验证); 未跑 script/rust_e2e.sh / --mock-smoke (�
 |---|---|---|
 | 21-1 | 零争议速赢 | exception_helper 死函数 4 件套 / 3 处 downcast 副本收敛 / G8 typo 兑现 (magenato·check_maxium_rpm·port_occupied) / 死 getter+trait 更名漏网 / MapInfo::init 空体 / F_INVALID 裸字面量收敛 / get_no_zeros Java 重载形态迭代器化 / 仪式性 f32×3 (ratio·间隔乘法·f32::MAX 哨兵) / parse 族 std 化 / **App 层 panic hook 落地** (备案多年的 stderr 双报告) |
 | 21-2 | 手写匹配器收割 | map_obj Player 提取 serde 化 (~170 行 java.util.regex 引擎退役, whitespace 不容忍的缺陷语义一并修好) / comparison rules + realtests 落 **regex crate** (Cargo.lock 已含, 零增量) / md5.rs → **md-5** crate / char_len_at (UTF-16 步进复刻) 退役 |
-| 21-3 | 结构现代化 | State/Indicators **new+init 两段式退役** + 引擎数组 **[T;16] 定长化** (Copy, 帧克隆免堆) / stype 死字段+截 8 链删除 / No Cockpit 谓词化 (is_no_cockpit) / EngineType 迁 vm-core::base, AnalyzerService trait 摘除 i32 当枚举 |
+| 21-3 | 结构现代化 | State/Indicators **new+init 两段式退役** + 引擎数组 **[T;16] 定长化** (Copy, 帧克隆免堆) / stype 死字段+截 8 链删除 / No Cockpit 谓词化 (is_no_cockpit) / EngineType 迁 kernel::base, AnalyzerService trait 摘除 i32 当枚举 |
 | 21-4 | 显示引擎退役 | java_f/FastNumberFormatter **HALF_UP → Rust format! 语义** (fmt_f 更名, 薄包装保 NaN→"N/A"/负零抑制域契约) / java_f_plus·java_f0_exact·pad_width·java_d0 薄包装化 / **f32 显示链全退** (fueltime·hp_eff·time[]·climb·CSV) / java_float_to_string 退役 (float 版, 合并入 double 版) / 显示 oracle 全面重录 |
 | 21-5 | 文档收官 | 本节 + 术语同步 |
 
@@ -266,11 +266,11 @@ mock_8111.py 真 HTTP 互通验证); 未跑 script/rust_e2e.sh / --mock-smoke (�
 
 ## 增补: 波22 — 现代化二轮 (2026-09-04, 第二次三路排查后)
 
-第二视角排查 (死参照系注释 / 死代码终极清点 / vm-ui·vm-app·平台层深扫), 五步提交:
+第二视角排查 (死参照系注释 / 死代码终极清点 / ui·voidmei·平台层深扫), 五步提交:
 
 | 步 | 内容 | 关键项 |
 |---|---|---|
-| 22-1 | 死代码清点 | sound.rs PlaySound 腿 440 行 + Win32_Media_Audio feature 收缩 / 13 个死 pub fn (lib crate 的 pub rustc 不报 dead, grep 验证) / legacy_player 死参数退役 (3 文件签名) / canvas save_png / vm-webui ping 死命令 |
+| 22-1 | 死代码清点 | sound.rs PlaySound 腿 440 行 + Win32_Media_Audio feature 收缩 / 13 个死 pub fn (lib crate 的 pub rustc 不报 dead, grep 验证) / legacy_player 死参数退役 (3 文件签名) / canvas save_png / webui ping 死命令 |
 | 22-2 | java_parse_double 整改 (用户追加裁决) | 两份 Double.parseDouble 复刻 (~131 行: sexp 完整版含 hex 浮点/尾缀/panic 消息保真 + 域收窄版) → std str::parse; Java 域特性 (hex/尾缀/大小写敏感 NaN) 退役备案, cfg 值域 grep 验证不可达 |
 | 22-3 | 热路径 | flight_info 逐帧整树重建 → 行存 def 索引, label/unit 渲染时借用 (免 20Hz×15 行×2 String clone) / minihud 两处冗余 clone 借用化 / render_thread counts 命中路径免 id.clone |
 | 22-4 | 死参照系注释全面清理 | §/CLASSIFY/LIFETIMES 死条款号 ~270 处删 / "Java 8 oracle" 碑文降格"历史基线" ~970 行 / PORT: 前缀退役 / 2 处生产"逐行对应 Java"枷锁解除 (hud_calculator 惯用化) / 5 测试保真声明+allow 撤除 / javadoc @param 127 行 Rust 惯例 / init_preview 委托去重 / kind_name / 空 MapCtx |

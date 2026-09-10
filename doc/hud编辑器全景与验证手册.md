@@ -17,31 +17,31 @@ MainForm footer 点「编辑HUD」→ 桌面上**真实的 overlay 窗口变成�
 ## 1. 五层架构
 
 ```
-┌─ 前端控制台 (vm-webui/web/src/layout_editor/) ────────────────────────────┐
+┌─ 前端控制台 (webui/web/src/layout_editor/) ────────────────────────────┐
 │ LayoutTab (编排) · Palette (组件目录+常用字段预设) · Outline (大纲/启用)     │
 │ Inspector (组件属性/页面属性/多选对齐)                                      │
 │ 数据源: hud-edit-doc (80ms 节流镜像) + hud-edit-selection + hud-edit-error │
 └────────────△──────────────────────────────┬──────────────────────────────┘
         emit (bridge_hud_edit)          invoke (begin/end/edit_command)
 ┌────────────┴──────────────────────────────▽──────────────────────────────┐
-│ IPC 层 (vm-webui): commands_edit.rs → RequestKind → 主线程 dispatcher     │
+│ IPC 层 (webui): commands_edit.rs → RequestKind → 主线程 dispatcher     │
 │                    → UiCommand 通道 → 渲染线程                            │
 └────────────┬─────────────────────────────────────────────────────────────┘
 ┌────────────▽─────────────────────────────────────────────────────────────┐
-│ 编辑会话 (vm-app/src/edit_session.rs ~950 行)                             │
+│ 编辑会话 (voidmei/src/edit_session.rs ~950 行)                             │
 │ EditSession { target_page, docs(编辑仓), selection, gesture,              │
 │   forced_open, snapping/show_guides/marquee_mode, hit_rects, pending }    │
 │ 两段式: EditBridge 闭包(即时裁决/入队/装饰) + edit_pump(手势推进/直改节点)  │
 │ apply_command → CommandEffect { None | Light | Full } 分级处理             │
 └────────────┬─────────────────────────────────────────────────────────────┘
 ┌────────────▽─────────────────────────────────────────────────────────────┐
-│ 渲染线程 (vm-app/src/render_thread.rs)                                    │
+│ 渲染线程 (voidmei/src/render_thread.rs)                                    │
 │ RenderSession { strategies(激活策略表), edit, params(reinit 参数仓), ... } │
 │ on_begin/on_end_edit_session · rebuild_edit_target · on_reinit_overlays   │
 │ (编辑仓写权接管) · 主循环 10ms 泵内调 edit_pump                            │
 └────────────┬─────────────────────────────────────────────────────────────┘
 ┌────────────▽─────────────────────────────────────────────────────────────┐
-│ 窗口宿主 (vm-overlay/src/platform/): host.rs EditBridge 三闭包面 +         │
+│ 窗口宿主 (overlay/src/platform/): host.rs EditBridge 三闭包面 +         │
 │ win.rs WNDPROC (WM_RBUTTONDOWN/WM_LBUTTONDBLCLK, CS_DBLCLKS)              │
 │ PageOverlay 页面编排器 (widgets 域) — 组件节点的真渲染面                    │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -49,7 +49,7 @@ MainForm footer 点「编辑HUD」→ 桌面上**真实的 overlay 窗口变成�
 
 ## 2. 数据模型与持久化
 
-**PageDoc**（`vm-core/src/config/json_model.rs`, serde camelCase）:
+**PageDoc**（`kernel/src/config/json_model.rs`, serde camelCase）:
 
 | 字段 | 语义 |
 |---|---|
@@ -69,7 +69,7 @@ MainForm footer 点「编辑HUD」→ 桌面上**真实的 overlay 窗口变成�
 
 **ComponentDoc**: `{id, type, pos(行高倍), anchor[自身,父], parent, visibleWhen, enabled, size(物理px覆盖|null), props}`。
 
-**持久化 = 出厂 ⊕ delta**（`vm-core/src/config/json_store.rs` + `configuration_service/mod.rs`）:
+**持久化 = 出厂 ⊕ delta**（`kernel/src/config/json_store.rs` + `configuration_service/mod.rs`）:
 
 - 出厂 = `factory_default.json` 编译期内嵌；用户 = `voidmei_config.json`（delta）。
 - 出厂页被编辑 → **owned 区整页提升**（记 contentVersion）；用户页 → user 区 upsert。
@@ -90,7 +90,7 @@ MainForm footer 点「编辑HUD」→ 桌面上**真实的 overlay 窗口变成�
 | `fm-list-default` | 1 | core.fm.list 黑盒（zebra 可伸长列表）; sidecar + startHidden |
 | `thrust-chart-default` | 1 | core.fm.thrust_chart 黑盒; sidecar + fixed 900×500 + dock bottomLeft 500 |
 
-## 4. 组件注册表（palette 目录, `vm-overlay/src/widgets/registry.rs`）
+## 4. 组件注册表（palette 目录, `overlay/src/widgets/registry.rs`）
 
 | 族 | type_name | 品类 |
 |---|---|---|
@@ -194,7 +194,7 @@ ReorderComponent / UpdatePage / UpsertPage / DeletePage / SetOptions`
 - `Nudge` doc + 真窗节点**双写**（方向键微调即时生效）。
 - 页面管理命令（upsert/delete/setTargetPage）也是会话内命令, **退出时统一提交**。
 
-## 8. 前端控制台（vm-webui/web/src/layout_editor/）
+## 8. 前端控制台（webui/web/src/layout_editor/）
 
 | 组件 | 职责 |
 |---|---|

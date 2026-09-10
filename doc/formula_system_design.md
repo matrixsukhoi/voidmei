@@ -1,14 +1,14 @@
 # VoidMei 公式系统设计文档
 
 > 状态: 设计定稿(2026-08-28);**阶段 0-3 + L2 规则引擎已实施**(2026-08-29,实施记录见 §14)。
-> 决策记录: `build/migration/DECISIONS.md` D10。
-> 本文所有文件路径行号以 `rust/` workspace 当前 rust 分支为准。
+> 本文所有文件路径以仓库根 workspace 为准(2026-09 Java 退役后 rust/ 已提升到根,
+> 迁移期决策档案 build/migration/ 已随 Java 版退役删除)。
 
 ## 1. 背景与目标
 
 ### 1.1 为什么做
 
-VoidMei 的派生指标计算(单位动能、失速速度、马赫数、增压器功率、告警判定……)目前全部**硬编码**在 Rust 里(vm-core 的 `hud_calculator.rs`、vm-data 的 `Deriver`/`service_loop.rs`/`methods_engine.rs`),想看"这个数怎么算的"只能读源码,想改算法必须改代码重新编译。
+VoidMei 的派生指标计算(单位动能、失速速度、马赫数、增压器功率、告警判定……)目前全部**硬编码**在 Rust 里(kernel 的 `hud_calculator.rs`、data 的 `Deriver`/`service_loop.rs`/`methods_engine.rs`),想看"这个数怎么算的"只能读源码,想改算法必须改代码重新编译。
 
 D9(MainForm 切 Tauri2+React)时确立的演进目标是**公式管理编辑器**:把这些计算外置成运行时可查看、可编辑的"公式",MainForm 里统一管理内置公式与用户自定义公式。
 
@@ -46,7 +46,7 @@ Java 版的 `FormulaEvaluator.java`(Nashorn JS 引擎 + 编译缓存)与 `Blkx.g
 │   + FM 字段 58 + 元变量(interval_ms/engine_type/fm_loaded/...)          │
 │   → 每帧组装 VarSnapshot (VarId → f64 平坦 Vec)                        │
 └──────────────▲──────────────────────────────────────────────────────┘
-               │ Service 线程 (vm-data service_loop.rs calculate() 尾部
+               │ Service 线程 (data service_loop.rs calculate() 尾部
                │                新增 formula_step — 求值唯一发生点)
                │ 结果写回 ServiceData.formula_values
                │ 既有 RwLock<ServiceData> (app_shell.rs feed_overlays_live
@@ -60,9 +60,9 @@ Java 版的 `FormulaEvaluator.java`(Nashorn JS 引擎 + 编译缓存)与 `Blkx.g
 
 | # | 裁决 | 理由 |
 |---|---|---|
-| A1 | **公式求值收敛 Service 线程单点** | Rust 迁移版 HUDData 计算在 win32 线程(`vm-app/src/lib.rs` L2869-2900,与 Java 的 Service 线程预计算**不同**)。若两线程各自求值,`sma/prev` 状态原语会双份漂移。阶段 4 把 HUDData 计算一并迁回 Service 线程,恢复 Java 语义(预计算降 EDT——此处是 win32——延迟) |
+| A1 | **公式求值收敛 Service 线程单点** | Rust 迁移版 HUDData 计算在 win32 线程(`voidmei/src/lib.rs` L2869-2900,与 Java 的 Service 线程预计算**不同**)。若两线程各自求值,`sma/prev` 状态原语会双份漂移。阶段 4 把 HUDData 计算一并迁回 Service 线程,恢复 Java 语义(预计算降 EDT——此处是 win32——延迟) |
 | A2 | 结果经既有 `Arc<RwLock<ServiceData>>` 传递,零新总线 | win32 线程 `feed_overlays_live` 已只读快照 ServiceData |
-| A3 | 引擎放 **vm-core** | vm-webui 不依赖 vm-data(`commands_windows.rs` 头注),直算类试算/校验命令只能触达 vm-core |
+| A3 | 引擎放 **kernel** | webui 不依赖 data(`commands_windows.rs` 头注),直算类试算/校验命令只能触达 kernel |
 | A4 | **自研解释器,不引 rhai** | workspace 零新依赖惯例(`config_manager.rs` 手写 MD5);语言面小(表达式+函数库+状态原语),不需要 rhai 的循环/对象;与 ui_layout.cfg 的 S-expr 配置体系风格统一 |
 | A5 | 每帧**全量**按拓扑序求值,不做增量/失效传播 | 10-20Hz × 几十公式 × AST 解释 <100µs/帧,增量复杂度不值得 |
 | A6 | `:target` 值域 = 变量名 ∪ 公式名(getter 名作别名向后兼容) | 现有 35 个 `:type data` 行(`ui_layout.cfg` L114-169)零改动 |
@@ -103,11 +103,11 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 |---|---|---|
 | 数学 | `abs/min/max/sqrt/sin/cos/atan2/exp/ln/pow/floor/ceil/round(x,n)/clamp(x,lo,hi)` | std |
 | 哨兵 | `is_valid(x)`(非 F_INVALID 且非 NaN)/ `na()`(返回 F_INVALID)/ `is_nan(x)` | 现有 F_INVALID 约定 |
-| 插值 | `lerp(x,x0,y0,x1,y1)` / `interp1d(x,xs,ys)` / `interp2d(x,y,xs,ys,zz)` | `vm-core/src/interpolation.rs` L49/L62/L107 |
-| 大气 | `isa_pressure(alt)` / `isa_density(alt)` / `isa_temp(alt)` / `ias_to_tas(ias,rho)` / `tas_to_ias(tas,rho)` / `ias_per_mach(alt)`(分母声速组合式,`mach = ias / ias_per_mach(alt)` 等价现 derive.rs L116-120 手写式) | `vm-core/src/atmosphere_model.rs` |
-| 活塞 | `stage_power(alt,wep,speed,is_ias)`(当前 FM 最优档)/ `optimal_stage(alt)` | `vm-core/src/piston_power_model.rs` L270/L351 |
-| FM 查表 | `fm_vne(sweep)` / `fm_mne(sweep)` / `fm_aoa_high(sweep)` / `fm_flap_allow_angle(flap)` | `vm-core/src/blkx/model.rs` L37-114 + `methods_engine.rs` L264-410 档位插值(双胞胎合一后) |
-| 常量 | `g`(9.80)/ `rho0`(1.225)/ `P0`(101325) | `vm-core/src/physics_constants.rs`(禁止字面量硬编码,沿用 CLAUDE.md 规则) |
+| 插值 | `lerp(x,x0,y0,x1,y1)` / `interp1d(x,xs,ys)` / `interp2d(x,y,xs,ys,zz)` | `kernel/src/interpolation.rs` L49/L62/L107 |
+| 大气 | `isa_pressure(alt)` / `isa_density(alt)` / `isa_temp(alt)` / `ias_to_tas(ias,rho)` / `tas_to_ias(tas,rho)` / `ias_per_mach(alt)`(分母声速组合式,`mach = ias / ias_per_mach(alt)` 等价现 derive.rs L116-120 手写式) | `kernel/src/atmosphere_model.rs` |
+| 活塞 | `stage_power(alt,wep,speed,is_ias)`(当前 FM 最优档)/ `optimal_stage(alt)` | `kernel/src/piston_power_model.rs` L270/L351 |
+| FM 查表 | `fm_vne(sweep)` / `fm_mne(sweep)` / `fm_aoa_high(sweep)` / `fm_flap_allow_angle(flap)` | `kernel/src/blkx/model.rs` L37-114 + `methods_engine.rs` L264-410 档位插值(双胞胎合一后) |
+| 常量 | `g`(9.80)/ `rho0`(1.225)/ `P0`(101325) | `kernel/src/physics_constants.rs`(禁止字面量硬编码,沿用 CLAUDE.md 规则) |
 
 新函数加入 = `functions.rs` 注册表加一项,前端函数目录自动同步。
 
@@ -122,7 +122,7 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 
 | 原语 | 语义 | 对齐的现有实现 |
 |---|---|---|
-| `sma(x, n)` | n 点滑动均值,窗口未满按已有点均值 | `vm-core/src/calc_helper.rs` L5-31 SimpleMovingAverage |
+| `sma(x, n)` | n 点滑动均值,窗口未满按已有点均值 | `kernel/src/calc_helper.rs` L5-31 SimpleMovingAverage |
 | `prev(x)` | 上一帧值(初始 0) | derive.rs L79 `speedvp = speedv` |
 | `blend(x, ratio)` | 一阶惯性 `ratio_1*prev + ratio*x` | service_loop.rs L1190-1226 三处 |
 | `deriv(x)` | 每秒变化率(按帧间隔折算) | fuel 消耗率语义 |
@@ -145,7 +145,7 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 
 ## 4. 模块落点
 
-引擎全部落在 **`rust/crates/vm-core/src/formula/`**(裁决 A3):
+引擎全部落在 **`rust/crates/kernel/src/formula/`**(裁决 A3):
 
 | 文件 | 职责 |
 |---|---|
@@ -165,12 +165,12 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 
 | 位置 | 改动 |
 |---|---|
-| `vm-data/src/service_loop.rs` `calculate()` L807-967 尾部 | 新增 `formula_step`:组快照→求值→写回→规则求值(求值唯一发生点,裁决 A1) |
-| `vm-data/src/service_fields.rs` | ServiceData 新增 `formula_values: FormulaResults`(Vec<f64> + 注册表版本号) |
-| `vm-app/src/form_dispatch.rs` | 新 RequestKind:`GetFormulaList/SaveFormula/DeleteFormula/ResetFormulas`(写链单点) |
-| `vm-app/src/lib.rs` | 订阅 FORMULA_CHANGED → 重建 FormulaManager;阶段 4 HUDData 迁移 |
-| `vm-webui/src/commands_windows.rs` | 直算类:`formula_validate` / `formula_try_eval` / `get_var_catalog` / `get_last_var_snapshot` |
-| `vm-webui/web/src/` | 新 `formulas/` 前端目录 + App.tsx 手工 append tab |
+| `data/src/service_loop.rs` `calculate()` L807-967 尾部 | 新增 `formula_step`:组快照→求值→写回→规则求值(求值唯一发生点,裁决 A1) |
+| `data/src/service_fields.rs` | ServiceData 新增 `formula_values: FormulaResults`(Vec<f64> + 注册表版本号) |
+| `voidmei/src/form_dispatch.rs` | 新 RequestKind:`GetFormulaList/SaveFormula/DeleteFormula/ResetFormulas`(写链单点) |
+| `voidmei/src/lib.rs` | 订阅 FORMULA_CHANGED → 重建 FormulaManager;阶段 4 HUDData 迁移 |
+| `webui/src/commands_windows.rs` | 直算类:`formula_validate` / `formula_try_eval` / `get_var_catalog` / `get_last_var_snapshot` |
+| `webui/web/src/` | 新 `formulas/` 前端目录 + App.tsx 手工 append tab |
 
 ## 5. 变量注册表(L0)
 
@@ -191,7 +191,7 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 
 - **VarId**(u16 稠密编号)+ **VarMeta** `{ 主名(短名如 `ias`), getter 别名(如 `getIAS`), 单位, 中文描述, 类别, origin 数据来源 }`。
 - **快照组装**:每帧一次,在 Service 写锁临界区内,`Vec<f64>` 按 VarId 平坦排布——求值器按下标取数,零查表。
-- 注册表扩展自 `vm-core/src/reflect_binder.rs` 的三段式(字符串→enum accessor→typed get,L98-161/L166-228)——reflect_binder 由死代码转为生产通路基底。
+- 注册表扩展自 `kernel/src/reflect_binder.rs` 的三段式(字符串→enum accessor→typed get,L98-161/L166-228)——reflect_binder 由死代码转为生产通路基底。
 
 ## 6. DAG 编译与求值(L1)
 
@@ -264,9 +264,9 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 
 | 表 | 现状 | 迁移 |
 |---|---|---|
-| `vm-core/src/fields.rs`(FlightInfo 16 行) | 静态表,但 ui_layout.cfg L114-129 数据开关组已含全部行定义(**cfg 才是定义源**) | 末臂 fallback 统一变量表 → 终态行定义完全由 cfg 驱动(恢复 Java FieldOverlay 语义) |
-| `vm-overlay/src/overlays_field1.rs` L922-1046(PowerInfo 19 行) | PowerSource enum 静态 | PowerSource 增 `Formula(VarId)` 变体,`:target` 未命中静态臂走它 |
-| `vm-overlay/src/flight_info.rs` flight_value L44-64 | 16 臂 match | 同 fields.rs 路径 |
+| `kernel/src/fields.rs`(FlightInfo 16 行) | 静态表,但 ui_layout.cfg L114-129 数据开关组已含全部行定义(**cfg 才是定义源**) | 末臂 fallback 统一变量表 → 终态行定义完全由 cfg 驱动(恢复 Java FieldOverlay 语义) |
+| `overlay/src/overlays_field1.rs` L922-1046(PowerInfo 19 行) | PowerSource enum 静态 | PowerSource 增 `Formula(VarId)` 变体,`:target` 未命中静态臂走它 |
+| `overlay/src/flight_info.rs` flight_value L44-64 | 16 臂 match | 同 fields.rs 路径 |
 | MiniHUD(HUDData) | win32 线程调 hud_calculator | 阶段 4 随计算位置迁移(裁决 A1)一并改 |
 
 **现有 35 个 data 行零改动零行为差**;每表迁移配同帧双路径等值对拍测试。
@@ -290,23 +290,23 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 ## 10. MainForm 编辑器
 
 - **tab 落点**:App.tsx L235-260 tabs 数组后 concat 手工 append(现 tab 完全由 cfg panels 驱动,编辑器不是配置行,不走 cfg);不做辅助 WebviewWindow。
-- **组件**(`vm-webui/web/src/formulas/`):
+- **组件**(`webui/web/src/formulas/`):
   - `FormulaTab`——左列表(内置/自定义分组,内置只读或"另存为副本",自定义可删)右编辑;
   - `FormulaEditor`——**CodeMirror 6**(语法高亮/错误行标注/变量与函数 AutoComplete/依赖链显示);依赖新增到 `web/package.json`;
   - `VarCatalog`——变量目录(名字/单位/中文描述/类别,来自 VarMeta);只读+搜索;
   - `TryPanel`——试算面板:对最近缓存帧序列求值,显示逐帧结果曲线/末值,可验证状态原语行为;
   - `RulesPanel`——规则列表与编辑(阶段 5)。
 - **命令**:
-  - 直算类(commands_windows.rs 模式,纯 vm-core 面):`formula_validate`(语法+符号+环)/ `formula_try_eval`(对快照序列试算)/ `get_var_catalog`/ `get_last_var_snapshot`;
+  - 直算类(commands_windows.rs 模式,纯 kernel 面):`formula_validate`(语法+符号+环)/ `formula_try_eval`(对快照序列试算)/ `get_var_catalog`/ `get_last_var_snapshot`;
   - dispatcher 类(form_dispatch.rs 模式,写链):`GetFormulaList/SaveFormula/DeleteFormula/ResetFormulas` → 持久化 → 广播 FORMULA_CHANGED → app_shell 重建 FormulaManager;
-  - 试算数据源:vm-app 节流(500ms)发布最近 VarSnapshot DTO(沿用 FLIGHT_RECORD_SNAPSHOT 先例);**环形缓冲最近 200 帧**供状态原语试算。
+  - 试算数据源:voidmei 节流(500ms)发布最近 VarSnapshot DTO(沿用 FLIGHT_RECORD_SNAPSHOT 先例);**环形缓冲最近 200 帧**供状态原语试算。
 - **DTO**:沿用 `#[serde(tag="kind")]` enum + camelCase;前端 discriminated union(api.ts 模式)。
 - **编辑器防呆**:保存即编译,错误原位标注(行列来自 lexer/parser);循环依赖画出环链;删除被引用公式列出引用方。
 
 ## 11. 持久化格式与合并规则
 
 - **文件**:`formulas.cfg`(内置出厂,只读,随程序分发)+ `formulas.user.cfg`(用户覆盖/新增/禁用),与 ui_layout.cfg 同目录(项目根工作区)。
-- **格式**:S-expr 外壳(复用 `vm-core/src/sexp_parser.rs`)+ 中缀公式体:
+- **格式**:S-expr 外壳(复用 `kernel/src/sexp_parser.rs`)+ 中缀公式体:
 
 ```lisp
 (formulas
@@ -377,7 +377,7 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 | **W7 TelemetrySource 消解** | ServiceData 71 getter 实现 → 5 个(String/精度类); overlay 消费面(hud_calculator/flight_info/PowerInfo/engine_control/gear_flaps/attitude/control_surfaces/minihud) 全走 var_value 桥; visibility_expression/VisExpr 同; ServiceData FormulaView 实时直达源头(State/Indic/Blkx/Session 现取, 不经快照) |
 | **W8 check_flap 公式化** | `is_downing_flap = latch(变化方向) * (1 - stable(flaps,1000))` 接管(白名单 bool 写回); flap_allow_speed/angle 公式(fm_flap_allow_* 函数); **删 check_flap 方法 + flap/flapp/flap_check 字段** |
 
-净效果: 21 files, **+867/-2559**(净 -1692 行); vm-data 6438→5613; registry 直绑闭包对齐原 getter 哨兵语义; formulas.cfg 123 行 30+ 公式。
+净效果: 21 files, **+867/-2559**(净 -1692 行); data 6438→5613; registry 直绑闭包对齐原 getter 哨兵语义; formulas.cfg 123 行 30+ 公式。
 
 **W9 live 显示回归修复**(2026-08-29, 真机发现"FlightInfo 面板少了很多信息"):
 
@@ -398,7 +398,7 @@ W9 的 :getter 别名双键本质是**名字搬运层**——与 W6-W8 删除的
 | 静态表短名化 | fields.rs 加 `target()`(短名, 内核取数键); PowerSource 19 臂全部改短名; DataField key/configKey 随之(write-only 字段, 零风险) |
 | 删别名机制 | FormulaDef.getter 字段/persistence :getter 解析与序列化/编译 slots 双键/DTO/前端 formulas.cfg 8 处别名 — 全链拆除 |
 | registry 单名化 | VarMeta.getter 字段删(127 处)/index 只插 name; getter 名不再进内核索引 |
-| 边界保留 | Java getter 名仅存于**对拍文件边界**: vm-overlay main.rs --values/--log-values 的 values.txt 跨端回灌格式(fields.rs `getter()` 专职此用途) |
+| 边界保留 | Java getter 名仅存于**对拍文件边界**: overlay main.rs --values/--log-values 的 values.txt 跨端回灌格式(fields.rs `getter()` 专职此用途) |
 | 守卫更新 | registry_single_name_no_getter_aliases(getter 名必须**不可达**, 防别名回归); canonical_var_name 简化为单通道; panel_targets_via_short_names 端到端 |
 
 裁决: **内核(公式槽/registry/静态表/resolve)单名制; 兼容翻译只准出现在文件边界**(values.txt 对拍格式、未来 ui_layout.cfg 驱动化解析), 且须集中一处显式映射。1415 测试全绿, e2e 三场景 PASS。
@@ -408,8 +408,8 @@ W9 的 :getter 别名双键本质是**名字搬运层**——与 W6-W8 删除的
 
 | 项 | 落点 |
 |---|---|
-| 阶段 0 引擎 | `vm-core/src/formula/`(ast/lexer/parser/functions/eval/definition/registry,34 单测含 SMA 逐值对拍/mach 位级对拍) |
-| 阶段 1 接线 | persistence 双文件;`service_loop.rs` calculate() 尾部 `formula_step`(裁决 A1 落地);ServiceData.formula_values/slots;`resolve_target` 统一解析(getter 名/短名/公式名/乘数);7 个直算 command + vm-webui 桥(publish_formula_bridge);前端公式编辑器 tab(CodeMirror 6 高亮/补全/校验/试算/变量目录) |
+| 阶段 0 引擎 | `kernel/src/formula/`(ast/lexer/parser/functions/eval/definition/registry,34 单测含 SMA 逐值对拍/mach 位级对拍) |
+| 阶段 1 接线 | persistence 双文件;`service_loop.rs` calculate() 尾部 `formula_step`(裁决 A1 落地);ServiceData.formula_values/slots;`resolve_target` 统一解析(getter 名/短名/公式名/乘数);7 个直算 command + webui 桥(publish_formula_bridge);前端公式编辑器 tab(CodeMirror 6 高亮/补全/校验/试算/变量目录) |
 | 阶段 2 A 级 | energy_m/maneuver_index 公式优先+回退(hud_calculator);mach 覆写(输入位级同源证明+集成测试);formulas.cfg 内置 4 条 |
 | 阶段 3 | `Blkx→BlkxPlaceholder` 转换 + 换机重建 adapter(fm.* 58 变量供值,此前恒 0);flap 双胞胎合一(共享实现,valid 检查保留=Java 保真,mock 对齐 READY 形态) |
 | L2 规则引擎 | `rules.rs`(hold/cooldown 状态机+NaN 语义,6 单测);(rule ...) 持久化解析;formula_step 尾部求值→ServiceData.rule_triggers;出厂示例规则 |
@@ -475,18 +475,18 @@ W9 的 :getter 别名双键本质是**名字搬运层**——与 W6-W8 删除的
 3. **注册表增补 indicators 原始直通**: indicators.speed(校正速度, Deriver 独占消费)等 — speedv 链的输入前提。
 4. **逐帧位级对拍设施**: 帧序列 fixture(mock_8111 场景供源)→ 旧路径/公式路径双跑逐位比对 — 删除 Deriver 的安全网。
 5. **HUDData 求值迁移**: hud_calculator 迁回 Service 线程(裁决 A1 完整落地), win32 侧缩为组装+格式化。
-6. **规则动作消费链**: rule_triggers → toast/语音(vm-app 接线)。解锁: VoiceWarning 判定外置。
+6. **规则动作消费链**: rule_triggers → toast/语音(voidmei 接线)。解锁: VoiceWarning 判定外置。
 7. (可选) 编辑器 :test 对拍面板 — 迁移验收工具。
 
 ### 15.3 整合重构路线(五波次, 每波独立可验收可停)
 
 | 波次 | 内容 | 前置 | 验收 |
 |---|---|---|---|
-| **W1 地基 ✅(2026-08-29)** | FM 查表函数族(fm_vne/fm_mne/fm_aoa_high/fm_flap_allow_{speed,angle}, EvalCtx 带 blkx;get_flap_allow_speed 合一入 vm-core)+ 通用写回机制(接管语义: 公式名命中白名单→formula_step 覆写, NaN 守卫, 白名单 14 字段; mach 硬编码并入; hasFM 守卫语义改由公式 `fm_loaded ? ... : invalid()` 表达)+ 帧回放对拍设施(20 帧参数化序列+oracle)+ 常量折叠 + VarId 直接索引 | — | 1433 测试全绿; FnId 编解码宏化根治判别值移位(两事故后加往返守卫测试) |
+| **W1 地基 ✅(2026-08-29)** | FM 查表函数族(fm_vne/fm_mne/fm_aoa_high/fm_flap_allow_{speed,angle}, EvalCtx 带 blkx;get_flap_allow_speed 合一入 kernel)+ 通用写回机制(接管语义: 公式名命中白名单→formula_step 覆写, NaN 守卫, 白名单 14 字段; mach 硬编码并入; hasFM 守卫语义改由公式 `fm_loaded ? ... : invalid()` 表达)+ 帧回放对拍设施(20 帧参数化序列+oracle)+ 常量折叠 + VarId 直接索引 | — | 1433 测试全绿; FnId 编解码宏化根治判别值移位(两事故后加往返守卫测试) |
 | **W2 Deriver 消解 ✅(2026-08-29)** | latch 惰性原语(条件更新语义)+ indic_speed/ny_raw 直通变量 + 四族接管公式(speed_raw/iastotascooff/speedv/an/turn_rds/turn_rate/acceleration/sep, formula_step 提前至 engineState 前消除 speedv 一帧滞后)+ FlightInfo 改吃 TelemetrySource + **删 derive.rs/FlightValues/to_state_raw/POC live 轮询**(--log-values 改走 Service 公式链) | W1 | **20 帧位级 oracle 对拍全绿**(an/sep/turn_rate/turn_rds/acceleration 逐位相等, oracle = 删前 Deriver 输出) |
 | **W3 限制/襟翼族 ✅(2026-08-29)** | speed_ratio 5 量 + stall_speed 公式化(补 trait/adapter/注册表的 fuse_cl_high/fuselage_aoa_crit_high/full_flaps cl_crit 缺口)+ **删 update_speed_ratio/update_stall_speed**; flap_allow 双胞胎求值留 C 级 check_flap 内联(W1a 已合一) | W1 | 存量 oracle(spitfire 真机数据)数值不变 |
 | **W4 HUD 层瘦身 ✅(2026-08-29, 有界)** | flight_value 16 臂/PowerSource 19 臂 → resolve_target 统一解析(:target 可指向公式名); warn_vne/warn_altitude/warn_stall 公式化(hud 读公式优先+原判定回退); **HUDData 线程迁移跳过**(偏离备案: A1 的动机"状态双主"已由 W2 根除, hud_calculator 无跨帧状态, 迁移无收益) | W1 | 1433 全绿(回退路径由存量 hud 测试锚定) |
-| **W5 告警统一 ✅(2026-08-29, 有界)** | 规则消费链首段: rule_triggers → vm-app 主循环 emit `rule-triggered` → 前端 toast(voice 播放/flag 着色消费面留接口); VoiceWarning 17 条判定外置**未做**(真机验证不可行, 归遗留) | W1 | 前端 typecheck/build/77 测试过 |
+| **W5 告警统一 ✅(2026-08-29, 有界)** | 规则消费链首段: rule_triggers → voidmei 主循环 emit `rule-triggered` → 前端 toast(voice 播放/flag 着色消费面留接口); VoiceWarning 17 条判定外置**未做**(真机验证不可行, 归遗留) | W1 | 前端 typecheck/build/77 测试过 |
 | W3 限制/襟翼族 (~2-3d) | speed_ratio 5 量/stall_speed/flap 族/check_flap → 公式; 删对应段 | W1 | 同上 + mock e2e |
 | W4 HUD 汇聚层瘦身 (~2-3d) | hud_calculator 迁线程+警告公式化+三表走 resolve_target; 删 fields.rs 静态表 | W1-W3 | 像素对拍不回归 |
 | W5 告警统一 (~2-3d) | 规则消费链 + VoiceWarning 低风险判定外置 + warn_* 走规则 | W1 | 真机语音时序不变 |

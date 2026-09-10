@@ -587,7 +587,7 @@ fn parse_port_arg(args: &[String]) -> Option<u16> {
     args.get(idx + 1)?.parse::<u16>().ok()
 }
 
-/// 停 mock: 优雅 /_mock/shutdown → 限期等待 → 兜底 kill (对位 e2e_fm.sh 收尾)。
+/// 停 mock: 优雅 /_mock/shutdown → 限期等待 → 兜底 kill。
 /// 限期 wait (审查 B-W3): mock 进程不响应 shutdown 时裸 wait() 会永久挂起冒烟
 /// 而非快速失败 — 3s 内 try_wait 轮询, 超时强杀后再收尸。
 fn stop_mock(mock: &mut std::process::Child, port: u16) {
