@@ -1195,11 +1195,15 @@ impl RenderSession {
             logger::error("OverlayHost", &format!("open_all: {}", e));
         }
         // Java init 末尾 setVisible(false): 窗口隐藏起步 (热键切换),
-        // 免首个 tick (≤200ms) 前的可见闪现
-        self.host.set_entry_visible("enableFMPrint", false);
-        // DrawFrameSimpl 同理 (init 末 setVisible(true) 后 run 首轮即
-        // 隐藏 — Java 有 ≤1 线程轮的闪现, 此处同 FMUnpacked 先例预消)
-        self.host.set_entry_visible("thrustdFS", false);
+        // 免首个 tick (≤200ms) 前的可见闪现。R3 声明式: start_hidden 页
+        // (fm-list/thrust-chart) 按页文档驱动 — 此前硬编码旧配置键
+        // ("enableFMPrint"/"thrustdFS"), R3 条目键统一页 id 后静默 no-op,
+        // 起步隐藏失效 (闪现回归)
+        for d in self.params.borrow().pages.iter() {
+            if d.start_hidden {
+                self.host.set_entry_visible(&d.id, false);
+            }
+        }
         // VoiceWarning (非窗口条目): Java openAll 对 enableVoiceWarn 走
         // 同一 OverlayEntry.open — 激活探测 (config+live_only, 此刻
         // preview 已翻 false = forGameMode ctx) 命中即 init(this,S) +
@@ -1416,6 +1420,15 @@ impl RenderSession {
     /// 命令类修改后的整页重装配 (props/增删/页面属性 — 走 reinit 链即所见):
     /// 编辑仓覆写 params.pages → 目标页 reinit 闭包整体重建
     fn rebuild_edit_target(&mut self, es: &mut crate::edit_session::EditSession) {
+        // 编辑仓变化 → 激活策略表同步 (UpdatePage 改 activation/增删页后,
+        // 探测仍用旧策略 = 开关键改动不生效 — 此前漏了这一环)
+        {
+            let mut strategies = self.strategies.borrow_mut();
+            strategies.clear();
+            for doc in &es.docs {
+                strategies.insert(doc.id.clone(), strategy_of(doc));
+            }
+        }
         let mut p = self.params.borrow_mut();
         p.pages = std::sync::Arc::new(es.docs.clone());
         let target = es.target_page.clone();

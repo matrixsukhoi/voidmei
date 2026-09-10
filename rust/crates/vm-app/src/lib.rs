@@ -450,11 +450,10 @@ impl AppShell {
                     for id in &deleted {
                         let _ = c.config.delete_page(id);
                     }
-                    for doc in &pages {
-                        // save_page 内含落盘 + CONFIG_CHANGED 广播 (每页一次,
-                        // 最后写胜出 — 渲染线程防抖链收敛为一次重建)
-                        c.config.save_page(doc.clone());
-                    }
+                    // 批量提交: N 页一次落盘 + 一次广播 (delete_page 各带一次
+                    // 广播 + commit_pages 一次 — 共 1+N_delete 次, 替代此前
+                    // 1+N_delete+N_save 次全量重建链)
+                    c.config.commit_pages(&pages);
                 }
             }
             MainEvent::EditDiscarded => {

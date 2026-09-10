@@ -192,6 +192,31 @@ impl ConfigurationService {
 
     /// 页面保存 (编辑器): 出厂 id → owned 区整页提升 (记当前出厂 content_version);
     /// 用户 id → user 区 upsert。跨线程无 — 主线程 dispatcher 专用。
+    /// 批量提交 (编辑会话): 只写 delta 不落盘不广播 — N 页一次落盘 +
+    /// 一次 CONFIG_CHANGED (此前每页 save_page 一次广播, 每次广播触发
+    /// Controller 全参数 ReinitOverlays 重建, N 页 = N 次全量重建)
+    pub fn commit_pages(&self, pages: &[crate::config::json_model::PageDoc]) {
+        {
+            let mut delta = self.inner.delta.write().expect(DELTA_LOCK_MSG);
+            for page in pages {
+                let is_factory = json_store::factory().pages.iter().any(|p| p.id == page.id);
+                if is_factory {
+                    match delta.owned_factory_pages.iter().position(|p| p.id == page.id) {
+                        Some(i) => delta.owned_factory_pages[i] = page.clone(),
+                        None => delta.owned_factory_pages.push(page.clone()),
+                    }
+                } else {
+                    match delta.user_pages.iter().position(|p| p.id == page.id) {
+                        Some(i) => delta.user_pages[i] = page.clone(),
+                        None => delta.user_pages.push(page.clone()),
+                    }
+                }
+            }
+        }
+        self.save_layout_config();
+        self.inner.publish_config_changed("voidmei_config.json");
+    }
+
     pub fn save_page(&self, page: crate::config::json_model::PageDoc) {
         let factory = json_store::factory();
         let is_factory = factory.pages.iter().any(|p| p.id == page.id);

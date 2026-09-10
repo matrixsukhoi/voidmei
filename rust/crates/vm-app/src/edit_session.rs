@@ -213,8 +213,18 @@ fn win_local(root: (i32, i32), win_pos: (i32, i32)) -> (i32, i32) {
 // =====================================================================
 
 /// 返回 true = 编辑层接管 (host 不启整窗拖拽)
+/// 专用编排器页 (MiniHUD: 组件树由 minihud_overlay_spec 独占管理, 不走
+/// PageOverlay 通用面 → 编辑层无命中/无装饰/无重装配支持, 排除出可编辑集)
+pub(crate) fn is_editable_page(id: &str) -> bool {
+    id != "minihud-default"
+}
+
 pub(crate) fn press_decision(s: &mut EditSession, entry_id: &str, root: (i32, i32), win_pos: (i32, i32)) -> bool {
-    // 点非目标页窗口 = 切目标页 (装饰转移; 编辑仓不变)
+    // 点非目标页窗口 = 切目标页 (装饰转移; 编辑仓不变);
+    // 专用编排器页不可编辑 (不切 — 点击只作为普通窗口交互)
+    if !is_editable_page(entry_id) {
+        return false;
+    }
     if entry_id != s.target_page {
         if s.docs.iter().any(|d| d.id == entry_id) {
             s.target_page = entry_id.to_string();

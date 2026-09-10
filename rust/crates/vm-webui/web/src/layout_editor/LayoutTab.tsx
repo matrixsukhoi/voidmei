@@ -302,7 +302,7 @@ export const LayoutTab: React.FC = () => {
     <div style={{ display: 'flex', gap: 8, height: '100%', minHeight: 480, outline: 'none' }}>
       {/* 左: palette + 大纲 */}
       <div style={{ width: 190, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-        <Palette onAdd={addComponent} onAddField={addFieldPreset} onDrop={() => undefined} />
+        <Palette onAdd={addComponent} onAddField={addFieldPreset} />
         <Outline
           page={doc ?? EMPTY_PAGE}
           solve={{ errors }}
@@ -362,10 +362,12 @@ export const LayoutTab: React.FC = () => {
             style={{ minWidth: 180 }}
             placeholder="目标页"
             onChange={(id: string) => sendCmd('setTargetPage', { pageId: id }, false)}
-            options={pageList.map(p => ({
-              value: p.id,
-              label: `${p.name}${p.isFactory ? ' (出厂)' : ''}`,
-            }))}
+            options={pageList
+              .filter(p => p.id !== 'minihud-default') /* 专用编排器页不可编辑 */
+              .map(p => ({
+                value: p.id,
+                label: `${p.name}${p.isFactory ? ' (出厂)' : ''}`,
+              }))}
           />
           <Button
             size="small"
