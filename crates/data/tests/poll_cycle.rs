@@ -1,5 +1,7 @@
 //! data 轮询周期黑盒场景: mini-8111 mock → Service 真线程真 HTTP → Frame 观测。
 //! 只经 pub 面 (ServiceConfig/ServiceHandle/FrameStore), 不触碰 crate 内部。
+#![allow(non_snake_case)] // 中文场景命名是项目惯例
+
 
 mod common;
 

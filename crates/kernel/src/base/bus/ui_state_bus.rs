@@ -244,8 +244,13 @@ impl UIStateBus {
         // 直接派发 (跨类型嵌套在此立即递归, 对齐 Java 栈内同步)
         let mut delivered = self.dispatch_now(&ev);
 
-        // 最外层: 排空 pending (排空中新嵌套继续入队, 循环至清空)
-        let is_outermost = REENTRY.with(|r| r.borrow().0 == 1);
+        // 最外层: 排空 pending (排空中新嵌套继续入队, 循环至清空)。
+        // 修复: 判定须为 depth == 0 — dispatch_now 返回时最外层的 depth 已回 0;
+        // 旧判定 ==1 会在"跨类型嵌套 publish"的栈内 (此时外层同类型回调仍在
+        // 执行、持有监听器 Mutex) 被误判为最外层并提前补投, 内层 dispatch 同一
+        // 监听器二次 lock → 同线程死锁 (黑盒测试 ui_state_bus_路由与同类型嵌套补投
+        // 钉出)。Java 等价链 (reset 链) 是纯同类型嵌套, 不触发该路径。
+        let is_outermost = REENTRY.with(|r| r.borrow().0 == 0);
         if is_outermost {
             loop {
                 let next = REENTRY.with(|r| r.borrow_mut().2.pop_front());

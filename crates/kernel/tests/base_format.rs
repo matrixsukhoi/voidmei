@@ -1,5 +1,7 @@
 //! 数值格式化语义黑盒场景 (kernel::base::format)。
 //! expect 表承载批量边界值; 期望值语义 = Java HALF_UP/负零抑制族。
+#![allow(non_snake_case)] // 中文场景命名是项目惯例
+
 
 use expect_test::expect;
 use kernel::base::format::{fmt_f, format, format_time, java_d0, java_f_plus, pad_width};

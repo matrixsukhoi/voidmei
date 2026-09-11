@@ -1,6 +1,8 @@
 //! 公式系统黑盒场景 (kernel::formula): 出厂集装载 / 求值语义 / 会话量 /
 //! 编译错误 / 用户 delta。求值经 FormulaManager::eval_frame (pub 面),
 //! 输入 = 手造 State/SessionInputs/MetaInputs。
+#![allow(non_snake_case)] // 中文场景命名是项目惯例
+
 
 use std::sync::Arc;
 

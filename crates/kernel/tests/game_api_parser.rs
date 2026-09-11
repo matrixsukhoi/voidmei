@@ -1,12 +1,14 @@
 //! 8111 遥测解析黑盒场景 (kernel::game_api::parser)。
 //! 输入 = 真机快照 (script/mock_scenarios, mock_8111 同源) + 合成边界串;
 //! 观测 = State/Indicators 解析后的公开字段。
+#![allow(non_snake_case)] // 中文场景命名是项目惯例
+
 
 use expect_test::expect;
 use kernel::game_api::parser::{Indicators, State};
 
-/// 真机 p51d 快照的 /state 原文 (mock_scenarios 同源, 防双份漂移)
-fn snapshot_body(name: &str, endpoint: &str) -> String {
+/// 真机 p51d 快照的端点原文 (mock_scenarios 同源, 防双份漂移)
+fn snapshot_body(_name: &str, endpoint: &str) -> String {
     let raw = include_str!("../../../script/mock_scenarios/snapshots/plane_p51d.json");
     let v: serde_json::Value = serde_json::from_str(raw).expect("快照非 JSON");
     v[endpoint].to_string()

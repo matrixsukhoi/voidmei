@@ -3,6 +3,8 @@
 //! 换机广播 / 名字规范化。
 //! 文件内 static 串行锁: DATA_ROOT 是进程级全局, 本二进制内互斥
 //! (tests/ 每文件独立进程, 跨文件天然隔离)。
+#![allow(non_snake_case)] // 中文场景命名是项目惯例
+
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};

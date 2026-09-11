@@ -77,6 +77,8 @@ pub use crate::render_thread::{render_thread_main, RenderThreadConfig};
 // 根消费的 pub(crate) 项 (私有引入; tests 经 `use super::*` 同样可见)
 use crate::overlay_inputs::refresh_activation_cache;
 pub use crate::voice_setup::ConfigSnapshots; // AppShell pub 字段类型 (E9b)
+// 测试黑盒入口: VoiceWarning 会话装配 (voice_wiring 集成测试消费)
+pub use crate::voice_setup::{open_voice_warning, VoiceWarnSession};
 
 /// 语音播放平台件 (winmm waveOut 每路独立流; 播放模型裁决见该模块头注)
 pub mod winmm_player;

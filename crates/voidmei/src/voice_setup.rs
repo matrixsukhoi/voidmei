@@ -251,15 +251,16 @@ impl VoiceWarningService for LiveVoiceService {
 /// VoiceWarning 会话句柄 (Java OverlayEntry 的 instance+thread 二位一体):
 /// OpenAllOverlays 建 / CloseAllOverlays 停; Drop 兜底停 (渲染线程局部声明,
 /// Shutdown return 时逆序 drop 自动收线程)。
-pub(crate) struct VoiceWarnSession {
-    pub(crate) doit: Arc<AtomicBool>,
+// pub 放宽 (连 doit 字段/stop): 测试黑盒入口 — 集成测试经它观测会话存活性
+pub struct VoiceWarnSession {
+    pub doit: Arc<AtomicBool>,
     join: Option<JoinHandle<()>>,
 }
 
 impl VoiceWarnSession {
     /// Java OverlayEntry.close: thread.interrupt() 的电平形态 — doit 翻 false
     /// + join (run 的分片睡眠 10ms 轮询, 退出时延 ≤ 一片)
-    pub(crate) fn stop(&mut self) {
+    pub fn stop(&mut self) {
         self.doit.store(false, Ordering::SeqCst);
         if let Some(j) = self.join.take() {
             let _ = j.join();
@@ -296,7 +297,7 @@ pub(crate) fn voice_warn_refresh_reaches(changed_key: Option<&str>) -> bool {
 /// 泵阻塞几十至百 ms (一次性) — Java 对位 OverlayEntry.open 在 UI 线程调 init 同
 /// 样阻塞 UI 线程, 形态保真; 若后续观察到 openpad 卡顿再议预加载 (偏离 Java 时
 /// 序, 需裁决)。
-pub(crate) fn open_voice_warning(
+pub fn open_voice_warning( // 测试黑盒入口
     voice: &Arc<VoiceResourceManager>,
     ui_bus: &Arc<UIStateBus>,
     voice_config: &Arc<Mutex<HashMap<String, String>>>,

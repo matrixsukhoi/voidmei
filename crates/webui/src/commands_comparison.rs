@@ -42,13 +42,15 @@ use crate::dto::{ComparisonDataDto, ComparisonRowDto, Win};
 /// 原型 = Java 构造器裁决 (fm1 空/==fm0 = 单曲线);
 /// 波13 统一 comparison 侧 (此前只判空) — 同名对比无信息量, 并入单机视图,
 /// 与窗口 title/query/DTO 三面保持一致。
-pub(crate) fn normalize_secondary<'a>(fm0: &str, fm1: Option<&'a str>) -> Option<&'a str> {
+// 测试黑盒入口
+pub fn normalize_secondary<'a>(fm0: &str, fm1: Option<&'a str>) -> Option<&'a str> {
     fm1.filter(|s| !s.is_empty() && *s != fm0)
 }
 
 /// 对比窗口标题 (CompactComparisonWindow 构造器): DTO title 与
 /// web_windows 窗口 title 同源 (波13 收敛, 归一化由调用方先行)。
-pub(crate) fn comparison_title(fm0: &str, fm1: Option<&str>) -> String {
+// 测试黑盒入口
+pub fn comparison_title(fm0: &str, fm1: Option<&str>) -> String {
     match fm1 {
         Some(n) => format!("Comparison: {fm0} vs {n}"),
         None => format!("Aircraft Data: {fm0}"),
@@ -107,7 +109,8 @@ fn find_in_structure(list: &[DisplayItem], key: &str) -> Option<usize> {
 
 /// initUI 的解析段: lines0 建结构 +
 /// dataMap0, lines1 合并独有键进结构、全量进 dataMap1。纯函数 (无 UI/文件)。
-fn build_structure(
+// 测试黑盒入口
+pub fn build_structure(
     lines0: &[String],
     lines1_safe: &[String],
 ) -> (
@@ -195,7 +198,8 @@ fn build_structure(
 /// addComparisonRow 的胜负判定。
 /// 入参用**展示串** (缺键已补 "-"), 与 Java 调用点一致 (extractValue("-") 无数字
 /// → None → 平局)。
-fn row_win(prop: &str, v0: &str, v1: &str, single_mode: bool) -> Win {
+// 测试黑盒入口
+pub fn row_win(prop: &str, v0: &str, v1: &str, single_mode: bool) -> Win {
     // Determine Winner using rule system
     let mut win = Win::Draw; // 平局缺省
     if let Some(rule) = ComparisonRules::get(prop) {
@@ -309,7 +313,8 @@ pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
 }
 
 /// buildCopyText: COPY 按钮文本
-fn build_copy_text(
+// 测试黑盒入口
+pub fn build_copy_text(
     fm0_name: &str,
     fm1_name: &str,
     single_mode: bool,

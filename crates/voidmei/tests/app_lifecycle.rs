@@ -1,6 +1,8 @@
 //! AppShell 生命周期黑盒场景: 状态机 (Init→Preview→Connected→InGame)、
 //! confirm/start/stop 链、flags 丢失会话清理、静默流超时、换机。
 //! 全部经 pub 面驱动 (ui_bus 事件 + pump + dispatch), 不 spawn 真窗口。
+#![allow(non_snake_case)] // 中文场景命名是项目惯例
+
 
 mod common;
 
