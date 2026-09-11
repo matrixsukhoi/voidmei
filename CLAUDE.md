@@ -1,6 +1,7 @@
 # *** 使用中文思考 ***
 # 代码里的注释要简洁精炼
-# 现在的测试很糟糕, 以后要进行重构. 不要跑e2e测试, 不要跑冒烟测试, 不要补充或新增更多测试了
+# 测试纪律 (2026-09-11 测试重构后): 只维护 tests/ 黑盒集成测试, 按特性+场景覆盖外部可观察行为;
+# 不写白盒/内部契约测试, 不写像素级渲染断言 (渲染质量归人工验收), 不跑 e2e/冒烟
 # 不用担心兼容性问题, 可以随便改架构. 我也建议你在做特性时更多考虑架构方面的重构, 以及各种微重构.
 # 引入现代化组件和依赖是件好事
 # 写代码时, 关键的地方和问题修复一定要添加和补充中文注释
@@ -18,7 +19,7 @@ VoidMei 是 War Thunder 的遥测 HUD overlay 应用(Rust 实现): 读取游戏�
 ## 构建与运行
 
 ```bash
-cargo test --workspace            # 全部单元测试 (~1256, 仓库根直接跑)
+cargo test --workspace            # 全部黑盒集成测试 (~141, 仓库根直接跑)
 cargo build --release             # release 构建 → target/release/voidmei.exe
 
 python script/build.py rust       # web 前端 + cargo release 一键构建链
@@ -28,8 +29,7 @@ python script/build.py fmdata     # 游戏版本更新后: 从客户端解包 JS
 python script/build.py clean      # 清 build/ dist/ (cargo 产物用 cargo clean)
 
 bash script/rust_run.sh           # 完整应用 (设置窗 + overlay 预览)
-bash script/rust_run.sh --live    # 直接 live 模式 (e2e 用)
-bash script/rust_e2e.sh           # e2e 三场景 (A1~A6 断言; 一般不跑, 见头部指令)
+bash script/rust_run.sh --live    # 直接 live 模式 (配合 mock_8111.py 打桩调试)
 ```
 
 **关键约束**:
@@ -108,12 +108,21 @@ War Thunder HTTP API (127.0.0.1:8111)
 - `crates/voidmei/src/lib.rs` → AppShell 装配;`controller.rs` → 生命周期状态机;`render_thread.rs` → 渲染线程。
 - `crates/webui/src/ipc.rs` → 壳与 IPC 拓扑;`commands_*.rs` → 按域命令;`web/src/` → 前端源码。
 
+### 测试布局(黑盒集成测试, 2026-09 重构后)
+
+- **全部测试在 `crates/*/tests/`**,src 内零白盒旁挂测试;只经 pub API 按特性+场景覆盖外部可观察行为,不锁内部结构。
+- **断言主力 = expect-test**(rust-analyzer 同款):`UPDATE_EXPECT=1 cargo test` 自动更新快照 → 人工审 diff → 提交。快照行首勿带差异化前导空格(公共前缀剥离坑)。
+- **mock 注入**:`data/tests/common` 的 mini-8111(std TcpListener 双端口,body 读 `script/mock_scenarios` 真机快照)+ `ServiceConfig.app_port` 指过去走真 HTTP 链路;FM 数据根经 `set_data_root` 合成临时根注入。
+- **禁真窗口/真字体/像素断言**;voidmei 测试一律 `with_parts` + `ui_bus.publish` + `pump()` 驱动,勿触 `run_supervisor_phase`(会自动 spawn 真 Win32 窗口)。
+- **fm_real.rs** 依赖本地 `data/`(不在 git),缺失即跳过 — CI 干净 clone 自动跳过。
+- 测试名 = 模块前缀英文 + 中文场景;新增场景跑 `UPDATE_EXPECT=1 cargo test -p <crate>` 生成快照后普通跑验证自洽。
+
 ### 扩展指南
 
 - **加一个 overlay 组件**: `crates/overlay/src/widgets/` 写组件 + WidgetMeta 注册表注册 → 出厂页 JSON 或用户页引用。
 - **加一个配置项**: `crates/kernel/src/config/factory_default.json` 加节点 → 消费方读配置(WYSIWYG 预览刷新经 interest 键集)。
 - **加/改一个派生量**: 改根目录 `formulas.cfg`(公式槽唯一真相);需要 C 级会话聚合量时先读 `crates/kernel/src/formula/registry.rs` 的 Session 通道。
-- **加一个 i18n 键**: `lang/cur.properties` 加键 → `crates/kernel/src/lang/mod.rs` 三点同步(struct 字段/init_lang 赋值/table.rs 静态表;table.rs 是 cur.properties 的静态快照,有防漂移测试)。
+- **加一个 i18n 键**: `lang/cur.properties` 加键 → `crates/kernel/src/lang/mod.rs` 三点同步(struct 字段/init_lang 赋值/table.rs 静态表;table.rs 是 cur.properties 的静态快照)。
 
 ## 历史决策要点(为什么是现在这样)
 

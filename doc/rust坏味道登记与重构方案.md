@@ -293,3 +293,17 @@ mock_8111.py 真 HTTP 互通验证); 未跑 script/rust_e2e.sh / --mock-smoke (�
 批次清理的"删空括号"正则误伤代码形态 `new State()` → `new State` (批次1), 复核发现后整批回滚重放
 (收紧正则后 273 行 vs 原 1114 行——原数字大半来自误伤); `//!` 行首修复也曾误转内联 `// !Send`。
 批量正则改注释必须逐批编译+抽样 diff 复核 (本记忆与 How-to-apply 一致)。
+
+## 增补: 测试套件重构 — 白盒旁挂全量退役 → tests/ 黑盒集成 (2026-09-11)
+
+- 1021 个 src 内白盒旁挂测试全量退役(C2, -35k 行): java-oracle 对拍族 / match_java
+  形状锁定 / 事件字符串逐字契约 / getter 别名守卫 / 像素渲染断言一律退场。
+- 六 crate tests/ 黑盒集成测试重建(~141 场景): 断言主力 expect-test 快照,
+  data 走 mini-8111 TcpListener 真 HTTP 链路, FM 经 set_data_root 合成根注入,
+  realtests 迁 fm_real.rs 延续缺失跳过语义。
+- e2e 链退役: rust_e2e.sh / e2e_assert.py / --mock-smoke / ui --headless;
+  mock_8111.py + mock_scenarios 保留作打桩调试与测试 fixture 同源。
+- pub 放宽 8 处纯函数(测试黑盒入口注): webui commands_comparison 5 处 +
+  voidmei voice_setup 2 处。
+- **钉出并修复 UIStateBus 跨类型嵌套发布死锁**(is_outermost depth==1 误判,
+  内层二次 lock 监听器 Mutex 永久挂死;生产纯同类型嵌套不触发)。
