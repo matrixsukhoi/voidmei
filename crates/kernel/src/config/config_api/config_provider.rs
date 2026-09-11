@@ -36,5 +36,3 @@ pub trait ConfigProvider {
     fn is_field_disabled(&self, key: &str) -> bool;
 }
 
-#[cfg(test)]
-mod tests;

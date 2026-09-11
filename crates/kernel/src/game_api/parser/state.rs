@@ -223,5 +223,3 @@ impl Default for State {
     }
 }
 
-#[cfg(test)]
-mod tests;

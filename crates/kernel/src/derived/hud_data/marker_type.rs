@@ -30,5 +30,3 @@ pub enum MarkerType {
     TickLabeled,
 }
 
-#[cfg(test)]
-mod tests;

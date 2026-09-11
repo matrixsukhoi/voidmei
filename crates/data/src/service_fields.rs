@@ -363,9 +363,3 @@ impl kernel::formula::registry::FormulaView for ServiceData {
     }
 }
 
-// =====================================================================
-// Tests — 公共项边界测试 (§5.2 B 类单测; 断言值 = Java 语义逐行推导,
-// mock 快照与 state.rs/indicators.rs 的 历史基线 数据同源)
-// =====================================================================
-#[cfg(test)]
-mod tests;

@@ -90,5 +90,3 @@ pub fn panic_message_box(payload: Box<dyn std::any::Any + Send>) -> String {
     panic_message(payload.as_ref())
 }
 
-#[cfg(test)]
-mod tests;

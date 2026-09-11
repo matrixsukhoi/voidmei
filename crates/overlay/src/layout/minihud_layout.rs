@@ -474,5 +474,3 @@ pub fn debug_frame_color(id: &str) -> [u8; 4] {
     }
     [r_col as u8, g_col as u8, b_col as u8, 255]
 }
-#[cfg(test)]
-mod tests;

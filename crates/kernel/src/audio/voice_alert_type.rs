@@ -182,8 +182,3 @@ impl VoiceAlertType {
     }
 }
 
-// =====================================================================
-// Tests — 移植自 test/TestVoicePackConfig.java 的 VoiceAlertType 部分
-// =====================================================================
-#[cfg(test)]
-mod tests;

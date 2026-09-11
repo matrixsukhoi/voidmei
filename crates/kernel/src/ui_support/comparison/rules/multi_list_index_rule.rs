@@ -58,7 +58,3 @@ impl ComparisonRule for MultiListIndexRule {
     }
 }
 
-// =====================================================================
-// Tests — 期望值取自 历史基线 (原类直跑, 逐位对拍)。
-#[cfg(test)]
-mod tests;

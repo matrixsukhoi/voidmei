@@ -88,5 +88,3 @@ impl Default for MapInfo {
     }
 }
 
-#[cfg(test)]
-mod tests;

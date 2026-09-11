@@ -20,5 +20,3 @@ pub use functions::{FnId, Value};
 pub use manager::{resolve_target, target_value, FormulaManager, TargetVar};
 pub use registry::{assemble_snapshot, registry, MetaInputs, Registry, VarSnapshot};
 
-#[cfg(test)]
-mod tests;

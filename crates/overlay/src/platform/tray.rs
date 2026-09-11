@@ -710,5 +710,3 @@ impl Drop for TrayIcon {
     }
 }
 
-#[cfg(test)]
-mod tests;

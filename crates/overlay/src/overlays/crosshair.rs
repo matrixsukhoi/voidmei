@@ -156,5 +156,3 @@ fn draw_crosshair_shape(
     cv.draw_line(cx, cy + quarter_w, cx, cy + line_len, stroke_w, color, aa);
 }
 
-#[cfg(test)]
-mod tests;

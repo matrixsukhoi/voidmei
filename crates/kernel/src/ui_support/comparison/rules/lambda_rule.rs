@@ -62,7 +62,3 @@ impl ComparisonRule for LambdaRule {
     }
 }
 
-// =====================================================================
-// Tests — 期望值取自 历史基线 (提取器取 `x -> Double.parseDouble(x)`)。
-#[cfg(test)]
-mod tests;

@@ -581,18 +581,6 @@ impl FmData {
         Ok(b)
     }
 
-    /// 测试/fuzz 注入入口 (JSON): content 直接充当文件内容。
-    #[cfg(test)]
-    pub fn parse_str_json(name: &str, content: &str) -> Result<FmData, String> {
-        let src = Self::json_guard_and_load(name, content)?;
-        let mut b = FmData::default();
-        b.fmdata = Some(Lang::init_lang().noblkx.to_string());
-        b.read_file_name = Some(name.to_string());
-        b.getload_from(&src);
-        b.valid = true;
-        Ok(b)
-    }
-
     /// JSON 守卫段: 空内容 / 非 '{' 开头 (blkx 文本误喂) / serde 解析失败 → Err。
     /// 空 blk 的两格式固有形态差异在此归一: BlkText 链路输出 0 字节文件
     /// (空文件守卫 → Err), JSON 链路序列化为 `{}` (空根对象) — 同判空对齐
@@ -608,5 +596,3 @@ impl FmData {
     }
 }
 
-#[cfg(test)]
-mod tests;

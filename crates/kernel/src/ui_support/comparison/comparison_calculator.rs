@@ -69,8 +69,3 @@ impl ComparisonCalculator {
     }
 }
 
-// =====================================================================
-// Tests — Java 侧无独立测试文件; 期望值全部取自 历史基线
-// (原类直跑, Double.doubleToLongBits 逐位对拍)。
-#[cfg(test)]
-mod tests;

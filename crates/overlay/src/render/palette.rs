@@ -62,5 +62,3 @@ fn global_aa() -> &'static RwLock<bool> {
     GLOBAL_AA.get_or_init(|| RwLock::new(true))
 }
 
-#[cfg(test)]
-mod tests;

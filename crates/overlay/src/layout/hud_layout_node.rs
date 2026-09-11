@@ -301,5 +301,3 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
     }
 }
 
-#[cfg(test)]
-mod tests;

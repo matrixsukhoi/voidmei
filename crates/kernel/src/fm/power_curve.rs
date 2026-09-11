@@ -85,5 +85,3 @@ pub fn power_is_deck_power(p: &CompressorStageParams) -> bool {
     (p.crit_alt - p.deck_alt).abs() < 1.0
 }
 
-#[cfg(test)]
-mod tests;

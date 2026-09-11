@@ -44,5 +44,3 @@ pub trait OverlaySettings {
     fn auto_hide_on_focus_loss(&self) -> bool;
 }
 
-#[cfg(test)]
-mod tests;

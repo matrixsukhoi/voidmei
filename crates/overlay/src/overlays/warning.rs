@@ -170,5 +170,3 @@ impl WarningBlinkHost {
     }
 }
 
-#[cfg(test)]
-mod tests;

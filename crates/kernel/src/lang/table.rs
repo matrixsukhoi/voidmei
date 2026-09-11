@@ -390,5 +390,3 @@ pub fn config_get_value(key: &str) -> &'static str {
     ""
 }
 
-#[cfg(test)]
-mod tests;

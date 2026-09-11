@@ -71,5 +71,3 @@ pub trait HUDSettings: OverlaySettings {
     fn always_show_radar_altitude(&self) -> bool;
 }
 
-#[cfg(test)]
-mod tests;

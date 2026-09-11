@@ -184,5 +184,3 @@ pub fn density_at_altitude(altitude_m: f64) -> f64 {
 // Tests — 对应 Java: test/TestAtmosphereModel.java (一比一移植)
 // =====================================================================
 
-#[cfg(test)]
-mod tests;

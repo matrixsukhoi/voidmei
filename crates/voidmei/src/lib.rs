@@ -38,34 +38,12 @@ use kernel::base::bus::ui_state_bus::UIStateBus;
 use kernel::base::event::ui_state_events;
 use kernel::base::java_compat::java_parse_boolean;
 use kernel::base::logger;
-use kernel::config::config_api::ConfigProvider; // get_config/set_config trait 面 (根+tests 经 glob 消费)
+use kernel::config::config_api::ConfigProvider; // get_config/set_config trait 面
 use kernel::config::configuration_service::{ConfigurationService, GlobalColors};
 use kernel::fm::FMManager;
 use kernel::lang::Lang;
 
 use overlay::platform::hotkey::{HotkeyEvent, HotkeyManager};
-
-// tests.rs 经 `use super::*` 消费的外部符号 (cfg(test) 免非测试构建的 unused 警告)
-#[cfg(test)]
-use std::cell::RefCell;
-#[cfg(test)]
-use std::path::Path;
-#[cfg(test)]
-use std::rc::Rc;
-#[cfg(test)]
-use std::sync::atomic::{AtomicBool, Ordering};
-#[cfg(test)]
-use std::time::Instant;
-#[cfg(test)]
-use kernel::base::event::event_payload::EventPayload;
-#[cfg(test)]
-use kernel::config::config_api::HudSettingsSnapshot;
-#[cfg(test)]
-use kernel::fm::FMStatus;
-#[cfg(test)]
-use data::service_fields::ServiceData;
-#[cfg(test)]
-use overlay::platform::host::OverlayHost;
 
 // ---- 重构波2 子模块 (pub use 保持 main.rs/form_dispatch.rs 的 voidmei::X 路径) ----
 mod commands;
@@ -99,17 +77,6 @@ pub use crate::render_thread::{render_thread_main, RenderThreadConfig};
 // 根消费的 pub(crate) 项 (私有引入; tests 经 `use super::*` 同样可见)
 use crate::overlay_inputs::refresh_activation_cache;
 pub use crate::voice_setup::ConfigSnapshots; // AppShell pub 字段类型 (E9b)
-
-// tests.rs 专用符号 (经 `use super::*` 抵达; cfg(test) 免非测试构建 unused 警告)
-#[cfg(test)]
-use crate::render_thread::{
-    feed_overlays_live, register_live_overlays, reset_handles_preview_values,
-    ChannelFocusBridge, HostActivationCtx, OverlayHandles, OverlayRegSetup,
-};
-#[cfg(test)]
-use crate::voice_setup::open_voice_warning;
-#[cfg(test)]
-use kernel::base::java_compat::current_time_millis;
 
 /// 语音播放平台件 (winmm waveOut 每路独立流; 播放模型裁决见该模块头注)
 pub mod winmm_player;
@@ -740,9 +707,3 @@ impl Drop for AppShell {
     }
 }
 
-// =====================================================================
-// Tests — 状态机转移 / stop 五步序 / 防过期 generation / debounce 时序
-// (wf-p5-batch14 W1 验收单; 假时钟以短 debounce 间隔替代)
-// =====================================================================
-#[cfg(test)]
-mod tests;

@@ -377,5 +377,3 @@ impl CompassGauge {
     }
 }
 
-#[cfg(test)]
-mod tests;

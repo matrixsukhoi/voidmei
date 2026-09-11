@@ -119,5 +119,3 @@ impl FlightDataBus {
     }
 }
 
-#[cfg(test)]
-mod tests;

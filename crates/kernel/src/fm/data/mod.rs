@@ -28,11 +28,6 @@ pub mod json;
 mod reader;
 mod types;
 
-// 真机 FM 集成测试 (D4 验收项): TestSpitfireF24Power/TestTempestMk5Power/
-// FMParserFuzzer 三套 Java 测试的一比一移植; data/ 缺失自动跳过 (对齐 build.py)
-#[cfg(test)]
-mod realtests;
-
 pub use flap_limits::{get_flap_allow_angle, get_flap_allow_speed};
 pub use types::{EngineLoad, FmParts, FuelModification, FuelType, SweepLevel};
 

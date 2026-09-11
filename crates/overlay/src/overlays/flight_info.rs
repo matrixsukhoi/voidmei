@@ -20,33 +20,3 @@ pub fn flight_value(s: &dyn FormulaView, target: &str) -> Option<f64> {
     kernel::formula::target_value(&var, mult, s)
 }
 
-// =====================================================================
-// Tests
-// =====================================================================
-/// 名字可达性检查 (测试面): registry 名 ∪ 公式名 — 守卫测试用它钉死
-/// 出厂页全部消费 target 可达, 防 "名字解析断链 → 字段行消失/恒 0" 的
-/// live 显示回归。单名制 (W10): 无别名翻译, 查不到即真断链。
-#[cfg(test)]
-pub(crate) fn canonical_var_name(name: &str) -> Option<String> {
-    use std::collections::HashMap;
-    use std::sync::OnceLock;
-    static MAP: OnceLock<HashMap<String, String>> = OnceLock::new();
-    let m = MAP.get_or_init(|| {
-        let mut m: HashMap<String, String> = HashMap::new();
-        let reg = kernel::formula::registry::registry();
-        for v in &reg.vars {
-            m.insert(v.name.to_string(), v.name.to_string());
-        }
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../formulas.cfg");
-        if let Ok(src) = std::fs::read_to_string(path) {
-            for d in kernel::formula::persistence::parse_formulas(&src) {
-                m.insert(d.name.clone(), d.name.clone());
-            }
-        }
-        m
-    });
-    m.get(name).cloned()
-}
-
-#[cfg(test)]
-mod tests;

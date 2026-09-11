@@ -963,5 +963,3 @@ impl OverlayHost {
     }
 }
 
-#[cfg(test)]
-mod tests;

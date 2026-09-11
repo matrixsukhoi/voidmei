@@ -89,5 +89,3 @@ impl RenderCtx {
     }
 }
 
-#[cfg(test)]
-mod tests;

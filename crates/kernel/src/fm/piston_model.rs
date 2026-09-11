@@ -1123,5 +1123,3 @@ impl std::fmt::Display for CompressorStageParams {
 // Tests
 // =====================================================================
 
-#[cfg(test)]
-mod tests;

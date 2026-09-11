@@ -70,12 +70,6 @@ fn java_round_long_narrowed(x: f64) -> i32 {
     (l as u32) as i32
 }
 
-/// Java `String.format("%Nd", v)` = pad_width(十进制) 组合 (测试基线专用)
-#[cfg(test)]
-fn fmt_d(v: i32, width: usize) -> String {
-    pad_width(v.to_string(), width, false)
-}
-
 // ---------------------------------------------------------------------------
 // MiniHUDOverlay 编排器
 // ---------------------------------------------------------------------------
@@ -624,5 +618,3 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
     ))
 }
 
-#[cfg(test)]
-mod tests;

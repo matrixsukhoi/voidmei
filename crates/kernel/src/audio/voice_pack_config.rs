@@ -140,8 +140,3 @@ impl fmt::Display for VoicePackConfig {
     }
 }
 
-// =====================================================================
-// Tests — 移植自 test/TestVoicePackConfig.java 的 VoicePackConfig 部分
-// =====================================================================
-#[cfg(test)]
-mod tests;

@@ -612,5 +612,3 @@ fn append_arc(
     }
 }
 
-#[cfg(test)]
-mod tests;

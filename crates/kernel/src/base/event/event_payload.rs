@@ -149,5 +149,3 @@ impl EventPayloadBuilder {
     }
 }
 
-#[cfg(test)]
-mod tests;

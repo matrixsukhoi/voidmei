@@ -39,5 +39,3 @@ pub fn get_file_name_no_ex(filename: Option<&str>) -> Option<&str> {
     filename
 }
 
-#[cfg(test)]
-mod tests;

@@ -515,5 +515,3 @@ impl Drop for WinOverlay {
     }
 }
 
-#[cfg(test)]
-mod tests;

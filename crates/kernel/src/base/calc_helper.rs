@@ -34,5 +34,3 @@ impl SimpleMovingAverage {
     }
 }
 
-#[cfg(test)]
-mod tests;

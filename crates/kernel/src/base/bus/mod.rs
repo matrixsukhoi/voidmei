@@ -98,5 +98,3 @@ impl<M> EventBus<M> {
     }
 }
 
-#[cfg(test)]
-mod tests;

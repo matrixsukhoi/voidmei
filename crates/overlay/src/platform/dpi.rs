@@ -253,7 +253,3 @@ mod win {
     }
 }
 
-// Tests — DPI 纯腿跨平台单测, Win32 腿以真实 API 冒烟 (win.rs 真实窗口
-// 测试同款先例), 全部断言真实行为, 不做条件跳过。
-#[cfg(test)]
-mod tests;

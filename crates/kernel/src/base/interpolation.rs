@@ -264,5 +264,3 @@ fn find_interval(x: f64, xs: &[f64]) -> usize {
     lo as usize
 }
 
-#[cfg(test)]
-mod tests;

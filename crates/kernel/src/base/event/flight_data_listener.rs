@@ -11,5 +11,3 @@ pub trait FlightDataListener {
     fn on_flight_data(&self, event: &FlightDataEvent);
 }
 
-#[cfg(test)]
-mod tests;

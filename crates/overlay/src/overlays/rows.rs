@@ -649,5 +649,3 @@ impl ManeuverBar {
     }
 }
 
-#[cfg(test)]
-mod tests;

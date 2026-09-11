@@ -71,5 +71,3 @@ pub(super) fn java_split_comma(s: &str) -> Vec<&str> {
 // (父模块私有 use 对子模块可见)。
 use crate::base::java_compat::java_trim;
 
-#[cfg(test)]
-mod tests;

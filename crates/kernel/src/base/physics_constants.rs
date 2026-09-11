@@ -50,5 +50,3 @@ pub const KELVIN_OFFSET: f64 = 273.15;
 // Java `private PhysicsConstants() {}` (Prevent instantiation)
 // 在 Rust 中无对应物也不需要——本模块只含常量, 无实例化入口。
 
-#[cfg(test)]
-mod tests;

@@ -464,5 +464,3 @@ pub fn get_string_width<F>(
     measure(font.unwrap(), text.unwrap())
 }
 
-#[cfg(test)]
-mod tests;

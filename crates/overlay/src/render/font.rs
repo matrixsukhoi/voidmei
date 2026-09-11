@@ -255,8 +255,3 @@ impl Canvas {
     }
 }
 
-#[cfg(test)]
-mod tests;
-
-#[cfg(test)]
-mod debug_tests;

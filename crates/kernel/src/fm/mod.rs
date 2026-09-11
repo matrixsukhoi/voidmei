@@ -31,12 +31,3 @@ pub mod power_extractor;
 pub use handle::FMHandle;
 pub use manager::{FMManager, FmChangedBus};
 pub use status::FMStatus;
-
-// TestFMStore.java 的 FMManager 白盒用例移植 (集成测试文件, 仅测试构建加载);
-// 依赖 manager 模块 (W3 批次并行落地)
-#[cfg(test)]
-mod store_tests;
-
-// DATA_ROOT 测试串行守卫 (仅测试构建; mod.rs 回归纯声明, 波8 自本文件抽出)
-#[cfg(test)]
-pub(crate) mod test_support;

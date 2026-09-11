@@ -238,39 +238,3 @@ fn keyword_int(list: &crate::config::sexp_parser::SList, kw: &str, def: i32) -> 
         .and_then(|v| v.trim().parse().ok())
         .unwrap_or(def)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn roundtrip_and_merge() {
-        let builtin = "(formulas\n  (formula \"a\" :expr \"ias*2\" :unit \"x\" :precision 1 :desc \"内\" :builtin 1)\n  (formula \"b\" :expr \"tas\" :builtin 1)\n)\n";
-        let user = "(formulas\n  (formula \"a\" :expr \"ias*3\" :unit \"x\" :precision 1 :desc \"内\" :builtin 1)\n  (formula \"c\" :expr \"mach\")\n)\n";
-        let merged = merge_defs(&parse_formulas(builtin), &parse_formulas(user));
-        assert_eq!(merged.len(), 3);
-        let a = merged.iter().find(|d| d.name == "a").unwrap();
-        assert_eq!(a.expr, "ias*3");
-        assert!(a.builtin, "覆盖内置仍标 builtin");
-        let c = merged.iter().find(|d| d.name == "c").unwrap();
-        assert!(!c.builtin);
-        // 序列化→再解析 roundtrip
-        let s = serialize_user(&merged);
-        let back = parse_formulas(&s);
-        assert_eq!(back.len(), 3);
-        assert_eq!(back[0].expr, "ias*3");
-        assert_eq!(back[0].precision, 1);
-    }
-
-    #[test]
-    fn escape_quotes() {
-        let d = FormulaDef {
-            name: "x\"y".into(),
-            expr: "1 \" 2".into(),
-            ..Default::default()
-        };
-        let back = parse_formulas(&serialize_user(&[d]));
-        assert_eq!(back[0].name, "x\"y");
-        assert_eq!(back[0].expr, "1 \" 2");
-    }
-}

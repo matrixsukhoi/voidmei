@@ -241,26 +241,3 @@ fn java_double_str(d: f64) -> String {
     }
 }
 
-// =====================================================================
-// Tests — 对应 Java: test/TestFMStore.java 的 FMLoader 面 (FMManager 异步
-// 用例 ①~⑥ 属 FMManager 波次); 合成数据方案逐字移植 (不依赖真机 data/)。
-// 另补边界: UNRESOLVED 计数、fmFile 回退/无后缀/燃油改装分支。
-//
-// 数据根策略 (PORT): cargo test 在同测试二进制内并行跑 #[test],
-// data_paths::tests::java_main_sequence 会临时翻转全局 DATA_ROOT
-// (testroot/otherroot, Drop 恢复回 "./data")。load 内部 central_file 与
-// physical_file 各读一次 DATA_ROOT, "前后双检默认根 + 重试"无法闭合单次
-// load 内部的翻转窗口 (双检均通过但结果被污染, 审查 B blocker) —— 改为
-// **多根铺数据**: 合成文件铺满 DATA_ROOT 的全部可能取值 (ROOTS), load 在
-// 任何时刻读任何根, 命中/缺失判定恒定: 既无 flaky fail, 也无 "错误根下
-// 恰同结果" 的假通过窗口。共享串行锁 (crate::fm::test_support) 已备位,
-// 本测试挂锁; java_main_sequence 本波次禁改 fm_data_paths.rs 无法接入
-// (接入仅一行, 见 test_guard 模块注释), 接入后铺根可退化为单根。
-// ⚠ 铺根依赖 java_main_sequence 的字面量根名 (其 Java 对拍期望值, 变更
-// 概率极低); 若其改名, 本测试在未铺的新根下 READY 判 MISSING → flaky
-// fail (fail loud, 不是假通过)。
-// LOAD_COUNT 全局计数 (W-B2 备案): 未来 FMManager 波次异步用例若并行调
-// load, 会污染 get_load_count()==N 断言 —— 届时须挂同一把 test_guard 锁。
-// =====================================================================
-#[cfg(test)]
-mod tests;

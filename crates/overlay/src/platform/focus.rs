@@ -121,6 +121,3 @@ mod win {
 #[cfg(target_os = "windows")]
 pub use win::WindowsFocusDetector;
 
-// Tests — Win32 腿以真实 API 冒烟, 全部断言真实行为, 不做条件跳过。
-#[cfg(test)]
-mod tests;

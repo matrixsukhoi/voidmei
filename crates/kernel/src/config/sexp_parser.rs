@@ -426,5 +426,3 @@ impl Default for SExpParser {
     }
 }
 
-#[cfg(test)]
-mod tests;

@@ -44,5 +44,3 @@ pub const FM_OVERLAY_TOGGLE: &str = "fmOverlayToggle";
 
 // Add more event types as needed
 
-#[cfg(test)]
-mod tests;

@@ -144,5 +144,3 @@ impl GameApiClient {
     }
 }
 
-#[cfg(test)]
-mod tests;

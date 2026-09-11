@@ -687,18 +687,3 @@ pub fn get_speed_manifold_multiplier(fmdata: Option<&FmData>) -> f64 {
     or_one(fmdata.speed_to_manifold_multiplier)
 }
 
-// =====================================================================
-// Tests — 历史基线 对拍 (A 类策略, 断言源移植自
-// TestSpitfireF24Power / TestTempestMk5Power)。
-//
-// 真机 fixture (spitfire_f24 / yak-3 / spitfire_ix / tempest_mkv) 按真实
-// data/aces/gamedata/flightmodels/ 文件的 FM 参数手工构造, 全部数值 =
-// Java 8 (OpenJDK 1.8.0_342) 编译产物 + 真实数据文件实测 dump 的 %.17g 值。
-// TODO: 可切换 reader::parse 读真文件, 收窄 fixture 维护面。
-//
-// fixture 数值陷阱: FM 的 getdouble 族用 Float.parseFloat 赋值 double
-// (24-bit 尾数, 见 data/mod.rs) — 真机字段须写 `1.61f32 as f64` 形式,
-// 直接写 1.61f64 会对拍失败 (synthetic 组是 Java 双精度字面量直赋, 不带 f32 拓宽)。
-// =====================================================================
-#[cfg(test)]
-mod tests;

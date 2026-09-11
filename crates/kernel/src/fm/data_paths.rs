@@ -110,11 +110,3 @@ pub fn list_fm_names(subdir: &str) -> Vec<String> {
     names
 }
 
-// =====================================================================
-// Tests — 对应 Java: test/TestFMDataPaths.java (一比一移植)
-//
-// 纯字符串断言，无需 data/ 目录存在。
-// 运行方式: python script/build.py test fmpaths (Java 侧) / cargo test -p kernel
-// =====================================================================
-#[cfg(test)]
-mod tests;

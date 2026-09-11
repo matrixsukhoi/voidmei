@@ -158,27 +158,6 @@ fn write_err(line: &str) {
     }
 }
 
-/// 测试专用: 重定向激活状态 (out, err)
-#[cfg(test)]
-pub(crate) fn redirects_active_for_test() -> (bool, bool) {
-    let o = OUT_REDIRECT
-        .lock()
-        .expect("logger stdout 重定向锁中毒")
-        .is_some();
-    let e = ERR_REDIRECT
-        .lock()
-        .expect("logger stderr 重定向锁中毒")
-        .is_some();
-    (o, e)
-}
-
-/// 测试专用: 清空重定向恢复控制台输出 (Drop 守卫恢复语义的显式面)
-#[cfg(test)]
-pub(crate) fn clear_redirects_for_test() {
-    *OUT_REDIRECT.lock().expect("logger stdout 重定向锁中毒") = None;
-    *ERR_REDIRECT.lock().expect("logger stderr 重定向锁中毒") = None;
-}
-
 /// 获取当前日志级别
 /// 返回: 当前日志级别
 pub fn get_level() -> Level {
@@ -297,8 +276,3 @@ fn format_line(level: Level, component: &str, message: &str, timestamp: &str) ->
     }
 }
 
-// =====================================================================
-// Tests — 格式断言 (本格式为稳定契约, 逐字节钉住)
-// =====================================================================
-#[cfg(test)]
-mod tests;

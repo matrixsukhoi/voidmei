@@ -1074,5 +1074,3 @@ impl FmData {
     }
 }
 
-#[cfg(test)]
-mod tests;

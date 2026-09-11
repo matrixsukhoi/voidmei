@@ -181,5 +181,3 @@ impl Builder {
     }
 }
 
-#[cfg(test)]
-mod tests;

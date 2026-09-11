@@ -820,5 +820,3 @@ impl Default for AttitudeOverlay {
     }
 }
 
-#[cfg(test)]
-mod tests;

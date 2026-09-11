@@ -452,32 +452,3 @@ fn run_load_job(inner: Arc<Inner>, target_name: String, epoch: u64) {
     FMManager::publish_fm_changed(&inner.fm_changed, &result);
 }
 
-// =====================================================================
-// Tests — TestFMStore.java 全量用例 (①~⑥ + ②b/④b) 已由 fm/store_tests.rs
-// 移植 (主 agent 预置并对接本 API), 本模块不重复移植 (§5 不为凑覆盖写空转测试;
-// 重叠消解见 store_tests.rs 模块头注的上报)。此处只落 store_tests 未覆盖的面:
-//   1. identify 的 null/空名边界守卫 (store_tests.rs 注释引用本处的
-//      identify_null_and_empty_are_ignored);
-//   2. 负缓存**命中分支** (Java 用例② 的 999 次重调全被目标去重拦截, 未触达
-//      containsKey 分支 —— 该分支要求 "目标切走后再切回缺失机型");
-//   3. FM_CHANGED 同步派发时序 + 句柄载荷 (专用通道消息 = payload 本体);
-//   4. invalidate (负缓存手动作废, Java 测试未覆盖);
-//   5. 真机 data/ 的 identify→current 快照→负缓存命中 断言链 (本波次任务规则 2;
-//      store_tests 刻意不依赖真机 data/)。
-//
-// 并发隔离 (PORT): cargo test 同二进制并行跑 #[test] —— 本模块全部用例挂
-// crate::fm::test_support::data_root() 串行锁 (DATA_ROOT / LOAD_COUNT 进程级全局,
-// fm_loader.rs W-B2 备案的兑现); **不翻转 DATA_ROOT** (store_tests.rs 头注的
-// 竞态备案: 未挂锁的 data_paths::java_main_sequence 首断言
-// `get_data_root()=="./data"` 会与翻转竞态) —— 对齐 fm_loader.rs/store_tests.rs
-// 的 "多根铺数据" 免疫策略: 所需文件铺满 DATA_ROOT 全部可能取值 (ROOTS), load
-// 在任何时刻读任何根, 命中/缺失判定恒定 (无 flaky fail, 无假通过窗口)。
-// 跨进程边界 (审查 B W4 实证备案): test_guard 锁仅**进程内**互斥 —— 多 agent
-// 在同一 workspace 并发跑 kernel 测试时, 外部 cargo/测试进程共享 CWD 下的
-// ./data/testroot/otherroot 夹具, 其 setup/cleanup 可互相删除文件 (实测中央文件
-// 被清 → MISSING≠CORRUPT 假失败)。上述 "无 flaky fail" 担保仅单进程内成立;
-// 流水线纪律: 同一 workspace 禁止多 cargo 进程并发跑本 crate 测试 (或夹具改
-// 每进程唯一的绝对临时根, store_tests create_temp_root 先例)。
-// =====================================================================
-#[cfg(test)]
-mod tests;

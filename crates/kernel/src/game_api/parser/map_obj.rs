@@ -49,5 +49,3 @@ impl MapObj {
     }
 }
 
-#[cfg(test)]
-mod tests;

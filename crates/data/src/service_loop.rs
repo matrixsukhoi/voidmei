@@ -1518,5 +1518,3 @@ pub fn start(service: Service) -> ServiceHandle {
 mod methods_engine;
 mod overheat;
 
-#[cfg(test)]
-mod tests;

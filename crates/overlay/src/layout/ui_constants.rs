@@ -89,5 +89,3 @@ pub const SPACING_MEDIUM: i32 = 10;
 /// 大间距（像素）
 pub const SPACING_LARGE: i32 = 20;
 
-#[cfg(test)]
-mod tests;

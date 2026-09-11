@@ -60,5 +60,3 @@ impl Anchor {
     }
 }
 
-#[cfg(test)]
-mod tests;

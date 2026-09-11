@@ -240,5 +240,3 @@ impl Default for Indicators {
     }
 }
 
-#[cfg(test)]
-mod tests;

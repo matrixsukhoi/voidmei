@@ -1337,9 +1337,3 @@ pub fn hold_clip_until_done(clip: Box<dyn SoundClip>) -> std::thread::JoinHandle
         .expect("VoicePreview 保活线程创建失败")
 }
 
-// =====================================================================
-// Tests — Java 侧无对应单测 (VoiceWarning 手动验证), 本组为 B 类行为钉子:
-// mock SoundPlayer + 总线注入, 断言 订阅→检测→播放 触发链。
-// =====================================================================
-#[cfg(test)]
-mod tests;

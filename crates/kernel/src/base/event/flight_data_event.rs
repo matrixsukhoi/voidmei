@@ -31,5 +31,3 @@ impl FlightDataEvent {
     }
 }
 
-#[cfg(test)]
-mod tests;

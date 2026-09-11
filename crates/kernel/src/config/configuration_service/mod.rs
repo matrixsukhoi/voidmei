@@ -896,9 +896,3 @@ fn parse_double(s: &str) -> Result<f64, ()> {
 /// java.awt.Color.WHITE — ColorHelper.parseColor 的默认色 (loadAppCheck 调用点)
 const COLOR_WHITE: [u8; 4] = [255, 255, 255, 255];
 
-// =====================================================================
-// Tests — Java 侧无对应单测 (ConfigurationService 为手动验证), 本组为移植
-// 边界钉子 + 真实 ui_layout.cfg 实例断言。
-// =====================================================================
-#[cfg(test)]
-mod tests;

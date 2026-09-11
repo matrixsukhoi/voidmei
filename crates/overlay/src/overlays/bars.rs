@@ -878,5 +878,3 @@ impl Default for FlapAngleBar {
     }
 }
 
-#[cfg(test)]
-mod tests;

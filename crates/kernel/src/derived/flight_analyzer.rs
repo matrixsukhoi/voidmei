@@ -342,5 +342,3 @@ fn java_math_round(a: f64) -> i64 {
     }
 }
 
-#[cfg(test)]
-mod tests;

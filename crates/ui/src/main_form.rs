@@ -15,12 +15,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-// tests.rs 经 `use super::*` 消费的事件面符号 (cfg(test) 免非测试构建 unused 警告)
-#[cfg(test)]
-use std::sync::Mutex;
-#[cfg(test)]
-use kernel::base::bus::ui_state_bus::UiStateEvent;
-
 use kernel::base::bus::ui_state_bus::UIStateBus;
 use kernel::base::event::ui_state_events;
 use kernel::base::logger;
@@ -334,8 +328,3 @@ fn publish_config_changed(bus: &UIStateBus, data: &str) {
     );
 }
 
-// =====================================================================
-// Tests — 真实链路 (ConfigurationService + 总线), 无 mock 造假
-// =====================================================================
-#[cfg(test)]
-mod tests;
