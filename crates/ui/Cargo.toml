@@ -1,18 +1,13 @@
 # 用途: MainForm 表单数据层 (D9: 原 iced view 已删, 渲染归 webui web 壳) —
-# Message/update/persist 写回链 + 渲染器 apply 链 + headless 状态机验证
+# Message/update/persist 写回链 + 渲染器 apply 链
 [package]
 name = "ui"
 version.workspace = true
 edition.workspace = true
 
-# lib = 表单数据层 (voidmei dispatcher 驱动); bin = headless-only 调试入口
 [lib]
 name = "ui"
 path = "src/lib.rs"
-
-[[bin]]
-name = "ui"
-path = "src/main.rs"
 
 [dependencies]
 # 配置栈 (ConfigurationService/GroupConfig/RowConfig) + 事件总线 + 渲染器读写助手

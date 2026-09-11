@@ -1,8 +1,7 @@
 //! MainForm 的表单数据层 (src/ui/MainForm.java + src/ui/layout/DynamicDataPage.java)。
 //!
 //! **D9 变更**: 设置窗换 Tauri 2 web 壳 (webui) — 表单渲染归 web 壳,
-//! 本模块仅存数据层 (Message/MainFormState/update/保存广播链); --headless
-//! 无窗口验收工具在 [`headless`] 子模块。
+//! 本模块仅存数据层 (Message/MainFormState/update/保存广播链)。
 //!
 //! **JSON 配置变更 (Phase 1)**: 旧 clone-split 三件套 (快照挂起编辑 +
 //! persist 以服务树为基重放 + 镜像回拷) 整体退役 — 写链直调 ConfigurationService
@@ -31,9 +30,6 @@ use kernel::config::json_store;
 use kernel::config::configuration_service::ConfigurationService;
 
 use crate::renderers;
-
-// --headless 无窗口验收工具 (E10 提离; bin 入口经 main_form::headless 引用)
-pub mod headless;
 
 // =====================================================================
 // 消息

@@ -17,24 +17,20 @@
 //! 相位主循环 (D9 后为 web 壳单循环; 原 iced 相 A/B 已合并, 见 desktop_main 注):
 //! - 主线程: `shell.pump()` + `ShellForm::pump_once()` (tao 事件 + IPC) +
 //!   sleep(可见 10ms / 隐藏 50ms); 设置窗常驻隐藏预热, 每次 show 发布 UI_READY。
-//! - 无窗降级 (`run_supervisor_phase`) 与 `--live`/`--mock-smoke` 形态保留。
+//! - 无窗降级 (`run_supervisor_phase`) 与 `--live` 形态保留。
 //!
 //! CLI:
-//! - `--live`: 对齐 `autoStartGameMode=true` (e2e 用) — 跳过 MainForm,
+//! - `--live`: 对齐 `autoStartGameMode=true` — 跳过 MainForm,
 //!   Controller 自启动 Service, 主线程直接进监督循环。
-//! - `--port <p>`: 白盒 e2e 端口覆盖 (rust_e2e.sh 默认 9222)。白盒测试端口约定:
-//!   一律 9222 (Java 备用端口 appPortBkp 域, 游戏本地 API 恒占 8111 而 9222
-//!   游戏永不监听) — 真机在跑测试也不再被挤掉/误读游戏数据。
-//! - `--mock-smoke`: 起 `script/mock_8111.py` s2 场景 (端口 9222) → live 模式跑
-//!   8 秒 → 断言 Service 收数 + 全部注册 overlay 逐窗 present>0 → 清理退出
-//!   (无 MainForm 冒烟; 9222 被占自动跳过 — 项目惯例, 不做假通过)。
+//! - `--port <p>`: 端口覆盖 (调试/打桩用, 见 doc/打桩调试手册.md)。白盒测试
+//!   端口约定: 一律 9222 (Java 备用端口 appPortBkp 域, 游戏本地 API 恒占 8111
+//!   而 9222 游戏永不监听) — 真机在跑测试也不再被挤掉/误读游戏数据。
 //! - `--debug`: Application.debug = true (Logger DEBUG 级)。
 
 use std::cell::RefCell;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use voidmei::form_dispatch;
 use voidmei::{AppShell, SupervisorOutcome};
@@ -43,11 +39,6 @@ use tauri::Emitter;
 use kernel::base::bus::ui_state_bus::UIStateBus;
 use kernel::base::event::ui_state_events;
 use kernel::base::logger;
-
-/// 冒烟默认时长 (任务验收单: live 模式跑 8 秒)
-const MOCK_SMOKE_RUN_MS: u64 = 8_000;
-/// mock server 就绪等待上限
-const MOCK_READY_TIMEOUT_MS: u64 = 8_000;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -76,10 +67,8 @@ fn main() {
         logger::set_err_log("./error.log");
     }
 
-    let code = if args.iter().any(|a| a == "--mock-smoke") {
-        mock_smoke_main(debug)
-    } else if args.iter().any(|a| a == "--live") {
-        // 白盒 e2e 端口覆盖: rust_e2e.sh 默认 9222 (见 CLI 头注), 不与真机 8111 冲突
+    let code = if args.iter().any(|a| a == "--live") {
+        // 端口覆盖 (打桩/调试, 见 CLI 头注), 不与真机 8111 冲突
         let port = parse_port_arg(&args);
         live_main(debug, port)
     } else {
@@ -421,7 +410,7 @@ fn read_debug_log_flag() -> bool {
 }
 
 // =====================================================================
-// --live: 跳过 MainForm 直接 live 模式 (Java autoStartGameMode=true, e2e;
+// --live: 跳过 MainForm 直接 live 模式 (Java autoStartGameMode=true;
 // 旧名 --game-mode, 术语 preview↔live 对仗, 见 D9 后命名统一)
 // =====================================================================
 
@@ -438,199 +427,10 @@ fn live_main(debug: bool, port_override: Option<u16>) -> i32 {
     0
 }
 
-// =====================================================================
-// --mock-smoke: mock s2 场景 → live 模式 8 秒 → 断言 → 清理退出
-// =====================================================================
 
-fn mock_smoke_main(debug: bool) -> i32 {
-    // 白盒测试端口约定 (用户指令): 一律 9222 —— Java 备用端口 (appPortBkp) 域,
-    // 游戏本地 API 恒占 8111 而 9222 游戏永不监听, 真机在跑也互不干扰。
-    const SMOKE_PORT: u16 = 9222;
-    // 端口占用跳过 (项目惯例: 被其他 mock/白盒测试占用时退出码 0 + SKIP)。
-    // PORT(探测形态, 真机踩坑): bind 探测对通配监听者假阴性 (127.0.0.1 特定地址
-    // 仍可 bind 成功) → 后续 mock 抢绑失败 + 喂数连到别人, 误报 FAIL。connect
-    // 探测对任何在场监听者恒真 (service_loop.rs mock e2e 同修)。
-    if std::net::TcpStream::connect(("127.0.0.1", SMOKE_PORT)).is_ok() {
-        println!("[mock-smoke] SKIP: {SMOKE_PORT} 已有监听者 (其他 mock/白盒测试在跑?)");
-        return 0;
-    }
-    let repo_root = repo_root();
-    // 起 mock (s2_preview_live: 正常 p-51d 快照持续供应)
-    let mut mock = match std::process::Command::new("python")
-        .arg("script/mock_8111.py")
-        .args([
-            "serve",
-            "--port",
-            &SMOKE_PORT.to_string(),
-            "--scenario",
-            "s2_preview_live",
-        ])
-        .current_dir(&repo_root)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-    {
-        Ok(c) => c,
-        Err(e) => {
-            println!("[mock-smoke] SKIP: python 不可用 ({e})");
-            return 0;
-        }
-    };
-    if !wait_mock_ready(MOCK_READY_TIMEOUT_MS, SMOKE_PORT) {
-        println!("[mock-smoke] FAIL: mock server 未在限时就绪");
-        let _ = mock.kill();
-        let _ = mock.wait();
-        return 1;
-    }
-    println!(
-        "[mock-smoke] mock s2_preview_live 就绪 (端口 {SMOKE_PORT}), live 模式运行 {}ms",
-        MOCK_SMOKE_RUN_MS
-    );
-
-    // live 模式组装 (autoStartGameMode=true 注入; 探测面保持真实 — mock 就在本机;
-    // 端口走 9222 覆盖, 见 SMOKE_PORT 注)
-    let mut shell = match AppShell::new_with_port(debug, true, Some(SMOKE_PORT)) {
-        Ok(s) => s,
-        Err(e) => {
-            println!("[mock-smoke] FAIL: AppShell 构造失败: {e}");
-            stop_mock(&mut mock, SMOKE_PORT);
-            return 1;
-        }
-    };
-    // 渲染线程 (overlay host + 托盘); 失败如实报错 (帧断言必依赖它)
-    if let Err(e) = shell.spawn_render_thread() {
-        println!("[mock-smoke] FAIL: 渲染线程启动失败: {e}");
-        drop(shell);
-        stop_mock(&mut mock, SMOKE_PORT);
-        return 1;
-    }
-
-    // 8 秒 pump 循环 (相 B 监督循环的无窗限时等价): 事件消费 + drive_from_live
-    let deadline = Instant::now() + Duration::from_millis(MOCK_SMOKE_RUN_MS);
-    while Instant::now() < deadline {
-        shell.pump();
-        std::thread::sleep(Duration::from_millis(50));
-    }
-
-    // 断言 1: Service 收数 (s2 的 /state + /indicators 双 flag 真 + playerLive)
-    let mut service_ok = false;
-    if let Some(f) = shell
-        .shared
-        .live
-        .read()
-        .expect("live 锁中毒")
-        .as_ref()
-        .and_then(|frames| frames.latest())
-    {
-        service_ok = f.s_state.as_ref().is_some_and(|s| s.flag)
-            && f.s_indic.as_ref().is_some_and(|i| i.flag)
-            && f.player_live;
-    }
-    // 断言 2: overlay present 帧数 > 0 (渲染线程节拍计数, 见 ControllerShared 注)
-    let frames = shell
-        .shared
-        .render_frames
-        .load(std::sync::atomic::Ordering::SeqCst);
-    // 断言 3: 全部注册 overlay 逐窗 present>0 (QA 冒烟判据; drop 前取走快照)
-    let overlay_counts = shell
-        .shared
-        .overlay_present
-        .lock()
-        .expect("overlay_present 锁中毒")
-        .clone();
-
-    // 清理: 先收应用 (Drop = 五步销毁 + 渲染线程 join + 防抖 + 热键), 再停 mock
-    drop(shell);
-    stop_mock(&mut mock, SMOKE_PORT);
-
-    if !service_ok {
-        return fail(format!("Service 未收到有效数据 (frames={frames})"));
-    }
-    if frames == 0 {
-        return fail("overlay present 帧数为 0 (窗口未开/渲染未跑)".to_string());
-    }
-    // live 模式注册全集 = 出厂页 host 键列 (R2: 位置真源页化后 OVERLAY_SECTIONS
-    // 已退役, 键列从 factory_default.json pages 派生; 缺键 = 注册失败)。
-    // enableFMPrint 默认开 → 窗口条目在场; 游戏形态隐藏起步不影响 present 计数
-    // (active 判定 = 槽位存在, 渲染节拍照常)
-    let wanted: Vec<String> = kernel::config::json_store::factory()
-        .pages
-        .iter()
-        .map(|p| p.id.clone())
-        .collect();
-    let mut missing = Vec::new();
-    let mut zero = Vec::new();
-    for id in &wanted {
-        match overlay_counts.get(id.as_str()) {
-            None => missing.push(id.as_str()),
-            Some(0) => zero.push(id.as_str()),
-            Some(_) => {}
-        }
-    }
-    if !missing.is_empty() || !zero.is_empty() {
-        return fail(format!(
-            "逐 overlay present 断言不过 (注册缺失: {missing:?}; present=0: {zero:?}; 全量计数 {overlay_counts:?})"
-        ));
-    }
-    println!("[mock-smoke] PASS: Service 收数 + present 帧数 = {frames} (逐 overlay: {overlay_counts:?})");
-    0
-}
-
-fn fail(msg: String) -> i32 {
-    println!("[mock-smoke] FAIL: {msg}");
-    1
-}
-
-/// `--port <p>` 解析 (白盒 e2e 端口覆盖; 缺失/非法 → None = Lang 默认 8111)
+/// `--port <p>` 解析 (打桩/调试端口覆盖; 缺失/非法 → None = Lang 默认 8111)
 fn parse_port_arg(args: &[String]) -> Option<u16> {
     let idx = args.iter().position(|a| a == "--port")?;
     args.get(idx + 1)?.parse::<u16>().ok()
 }
 
-/// 停 mock: 优雅 /_mock/shutdown → 限期等待 → 兜底 kill。
-/// 限期 wait (审查 B-W3): mock 进程不响应 shutdown 时裸 wait() 会永久挂起冒烟
-/// 而非快速失败 — 3s 内 try_wait 轮询, 超时强杀后再收尸。
-fn stop_mock(mock: &mut std::process::Child, port: u16) {
-    let _ = http_get_raw(port, "/_mock/shutdown");
-    let deadline = Instant::now() + Duration::from_millis(3_000);
-    while Instant::now() < deadline {
-        match mock.try_wait() {
-            Ok(Some(_)) => return, // 已优雅退出
-            Ok(None) => std::thread::sleep(Duration::from_millis(50)),
-            Err(_) => break, // wait 系统调用异常, 直接走强杀
-        }
-    }
-    let _ = mock.kill();
-    let _ = mock.wait();
-}
-
-/// 阻塞等待 mock 的 /_mock/state 可连 (TCP 层就绪即可)
-fn wait_mock_ready(timeout_ms: u64, port: u16) -> bool {
-    let deadline = Instant::now() + Duration::from_millis(timeout_ms);
-    while Instant::now() < deadline {
-        if http_get_raw(port, "/_mock/state").is_some() {
-            return true;
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    false
-}
-
-/// 极简 HTTP GET (只判可达/有响应; 不进 kernel http 模块 — 冒烟控制通道专用)
-fn http_get_raw(port: u16, path: &str) -> Option<String> {
-    use std::io::{Read, Write};
-    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).ok()?;
-    stream
-        .set_read_timeout(Some(Duration::from_millis(2_000)))
-        .ok()?;
-    let req = format!("GET {path} HTTP/1.0\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
-    stream.write_all(req.as_bytes()).ok()?;
-    let mut buf = String::new();
-    stream.read_to_string(&mut buf).ok()?;
-    Some(buf)
-}
-
-/// 仓库根 (crates/voidmei → 上溯两级; 与 app_shell::locate_template_cfg 同源)
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}

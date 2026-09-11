@@ -197,17 +197,17 @@ pub struct AppShell {
 impl AppShell {
     /// 生产构造 (Java Application.main:533-604 启动序):
     /// Lang → 端口/Env → 总线/FM/热键 → 防抖 → 初始 Controller(true)。
-    /// `live`: 对齐 `autoStartGameMode=true` 配置 (CLI --live / e2e —
+    /// `live`: 对齐 `autoStartGameMode=true` 配置 (CLI --live —
     /// Java 无此开关, 由用户配置表达; 此处以等效配置注入, Controller 自启动
     /// 判定路径零特判)。
     pub fn new(debug: bool, live: bool) -> Result<AppShell, String> {
         AppShell::new_with_port(debug, live, None)
     }
 
-    /// 白盒端口覆盖 (`--port` CLI / mock-smoke 的 9222 约定): Env 只读区在 probe
+    /// 白盒端口覆盖 (`--port` CLI, 打桩调试): Env 只读区在 probe
     /// 后覆写, 语义 = Lang.httpPort 解析结果的等价替换 (bkp 同步 +1111 保持
     /// 备用端口关系)。生产路径 (desktop_main) 不传 — 端口仍由 Lang/配置表达;
-    /// 白盒测试统一走 9222 (游戏本地 API 恒占 8111, 备用端口域游戏永不监听,
+    /// 白盒/打桩统一走 9222 (游戏本地 API 恒占 8111, 备用端口域游戏永不监听,
     /// 真机在跑也不再挤掉测试)。
     pub fn new_with_port(
         debug: bool,

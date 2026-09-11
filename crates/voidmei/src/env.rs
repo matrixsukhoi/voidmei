@@ -27,9 +27,9 @@ pub struct Env {
     pub dpi: DpiHelper,
     /// Application.debug (OverlayContext.isDebug 的来源)
     pub debug: bool,
-    /// 白盒端口 CLI 覆盖 (`--port` / mock-smoke 9222): 优先级压过 cfg 的
-    /// httpPort 键 (smoke 踩坑: 用户 cfg 写死 httpPort=8111 令 9222 注入失效,
-    /// 游戏在场时假 PASS / 离线时 FAIL)。生产 desktop 恒 None — cfg > Lang 不变
+    /// 白盒端口 CLI 覆盖 (`--port`, 打桩调试用): 优先级压过 cfg 的
+    /// httpPort 键 (踩坑: 用户 cfg 写死 httpPort=8111 令 9222 注入失效,
+    /// 游戏在场时误连真机)。生产 desktop 恒 None — cfg > Lang 不变
     pub port_override: Option<u16>,
 }
 

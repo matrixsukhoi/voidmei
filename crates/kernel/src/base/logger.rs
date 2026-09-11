@@ -16,12 +16,12 @@
 //! (语义 = javadoc "使用默认组件"; interpolation.rs / fm_power_extractor.rs
 //! 的重载更名先例)。
 //! §2.9 全局可变静态禁令 → DECISIONS.md **D5 显式豁免 (唯一例外)**:
-//! 日志是横切面 + e2e 断言 (script/e2e_assert.py A1~A6) 依赖其输出格式,
-//! 允许全局单例。currentLevel 需运行期 setMinLevel 变更, 采用 const 构造的
+//! 日志是横切面且输出格式是长期稳定契约 (排障/日志解析依赖), 允许全局单例。
+//! currentLevel 需运行期 setMinLevel 变更, 采用 const 构造的
 //! RwLock 静态 (RwLock::new 自 Rust 1.63 起 const 化, 无需再包一层
 //! OnceLock; 豁免范围同等覆盖)。
 //!
-//! 输出格式逐字节保真 (e2e 断言依赖, 测试已钉住):
+//! 输出格式逐字节保真:
 //!   INFO:    `[HH:mm:ss.SSS] [Component ] message`
 //!   非 INFO: `[HH:mm:ss.SSS] [Component ] [LEVEL] message` (LEVEL 左对齐宽 5, 如 "WARN ")
 
@@ -272,11 +272,10 @@ fn log(level: Level, component: &str, message: &str) {
         let timestamp = Local::now().format("%H:%M:%S%.3f").to_string();
         // 单次持锁写入对齐 Java printf 单调用 (System.out 自带锁, 多线程行不交错);
         // setDebugLog 重定向态下改走文件 (write_out 内吞错, 见其注)。
-        // Java %n 是平台行分隔符 (Windows \r\n) ↔ 此处固定 \n — e2e 断言按行
-        // 解析 (splitlines/rstrip), 两者等价; 见 port_notes。
+        // Java %n 是平台行分隔符 (Windows \r\n) ↔ 此处固定 \n — 按行解析
+        // (splitlines/rstrip) 两者等价; 见 port_notes。
         // Java 8 System.out 按平台默认字符集编码 (zh-CN Windows=GBK),
-        // Rust stdout 恒 UTF-8 — e2e_assert.py 以 utf-8+errors=replace 读取, 兼容
-        // 且更优; 已接受偏差, 与 %n 条目并列备案。
+        // Rust stdout 恒 UTF-8 — 已接受偏差, 与 %n 条目并列备案。
         // Java PrintStream 按设计吞掉 IOException 永不抛出, 而 println!/
         // eprintln! 写失败 (broken pipe / Windows GUI 子系统无控制台句柄) 会 panic —
         // 故写入面统一吞错对齐之。
@@ -284,7 +283,7 @@ fn log(level: Level, component: &str, message: &str) {
     }
 }
 
-/// Java log() 内两条 printf 的格式落地 (B 类适配层提取, 测试钉住 e2e 依赖的逐字节格式):
+/// Java log() 内两条 printf 的格式落地 (B 类适配层提取, 逐字节钉住的稳定契约):
 /// - INFO:    `System.out.printf("[%s] [%-10s] %s%n", timestamp, component, message)`
 /// - 非 INFO: `System.out.printf("[%s] [%-10s] [%-5s] %s%n", timestamp, component, level, message)`
 ///
@@ -299,7 +298,7 @@ fn format_line(level: Level, component: &str, message: &str, timestamp: &str) ->
 }
 
 // =====================================================================
-// Tests — 格式断言 (e2e script/e2e_assert.py A1~A6 依赖本格式, 逐字节钉住)
+// Tests — 格式断言 (本格式为稳定契约, 逐字节钉住)
 // =====================================================================
 #[cfg(test)]
 mod tests;
