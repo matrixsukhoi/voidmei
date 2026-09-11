@@ -27,5 +27,9 @@ tauri = "2"
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = ["Win32_Media_Audio"] }
 
+# 黑盒集成测试断言库 (UPDATE_EXPECT=1 自动更新快照)
+[dev-dependencies]
+expect-test = { workspace = true }
+
 [lints]
 workspace = true

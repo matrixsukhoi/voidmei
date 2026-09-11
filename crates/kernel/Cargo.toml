@@ -22,5 +22,9 @@ md-5 = "0.10"
 # regex: 机型对比规则/测试对拍的匹配器 (波21 引入, 替代手写 java.util.regex 复刻)
 regex = "1"
 
+# 黑盒集成测试断言库 (UPDATE_EXPECT=1 自动更新快照)
+[dev-dependencies]
+expect-test = { workspace = true }
+
 [lints]
 workspace = true
