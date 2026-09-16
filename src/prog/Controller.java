@@ -684,7 +684,7 @@ public class Controller {
 				overlay -> ((FlightInfoOverlay) overlay).init(this, S, configService.getOverlaySettings("飞行信息")),
 				overlay -> ((FlightInfoOverlay) overlay).initPreview(this, configService.getOverlaySettings("飞行信息")),
 				overlay -> ((FlightInfoOverlay) overlay).reinitConfig(),
-				true).withInterest("flightInfo", "fontSize", "disableFlightInfo");
+				true).withInterest("flightInfo", "fontSize", "disableFlightInfo", "flightInfoFontC");
 
 		// ControlSurfacesOverlay - supports preview
 		// Controller 参数已移除，此 overlay 不需要访问配置
