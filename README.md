@@ -1,144 +1,152 @@
 # VoidMei - 战争雷霆8111端口Java图形前端
 
-# 工作原理
-- 通过HTTP/GET请求读取127.0.01:8111端口中的飞行状态(state)以及飞行仪表(indicators)数据
-- 解析离线拆包的气动模型文件(FM blkx)
-- 处理/计算上述信息,以图形界面的形式呈现给用户
+[![build](https://github.com/matrixsukhoi/voidmei/actions/workflows/build.yml/badge.svg)](https://github.com/matrixsukhoi/voidmei/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/matrixsukhoi/voidmei)](https://github.com/matrixsukhoi/voidmei/releases/latest)
+[![license](https://img.shields.io/github/license/matrixsukhoi/voidmei)](LICENSE)
 
+战争雷霆实时飞行数据 HUD。以半透明悬浮窗呈现飞行状态、引擎参数与语音告警, 并且能呈现fm拆包数据，帮助玩家快速掌握能量与机体状态。
 
-# 编译方式1: 统一构建脚本 (推荐)
-**需确保 JDK 1.8 与 git-bash (Windows) 环境**
-- clone 本仓库后, 将 FM 数据放入 `data/` (运行 `python script/build.py fmdata` 从游戏客户端解包生成, 或从 release 包中复制)
-```bash
-python script/build.py compile   # 编译 src/ → bin/
-python script/build.py run       # 本地运行 (classpath 直跑, 免打 jar)
-python script/build.py test      # 运行单元测试
-python script/build.py dist      # 组装完整分发包 → dist/VoidMei_v*.zip
-java -jar VoidMei.jar       # 本地运行 (项目根即运行目录, 需先 jar)
-```
+![预览](image/screenshot.png)
 
-# 编译方式2: 命令行手动编译
-```bash
-mkdir bin
-javac -encoding UTF-8 -d bin -classpath dep/* src/prog/* src/parser/* src/ui/*
-jar -cvfm VoidMei.jar MANIFEST.MF -C ./bin .
-java -jar VoidMei.jar
-# 使用launch4j打包为exe, 确保launch4j环境目录已配置
-launch4jc ./script/voidmeil4j.xml
-```
+## 工作原理
 
-# 编译方式3: Eclipse IDE
-- 使用eclipse导入工程,程序入口设置为app.java中的main函数
-- 设置jdk/jre版本为1.8 (java 8)
-- 导入外部UI库 weblaf-complete-1.29.jar
-- 下载release版本,将其他缺失的资源文件复制到本目录
-- 运行、调试或导出jar文件
+- 通过 HTTP GET 读取 `127.0.0.1:8111` 的飞行状态与飞行仪表数据
+- 解析离线拆包的气动模型文件（FM blkx）
+- 计算并渲染为可自由摆放的桌面悬浮窗
 
-# 编译方式4: VSCode IDE
-- 安装java插件
-- 下载release版本,将其他缺失的资源文件复制到本目录
-- 打开本目录,选择app.java并点击运行或调试
-- 在JAVA PROJECTS选项下点击export jar可导出可执行的jar文件
+## 功能特性
 
-# 代码结构说明
-由于编程过程比较随意,目前代码结构与变量命名比较混乱,后面有时间会调整
-主要代码结构描述如下:
-- src/prog/app.java - 程序入口
-- src/prog/controller.java - 程序状态转换控制
-- src/prog/service.java - HTTP数据请求与数据处理线程,
-- src/prog/uiThread.java - UI绘制线程
-- src/parser - state/indicator/blkx等解析器代码
-- src/ui - 各ui界面的绘制代码
-- src/ui/mainform.java - 主界面
-- src/ui/minimalHUD.java - 最小HUD界面
-- src/ui/flightInfo.java - 飞行状态信息界面
-- src/ui/engineInfo.java - 引擎状态信息界面
-- src/ui/stickValue.java - 飞行控制信息界面
-- src/ui/engineControl.java - 发动机控制信息界面
+比起[wtrti](https://github.com/MeSoftHorny/WTRTI)有诸多可视化与算法方面的优势；且 VoidMei 是完全开源（GPL-3.0）的自由软件。
 
-# 执行环境
-- 安装 Jave Runtime Environment 1.8(jre 1.8) 即可
+这些优势源于基于 FM 拆包的一整套实时算法：
 
-## Windows命令行模式安装VoidMei
-打开非管理员模式的终端[按下WIN+R-输入cmd-按下回车]，跳出终端窗口后输入以下命令
+- **MiniHUD**：核心功能，高度可视化的紧凑型 UI，集成几乎所有空战有用信息
+- **智能襟翼算法**：实时计算当前襟翼极限速度，精准到个位
+- **智能速度算法**：综合可用速度实时显示，失速与锁舵同位提示，对高低空与可变后掠翼均有效
+- **引擎耐热时**：计算引擎距过热损坏的具体时间，精准控温
+- **增压器档位**：实时算出当前哪一档增压器功率最高，手操必备
+- **动力量**：当前引擎状态与引擎理论极限状态的百分比
+- **回转半径**：计算真正的飞行轨迹曲率半径
+- **真实过载极限**：根据燃油量与逆向工程实时计算，不触发报警一定不会断
+- **FM 拆包**：飞行中随时呼出飞行模型数据，支持飞机间对比
+- **语音告警**：十余种条件触发，`voice/` 目录下的 wav 可自由替换
+- **所见即所得**：所有开关与选项实时渲染预览，并附注释说明
 
-先安装scoop(如果已安装可跳过)
-```
+各项指标的物理含义与 miniHUD 图示详见[使用说明](使用说明.txt)。
+
+## 安装
+
+### 方式一：GitHub Releases（推荐）
+
+从 [Releases](https://github.com/matrixsukhoi/voidmei/releases/latest) 下载 zip 解压后运行 `VoidMei.exe`。需要 JRE 8（exe 已强制 Java 8，缺失时会提示下载地址）。
+
+### 方式二：Scoop（Windows 命令行）
+
+```powershell
+# 安装 scoop (已装可跳过)
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 irm get.scoop.sh | iex
-```
 
-设置代理(如果网络无问题可以直接跳过)
-```
+# 设置代理(如果网络无问题可以直接跳过)
 scoop config proxy [ip:port]
-```
-
-安装git(如果已安装可跳过)
-```
+# 安装git(如果已安装可跳过)
 scoop install git
-```
 
-添加@Lustra-Fs大佬提供的bucket
-```
+# 添加 bucket 并安装 (感谢 @Lutra-Fs 维护)
 scoop bucket add Lutra-Fs_scoop-bucket https://github.com/Lutra-Fs/scoop-bucket
-```
-
-安装Voidmei，安装完成后开始菜单中应该能看到VoidMei可执行文件
-```
 scoop install Lutra-Fs_scoop-bucket/voidmei
-```
 
-版本升级请用该命令
-```
+# 升级
 scoop update voidmei
 ```
 
-## Linux执行环境配置 
-VoidMei可使用Linux wine执行(测试环境Fedora 35, GNOME 41.7, Wine 7.10),执行步骤如下: 
-- winecfg 兼容性设置为win10 
-- 安装jre8, 执行wine jre-8uXXX-windows-x64.exe /s
-- 运行VoidMei
+## 快速上手
 
-### 准备编译环境
+1. 游戏请设为**全屏窗口（无边框）或窗口模式**运行。匹配模式即开即用；试飞与自定义模式需在难度选择中打开「允许使用网页界面」等开关
+2. 运行 VoidMei，选择打开需要的面板并拖动至合适位置——所有开关与选项的影响实时渲染，所见即所得
+3. 飞行中可随时点击任务栏的 VoidMei 图标，重启或修改配置
+4. 建议先开启：MiniHUD；发动机面板 → 显示耐热时（动态计算引擎还能烧多少秒）
 
-``` bash
-# 下载voidmei源码
-pushd ~/project/
+## 常见问题 (Q&A)
+
+### OBS 无法捕捉 VoidMei 窗口?
+
+VoidMei 基于 Java 的`逐像素透明窗口机制`实现,  OBS的"窗口"捕捉的两种采集方法——BitBlt 与 WGC 均无法获取这类窗口的内容.
+
+### 提示 JVM NOT FOUND？
+
+安装 JRE 8：<https://www.java.com/zh-CN/download/>，或使用 [Eclipse Temurin 8](https://adoptium.net/temurin/releases/?version=8)。
+
+### 如何导入他人的配置？升级新版怎么保留配置？
+
+务必使用「全局设置 → 导入配置」导入 `ui_layout.user.cfg`，**切勿直接复制替换文件**。升级新版同理：下载新 Release 后导入自己原先的 `ui_layout.user.cfg` 即可（更新频率至少与 WarThunder 大版本同步）。
+
+### 游戏画面卡顿？
+
+游戏以 **DX12 模式**运行时（Intel Arc 核显只允许 DX12，部分 A 卡同样），悬浮窗与游戏渲染冲突会导致画面卡顿，详见 [#54](https://github.com/matrixsukhoi/voidmei/issues/54)（同类工具也有此问题）。目前最有效的解法是**在游戏内锁帧（如 60fps），注意不要开垂直同步**；仍无改善时依次尝试：
+
+1. 开关「全局设置」的「软件渲染模式」
+2. 将游戏改为全屏窗口模式
+3. 开关显卡驱动的「GPU 硬件加速计划」
+4. 切换独显直连 / 混合模式
+
+若只是 VoidMei 自身 CPU 占用偏高，增大"高级设置 → 数据帧延时（毫秒）"并启用"简化字体描边"即可。
+
+### 支持 Linux 吗？
+
+不支持原生linux运行。可在 Wine 下运行：`winecfg` 兼容性设为 win10，安装 Windows 版 JRE 8 后执行 `wine java -jar VoidMei.jar`。悬浮窗依赖的窗口透明与置顶特性在不同桌面环境下表现不一，请自行尝试。
+
+## 从源码构建
+
+环境要求：**JDK 1.8** 与 **Python 3.8+**（构建脚本仅用标准库）。依赖 jar 已在 `dep/` 中，无需额外安装。
+
+```bash
 git clone git@github.com:matrixsukhoi/voidmei.git
-popd
-
-# 准备资源文件
-pushd ~/downloads/
-# download VoidMei_v1_573.zip to ~/downloads/voidmei_v1_573.zip from github release
-mkdir -p voidmei
-cp VoidMei_v1_573.zip voidmei/
 cd voidmei
-unzip VoidMei_v1_573.zip
-popd
 
-# 准备wine和java环境
-pushd ~/downloads/
-# download jre8 zip from https://www.azul.com/downloads/?version=java-8-lts&os=windows&architecture=x86-64-bit&package=jre
-unzip zulu8.90.0.19-ca-jre8.0.472-win_x64.zip
-cp -r ~/Downloads/zulu/zulu8.90.0.19-ca-jre8.0.472-win_x64/ ./
-WINEPREFIX=$(pwd)/.wine_voidmei winetricks corefonts fakechinese cjkfonts
-## 运行voidmei
-WINEPREFIX=$(pwd)/.wine_voidmei wine ./zulu8.90.0.19-ca-jre8.0.472-win_x64/bin/java.exe -jar VoidMei.jar
-popd
-
-# 准备其他工具
-sudo pacman -Ss launch4j
-
+python script/build.py fmdata   # 首次: 从本机游戏客户端解包生成 data/ (游戏目录自动探测),
+                                #        或直接从 release 包复制 data/ 目录
+python script/build.py run      # 编译并本地运行 (项目根即工作区)
+python script/build.py test     # 单元测试 + e2e 回归
+python script/build.py dist     # 组装完整分发包 → dist/VoidMei_v*.zip
 ```
 
-### 本地编译voidmei并运行
+其余子命令（`compile` / `jar` / `exe` / `clean` 等）见 `python script/build.py --help`。
 
-项目根目录即运行工作区 (data/fonts/voice 等资源就位后):
-
-``` bash
-pushd ~/project/voidmei
-python script/build.py jar
-WINEPREFIX=~/downloads/.wine_voidmei wine ~/downloads/zulu8.90.0.19-ca-jre8.0.472-win_x64/bin/java.exe -jar VoidMei.jar
-popd
+## 项目结构
 
 ```
+voidmei/
+├── src/
+│   ├── prog/      # 内核: 程序入口/生命周期/数据轮询线程/配置/事件总线/FM 加载
+│   ├── parser/    # 数据解析: 8111 遥测 与 blkx 飞行模型
+│   └── ui/        # 界面: 设置主界面 + 各悬浮窗 + 动态布局引擎
+├── script/        # 统一构建入口 build.py + mock 服务器 + e2e 测试
+├── test/          # 单元测试
+├── data/          # FM 拆包数据 (派生, 不进 git, 由 fmdata 命令生成)
+├── lang/          # 本地化资源
+├── fonts/ voice/  # 字体与语音告警资源
+├── ui_layout.cfg  # 界面布局 DSL 配置
+└── dep/           # 第三方 jar (WebLaF, jnativehook)
+```
+
+## 文档
+
+| 文档 | 内容 |
+|------|------|
+| [使用说明.txt](使用说明.txt) | 功能详解: 语音告警触发条件、FM 指标物理含义、miniHUD 图示 |
+| [更新日志.txt](更新日志.txt) | 版本更新记录 |
+
+## 贡献
+
+欢迎 issue 与 PR。提交前请确保 `python script/build.py test` 全部通过。
+
+## 支持与联系
+
+- 问题与建议：[Issues](https://github.com/matrixsukhoi/voidmei/issues)
+- 邮箱：<seclusionalagar@outlook.com>
+- B 站：[隐居寒天](https://space.bilibili.com/14606916)
+
+## 许可证
+
+[GPL-3.0](LICENSE)
