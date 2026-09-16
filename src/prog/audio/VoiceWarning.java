@@ -293,6 +293,7 @@ public class VoiceWarning implements Runnable {
     private VoiceAlert compressorStageWarn;
     private volatile boolean currentMismatch = false;  // volatile for thread safety (from FlightDataBus)
     private boolean lastMismatch = false;              // For detecting state change (false→true, true→false)
+    private boolean hasFlaps = true;                   // 当前机型是否有襟翼 (FM hasFlapsControl; 仅告警线程读写)
     private long pendingCompressorWarnTime = 0;        // 0 = no pending warning, >0 = scheduled warning time
     private static final long COMPRESSOR_WARN_DELAY = 3000;  // 3-second delay before warning
     private FlightDataListener flightDataListener;
@@ -579,6 +580,8 @@ public class VoiceWarning implements Runnable {
         // 无 FM → 跳过动态告警线更新（沿用 init 时/上次的值）
         FMHandle fm = FMManager.getInstance().current();
         parser.Blkx b = fm.blkx;
+        // 无襟翼机 (FM hasFlapsControl=false, 如 f_16xl/直升机): 襟翼告警/完好性判定跳过; 无 FM 降级为有
+        hasFlaps = (b == null) || b.hasFlapsControl;
         if (b != null) {
             if (b.isVWing) {
                 vwing = indic.wsweep_indicator;
@@ -670,6 +673,10 @@ public class VoiceWarning implements Runnable {
      * @return true 如果是致命告警
      */
     private boolean checkFlapWarning(long t) {
+        // 无襟翼机: 襟翼告警整体跳过
+        if (!hasFlaps)
+            return false;
+
         // 条件1: 不是正在下襟翼的状态
         boolean cond1 = isFlapAlive && !xS.isDowningFlap &&
                         (xS.flapAllowAngle - st.flaps < 2) && (st.flaps != 0);
@@ -930,8 +937,8 @@ public class VoiceWarning implements Runnable {
             gearCheck = 0;
         }
 
-        // 襟翼完好性判断
-        if (isFlapAlive && st.IAS > xS.flapAllowSpeed) {
+        // 襟翼完好性判断 (无襟翼机跳过, 避免按模板数据空转计满 15 秒误标损坏)
+        if (hasFlaps && isFlapAlive && st.IAS > xS.flapAllowSpeed) {
             // 超速持续 15 秒后标记为损坏
             flapCheck += sleepTime;
             if (flapCheck >= FLAP_DAMAGE_THRESHOLD_MS) {

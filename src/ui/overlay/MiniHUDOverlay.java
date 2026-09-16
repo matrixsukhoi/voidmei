@@ -294,6 +294,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     private int maneuverIndexLen40;
     private int maneuverIndexLen50;
     private boolean disableAttitude;
+    // 当前机型是否有襟翼 (FM AvailableControls.hasFlapsControl; 无 FM/预览缺省 true)
+    private boolean hasFlaps = true;
 
     /**
      * Legacy update logic.
@@ -311,7 +313,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
 
         boolean enableFlapBar = hudSettings.enableFlapAngleBar();
         if (flapAngleBar != null) {
-            flapAngleBar.setVisible(textVisible && enableFlapBar);
+            // hasFlaps: 数据驱动 (FM hasFlapsControl), 无襟翼机隐藏襟翼条; 预览/无 FM 保持 true
+            flapAngleBar.setVisible(textVisible && enableFlapBar && hasFlaps);
         }
         boolean showAttitude = hudSettings.showAttitudeGauge();
         if (compassGauge != null) {
@@ -450,6 +453,12 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         // 2. Dispatch to Reactive Components
         for (HUDComponent comp : components) {
             comp.onDataUpdate(data);
+        }
+
+        // 无襟翼机 (如 f_16xl/直升机): 襟翼条隐藏; setVisible 是纯布尔赋值, 每帧调用零开销
+        hasFlaps = data.hasFlaps;
+        if (flapAngleBar != null) {
+            flapAngleBar.setVisible(hudSettings.drawHUDText() && hudSettings.enableFlapAngleBar() && hasFlaps);
         }
 
         // 3. Update Legacy Components (Bridge) & Global State

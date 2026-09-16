@@ -28,6 +28,7 @@ public class HUDData {
     public final double gear; // 0-100%
     public final double airbrake; // 0-100%
     public final double flapAllowAngle; // Max safe angle based on speed
+    public final boolean hasFlaps; // 该机是否有襟翼控制 (FM AvailableControls.hasFlapsControl; 无 FM 降级 true)
 
     // Calculated/Derived Metrics
     public final double energyM; // Energy/Mass
@@ -94,6 +95,7 @@ public class HUDData {
         this.gear = builder.gear;
         this.airbrake = builder.airbrake;
         this.flapAllowAngle = builder.flapAllowAngle;
+        this.hasFlaps = builder.hasFlaps;
         this.energyM = builder.energyM;
         this.gLoad = builder.gLoad;
         this.turnRate = builder.turnRate;
@@ -149,6 +151,7 @@ public class HUDData {
         public double gear;
         public double airbrake;
         public double flapAllowAngle;
+        public boolean hasFlaps = true;
         public double energyM;
         public double gLoad;
         public double turnRate;

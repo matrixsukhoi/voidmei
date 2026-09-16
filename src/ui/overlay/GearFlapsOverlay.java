@@ -60,6 +60,8 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
     private int barHeight;
     private int flapPix;
     private String flapText;
+    // 当前机型是否有襟翼 (FM AvailableControls.hasFlapsControl; 无 FM 缺省 true)
+    private boolean hasFlaps = true;
     private int width;
     private int height;
 
@@ -175,8 +177,11 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
                 // Application.defaultFont, flapText, Lang.gFlaps, "%", 9);
 
                 dy += barHeight;
-                UIBaseElements.drawVBarTextNum(g2d, 0, dy, barWidth, barHeight, flapPix, 1, Application.colorNum, "",
-                        "F" + flapText, fontNum, fontLabel);
+                // 无襟翼机 (如 f_16xl/直升机): 不画 F 竖条, 仅保留起落架/减速板警告文字
+                if (hasFlaps) {
+                    UIBaseElements.drawVBarTextNum(g2d, 0, dy, barWidth, barHeight, flapPix, 1, Application.colorNum,
+                            "", "F" + flapText, fontNum, fontLabel);
+                }
 
                 if (warnText != null) {
                     g2d.setColor(warnColor);
@@ -251,6 +256,10 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
         }
 
         flapText = String.format("%3d", flaps);
+
+        // 无襟翼机: FM hasFlapsControl=false 时不画 F 条 (无 FM 降级为有)
+        prog.fm.FMHandle fm = prog.fm.FMManager.getInstance().current();
+        hasFlaps = !fm.hasFM() || fm.blkx.hasFlapsControl;
 
         root.repaint();
     }

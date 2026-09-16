@@ -101,6 +101,9 @@ public class HUDCalculator {
             warnVne = true;
         }
 
+        // 无襟翼机 (FM AvailableControls.hasFlapsControl=false, 如 f_16xl/直升机/三角翼): 襟翼 UI 整体隐藏; 无 FM 降级为有 (保持显示)
+        b.hasFlaps = (blkx == null || !blkx.valid) || blkx.hasFlapsControl;
+
         if (blkx != null && blkx.valid) {
             // User requested formula: 1 - (nfweight / (nfweight + fuel))
             double nfweight = blkx.nofuelweight;

@@ -401,6 +401,9 @@ public class Blkx {
 	public double avgEngRecoveryRate;
 	public int FlapsDestructionNum;
 	public double[][] FlapsDestructionIndSpeed;
+	// AvailableControls.hasFlapsControl: 游戏引擎的襟翼控制开关 (false=无襟翼机, 如 f_16xl/直升机/三角翼/双翼机)
+	// 注意不能靠 FlapsDestructionIndSpeed/FlapsPolar 有无判断——无襟翼机的模板数据是齐全的
+	public boolean hasFlapsControl = true;
 	public double halfweight;
 
 	// public
@@ -1220,6 +1223,11 @@ public class Blkx {
 		// }
 
 		GearDestructionIndSpeed = getdouble("GearDestructionIndSpeed");
+
+		// 襟翼控制开关: 仅显式 false 才判无襟翼; 字段缺失(1225/1226 机型有此字段)或脏值按有襟翼处理, 保持显示
+		if (getone("AvailableControls.hasFlapsControl").trim().equals("false")) {
+			hasFlapsControl = false;
+		}
 
 		// Application.debugPrint("Flaps Destruction Stages: " + FlapsDestructionNum +
 		// ", Gear Destruction Speed: "
