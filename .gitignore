@@ -9,6 +9,7 @@ data/
 records/
 config/
 ui_layout.user.cfg*
+voidmei_config.json*
 output.log
 error.log
 gpu_compat.properties
@@ -29,3 +30,6 @@ script/voidmeil4j.gen.xml
 
 # fmdata 游戏目录探测缓存
 .wt_game_dir
+
+# 本地进行中的 Rust 重写工作区（未入库）
+crates/

@@ -119,8 +119,9 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
     // --- Configuration ---
 
     public void reinitConfig() {
+        // issue #60: labelFontKey 必须一并传入, 否则分组字体设置(如 flightInfoFontC)不生效
         renderContext = RenderContext.fromSettings(overlaySettings, this,
-                numFontKey, columnKey, config);
+                numFontKey, labelFontKey, columnKey, config);
 
         initFields();
         subscribeToEvents();

@@ -22,7 +22,8 @@ public class FlightInfoConfig {
     public int columnNum = 3;
 
     // Font configuration keys
-    public String numFontKey = "GlobalNumFont";
+    // issue #60: 数值/单位/标签统一由面板字体键控制 (设置 desc "选择用于显示飞行参数的字体")
+    public String numFontKey = "flightInfoFontC";
     public String labelFontKey = "flightInfoFontC";
     // public String fontAddKey = "flightInfoFontaddC"; // Legacy, removed
     public String columnKey = "flightInfoColumn";

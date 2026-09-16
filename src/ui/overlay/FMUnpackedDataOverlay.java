@@ -148,6 +148,12 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
         }
         // Font and display settings are handled by BaseOverlay
         setupFont();
+
+        // WYSIWYG: 字体更新后数据未必变化, 而 run() 的 dirty-check 只在数据变化时
+        // 才重渲染, 这里主动触发一次, 否则改字体需关闭预览重开才生效
+        if (lastData != null) {
+            updateUI(lastData);
+        }
     }
 
     /**

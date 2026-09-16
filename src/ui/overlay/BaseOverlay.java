@@ -260,7 +260,7 @@ public class BaseOverlay extends DraggableOverlay {
         // Calling dispose() here causes double-dispose race condition.
     }
 
-    private void updateUI(List<String> currentData) {
+    protected void updateUI(List<String> currentData) {
         javax.swing.SwingUtilities.invokeLater(() -> {
             // Delegate rendering to the pluggable renderer
             renderer.render(currentData, dataPanel, displayFont, alpha);

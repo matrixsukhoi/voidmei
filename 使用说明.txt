@@ -27,13 +27,12 @@ https://www.java.com/zh-CN/download/
 ————————————————————————————————————
 配置说明
 
-以下功能配置需要用记事本打开./config/config.properties,手动修改配置中的属性
+以下功能均可在设置界面中直接调整,无需再手动修改配置文件
 
-人工地平仪大小：修改attitudeIndicatorWidth和attitudeIndicatorHeight调整人工地平仪面板大小
+人工地平仪大小：「人工地平仪」面板的「宽度」滑条
 
-最简HUD控制标签显示:设置disableHUDXXXLabel=true可关闭最简HUD的一些标签
-最简HUD界面地平(俯仰角,横滚角与侧滑角)显示:设置drawHUDAttitude=false关闭绘制地平信息
-最简HUD显示马赫数:设置hudMach=true可将显示表速替换为显示马赫数
+最简HUD控制标签显示:最简HUD设置中的各「读数显示标签」开关
+最简HUD显示马赫数:最简HUD设置中的「表速更换马赫数」开关(默认开启)
 
 ————————————————————————————————————
 FM信息说明
@@ -55,7 +54,7 @@ FM信息说明
 
 最简HUD主要是通过简单的数字与直观的图形元素的组合，快速将飞行状态信息呈现给玩家，以优化OODA循环的速度。
 主要元素的含义如下所示：
-I-示空速km/h,可以修改config中的"hudMach=true"改为显示马赫数;
+I-示空速km/h,可通过最简HUD设置中的「表速更换马赫数」开关改为显示马赫数;
 H-高度m;
 S-剩余功率SEP，单位是m/s;
 L-燃油估计时,分钟;
@@ -70,7 +69,7 @@ W-可变翼后掠角
 左起第一个绿色竖条-油门;
 左起第一个绿色横条-可用攻角,可用攻角到0则会失速.
 
-注意：最简HUD界面仅可使用【等宽字体】，否则会出现对齐错误的问题，可配置修改配置文件中的"MonoNumFont=Consolas"替换现在使用的Consolas字体
+注意：最简HUD界面仅可使用【等宽字体】，否则会出现对齐错误的问题，可在最简HUD设置的「等宽字体」下拉框中选择字体
 
 ————————————————————————————————————
 语音告警说明
@@ -106,6 +105,6 @@ W-可变翼后掠角
 ————————————————————————————————————
 自定义文本说明
 
-修改./language/cur.properties可替换本程序中显示的文本.
+修改./lang/cur.properties可替换本程序中显示的文本.
 
-!!!! You can modify ./language/cur.properties for localization. !!!
+!!!! You can modify ./lang/cur.properties for localization. !!!
