@@ -39,8 +39,9 @@
 use std::collections::HashSet;
 
 use crate::layout::hud_layout_node::{
-    HUDLayoutNodeExt, HasPreferredSize, Rectangle, SharedNode,
+    Dimension, HUDLayoutNodeExt, HasPreferredSize, Rectangle, SharedNode,
 };
+use crate::layout::list_arrange::ListArrange;
 
 /// HUDComponent 接口的布局引擎侧最小 seam (Java src/ui/component/HUDComponent.java
 /// 接口两方法: getPreferredSize 已入 kernel `HasPreferredSize`; isVisible 由本模块
@@ -75,6 +76,12 @@ pub struct ModernHUDLayoutEngine<T> {
     debug: bool,
     render_offset_x: i32,
     render_offset_y: i32,
+    /// 塌缩子树成员 (容器 0×0 → 后代整体隐藏; 渲染/包围盒剔除;
+    /// calculate_coordinates 期重建 — 容器隐藏的传播面)
+    collapsed_ids: HashSet<String>,
+    /// 上次 apply_auto_sizing 的计划 — 刷新链逐 tick 调用 (Java 时代按需),
+    /// 计划不变时静默, 否则 INFO ~20Hz 刷屏
+    last_auto_size: Option<AutoSizingPlan>,
 }
 
 impl<T> ModernHUDLayoutEngine<T> {
@@ -91,6 +98,8 @@ impl<T> ModernHUDLayoutEngine<T> {
             debug: false,
             render_offset_x: 0,
             render_offset_y: 0,
+            collapsed_ids: HashSet::new(),
+            last_auto_size: None,
         };
         engine.set_canvas_size(width, height);
         engine
@@ -238,18 +247,115 @@ impl<T> ModernHUDLayoutEngine<T> {
         visited.insert(id);
     }
 
-    /// Java `calculateCoordinates()`: 锚点公式的驱动循环 ——
-    /// Self.Point = Parent.Point(ParentAnchor) + Offset (根节点父矩形 = canvasRect)
+    /// Java `calculateCoordinates()` 的容器感知扩展: 锚点公式的驱动循环 ——
+    /// Self.Point = Parent.Point(ParentAnchor) + Offset (根节点父矩形 = canvasRect)。
+    /// 容器节点 (arrange=Some) 整子树接管: 递归度量 → 锚定自身 → 排列子项
+    /// (子项 pos/anchor 忽略, 顺序语义); 已排/塌缩子项跳过主循环。
     fn calculate_coordinates(&mut self)
     where
-        T: HasPreferredSize,
+        T: HasPreferredSize + HasVisibility,
     {
+        let mut marks = SolveMarks::default();
         for node in &self.sorted_nodes {
+            let id = node.borrow().id.clone();
+            if marks.arranged.contains(&id) || marks.collapsed.contains(&id) {
+                continue;
+            }
             let ref_rect = match node.get_parent() {
                 None => self.canvas_rect,
                 Some(p) => p.get_pixel_rect(),
             };
-            node.solve(self.line_height, &ref_rect);
+            Self::solve_node(node, self.line_height, &ref_rect, &mut marks);
+        }
+        self.collapsed_ids = marks.collapsed;
+    }
+
+    /// 单节点求解: 容器 → 递归度量 + 锚定 + 排列子树; 叶子 → 锚点方程
+    fn solve_node(
+        node: &SharedNode<T>,
+        line_height: f64,
+        parent_rect: &Rectangle,
+        marks: &mut SolveMarks,
+    ) where
+        T: HasPreferredSize + HasVisibility,
+    {
+        let Some(policy) = node.borrow().arrange else {
+            node.solve(line_height, parent_rect);
+            return;
+        };
+        marks.arranged.insert(node.borrow().id.clone());
+        let size = Self::measure(node, line_height);
+        // 锚点方程落自身 (尺寸 = 排列内容; 不可见容器度量 0×0 → 整块塌缩)
+        node.solve_sized(line_height, parent_rect, size);
+        if size.width == 0 && size.height == 0 {
+            Self::collapse_descendants(node, marks);
+            return;
+        }
+        Self::arrange_children(node, &policy, line_height, marks);
+    }
+
+    /// 子树内容尺寸 (容器 = 排列产物; 叶子 = 组件 preferred; 不可见 → 0×0)
+    fn measure(node: &SharedNode<T>, line_height: f64) -> Dimension
+    where
+        T: HasPreferredSize + HasVisibility,
+    {
+        if !node.borrow().component.is_visible() {
+            return Dimension::new(0, 0);
+        }
+        match node.borrow().arrange {
+            None => node.borrow().component.preferred_size(),
+            Some(policy) => {
+                let children = node.get_children();
+                let sizes: Vec<Dimension> = children
+                    .iter()
+                    .map(|c| Self::measure(c, line_height))
+                    .collect();
+                policy.arrange(&sizes, line_height).size
+            }
+        }
+    }
+
+    /// 容器子项落位 (顺序语义): 嵌套容器递归; 子项全部标记 arranged
+    fn arrange_children(
+        node: &SharedNode<T>,
+        policy: &ListArrange,
+        line_height: f64,
+        marks: &mut SolveMarks,
+    ) where
+        T: HasPreferredSize + HasVisibility,
+    {
+        let children = node.get_children();
+        let sizes: Vec<Dimension> = children
+            .iter()
+            .map(|c| Self::measure(c, line_height))
+            .collect();
+        let placed = policy.arrange(&sizes, line_height);
+        let origin = node.get_pixel_rect();
+        for (i, child) in children.iter().enumerate() {
+            marks.arranged.insert(child.borrow().id.clone());
+            let (dx, dy) = placed.offsets[i];
+            let (x, y) = (origin.x + dx, origin.y + dy);
+            child.place(x, y, sizes[i]);
+            if child.borrow().arrange.is_some() {
+                // 嵌套容器: 原点/尺寸随父排列落定, 再排它的子树
+                if sizes[i].width == 0 && sizes[i].height == 0 {
+                    Self::collapse_descendants(child, marks);
+                } else {
+                    let sub = child.borrow().arrange.unwrap();
+                    Self::arrange_children(child, &sub, line_height, marks);
+                }
+            }
+        }
+    }
+
+    /// 塌缩标记: 后代整体从渲染/包围盒剔除并跳过主循环 (容器隐藏的传播面)
+    fn collapse_descendants(node: &SharedNode<T>, marks: &mut SolveMarks) {
+        let mut stack = node.get_children();
+        while let Some(c) = stack.pop() {
+            let id = c.borrow().id.clone();
+            marks.collapsed.insert(id.clone());
+            marks.arranged.insert(id);
+            stack.extend(c.get_children());
         }
     }
 
@@ -263,7 +369,8 @@ impl<T> ModernHUDLayoutEngine<T> {
     {
         // ... (existing render logic)
         for node in &self.sorted_nodes {
-            if !node.borrow().component.is_visible() {
+            let id = node.borrow().id.clone();
+            if !node.borrow().component.is_visible() || self.collapsed_ids.contains(&id) {
                 continue;
             }
 
@@ -309,8 +416,10 @@ impl<T> ModernHUDLayoutEngine<T> {
         let mut has_content = false;
 
         for node in &self.sorted_nodes {
-            // Java `node.component != null && ...` 的 null 检查 — Rust T 非可空
-            if node.borrow().component.is_visible() {
+            let id = node.borrow().id.clone();
+            // Java `node.component != null && ...` 的 null 检查 — Rust T 非可空;
+            // 塌缩子树成员剔除 (容器隐藏传播)
+            if !self.collapsed_ids.contains(&id) && node.borrow().component.is_visible() {
                 has_content = true;
                 let r = node.get_pixel_rect();
                 let right = r.x + r.width;
@@ -368,22 +477,7 @@ impl<T> ModernHUDLayoutEngine<T> {
         // (Java: window.setSize(newWidth, newHeight); — 宿主职责)
         self.set_render_offset(offset_x, offset_y);
 
-        kernel::base::logger::info(
-            "ModernLayout",
-            &format!(
-                "Auto-sized window: Content[{},{} {}x{}] -> Window[{}x{}] Offset[{},{}]",
-                content_bounds.x,
-                content_bounds.y,
-                content_bounds.width,
-                content_bounds.height,
-                new_width,
-                new_height,
-                offset_x,
-                offset_y
-            ),
-        );
-
-        AutoSizingPlan {
+        let plan = AutoSizingPlan {
             new_width,
             new_height,
             offset_x,
@@ -392,7 +486,28 @@ impl<T> ModernHUDLayoutEngine<T> {
             content_y: content_bounds.y,
             content_w: content_bounds.width,
             content_h: content_bounds.height,
+        };
+        // 修复: 刷新链 (render_thread fm-list 包围盒收敛/编辑面 follow_sizing)
+        // 逐 tick 调用本函数, 计划无变化时静默 — Java 无条件日志在逐 tick
+        // 调用面下 ~20Hz 刷屏
+        if self.last_auto_size != Some(plan) {
+            self.last_auto_size = Some(plan);
+            kernel::base::logger::info(
+                "ModernLayout",
+                &format!(
+                    "Auto-sized window: Content[{},{} {}x{}] -> Window[{}x{}] Offset[{},{}]",
+                    content_bounds.x,
+                    content_bounds.y,
+                    content_bounds.width,
+                    content_bounds.height,
+                    new_width,
+                    new_height,
+                    offset_x,
+                    offset_y
+                ),
+            );
         }
+        plan
     }
 
     /// Perform layout calculation if needed.
@@ -400,7 +515,7 @@ impl<T> ModernHUDLayoutEngine<T> {
     /// 组件尺寸变化无需手动置脏即可生效; 原注释保留)
     pub fn do_layout(&mut self)
     where
-        T: HasPreferredSize,
+        T: HasPreferredSize + HasVisibility,
     {
         if self.dirty {
             self.resolve_topology();
@@ -430,6 +545,15 @@ impl<T> Drop for ModernHUDLayoutEngine<T> {
             node.set_parent(None);
         }
     }
+}
+
+/// 求解循环的容器标记面 (calculate_coordinates 期存续)
+#[derive(Default)]
+struct SolveMarks {
+    /// 已被容器排列/塌缩处理的节点 (主循环跳过)
+    arranged: HashSet<String>,
+    /// 塌缩子树成员 (容器 0×0 → 后代整体隐藏)
+    collapsed: HashSet<String>,
 }
 
 /// [`ModernHUDLayoutEngine::apply_auto_sizing`] 的返回计划

@@ -11,30 +11,84 @@
 //! 数据流: 编辑仓 docs = 会话期页文档唯一真相; on_reinit_overlays 的外部
 //! params.pages 被编辑仓覆写 (写权接管); 提交 = EditCommitted → 主线程
 //! save_page 落盘 → 既有 CONFIG_CHANGED 链重建; 丢弃 = 全量 ReinitOverlays。
+//! (阶段 C: 原 80ms 节流 web 镜像推送链已退役 — 编辑期 UI 全原生同栈,
+//! 唯一对外事件 = HUD_EDIT_SESSION 起止键, 供 MainForm 隐退/恢复;
+//! 拒绝回报 = 日志留痕 (C2 镜像推送退役, 无事件面))
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use kernel::base::bus::ui_state_bus::UIStateBus;
-use serde::{Deserialize, Serialize};
 use kernel::config::json_model::{ComponentDoc, PageDoc};
 
 use overlay::layout::hud_layout_node::HUDLayoutNodeExt;
 use overlay::platform::host::{EditMouse, OverlayHost};
 use overlay::render::canvas::PixCanvas;
+use overlay::render::font::LoadedFont;
 use overlay::render::primitives;
 use overlay::widgets::PageHandle;
+use overlay::widgets::list_container::LIST_CONTAINER_TYPE;
 
-/// UIStateBus 编辑事件键 (bridge.rs 订阅 → 前端 emit)
+/// UIStateBus 编辑事件键 (bridge.rs 订阅 → 前端 emit)。
+/// 镜像推送三键 (doc/selection/error) 已随 web 编辑面板退役 (阶段 C);
+/// begin 失败回报走 lib.rs 的 EditRejected 字面量发布, 不占常量
 pub const HUD_EDIT_SESSION: &str = "HUD_EDIT_SESSION"; // data: "begin" | "end"
-pub const HUD_EDIT_DOC: &str = "HUD_EDIT_DOC"; // data: JSON (页文档 + 矩形 + 选中)
-pub const HUD_EDIT_SELECTION: &str = "HUD_EDIT_SELECTION"; // data: JSON {ids}
-pub const HUD_EDIT_ERROR: &str = "HUD_EDIT_ERROR"; // data: 错误串
 
-/// 编辑装饰粉色 (全站主题)
-const ACCENT: [u8; 4] = [255, 105, 180, 235];
+/// 右键菜单条目动作 (对象级操作; 经 apply_command 入会话命令面 = 单一撤销栈)
+#[derive(Clone)]
+pub(crate) enum MenuAction {
+    /// 项: enabled 翻转 (软隐藏 — 保留配置, 建树期跳过)
+    ToggleEnabled { id: String },
+    /// 项: 兄弟段内前移/后移 (容器内 = 排列序; 自由区 = z 序)
+    MoveOrder { id: String, delta: i32 },
+    /// 项: 删除 (右键目标在选中集内 = 整集删)
+    Delete { ids: Vec<String> },
+    /// 容器: 排列切换 (columns > 0 时附带列数)
+    SetArrange {
+        container: String,
+        arrange: String,
+        columns: i64,
+    },
+}
+
+/// 右键菜单 (对象级操作统一入口; 画进渲染帧 — 与吸附装饰同形态)。
+/// rect = 窗口视图系 (命中与绘制同源)
+pub(crate) struct EditMenu {
+    pub origin: (i32, i32),
+    pub items: Vec<(String, MenuAction, (i32, i32, i32, i32))>,
+    pub hover: Option<usize>,
+}
+
+/// 菜单几何: 行高 / 水平留白 / 标签前缀槽 (✓ 当前项)
+const MENU_ROW_H: i32 = 24;
+const MENU_PAD_X: i32 = 14;
+
+/// 拖放插入会话 (组件库 webview 内按下发起; 全局鼠标轮询驱动)
+#[derive(Clone)]
+pub(crate) struct DragInsert {
+    pub type_name: String,
+    pub display_zh: String,
+    pub props: serde_json::Value,
+}
+
+/// 拖放落点反馈 (画布系; 轮询期算出, 绘制/结算共用)
+#[derive(Clone, PartialEq)]
+pub(crate) enum DropHint {
+    /// 容器内插入线: (容器 id, 子项插入序, 线段 x0..x1 @y)
+    InsertLine {
+        container: String,
+        index: usize,
+        x0: i32,
+        y: i32,
+        x1: i32,
+    },
+    /// 自由区落点幽灵 (矩形)
+    Ghost { x: i32, y: i32, w: i32, h: i32 },
+}
+
+/// 编辑装饰粉色 (全站主题; edit_chrome 同栈共用)
+pub(crate) const ACCENT: [u8; 4] = [255, 105, 180, 235];
 /// 网格吸附步长 (行高倍)
 const SNAP: f64 = 0.1;
 /// 对齐吸附阈值 (物理 px)
@@ -43,8 +97,6 @@ const ALIGN_TOL: i32 = 6;
 const HANDLE_HIT: i32 = 10;
 /// resize 最小尺寸 (物理 px)
 const RESIZE_MIN: i32 = 8;
-/// doc 推送前端节流
-const DOC_PUSH_THROTTLE: Duration = Duration::from_millis(80);
 
 /// resize 手柄方位 (组件矩形 8 向)
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -106,9 +158,29 @@ pub(crate) struct EditSession {
     pub canvas_off: (i32, i32),
     /// 事件队列 (on_event 入队, edit_pump 消费)
     pub pending: VecDeque<(String, EditMouse)>,
-    /// doc 推送节流基准
-    pub last_doc_push: Instant,
+    /// 装饰面脏标记 (doc/selection 变化置位 → 编辑泵保险渲染一帧后清除。
+    /// 原语义 = 80ms 节流推 web 镜像, 阶段 C 推送退役后转为纯渲染脏标记 —
+    /// Select 类无重装配路径的真窗高亮刷新仍依赖它)
     pub doc_dirty: bool,
+    /// ---- 全局单一撤销栈 (试驾场: 手势+命令全部入栈) ----
+    /// 撤销栈 (每项 = 变更前的编辑仓快照; 手势整段 = 一项)
+    pub undo_stack: Vec<Vec<PageDoc>>,
+    /// 重做栈 (undo 时寄存, 新变更清空)
+    pub redo_stack: Vec<Vec<PageDoc>>,
+    /// 手势起点快照 (Move/Resize 起手捕获, Release 提交 — 整段拖拽 = 一项)
+    pub gesture_snapshot: Option<Vec<PageDoc>>,
+    /// ---- 右键菜单 (对象级操作统一入口) ----
+    pub menu: Option<EditMenu>,
+    /// 菜单字体 (begin 时从目标页捕获; 菜单文本渲染/度量共用)
+    pub menu_font: Option<Rc<LoadedFont>>,
+    /// 菜单动作执行后置位 → 主循环 rebuild_edit_target (pump 无重装配面)
+    pub need_rebuild: bool,
+    /// ---- 拖放插入 (组件库 → 真窗; 全局鼠标轮询结算) ----
+    pub drag_insert: Option<DragInsert>,
+    pub drop_hint: Option<DropHint>,
+    /// 场景拨杆位 (试驾场流动数据形态: normal/jet/gear/nodata)。
+    /// 场景 UI 已随组件面板简化撤下 — 恒 "normal" (feed_pages_sim 照读)
+    pub sim_scenario: String,
 }
 
 impl EditSession {
@@ -130,9 +202,17 @@ impl EditSession {
             hit_rects: Vec::new(),
             canvas_off: (0, 0),
             pending: VecDeque::new(),
-            last_doc_push: Instant::now(),
-            // begin 即推首帧镜像 (前端控制台进场有数据, 不等首次编辑)
+            // begin 后首帧装饰保险渲染 (编辑窗全开后的选中/装饰初始态)
             doc_dirty: true,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            gesture_snapshot: None,
+            menu: None,
+            menu_font: None,
+            need_rebuild: false,
+            drag_insert: None,
+            drop_hint: None,
+            sim_scenario: "normal".to_string(),
         }
     }
 
@@ -230,9 +310,14 @@ pub(crate) fn press_decision(s: &mut EditSession, entry_id: &str, root: (i32, i3
             s.target_page = entry_id.to_string();
             s.selection.clear();
             s.hover = None;
-            s.doc_dirty = true; // 推前端同步 targetPage
+            s.menu = None; // 跨页点击 = 菜单随之关闭
+            s.doc_dirty = true; // 装饰转移 → 保险渲染一帧
         }
         return false; // 切页那一击不启动编辑手势 (也不拖窗, 自然落点)
+    }
+    // 菜单模态: 菜单在场时点击全归菜单 (执行/关闭在 Release 结算), 不启手势不拖窗
+    if s.menu.is_some() {
+        return true;
     }
     let local = win_local(root, win_pos);
     match hit_test(s, local) {
@@ -256,6 +341,7 @@ pub(crate) fn press_decision(s: &mut EditSession, entry_id: &str, root: (i32, i3
                     start_unit,
                     last_apply: Instant::now(),
                 });
+                s.gesture_snapshot = Some(s.docs.clone()); // 撤销栈: 手势起手快照
                 return true;
             }
             false
@@ -285,6 +371,7 @@ pub(crate) fn press_decision(s: &mut EditSession, entry_id: &str, root: (i32, i3
                 guide_x: None,
                 guide_y: None,
             });
+            s.gesture_snapshot = Some(s.docs.clone()); // 撤销栈: 手势起手快照
             true
         }
         Hit::Blank => {
@@ -303,6 +390,153 @@ pub(crate) fn press_decision(s: &mut EditSession, entry_id: &str, root: (i32, i3
             }
         }
     }
+}
+
+// =====================================================================
+// 右键菜单 (对象级操作统一入口 — 降心智负担主战场)
+// =====================================================================
+
+/// 建菜单: 右键目标分型 (容器 → 排列族; 项 → 显隐/排序/删除族)。
+/// 布局同源: 开菜单时算好条目 rect (窗口视图系), 绘制与命中共用
+fn build_menu(s: &EditSession, target: &str, at: (i32, i32)) -> Option<EditMenu> {
+    let doc = s.target_doc()?;
+    let comp = doc.components.iter().find(|c| c.id == target)?;
+    let font = s.menu_font.as_ref()?;
+    let mk = |label: String, action: MenuAction| (label, action);
+
+    let entries: Vec<(String, MenuAction)> = if comp.r#type == LIST_CONTAINER_TYPE {
+        // 块菜单: 排列是选择不是搭建 (单列/两列/三列/自动换行; 当前项打勾)
+        let cur = comp
+            .props
+            .get("arrange")
+            .and_then(|v| v.as_str())
+            .unwrap_or("column");
+        let mark = |key: &str| if cur == key { "✓ " } else { "　" };
+        let arrange_of = |arrange: &str, columns: i64| MenuAction::SetArrange {
+            container: target.to_string(),
+            arrange: arrange.to_string(),
+            columns,
+        };
+        vec![
+            mk(format!("{}排列 · 单列", mark("column")), arrange_of("column", 0)),
+            mk(format!("{}排列 · 两列", mark("columns")), arrange_of("columns", 2)),
+            mk(format!("{}排列 · 三列", mark("columns")), arrange_of("columns", 3)),
+            mk(format!("{}排列 · 自动换行", mark("wrap")), arrange_of("wrap", 0)),
+        ]
+    } else {
+        // 项菜单: 上移/下移 (容器内 = 排列序) + 隐藏/显示 + 删除 (选中集整删)
+        let delete_ids = if s.selection.len() > 1 && s.selection.contains(&target.to_string()) {
+            s.selection.clone()
+        } else {
+            vec![target.to_string()]
+        };
+        let hidden = !comp.enabled;
+        vec![
+            mk("　上移".into(), MenuAction::MoveOrder { id: target.to_string(), delta: -1 }),
+            mk("　下移".into(), MenuAction::MoveOrder { id: target.to_string(), delta: 1 }),
+            mk(
+                if hidden { "　显示".into() } else { "　隐藏".into() },
+                MenuAction::ToggleEnabled { id: target.to_string() },
+            ),
+            mk("　删除".into(), MenuAction::Delete { ids: delete_ids }),
+        ]
+    };
+
+    // 布局: 宽 = 最宽标签 + 双侧留白; 行 rect 自上而下
+    let text_w = entries
+        .iter()
+        .map(|(label, _)| font.measure(label))
+        .max()
+        .unwrap_or(60);
+    let menu_w = text_w + MENU_PAD_X * 2;
+    let items = entries
+        .into_iter()
+        .enumerate()
+        .map(|(i, (label, action))| {
+            let rect = (
+                at.0,
+                at.1 + i as i32 * MENU_ROW_H,
+                menu_w,
+                MENU_ROW_H,
+            );
+            (label, action, rect)
+        })
+        .collect();
+    Some(EditMenu {
+        origin: at,
+        items,
+        hover: None,
+    })
+}
+
+/// 菜单动作执行: 翻译为 EditCommand 走 apply_command (入会话单一撤销栈),
+/// 置位 need_rebuild (pump 无重装配面, 主循环收口)
+pub(crate) fn execute_menu_action(s: &mut EditSession, action: &MenuAction) {
+    let cmd = match action {
+        MenuAction::ToggleEnabled { id } => {
+            let Some(mut comp) = s
+                .target_doc()
+                .and_then(|d| d.components.iter().find(|c| c.id == *id).cloned())
+            else {
+                return;
+            };
+            comp.enabled = !comp.enabled; // 软隐藏: 保留配置, 建树期跳过
+            EditCommand::UpdateComponent {
+                comp,
+                old_id: Some(id.clone()),
+            }
+        }
+        MenuAction::MoveOrder { id, delta } => {
+            // 兄弟段内换位 (容器子项 = 排列序; 自由区 = z 序)。
+            // to = 交换目标的 doc 序 (remove+insert 语义下双向同式)
+            let Some(doc) = s.target_doc() else { return };
+            let Some(pos) = doc.components.iter().position(|c| c.id == *id) else {
+                return;
+            };
+            let parent = doc.components[pos].parent.clone();
+            let sibs: Vec<usize> = doc
+                .components
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| c.parent == parent)
+                .map(|(i, _)| i)
+                .collect();
+            let Some(k) = sibs.iter().position(|&i| i == pos) else {
+                return;
+            };
+            let tk = (k as i32 + delta).clamp(0, sibs.len() as i32 - 1) as usize;
+            if tk == k {
+                return; // 已在段端 (无实变不入撤销栈)
+            }
+            EditCommand::ReorderComponent {
+                id: id.clone(),
+                to: sibs[tk],
+            }
+        }
+        MenuAction::Delete { ids } => EditCommand::RemoveComponents { ids: ids.clone() },
+        MenuAction::SetArrange {
+            container,
+            arrange,
+            columns,
+        } => {
+            let Some(mut comp) = s
+                .target_doc()
+                .and_then(|d| d.components.iter().find(|c| c.id == *container).cloned())
+            else {
+                return;
+            };
+            comp.props["arrange"] = serde_json::json!(arrange);
+            if *columns > 0 {
+                comp.props["columns"] = serde_json::json!(columns);
+            }
+            EditCommand::UpdateComponent {
+                comp,
+                old_id: Some(container.clone()),
+            }
+        }
+    };
+    let _ = apply_command(s, &cmd);
+    s.need_rebuild = true;
 }
 
 // =====================================================================
@@ -438,22 +672,21 @@ fn resize_rect(
 }
 
 /// 编辑泵 (渲染线程主循环每轮): 消费事件队列 → 推进手势 (直改页面实例)
-/// → 刷新缓存 → 推前端。host/handles 从 RenderSession 传入。
-#[allow(clippy::too_many_arguments)]
+/// → 刷新缓存 → 即时渲染。host/handles 从 RenderSession 传入。
+/// (阶段 C: web 镜像推送步已随编辑面板退役)
 pub(crate) fn edit_pump(
     s: &mut EditSession,
     host: &mut OverlayHost,
     pages: &[(String, PageHandle)],
-    ui_bus: &UIStateBus,
 ) {
-    let now = Instant::now();
+    // ⓪ 拖放插入推进 (组件库拖出: 全局鼠标轮询 → 落点反馈 → 释放结算)
+    let mut need_render = advance_drag_insert(s, host);
     // ① 取事件 (entry_id 限目标页 — 其它页事件只用于 hover 判定, 简化丢弃)
     let mut events: Vec<(String, EditMouse)> = Vec::new();
     while let Some((id, ev)) = s.pending.pop_front() {
         events.push((id, ev));
     }
     // ② 手势推进
-    let mut need_render = false;
     for (entry_id, ev) in events {
         if entry_id != s.target_page {
             continue;
@@ -464,9 +697,23 @@ pub(crate) fn edit_pump(
         };
         match ev {
             EditMouse::Move { x, y } => {
-                // hover 更新 (无手势时) / 手势推进
                 let win_pos = entry_window_pos(host, &entry_id).unwrap_or((0, 0));
                 let local = (x - win_pos.0, y - win_pos.1);
+                // 菜单模态: Move 只驱动条目悬停 (手势不推进)
+                if let Some(menu) = s.menu.as_mut() {
+                    let h = menu.items.iter().position(|(_, _, (rx, ry, rw, rh))| {
+                        local.0 >= *rx
+                            && local.0 <= rx + rw
+                            && local.1 >= *ry
+                            && local.1 <= ry + rh
+                    });
+                    if h != menu.hover {
+                        menu.hover = h;
+                        need_render = true;
+                    }
+                    continue;
+                }
+                // hover 更新 (无手势时) / 手势推进
                 match s.gesture.is_some() {
                     false => {
                         let h = match hit_test(s, local) {
@@ -485,6 +732,16 @@ pub(crate) fn edit_pump(
                 }
             }
             EditMouse::Release => {
+                // 菜单结算: 悬停条目执行动作, 空白点击 = 关闭 (press_decision 已接管)
+                if let Some(menu) = s.menu.take() {
+                    if let Some(i) = menu.hover {
+                        let (_, action, _) = &menu.items[i];
+                        let action = action.clone();
+                        execute_menu_action(s, &action);
+                        need_render = true;
+                    }
+                    s.doc_dirty = true;
+                }
                 if let Some(g) = s.gesture.take() {
                     match g {
                         EditGesture::Marquee { start_canvas, cur_canvas } => {
@@ -510,15 +767,50 @@ pub(crate) fn edit_pump(
                             s.selection = sel;
                         }
                         _ => {
-                            // Move/Resize 结束: doc 已在推进中同步
+                            // Move/Resize 结束: doc 已在推进中同步;
+                            // 起手快照有实变 → 入撤销栈 (整段拖拽 = 一项)
+                            if let Some(snap) = s.gesture_snapshot.take() {
+                                if snap != s.docs {
+                                    s.undo_stack.push(snap);
+                                    s.redo_stack.clear();
+                                }
+                            }
                         }
                     }
                     s.doc_dirty = true;
                     need_render = true;
                 }
             }
-            EditMouse::RightPress { .. } | EditMouse::DoubleClick { .. } => {
-                // 右键/双击语义预留 (编辑面板上下文菜单); 当前 = 清选
+            EditMouse::RightPress { x, y } => {
+                // 对象级菜单: 命中组件 → 分型建菜单 (容器=排列族/项=显隐排序删除族);
+                // 空白 = 关菜单 + 清选 (原语义)
+                let win_pos = entry_window_pos(host, &entry_id).unwrap_or((0, 0));
+                let local = (x - win_pos.0, y - win_pos.1);
+                if s.menu.is_some() {
+                    s.menu = None; // 菜单已开 → 再右键 = 关闭
+                } else {
+                    let target = match hit_test(s, local) {
+                        Hit::Component(id) => Some(id),
+                        _ => None,
+                    };
+                    match target {
+                        Some(id) => {
+                            if let Some(m) = build_menu(s, &id, local) {
+                                // 右键目标入选 (单选 — 菜单操作对象可视化)
+                                s.selection = vec![id];
+                                s.menu = Some(m);
+                            }
+                        }
+                        None => {
+                            s.selection.clear();
+                        }
+                    }
+                }
+                s.doc_dirty = true;
+                need_render = true;
+            }
+            EditMouse::DoubleClick { .. } => {
+                // 双击暂无语义 — 兜底清选
                 s.selection.clear();
                 s.doc_dirty = true;
                 need_render = true;
@@ -527,22 +819,209 @@ pub(crate) fn edit_pump(
     }
     // ③ 刷新缓存 (hit_rects / canvas_off)
     refresh_cache(s, pages);
-    // ④ doc/selection 推送 (节流)
-    if s.doc_dirty && now.duration_since(s.last_doc_push) >= DOC_PUSH_THROTTLE {
-        push_doc_event(s, ui_bus);
-        s.doc_dirty = false;
-        s.last_doc_push = now;
-    }
-    // ⑤ 即时渲染 (~100Hz 跟手) — 仅在有渲染面活动时 (事件/手势/待推送);
-    // 静止时不额外 tick (主循环 50ms 常规节拍足够, 省下每 10ms 全页重画)
+    // ④ 即时渲染 (~100Hz 跟手) — 仅在有渲染面活动时 (事件/手势/装饰脏);
+    // 静止时不额外 tick (主循环 50ms 常规节拍足够, 省下每 10ms 全页重画)。
+    // doc_dirty = 装饰面脏 (doc/selection 变化, 含 edit_chrome 的 Select 类
+    // 无重装配路径), 渲染一帧后清除 — 原 80ms 节流 web 镜像推送已退役
     if need_render || s.doc_dirty || s.gesture.is_some() {
         let _ = host.render_tick();
+        s.doc_dirty = false;
     }
 }
 
 /// 条目窗口位置 (host 直查; 窗口未开 = None → 屏幕系退化)
 fn entry_window_pos(host: &OverlayHost, id: &str) -> Option<(i32, i32)> {
     host.entry_position(id)
+}
+
+// =====================================================================
+// 拖放插入 (组件库 webview → 真窗; 全局鼠标轮询 — 编辑泵 ⓪ 步)
+// =====================================================================
+
+/// 拖放推进: 左键按住 → 算落点反馈; 释放 → 结算落组件。
+/// 返回是否需要即时渲染 (反馈变化/结算)
+fn advance_drag_insert(s: &mut EditSession, host: &OverlayHost) -> bool {
+    let Some(drag) = s.drag_insert.clone() else {
+        return false;
+    };
+    if overlay::platform::cursor::left_down() {
+        let hint = compute_drop_hint(s, host, overlay::platform::cursor::cursor_pos());
+        if hint != s.drop_hint {
+            s.drop_hint = hint;
+            return true;
+        }
+        return false;
+    }
+    // 释放结算: 有效落点 → 构造组件入编辑仓 (单一撤销栈); 悬在窗口外 = 取消
+    let mut need = false;
+    if let Some(hint) = s.drop_hint.take() {
+        if let Some(cmd) = build_insert_command(s, &drag, &hint) {
+            let _ = apply_command(s, &cmd);
+            s.need_rebuild = true;
+            need = true;
+        }
+    }
+    s.drag_insert = None;
+    need
+}
+
+/// 落点反馈计算: 屏幕坐标 → 命中编辑页 → 分型 (容器子项=插入线 /
+/// 容器本体=尾插线 / 自由区=幽灵)。命中他页 = 目标页切换
+fn compute_drop_hint(s: &mut EditSession, host: &OverlayHost, pos: (i32, i32)) -> Option<DropHint> {
+    // 命中窗口 (可编辑页; 悬在工具条/面板/桌面 = 无落点)
+    let mut hit_entry: Option<(String, (i32, i32), (i32, i32))> = None;
+    for d in &s.docs {
+        if !is_editable_page(&d.id) {
+            continue;
+        }
+        if let (Some(wp), Some(sz)) = (host.entry_position(&d.id), host.entry_size(&d.id)) {
+            if pos.0 >= wp.0 && pos.0 <= wp.0 + sz.0 && pos.1 >= wp.1 && pos.1 <= wp.1 + sz.1 {
+                hit_entry = Some((d.id.clone(), wp, sz));
+                break;
+            }
+        }
+    }
+    let (entry, win, _size) = hit_entry?;
+    if entry != s.target_page {
+        s.target_page = entry;
+        s.selection.clear();
+        s.hover = None;
+        s.menu = None;
+        s.doc_dirty = true;
+        s.hit_rects.clear(); // 换页后旧矩形失效 (refresh_cache 在泵尾补)
+        return None;
+    }
+    let local = (pos.0 - win.0, pos.1 - win.1);
+    let canvas = (local.0 - s.canvas_off.0, local.1 - s.canvas_off.1);
+    // 组件直命中 (跳过 resize 手柄 — 拖放期间手柄语义无关; hit_rects 画布系,
+    // doc 逆序 = z 顶层优先), 2px 容差
+    let hit = s.hit_rects.iter().find(|(_, x, y, w, h)| {
+        canvas.0 >= x - 2 && canvas.0 <= x + w + 2 && canvas.1 >= y - 2 && canvas.1 <= y + h + 2
+    });
+    let Some(doc) = s.target_doc() else { return None };
+    let ghost = || {
+        let snap = 10i32; // 幽灵吸附 10px 网格 (视觉稳定)
+        Some(DropHint::Ghost {
+            x: (canvas.0 / snap) * snap,
+            y: (canvas.1 / snap) * snap,
+            w: 140,
+            h: 30,
+        })
+    };
+    let Some((id, x, y, w, h)) = hit else {
+        return ghost(); // 空白 = 自由放置
+    };
+    let comp = doc.components.iter().find(|c| c.id == *id)?;
+    let is_container = |c: &ComponentDoc| c.r#type == LIST_CONTAINER_TYPE;
+    if is_container(comp) {
+        // 容器本体 → 尾插 (线 = 容器底缘)
+        let index = doc
+            .components
+            .iter()
+            .filter(|c| c.parent.as_deref() == Some(id.as_str()))
+            .count();
+        return Some(DropHint::InsertLine {
+            container: id.clone(),
+            index,
+            x0: *x,
+            y: y + h,
+            x1: x + w,
+        });
+    }
+    if let Some(parent) = &comp.parent {
+        let in_container = doc
+            .components
+            .iter()
+            .any(|c| c.id == *parent && is_container(c));
+        if in_container {
+            // 容器子项 → 上半前插 / 下半后插 (线 = 项顶/项底)
+            let sibs: Vec<&str> = doc
+                .components
+                .iter()
+                .filter(|c| c.parent.as_deref() == Some(parent.as_str()))
+                .map(|c| c.id.as_str())
+                .collect();
+            let k = sibs.iter().position(|&sid| sid == id.as_str())?;
+            let upper = canvas.1 < y + h / 2;
+            let index = if upper { k } else { k + 1 };
+            let line_y = if upper { *y } else { y + h };
+            return Some(DropHint::InsertLine {
+                container: parent.clone(),
+                index,
+                x0: *x,
+                y: line_y,
+                x1: x + w,
+            });
+        }
+    }
+    ghost() // 自由区组件/根链项 = 自由放置
+}
+
+/// 释放结算: 落点反馈 → InsertComponent 命令 (含 doc 插入位; 单一撤销栈)
+pub(crate) fn build_insert_command(
+    s: &EditSession,
+    drag: &DragInsert,
+    hint: &DropHint,
+) -> Option<EditCommand> {
+    let doc = s.target_doc()?;
+    // 页内唯一 id (c1, c2… 找空位)
+    let mut n = doc.components.len() + 1;
+    while doc.components.iter().any(|c| c.id == format!("c{n}")) {
+        n += 1;
+    }
+    match hint {
+        DropHint::InsertLine { container, index, .. } => {
+            // 子项插入序 → doc 绝对位 (容器子项区段内)
+            let container_idx = doc.components.iter().position(|c| c.id == *container)?;
+            let sibs: Vec<usize> = doc
+                .components
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| c.parent.as_deref() == Some(container.as_str()))
+                .map(|(i, _)| i)
+                .collect();
+            let at = if sibs.is_empty() {
+                container_idx + 1
+            } else if *index >= sibs.len() {
+                sibs[sibs.len() - 1] + 1
+            } else {
+                sibs[*index]
+            };
+            let comp = ComponentDoc {
+                id: format!("c{n}"),
+                r#type: drag.type_name.clone(),
+                pos: [0.0, 0.0], // 容器内 = 顺序语义, pos/anchor 忽略
+                anchor: ["TopLeft".into(), "TopLeft".into()],
+                parent: Some(container.clone()),
+                props: drag.props.clone(),
+                ..Default::default()
+            };
+            Some(EditCommand::InsertComponent { comp, at })
+        }
+        DropHint::Ghost { x, y, .. } => {
+            // 自由放置: 画布 px → pos 单位 (line_height 基), 0.1 网格吸附
+            let lh = s
+                .menu_font
+                .as_ref()
+                .map(|f| f.size as f64)
+                .unwrap_or(20.0)
+                .max(1.0);
+            let snap_unit = |v: f64| (v / SNAP).round() * SNAP;
+            let comp = ComponentDoc {
+                id: format!("c{n}"),
+                r#type: drag.type_name.clone(),
+                pos: [snap_unit(*x as f64 / lh), snap_unit(*y as f64 / lh)],
+                anchor: ["TopLeft".into(), "TopLeft".into()],
+                parent: None,
+                props: drag.props.clone(),
+                ..Default::default()
+            };
+            Some(EditCommand::InsertComponent {
+                comp,
+                at: doc.components.len(),
+            })
+        }
+    }
 }
 
 /// 手势推进核心 (直改页面节点 — 真渲染面; local = 窗口局部坐标, Marquee 用)
@@ -779,39 +1258,62 @@ pub(crate) fn paint_decorations(s: &EditSession, entry_id: &str, cv: &mut PixCan
         cv.fill_rect(x, y, w, h, [255, 105, 180, 20]);
         primitives::ring1px(cv, x, y, w, h, ACCENT);
     }
+    // 右键菜单 (画进渲染帧 — 与装饰同形态; 最顶层)
+    if let Some(menu) = &s.menu {
+        let Some(font) = &s.menu_font else {
+            return;
+        };
+        let menu_h = menu.items.len() as i32 * MENU_ROW_H;
+        let Some(mw) = menu.items.first().map(|(_, _, r)| r.2) else {
+            return;
+        };
+        // 面板底 + 1px 边
+        cv.fill_rect(menu.origin.0, menu.origin.1, mw, menu_h, [32, 32, 36, 242]);
+        primitives::ring1px(cv, menu.origin.0, menu.origin.1, mw, menu_h, [70, 70, 76, 255]);
+        for (i, (label, _, (rx, ry, rw, rh))) in menu.items.iter().enumerate() {
+            if menu.hover == Some(i) {
+                cv.fill_rect(*rx, *ry, *rw, *rh, [255, 105, 180, 56]);
+            }
+            let baseline = ry + rh - 7; // 行底内收 (菜单字号 ≈ 行高-14 基线)
+            cv.draw_text(font, rx + MENU_PAD_X - 2, baseline, label, [235, 235, 235, 255], true);
+        }
+    }
+    // 拖放落点反馈 (最顶层; 画布系 → 窗口视图 +off)
+    if let Some(hint) = &s.drop_hint {
+        match hint {
+            DropHint::InsertLine { x0, y, x1, .. } => {
+                // 插入线: 2px 粗 + 两端小竖须 (容器内插入位)
+                let (x0, y, x1) = (x0 + off.0, y + off.1, x1 + off.0);
+                cv.fill_rect(x0, y - 1, x1 - x0, 2, ACCENT);
+                cv.fill_rect(x0, y - 5, 2, 10, ACCENT);
+                cv.fill_rect(x1 - 2, y - 5, 2, 10, ACCENT);
+            }
+            DropHint::Ghost { x, y, w, h } => {
+                let (x, y) = (x + off.0, y + off.1);
+                cv.fill_rect(x, y, *w, *h, [255, 105, 180, 40]);
+                primitives::ring1px(cv, x, y, *w, *h, ACCENT);
+                if let Some(font) = &s.menu_font {
+                    if let Some(drag) = &s.drag_insert {
+                        cv.draw_text(
+                            font,
+                            x + 6,
+                            y + h - 8,
+                            &drag.display_zh,
+                            [255, 220, 240, 255],
+                            true,
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
 
 // =====================================================================
-// 前端推送
+// 命中缓存 (render_thread 重装配后刷新的公开入口)
 // =====================================================================
 
-fn push_doc_event(s: &EditSession, ui_bus: &UIStateBus) {
-    let Some(doc) = s.target_doc() else { return };
-    let items: Vec<serde_json::Value> = s
-        .hit_rects
-        .iter()
-        .map(|(id, x, y, w, h)| {
-            serde_json::json!({ "id": id, "x": x, "y": y, "w": w, "h": h })
-        })
-        .collect();
-    let payload = serde_json::json!({
-        "targetPage": s.target_page,
-        "page": doc,
-        "items": items,
-        "lineHeightPx": doc.padding, // 占位 (前端目前不用; 真值在页面字号)
-        "selection": s.selection,
-        "errors": [],
-    });
-    if let Ok(data) = serde_json::to_string(&payload) {
-        ui_bus.publish(HUD_EDIT_DOC, Some("EditSession"), Some(&data));
-    }
-    let sel = serde_json::json!({ "ids": s.selection, "hover": s.hover });
-    if let Ok(data) = serde_json::to_string(&sel) {
-        ui_bus.publish(HUD_EDIT_SELECTION, Some("EditSession"), Some(&data));
-    }
-}
-
-/// 刷新命中缓存 (render_thread 侧命令处理后公开入口)
+/// 刷新命中缓存 (rebuild_edit_target 后命中矩形/画布偏移追平新装配)
 pub(crate) fn refresh_cache_public(s: &mut EditSession, pages: &[(String, PageHandle)]) {
     refresh_cache(s, pages);
 }
@@ -823,57 +1325,71 @@ pub(crate) fn refresh_cache_public(s: &mut EditSession, pages: &[(String, PageHa
 /// 编辑命令执行 (返回渲染面效果分级; Err = 拒绝并回显)
 pub(crate) fn apply_command(
     s: &mut EditSession,
-    pages: &[(String, PageHandle)],
     cmd: &EditCommand,
 ) -> Result<CommandEffect, String> {
+    // 撞名预检 (拒绝路径不入撤销栈 — Err 后栈上不留 no-op 快照, 免多按一次撤销)
     match cmd {
-        EditCommand::SetTargetPage { page_id } => {
-            if s.docs.iter().any(|d| d.id == *page_id) {
-                s.target_page = page_id.clone();
-                s.selection.clear();
-                s.doc_dirty = true;
+        EditCommand::UpdateComponent { comp, old_id } => {
+            let old_id = old_id.clone().unwrap_or_else(|| comp.id.clone());
+            if comp.id != old_id
+                && s.target_doc()
+                    .map(|d| d.components.iter().any(|c| c.id == comp.id))
+                    .unwrap_or(false)
+            {
+                return Err(format!("组件 id「{}」已存在", comp.id));
             }
-            Ok(CommandEffect::Full) // 目标页切换 → 装饰/缓存转移
         }
-        EditCommand::Select { ids } => {
-            s.selection = ids
-                .iter()
-                .filter(|id| {
-                    s.target_doc()
-                        .map(|d| d.components.iter().any(|c| &c.id == *id))
-                        .unwrap_or(false)
-                })
-                .cloned()
-                .collect();
+        EditCommand::InsertComponent { comp, .. } => {
+            if s.target_doc()
+                .map(|d| d.components.iter().any(|c| c.id == comp.id))
+                .unwrap_or(false)
+            {
+                return Err(format!("组件 id「{}」已存在", comp.id));
+            }
+        }
+        _ => {}
+    }
+    // 全局单一撤销栈: 变更类命令执行前入栈 (undo/redo 自身不入栈)
+    if matches!(
+        cmd,
+        EditCommand::InsertComponent { .. }
+            | EditCommand::UpdateComponent { .. }
+            | EditCommand::RemoveComponents { .. }
+            | EditCommand::ReorderComponent { .. }
+    ) {
+        push_undo_snapshot(s);
+    }
+    match cmd {
+        // ---- 撤销/重做 (编辑仓整体快照交换; 指向修复后整页重装配) ----
+        EditCommand::Undo => Ok(if let Some(prev) = s.undo_stack.pop() {
+            s.redo_stack.push(std::mem::replace(&mut s.docs, prev));
+            fix_session_targets(s);
             s.doc_dirty = true;
-            Ok(CommandEffect::None) // 选择是装饰面, 无渲染结构变化
-        }
-        EditCommand::Nudge { ids, d_unit } => {
-            let d = *d_unit;
-            // doc + 真窗节点双写 (方向键微调即时生效 — 此前只写 doc 不动节点,
-            // 微调完全不生效)
+            CommandEffect::Full
+        } else {
+            CommandEffect::None
+        }),
+        EditCommand::Redo => Ok(if let Some(next) = s.redo_stack.pop() {
+            s.undo_stack.push(std::mem::replace(&mut s.docs, next));
+            fix_session_targets(s);
+            s.doc_dirty = true;
+            CommandEffect::Full
+        } else {
+            CommandEffect::None
+        }),
+        // ---- 拖放 (落点反馈/结算在编辑泵 ⓪ 步; 发起 = 组件面板直连置 drag_insert) ----
+        EditCommand::InsertComponent { comp, at } => {
             if let Some(doc) = s.target_doc_mut() {
-                for c in doc.components.iter_mut() {
-                    if ids.contains(&c.id) {
-                        c.pos = [snap_unit(c.pos[0] + d[0]), snap_unit(c.pos[1] + d[1])];
-                    }
+                // 撞名守卫 (同 id 双拖); at 越界钳尾
+                if doc.components.iter().any(|c| c.id == comp.id) {
+                    return Err(format!("组件 id「{}」已存在", comp.id));
                 }
-            }
-            if let Some((_, page)) = pages.iter().find(|(id, _)| *id == s.target_page) {
-                let p = page.borrow();
-                let doc = s.target_doc().cloned();
-                if let Some(doc) = doc {
-                    for id in ids {
-                        if let Some(c) = doc.components.iter().find(|c| &c.id == id) {
-                            if let Some(node) = p.layout.engine.get_node(id) {
-                                node.set_relative_position(c.pos[0], c.pos[1]);
-                            }
-                        }
-                    }
-                }
+                let at = (*at).min(doc.components.len());
+                doc.components.insert(at, comp.clone());
+                s.selection = vec![comp.id.clone()]; // 落地即选中 (接属性编辑)
             }
             s.doc_dirty = true;
-            Ok(CommandEffect::Light)
+            Ok(CommandEffect::Full)
         }
         EditCommand::UpdateComponent { comp, old_id } => {
             // 整组件替换 (props/改名/size/visibleWhen); 改名同步 parent 引用。
@@ -935,87 +1451,69 @@ pub(crate) fn apply_command(
             s.doc_dirty = true;
             Ok(CommandEffect::Full)
         }
-        EditCommand::UpdatePage { page } => {
-            if let Some(doc) = s.docs.iter_mut().find(|d| d.id == page.id) {
-                *doc = page.clone();
-                s.doc_dirty = true;
-            }
-            Ok(CommandEffect::Full)
-        }
-        EditCommand::UpsertPage { page } => {
-            match s.docs.iter_mut().find(|d| d.id == page.id) {
-                Some(doc) => *doc = page.clone(),
-                None => {
-                    s.docs.push(page.clone());
-                    // 新页注册由 on_reinit_overlays 抑制路径外的 sync 处理
-                }
-            }
-            s.doc_dirty = true;
-            Ok(CommandEffect::Full)
-        }
-        EditCommand::DeletePage { page_id } => {
-            s.docs.retain(|d| d.id != *page_id);
-            if s.target_page == *page_id {
-                s.target_page = s.docs.first().map(|d| d.id.clone()).unwrap_or_default();
-                s.selection.clear();
-            }
-            s.doc_dirty = true;
-            Ok(CommandEffect::Full)
-        }
-        EditCommand::SetOptions {
-            snapping,
-            show_guides,
-            marquee,
-        } => {
-            if let Some(v) = snapping {
-                s.snapping = *v;
-            }
-            if let Some(v) = show_guides {
-                s.show_guides = *v;
-            }
-            if let Some(v) = marquee {
-                s.marquee_mode = *v;
-            }
-            Ok(CommandEffect::None)
-        }
     }
 }
 
 /// 命令的渲染面效果 (render_thread 据此决定轻/重路径)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandEffect {
-    /// 无渲染面变化 (select/setOptions — 不重装配不即时渲染)
+    /// 无渲染面变化 (不重装配不即时渲染)
     None,
-    /// 节点已直改 (nudge — 只需 refresh_cache + 即时渲染)
-    Light,
     /// doc 结构变化 (增删改组件/页面 — 整页重装配)
     Full,
 }
 
-/// 编辑命令 (UiCommand 变体的载荷面 — commands.rs 引用;
-/// serde: IPC 载荷 (webui 经 serde_json Value 中转, voidmei 侧反序列化))
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "kind")]
+/// 撤销栈入栈 (变更前快照; 与栈顶同态跳过防冗余, 新变更清空重做栈)
+fn push_undo_snapshot(s: &mut EditSession) {
+    if s.undo_stack.last() == Some(&s.docs) {
+        return;
+    }
+    s.undo_stack.push(s.docs.clone());
+    s.redo_stack.clear();
+}
+
+/// undo/redo 恢复后的指向修复: 目标页失效回退首页, 选中集过滤到目标页现存组件
+fn fix_session_targets(s: &mut EditSession) {
+    if !s.docs.iter().any(|d| d.id == s.target_page) {
+        // 回退取首个可编辑页 (docs.first 可能是 minihud 不可编辑页 —
+        // target 落它会令编辑失去对象)
+        s.target_page = s
+            .docs
+            .iter()
+            .find(|d| is_editable_page(&d.id))
+            .map(|d| d.id.clone())
+            .unwrap_or_default();
+    }
+    let alive: Vec<String> = s
+        .target_doc()
+        .map(|d| d.components.iter().map(|c| c.id.clone()).collect())
+        .unwrap_or_default();
+    s.selection.retain(|id| alive.contains(id));
+    if let Some(h) = s.hover.clone() {
+        if !alive.contains(&h) {
+            s.hover = None;
+        }
+    }
+}
+
+/// 编辑命令 (渲染线程内部命令面 — edit_chrome/菜单/拖放结算构造,
+/// apply_command 消费; 原 serde 面 (web IPC 载荷中转) 已随阶段 C 退役)。
+/// 页面管理/场景拨杆/目标页切换/选择/页面属性族命令已随组件面板简化
+/// 撤下 (git 可找回), 见 doc/试驾场原生化方案.md
+#[derive(Debug, Clone, PartialEq)]
 pub enum EditCommand {
-    SetTargetPage { page_id: String },
-    Select { ids: Vec<String> },
-    Nudge { ids: Vec<String>, d_unit: [f64; 2] },
+    /// 撤销/重做 (会话级全局单一栈 — 手势/命令/拖放统一入栈)
+    Undo,
+    Redo,
+    /// 落组件 (拖放/点击添加; at = doc 绝对插入位)
+    InsertComponent { comp: ComponentDoc, at: usize },
     UpdateComponent {
         comp: ComponentDoc,
         /// 原 id (改名场景; 缺省 = comp.id 即原 id)
-        #[serde(default)]
         old_id: Option<String>,
     },
     RemoveComponents { ids: Vec<String> },
     ReorderComponent { id: String, to: usize },
-    UpdatePage { page: PageDoc },
-    UpsertPage { page: PageDoc },
-    DeletePage { page_id: String },
-    SetOptions {
-        snapping: Option<bool>,
-        show_guides: Option<bool>,
-        marquee: Option<bool>,
-    },
 }
 
 /// Rc 便捷别名 (RenderSession.edit 与 EditBridge 闭包共享)

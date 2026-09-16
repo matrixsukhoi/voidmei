@@ -28,7 +28,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::platform::{self, OverlayEvent, OverlayWindow, WindowConfig};
+use crate::platform::{self, OverlayEvent, OverlayWindow, WindowConfig, WindowKind};
 use crate::render::canvas::PixCanvas;
 
 /// 内容渲染闭包: 每帧把 overlay 内容画进画布
@@ -596,6 +596,8 @@ impl OverlayHost {
             x: 60, // 占位, 创建后按存档/居中修正 (同 window.rs)
             y: 100,
             click_through: !preview,
+            // HUD 页面恒 Layered (ULW 分层透明; Opaque 是编辑 chrome 专用形态)
+            kind: WindowKind::Layered,
         };
         let mut window = (self.factory)(cfg)?;
         // 初始位置优先级: 条目固定几何 (setBounds 字面量 — DrawFrameSimpl) →
@@ -863,6 +865,12 @@ impl OverlayHost {
                                 },
                             );
                         }
+                    }
+                    OverlayEvent::MouseWheel { .. } => {
+                        // HUD 真窗无滚动语义 (侧栏自管窗口消费; 这里仅穷举)
+                    }
+                    OverlayEvent::Control { .. } => {
+                        // HUD 真窗无子控件 (仅 chrome Opaque 窗口产生; 这里仅穷举)
                     }
                 }
             }

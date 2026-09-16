@@ -4473,8 +4473,27 @@
       "font": {
         "sizeAdd": 0
       },
-      "contentVersion": 2,
+      "contentVersion": 3,
       "components": [
+        {
+          "id": "fields",
+          "type": "core.layout.list",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "arrange": "column",
+            "gap": 0
+          }
+        },
         {
           "id": "ias",
           "type": "core.data.field",
@@ -4486,7 +4505,7 @@
             "TopLeft",
             "TopLeft"
           ],
-          "parent": null,
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4506,9 +4525,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "ias",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4528,9 +4547,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "tas",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4550,9 +4569,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "mach",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4572,9 +4591,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "compass",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4594,9 +4613,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "altitude",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4616,9 +4635,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "vario",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4638,9 +4657,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "sep",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4660,9 +4679,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "acceleration",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4682,9 +4701,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "roll_rate",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4704,9 +4723,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "ny",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4726,9 +4745,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "turn_rate",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4749,9 +4768,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "turn_rds",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4771,9 +4790,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "aoa",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4793,9 +4812,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "aos",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4816,9 +4835,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "wing_sweepx100",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4843,8 +4862,27 @@
       "font": {
         "sizeAdd": 0
       },
-      "contentVersion": 2,
+      "contentVersion": 3,
       "components": [
+        {
+          "id": "fields",
+          "type": "core.layout.list",
+          "pos": [
+            0,
+            0
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "visibleWhen": null,
+          "enabled": true,
+          "props": {
+            "arrange": "column",
+            "gap": 0
+          }
+        },
         {
           "id": "horse_power",
           "type": "core.data.field",
@@ -4856,7 +4894,7 @@
             "TopLeft",
             "TopLeft"
           ],
-          "parent": null,
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4878,9 +4916,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "horse_power",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4900,9 +4938,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "thrust",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4922,9 +4960,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "rpm",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4946,9 +4984,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "prop_pitch",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4970,9 +5008,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "prop_efficiency",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -4994,9 +5032,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "eff_hp",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5018,9 +5056,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "manifold_pressure_display",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5040,9 +5078,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "power_percent",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5062,9 +5100,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "mass_fuel",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5085,9 +5123,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "total_weight",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5108,9 +5146,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "fuel_time_milix0_001",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5131,9 +5169,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "wep_kg",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5155,9 +5193,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "wep_time",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5178,9 +5216,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "booster_fuel_kg",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5201,9 +5239,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "booster_fuel_percent",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5224,9 +5262,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "water_temp",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5246,9 +5284,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "oil_temp",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {
@@ -5269,9 +5307,9 @@
           ],
           "anchor": [
             "TopLeft",
-            "BottomLeft"
+            "TopLeft"
           ],
-          "parent": "heat_tolerance",
+          "parent": "fields",
           "visibleWhen": null,
           "enabled": true,
           "props": {

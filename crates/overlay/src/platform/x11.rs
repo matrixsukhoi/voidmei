@@ -5,6 +5,8 @@
 //! - 穿透: XShapeCombineRegion(ShapeInput, 空区域); 恢复 = XShapeCombineRegion(None)
 //! - present: XPutImage(ZPixmap, depth 32, 预乘 ARGB32 对齐 XRender 语义)
 //! 注意: 本文件在非 Windows 平台编译; 开发机为 Windows, 逻辑经评审未运行验证 (见迁移文档遗留项)
+//! 注意: WindowConfig.kind 在 X11 不分叉 — Opaque 是编辑 chrome 的 Windows 专属
+//! 形态 (可嵌 WS_CHILD 子控件), X11 不实现
 
 use super::{OverlayEvent, WindowConfig};
 

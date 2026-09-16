@@ -5,3 +5,4 @@ pub mod flight_analyzer;
 pub mod flight_log;
 pub mod hud_calculator;
 pub mod hud_data;
+pub mod sim_frame;

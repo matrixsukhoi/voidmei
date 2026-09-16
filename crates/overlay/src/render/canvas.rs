@@ -172,6 +172,22 @@ impl PixCanvas {
         out
     }
 
+    /// 直通 (非预乘) BGRA 帧 — Opaque 普通窗口 BitBlt 路径专用
+    /// (试驾场 chrome: WinOverlay kind=Opaque 的 present 契约;
+    /// 与 to_premul_bgra 同为字节序换位, 差别在取直通域不取预乘域)
+    pub fn straight_bgra(&mut self) -> Vec<u8> {
+        let src = self.straight_frame();
+        let mut out = vec![0u8; src.len()];
+        for (i, p) in src.chunks_exact(4).enumerate() {
+            let o = i * 4;
+            out[o] = p[2];
+            out[o + 1] = p[1];
+            out[o + 2] = p[0];
+            out[o + 3] = p[3];
+        }
+        out
+    }
+
     /// 只读访问底层 Pixmap (后续组件批的 draw_pixmap/纹理叠加入口)
     pub fn pixmap(&self) -> &tiny_skia::Pixmap {
         &self.pm

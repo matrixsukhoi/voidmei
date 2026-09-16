@@ -5,6 +5,7 @@
 //! sidecar (FM 黑盒组件)。
 
 pub mod axes_atom;
+pub mod catalog;
 pub mod data_field;
 pub mod engine_gauge;
 pub mod env;
@@ -13,13 +14,19 @@ pub mod fm_list;
 pub mod fm_sidecar;
 pub mod gear_flaps_atom;
 pub mod gauges_composite;
+pub mod list_container;
 pub mod minihud;
 pub mod page_layout;
 pub mod page_overlay;
+pub mod prop_form;
 pub mod registry;
+pub mod thumbnail;
 
+pub use catalog::{catalog_groups, catalog_groups_filtered};
 pub use env::{FactoryCtx, GaugeCfg, MiniHudTemplates, StyleEnv, UpdateEnv};
 pub use fm_sidecar::{SidecarAction, SidecarCtx, WidgetSidecar};
 pub use page_layout::{build_page_layout, BuiltPageLayout, PageBuildInputs};
 pub use page_overlay::{page_font_size, page_overlay_spec, PageHandle, PageOverlay, PageSpecParams};
+pub use prop_form::{component_prop_rows, page_prop_rows, prop_value_text, PropCtrlKind, PropRowDef};
+pub use thumbnail::render_thumbnail;
 pub use registry::{lookup_widget, widget_registry, HudWidget, WidgetCell, WidgetCategory, WidgetMeta};

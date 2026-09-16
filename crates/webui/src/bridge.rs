@@ -6,7 +6,7 @@
 //! (ABOUT_MODAL_UNTIL) 已并入 FormRuntime 字段 (ipc.rs, 经 tauri State 分发)。
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Wry};
+use tauri::{AppHandle, Emitter, Manager, Wry};
 use kernel::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
 use kernel::base::bus::Subscription;
 use kernel::base::event::ui_state_events;
@@ -31,27 +31,29 @@ pub struct FmChangedPayload {
     pub status: String,
 }
 
-/// R7 真窗编辑会话事件桥: 渲染线程 UIStateBus (HUD_EDIT_* 四键) → 前端 emit。
-/// 会话 begin/end 切面板形态; doc/selection 载荷是 JSON 字符串 (data 域透传,
-/// 前端 parse — UIStateBus 载荷是纯 String, 结构化在前端解)
-pub fn bridge_hud_edit(app: AppHandle<Wry>, bus: &UIStateBus) -> [Subscription<UiStateEvent>; 4] {
-    const KEYS: [&str; 4] = [
+/// R7 真窗编辑会话事件桥 (阶段 C 后仅剩会话起止一键):
+/// HUD_EDIT_SESSION → 前端 `hud-edit-session` emit + MainForm 隐退/恢复。
+/// 原镜像推送三键 (doc/selection/error) 已随 web 编辑面板退役 — 编辑期
+/// 前端零事件往来, 试驾场窗口群 (侧栏/悬浮条) 在渲染线程自建。
+pub fn bridge_hud_edit(app: AppHandle<Wry>, bus: &UIStateBus) -> [Subscription<UiStateEvent>; 1] {
+    // 键名 = voidmei edit_session::HUD_EDIT_SESSION (渲染线程发布; webui 不依赖
+    // voidmei, 字面量对齐)
+    [bus.subscribe(
         "HUD_EDIT_SESSION",
-        "HUD_EDIT_DOC",
-        "HUD_EDIT_SELECTION",
-        "HUD_EDIT_ERROR",
-    ];
-    let mut subs: Vec<Subscription<UiStateEvent>> = Vec::new();
-    for key in KEYS {
-        let app = app.clone();
-        let event_name = format!("hud-edit-{}", key.trim_start_matches("HUD_EDIT_").to_lowercase());
-        subs.push(bus.subscribe(key, move |ev: &UiStateEvent| {
-            if let Err(e) = app.emit(&event_name, ev.data.clone()) {
-                logger::warn("WebBridge", &format!("{event_name} 事件发送失败: {e}"));
+        move |ev: &UiStateEvent| {
+            // 会话起止 → 机库隐退/恢复 (编辑期让屏; 事件泵与监听不受影响)
+            let show = ev.data.as_deref() == Some("end");
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                if let Some(main) = app2.get_webview_window(crate::MAIN_LABEL) {
+                    let _ = if show { main.show() } else { main.hide() };
+                }
+            });
+            if let Err(e) = app.emit("hud-edit-session", ev.data.clone()) {
+                logger::warn("WebBridge", &format!("hud-edit-session 事件发送失败: {e}"));
             }
-        }));
-    }
-    subs.try_into().unwrap_or_else(|_: Vec<_>| unreachable!("长度恒 4"))
+        },
+    )]
 }
 
 /// FM_CHANGED → 前端 `fm-changed` (MISSING/CORRUPT toast, 对位 NotificationService)

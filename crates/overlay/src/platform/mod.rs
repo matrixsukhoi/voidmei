@@ -3,6 +3,14 @@
 //! 检测 (focus) + winmm 声音播放 (sound; 原三合一 extras 波16 按域拆出)。
 //! 窗口坐标持久化经 host 的 PositionStore trait (组装层注入)。
 
+/// 窗口形态: Layered = ULW 分层透明 (HUD 悬浮); Opaque = 普通窗口
+/// (编辑 chrome: 不透明 UI + 可嵌子控件 — ULW 与 WS_CHILD 互斥是硬约束)
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum WindowKind {
+    Layered,
+    Opaque,
+}
+
 pub struct WindowConfig {
     pub width: i32,
     pub height: i32,
@@ -11,6 +19,8 @@ pub struct WindowConfig {
     pub y: i32,
     /// 鼠标穿透 (游戏模式); preview 模式 false 可拖拽
     pub click_through: bool,
+    /// 窗口形态 (不设 Default — 构造点必须显式裁决)
+    pub kind: WindowKind,
 }
 
 /// 主循环消费的事件 (拖拽状态机输入 + R5 编辑事件面)
@@ -38,10 +48,20 @@ pub enum OverlayEvent {
         root_x: i32,
         root_y: i32,
     },
+    /// 滚轮 (编辑面: 侧栏列表滚动; delta = WHEEL_DELTA 阶数, 坐标 = 屏幕系)
+    MouseWheel {
+        root_x: i32,
+        root_y: i32,
+        delta: i32,
+    },
+    /// 子控件通知 (WM_COMMAND: id = 控件 id, code = 通知码如 EN_KILLFOCUS;
+    /// 仅 Opaque chrome 窗口的子控件产生)
+    Control { id: u32, code: i32 },
 }
 
 pub trait OverlayWindow {
-    /// 提交预乘 BGRA 缓冲 (len = w*h*4, 行主序)
+    /// 提交 BGRA 缓冲 (len = w*h*4, 行主序)。语义按 kind 分化 (调用方按 kind 喂):
+    /// Layered = 预乘 BGRA (ULW 合成要求); Opaque = 直通 (非预乘) BGRA
     fn present(&mut self, buf: &[u8]) -> Result<(), String>;
     fn set_position(&mut self, x: i32, y: i32);
     fn position(&self) -> (i32, i32);
@@ -63,6 +83,10 @@ pub trait OverlayWindow {
     fn poll_event(&mut self) -> Option<OverlayEvent>;
     /// 屏幕物理尺寸 (位置归一化用)
     fn screen_size(&self) -> (i32, i32);
+    /// 子控件父句柄 (Opaque 窗口支持子控件的接线面; 0 = 不支持/无意义)
+    fn child_parent_handle(&self) -> usize {
+        0
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -78,6 +102,9 @@ pub use win::create;
 pub use x11::create;
 
 // ---- 波10 迁入的域成员 (原顶层平铺) ----
+#[cfg(target_os = "windows")]
+pub mod controls;
+pub mod cursor;
 pub mod dpi;
 pub mod focus;
 pub mod host;

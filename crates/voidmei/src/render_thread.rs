@@ -526,6 +526,67 @@ fn drain_latest<T>(rx: &Receiver<T>) -> Option<T> {
 /// 下可达 — Java NPE 由 AWT 的 UI 事件线程吞掉 (UI 存活), Rust 渲染线程 panic 会杀整个
 /// host 泵, 故整帧 catch_unwind (AssertUnwindSafe: 状态可能半更新, 对位 Java
 /// UI 线程半更新后吞 NPE 的形态), ERROR 留痕丢帧继续。
+/// 普通页 (dataface=Page, sizing=Auto) 的窗口尺寸收敛: live 喂数后重算
+/// 内容包围盒, 窗口随内容收缩/扩张 (SizingSpec::Auto 声明语义的普通页补全 —
+/// 容器化列表页字段条件隐藏 → 整块收缩的运行时跟随面; sidecar 页在自家
+/// 节拍收敛, 固定几何页跳过)。resize 仅在尺寸实际变化时发出 (脏检查)。
+fn converge_page_sizing(session: &mut RenderSession) {
+    for (id, page) in &session.handles.pages {
+        // 文档门控参数快照 (RefCell 借用即刻释放, 避免跨 host 调用持有)
+        let (dataface, sizing, padding) = {
+            let docs = &session.params.borrow().pages;
+            let Some(d) = docs.iter().find(|d| &d.id == id) else { continue };
+            (d.dataface, d.sizing, d.padding)
+        };
+        if dataface != kernel::config::json_model::DatafaceSpec::Page
+            || sizing != kernel::config::json_model::SizingSpec::Auto
+        {
+            continue;
+        }
+        if !session.host.is_active(id) {
+            continue; // 条目未激活 (host 槽位空)
+        }
+        let Some((w, h)) = page.borrow_mut().refresh_sizing(padding) else {
+            continue;
+        };
+        if let Some(cur) = session.host.entry_size(id) {
+            if cur != (w, h) {
+                let _ = session.host.resize_entry(id, w, h);
+            }
+        }
+    }
+}
+
+/// 试驾场流动数据: preview 期合成模拟帧喂通用页 (场景拨杆驱动形态演出 —
+/// 条件显隐/自动补位当场可见; live 期被 feed_overlays_live 取代)
+fn feed_pages_sim(session: &RenderSession, now_ms: i64) {
+    let scenario = session
+        .edit
+        .as_ref()
+        .map(|es| es.borrow().sim_scenario.clone())
+        .unwrap_or_else(|| "normal".to_string());
+    let sim = kernel::derived::sim_frame::SimFrame::new(
+        kernel::derived::sim_frame::SimScenario::parse(&scenario),
+        now_ms,
+    );
+    let empty = kernel::derived::hud_data::HUDData::empty();
+    let lang = session.lang.clone();
+    let env = overlay::widgets::UpdateEnv {
+        data: &empty,
+        frame: Some(&sim),
+        fmdata: None,
+        payload: None,
+        compressor_stages: None,
+        now_ms,
+        maneuver_len: 0,
+        maneuver_ticks: Default::default(),
+        lang: Some(&lang),
+    };
+    for (_, page) in &session.handles.pages {
+        page.borrow_mut().feed(&env);
+    }
+}
+
 pub(crate) fn feed_overlays_live(
     handles: &OverlayHandles,
     payload: &EventPayload,
@@ -614,6 +675,7 @@ pub(crate) fn feed_overlays_live(
 pub fn render_thread_main(cfg: RenderThreadConfig) {
     let mut session = RenderSession::new(cfg);
     let mut last_render = Instant::now();
+    let mut last_sim = Instant::now();
     loop {
         // 托盘消息泵 (创建线程亲和, tray.rs 头注)
         #[cfg(target_os = "windows")]
@@ -626,8 +688,31 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
         // R6 编辑泵: 会话在场时消费编辑事件队列 (手势推进 → 直改页面实例
         // → 缓存刷新 → 前端推送 → 即时 render_tick ~100Hz 跟手)
         if let Some(es_rc) = session.edit.clone() {
-            let mut es = es_rc.borrow_mut();
-            crate::edit_session::edit_pump(&mut es, &mut session.host, &session.handles.pages, &session.ui_bus);
+            // 组件面板先行 (拖放发起/会话级动作; EndSession 需独占收尾)
+            if let Some(chrome) = session.chrome.as_mut() {
+                let mut es = es_rc.borrow_mut();
+                if let Some(crate::edit_chrome::ChromeAction::EndSession(commit)) =
+                    crate::edit_chrome::chrome_pump(chrome, &mut es)
+                {
+                    drop(es);
+                    session.on_end_edit_session(commit);
+                    continue;
+                }
+            }
+            {
+                let mut es = es_rc.borrow_mut();
+                crate::edit_session::edit_pump(&mut es, &mut session.host, &session.handles.pages);
+                // 菜单动作的 Full 效果收口 (pump 无重装配面)
+                if es.need_rebuild {
+                    es.need_rebuild = false;
+                    session.rebuild_edit_target(&mut es);
+                    // 重装配后面板追平 (撤销栈灰显随插入命令变化)
+                    if let Some(chrome) = session.chrome.as_mut() {
+                        crate::edit_chrome::render(chrome, &es);
+                        session.last_chrome_render = Instant::now();
+                    }
+                }
+            }
         }
         // 渲染节拍 50ms (Java FieldOverlay.onFlightData 50ms 节流, host.run 同款)
         if last_render.elapsed() >= Duration::from_millis(50) {
@@ -668,6 +753,29 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                     &session.hud_settings,
                     &session.lang,
                 );
+                // 普通页尺寸收敛 (live 期喂数后; preview 静态无变化)
+                if !session.shared.overlay_ctx_preview.load(Ordering::SeqCst) {
+                    converge_page_sizing(&mut session);
+                }
+            }
+            // 试驾场流动数据 (preview 期 10Hz 合成帧; live 期不掺和)
+            if session.shared.overlay_ctx_preview.load(Ordering::SeqCst)
+                && last_sim.elapsed() >= Duration::from_millis(100)
+            {
+                last_sim = Instant::now();
+                feed_pages_sim(&session, current_time_millis());
+            }
+            // chrome 周期追平 (撤销栈灰显等非交互变化; 交互路径即时渲染)
+            if session.chrome.is_some()
+                && session.last_chrome_render.elapsed() >= Duration::from_millis(250)
+            {
+                session.last_chrome_render = Instant::now();
+                if let (Some(chrome), Some(es_rc)) =
+                    (session.chrome.as_mut(), session.edit.as_ref())
+                {
+                    let es = es_rc.borrow();
+                    crate::edit_chrome::render(chrome, &es);
+                }
             }
             // FM 事件面 (恒排空防积压跨会话误触发) → 脉冲收集,
             // 由 sidecar tick 在本节拍内消费 (W3C: 组件自管数据面)
@@ -865,43 +973,10 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                     return;
                 }
                 // ---- R6 编辑会话 (真窗即画布) ----
+                // 编辑命令 IPC 已退役 (阶段 C): 编辑动作经 edit_chrome 直调
+                // apply_command + need_rebuild 收口 (见编辑泵段)
                 UiCommand::BeginEditSession => session.on_begin_edit_session(),
                 UiCommand::EndEditSession { commit } => session.on_end_edit_session(commit),
-                UiCommand::Edit(cmd) => {
-                    if let Some(es_rc) = session.edit.clone() {
-                        let result = {
-                            let mut es = es_rc.borrow_mut();
-                            crate::edit_session::apply_command(&mut es, &session.handles.pages, &cmd)
-                        };
-                        match result {
-                            Err(e) => {
-                                session.ui_bus.publish(
-                                    crate::edit_session::HUD_EDIT_ERROR,
-                                    Some("EditSession"),
-                                    Some(&e),
-                                );
-                            }
-                            // 分级处理: 结构变化 → 整页重装配; 节点直改 → 缓存刷新
-                            // + 即时渲染; 纯选择/选项 → 无渲染面动作 (此前一律
-                            // 重装配 — select 一下也全页重建)
-                            Ok(crate::edit_session::CommandEffect::Full) => {
-                                let mut es = es_rc.borrow_mut();
-                                session.rebuild_edit_target(&mut es);
-                            }
-                            Ok(crate::edit_session::CommandEffect::Light) => {
-                                let mut es = es_rc.borrow_mut();
-                                crate::edit_session::refresh_cache_public(
-                                    &mut es,
-                                    &session.handles.pages,
-                                );
-                                let _ = session.host.render_tick();
-                            }
-                            Ok(crate::edit_session::CommandEffect::None) => {
-                                let _ = session.host.render_tick(); // 装饰 (选中态) 刷新
-                            }
-                        }
-                    }
-                }
                 // 主线程属主命令不经本通道 (UiCommand 文档); 防御性忽略
                 UiCommand::StartGame | UiCommand::EndGame => {}
             }
@@ -968,6 +1043,10 @@ struct RenderSession {
     strategies: Rc<RefCell<HashMap<String, ActivationStrategy>>>,
     /// 编辑会话 (R6 真窗即画布; None = 常规形态。Rc: EditBridge 闭包共享)
     edit: Option<crate::edit_session::EditSessionRef>,
+    /// 试驾场组件面板 (唯一编辑窗口; 与编辑会话同生死, 同栈 skia 自绘)
+    chrome: Option<crate::edit_chrome::EditChrome>,
+    /// chrome 周期重绘基准 (交互即时 + 250ms 兜底追平撤销栈灰显等状态)
+    last_chrome_render: Instant,
     /// 主线程事件通道发送端 (编辑提交/拒绝回传)
     main_event_tx: Sender<MainEvent>,
     /// WYSIWYG reinit 参数仓 (各 spec 工厂 reinit 闭包读取)
@@ -1144,6 +1223,8 @@ impl RenderSession {
             hud_settings,
             strategies,
             edit: None,
+            chrome: None,
+            last_chrome_render: Instant::now(),
             main_event_tx: main_event_tx.clone(),
             params,
             lang,
@@ -1350,6 +1431,23 @@ impl RenderSession {
         let docs: Vec<_> = self.params.borrow().pages.iter().cloned().collect();
         let es: crate::edit_session::EditSessionRef =
             Rc::new(RefCell::new(EditSession::new(docs, forced_open)));
+        // 菜单字体 (右键菜单文本渲染/度量; 任一在场页的主字体)
+        if let Some((_, page)) = self.handles.pages.first() {
+            es.borrow_mut().menu_font = Some(page.borrow().draw_font());
+        }
+        // 试驾场组件面板 (唯一编辑窗口; 同栈 skia 自绘, 渲染线程直建)。
+        // 面板字体 = 页面主字体同源路径的小档 (字号 = 主字号 × 0.6 钳制)
+        let font_path = self.env.fonts_dir.join("sarasa-mono-sc-bold.ttf");
+        let base_size = es.borrow().menu_font.as_ref().map(|f| f.size).unwrap_or(24);
+        match crate::edit_chrome::EditChrome::open(&font_path, base_size) {
+            Ok(mut chrome) => {
+                crate::edit_chrome::render(&mut chrome, &es.borrow());
+                self.chrome = Some(chrome);
+            }
+            Err(e) => {
+                kernel::base::logger::warn("EditChrome", &format!("组件面板创建失败: {e}"));
+            }
+        }
         // ④ EditBridge: on_press 立即裁决 (缓存矩形) / on_event 入队 / on_paint 装饰
         let press_es = Rc::clone(&es);
         let event_es = Rc::clone(&es);
@@ -1385,6 +1483,7 @@ impl RenderSession {
         let Some(es) = self.edit.take() else {
             return;
         };
+        self.chrome = None; // 组件面板随会话销毁 (Drop = 窗口销毁链)
         self.host.set_edit_bridge(None);
         self.host.dialog_did_dismiss();
         // 强制开的页收回 (后续 refresh_preview 按激活探测重开应开的)
@@ -1420,7 +1519,7 @@ impl RenderSession {
     /// 命令类修改后的整页重装配 (props/增删/页面属性 — 走 reinit 链即所见):
     /// 编辑仓覆写 params.pages → 目标页 reinit 闭包整体重建
     fn rebuild_edit_target(&mut self, es: &mut crate::edit_session::EditSession) {
-        // 编辑仓变化 → 激活策略表同步 (UpdatePage 改 activation/增删页后,
+        // 编辑仓变化 → 激活策略表同步 (doc 改 activation/增删页后,
         // 探测仍用旧策略 = 开关键改动不生效 — 此前漏了这一环)
         {
             let mut strategies = self.strategies.borrow_mut();
@@ -1431,8 +1530,40 @@ impl RenderSession {
         }
         let mut p = self.params.borrow_mut();
         p.pages = std::sync::Arc::new(es.docs.clone());
-        let target = es.target_page.clone();
         drop(p);
+        // D1 增删页: 条目集对齐编辑仓 (新页注册落窗 / 删页注销摘窗 —
+        // sync_page_entries 从 params.pages 读, 覆写后即编辑仓真相);
+        // 新页再按会话语义强制 preview 开窗 (记入 forced_open 退出收回)
+        {
+            let Self {
+                host,
+                handles,
+                strategies,
+                env,
+                lang,
+                params,
+                shared,
+                ..
+            } = self;
+            sync_page_entries(
+                host,
+                handles,
+                &mut strategies.borrow_mut(),
+                env,
+                lang,
+                params,
+                shared,
+            );
+            for (id, _) in handles.pages.iter() {
+                if !host.is_active(id) && host.force_open_preview(id).unwrap_or(false) {
+                    // 查重: undo 恢复的页可能已在 forced_open (重开无害但列表不冗余)
+                    if !es.forced_open.iter().any(|i| i == id) {
+                        es.forced_open.push(id.clone());
+                    }
+                }
+            }
+        }
+        let target = es.target_page.clone();
         // 目标页条目 reinit (闭包从 params.pages 取最新 doc 重建)
         if let Some((_, page)) = self.handles.pages.iter().find(|(id, _)| *id == target) {
             let _ = page.borrow_mut();

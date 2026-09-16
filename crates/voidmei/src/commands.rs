@@ -52,10 +52,10 @@ pub enum UiCommand {
     // ---- R6 编辑会话 (真窗即画布) ----
     /// 进入编辑会话 (条件: Preview 态且无活动会话) — 渲染线程属主
     BeginEditSession,
-    /// 退出编辑会话 (commit=true 提交落盘 / false 丢弃) — 渲染线程属主
+    /// 退出编辑会话 (commit=true 提交落盘 / false 丢弃) — 渲染线程属主。
+    /// IPC 面已退役 (组件面板完成/放弃在渲染线程直调 on_end_edit_session),
+    /// 剩余触发 = lib.rs 托盘 Activate/Start 的自动收尾 send_ui 直达
     EndEditSession { commit: bool },
-    /// 编辑命令载荷 (选中/微调/增删改组件/页面管理) — 渲染线程属主
-    Edit(Box<crate::edit_session::EditCommand>),
     /// 渲染线程退出 (host 停泵 + 托盘 NIM_DELETE)
     Shutdown,
 }

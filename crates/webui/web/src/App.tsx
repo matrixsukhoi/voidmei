@@ -18,8 +18,6 @@ import { getAppVersion, getAssetRoot, getLayoutTree, importConfig, sendFormMessa
 import { RowRenderer } from './rows'
 import { AppDialogs } from './dialogs'
 import { FORMULA_TAB, FormulaTab } from './formulas/FormulaTab'
-import { LayoutTab } from './layout_editor/LayoutTab'
-import { beginEditSession, endEditSession } from './layout_editor/editApi'
 
 const { Title, Text } = Typography
 
@@ -126,7 +124,7 @@ export default function App() {
   const [loadErr, setLoadErr] = useState('')
   // tab 记忆 (Java UIStateStorage.saveLastTab 的本地等价)
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('vm-last-tab') ?? '')
-  /** 真窗编辑会话态 (R7: footer 编辑按钮/开始按钮门控) */
+  /** 真窗编辑会话态 (编辑 UI 已原生化为 skia 侧栏/悬浮条, web 端仅剩 footer 编辑期禁用门控) */
   const [editSession, setEditSession] = useState(false)
   const [ctrlState, setCtrlState] = useState('Init')
   const [watermark, setWatermark] = useState<string | null>(null)
@@ -168,19 +166,7 @@ export default function App() {
 
   // 动态窗口高度 (Java MainForm.updateDynamicSize: 按 tab 内容高度, min=tab×30+180,
   // max=屏-80) — 300ms 防抖, 高度差 >16px 才调 (防抖动)。
-  // 布局编辑器 tab 例外: 固定大窗 1280×800 (三栏工作区), 用户可拖拽调节,
-  // 尺寸记忆经 localStorage (重启还原)
   useEffect(() => {
-    if (editSession) {
-      const saved = localStorage.getItem('vm-layout-win-size')
-      const [w, h] = saved ? JSON.parse(saved) : [1280, 800]
-      appWindow.innerSize().then(({ width, height }) => {
-        if (Math.abs(width - w) > 16 || Math.abs(height - h) > 16) {
-          appWindow.setSize(new LogicalSize(w, h)).catch(() => undefined)
-        }
-      }).catch(() => undefined)
-      return
-    }
     const t = setTimeout(() => {
       const el = measureRef.current
       if (!el) return
@@ -198,33 +184,7 @@ export default function App() {
         .catch(() => undefined)
     }, 300)
     return () => clearTimeout(t)
-  }, [editSession, activeTab, panels])
-
-  // 布局 tab 窗口尺寸写回 (修复只读不写 — 记忆从未生效过): onResized 防抖
-  // 500ms 落 localStorage; onResized 载荷是物理像素, 存逻辑像素 (读回走
-  // setSize(LogicalSize), DPI≠1 时两口径一致)
-  useEffect(() => {
-    if (!editSession) return
-    let timer = 0
-    const unlisten = appWindow.onResized(({ payload }) => {
-      window.clearTimeout(timer)
-      timer = window.setTimeout(() => {
-        appWindow
-          .scaleFactor()
-          .then(scale => {
-            localStorage.setItem(
-              'vm-layout-win-size',
-              JSON.stringify([Math.round(payload.width / scale), Math.round(payload.height / scale)]),
-            )
-          })
-          .catch(() => undefined)
-      }, 500)
-    })
-    return () => {
-      window.clearTimeout(timer)
-      unlisten.then(f => f()).catch(() => undefined)
-    }
-  }, [activeTab])
+  }, [activeTab, panels])
 
   useEffect(() => {
     // 就绪 = 监听注册后再上报 (Rust show+emit 与 listen 注册的竞态, 见阶段①记录)
@@ -244,9 +204,9 @@ export default function App() {
     }).catch(console.error)
     // 核状态徽标 (Init/Preview/Connected/InGame)
     listen<string>('controller-state', (e) => setCtrlState(e.payload)).catch(console.error)
-    // 真窗编辑会话起止 (渲染线程桥; footer 按钮态/开始门控)
+    // 真窗编辑会话起止 (渲染线程桥; footer 按钮态/开始门控)。
+    // 编辑期错误/镜像推送事件已随原生编辑面板退役 (阶段 C)
     listen<string>('hud-edit-session', (e) => setEditSession(e.payload === 'begin')).catch(console.error)
-    listen<string>('hud-edit-error', (e) => message.error(e.payload || '编辑会话失败')).catch(console.error)
     // FM 缺失/损坏 toast (对位 Java NotificationService; 其余状态静默)
     listen<FmChangedPayload>('fm-changed', (e) => {
       const { name, status } = e.payload
@@ -345,13 +305,7 @@ export default function App() {
       {/* 批3小件弹窗宿主: checkUpdate 一次 + 托盘关于/config 弹窗监听 (渲染 null) */}
       <AppDialogs ready={ready} />
       <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF' }}>
-        {/* 真窗编辑会话: MainForm 整体切换为编辑控制台 (画布 = 桌面真窗,
-            常规设置面板整体退场; 退出编辑恢复) */}
-        {editSession ? (
-          <div style={{ padding: '6px 10px 12px', height: 'calc(100vh - 36px - 52px)', overflow: 'hidden' }}>
-            <LayoutTab />
-          </div>
-        ) : tabs.length ? (
+        {tabs.length ? (
           <Tabs
             tabPosition="left"
             items={tabs}
@@ -398,30 +352,18 @@ export default function App() {
           >
             导入配置
           </Button>
-          {/* 真窗编辑入口 (常驻 footer, 任意 tab 可见): 进入并切到编辑控制台 */}
-          {!editSession ? (
-            <Button
-              type="text"
-              className="footer-btn"
-              onClick={() => {
-                beginEditSession().catch(e => message.error(`${e}`))
-              }}
-            >
-              编辑HUD
-            </Button>
-          ) : (
-            <Button
-              type="text"
-              className="footer-btn"
-              onClick={() => {
-                endEditSession(true)
-                  .then(() => message.success('编辑已保存'))
-                  .catch(e => message.error(`${e}`))
-              }}
-            >
-              保存编辑
-            </Button>
-          )}
+          {/* 真窗编辑入口 (常驻 footer, 任意 tab 可见): 编辑 UI 已原生化 (skia
+              侧栏/悬浮条), web 端仅负责开启会话; 编辑会话期禁用防重复进入 */}
+          <Button
+            type="text"
+            className="footer-btn"
+            disabled={editSession}
+            onClick={() => {
+              invoke('begin_edit_session').catch(e => message.error(`${e}`))
+            }}
+          >
+            编辑HUD
+          </Button>
         </Space>
         <Space.Compact>
           <Button danger onClick={() => act({ kind: 'EndGame' })} style={{ height: 32 }}>

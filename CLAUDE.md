@@ -5,6 +5,7 @@
 # 不用担心兼容性问题, 可以随便改架构. 我也建议你在做特性时更多考虑架构方面的重构, 以及各种微重构.
 # 引入现代化组件和依赖是件好事
 # 写代码时, 关键的地方和问题修复一定要添加和补充中文注释
+# 写代码时不要偷懒, 不要选择偷懒方案!
 
 # CLAUDE.md
 
@@ -97,7 +98,8 @@ War Thunder HTTP API (127.0.0.1:8111)
 
 - 配置 = 出厂 `crates/kernel/src/config/factory_default.json`(编译期内嵌)⊕ 用户 `voidmei_config.json`(delta,升级跟随语义)。
 - overlay = **HUD 页面**(PageDoc,画布即窗口)— 9 个出厂页全部数据驱动(`overlay::widgets` 域: HudWidget trait + WidgetMeta 注册表 + PageOverlay 通用编排器 + WidgetSidecar FM 黑盒数据面)。
-- 用户可在 MainForm「HUD 布局」tab 拖拽组装自己的 HUD 页面(palette/画布/inspector 三栏,编辑会话 = MainForm 整体形态切换)。
+- **列表容器** `core.layout.list`(2026-09-12): 块持有排列策略(单列/多列/自动换行/网格,`layout::list_arrange`),引擎求解接管子树(子项 pos/anchor 忽略 = 顺序语义,隐藏塌缩补位);flight-info/power-info 出厂页已容器化,minihud 等自由拓扑页保持锚链。
+- **编辑形态 = 试驾场**(预览模式完全体): 编辑期窗口群**全部原生 skia 自绘**(`voidmei/src/edit_chrome.rs`,渲染线程直建 WinOverlay — 与真窗同栈同字体,webview 面板已退役)— 侧边栏(右缘满高: 页面tab/组件库缩略图+搜索/大纲/属性表单 — Win32 EDIT 子控件+IME,失焦提交入单一撤销栈;页面管理: tab「＋」新建/右键菜单复制·删除·恢复出厂) + 悬浮条五钮(上缘居中: 撤销/重做/场景拨杆四态循环/放弃 3s 二次确认/完成),MainForm 隐退(长尾属性 = 侧栏属性表单常驻,web Inspector 与 `HUD_EDIT_INSPECTOR` 已退役);真窗右键 = 对象级菜单(项: 显隐/排序/删除;容器: 排列),侧栏组件库拖入真窗 = 插入线/落点幽灵(同线程直连 `es.drag_insert`,全局鼠标轮询 `platform::cursor`);会话级全局单一撤销栈(手势整段 = 一项);编辑 IPC 仅剩 `begin_edit_session` 入口,命令面 = 渲染线程内部(EditCommand 去 serde);纯函数下沉 `widgets::catalog/prop_form` + 两档字号;preview 期 `SimFrame` 流动数据喂页(`kernel::derived::sim_frame`,场景拨杆 normal/jet/gear/nodata)。
 - 新增组件 → widgets 域注册表一处注册。
 
 ### 分层导览(关键文件)

@@ -38,6 +38,11 @@ pub struct PageOverlay {
     fonts: Rc<MiniHudFonts>,
     /// minihud 族组件的派生上下文 (build 时从 fctx 拷; 缺席 = 页无 minihud 组件)
     minihud_ctx: Option<MinimalHudContext>,
+    /// D2 缩略图组装面 (build 时从 fctx 拷; thumbnail_ctx 重组 FactoryCtx 用)
+    fonts_dir: Option<std::path::PathBuf>,
+    /// 本地化文案源 (engine.gauge 工厂硬依赖 lang, 缺席其小样即失败 → 存克隆)
+    lang: Option<Lang>,
+    gauge_cfg: Option<super::env::GaugeCfg>,
 }
 
 /// 共享句柄 (spec render 闭包与喂数方各持一份, 单线程 RefCell)
@@ -93,6 +98,9 @@ impl PageOverlay {
             layout,
             fonts,
             minihud_ctx: fctx.minihud_ctx.cloned(),
+            fonts_dir: fctx.fonts_dir.clone(),
+            lang: fctx.lang.cloned(),
+            gauge_cfg: fctx.gauge_cfg.cloned(),
         };
         page.apply_styles(settings);
         page
@@ -163,6 +171,23 @@ impl PageOverlay {
     /// 行高 (坐标换算基: 画布 px ↔ pos 单位)
     pub fn line_height(&self) -> f64 {
         self.fonts.draw.size as f64
+    }
+
+    /// 页面主字体 (编辑会话右键菜单的文本渲染/度量共用)
+    pub fn draw_font(&self) -> Rc<crate::render::font::LoadedFont> {
+        Rc::clone(&self.fonts.draw)
+    }
+
+    /// D2 组件库缩略图的工厂环境 (build 同源参数的再借出 — 编辑器侧栏
+    /// 不碰 fctx 细节, 一站取齐全部输入)
+    pub fn thumbnail_ctx(&self) -> FactoryCtx<'_> {
+        FactoryCtx {
+            minihud_ctx: self.minihud_ctx.as_ref(),
+            fonts: Rc::clone(&self.fonts),
+            lang: self.lang.as_ref(),
+            fonts_dir: self.fonts_dir.clone(),
+            gauge_cfg: self.gauge_cfg.as_ref(),
+        }
     }
 }
 

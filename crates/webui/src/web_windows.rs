@@ -182,4 +182,3 @@ pub fn open_power_curve_window(
         &power_curve_query(fm0, fm1, speed_kmh, wep),
     )
 }
-

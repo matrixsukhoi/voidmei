@@ -53,6 +53,7 @@ mod controller_shared;
 // Controller 本体, kernel 根留清零)
 mod controller_state;
 mod debouncer;
+mod edit_chrome;
 mod edit_session;
 mod env;
 mod keys;
@@ -440,8 +441,8 @@ impl AppShell {
                 }
             }
             MainEvent::EditRejected(msg) => {
+                // C2 镜像推送退役后无前端消费者 — 留痕只走日志
                 logger::warn("EditSession", &msg);
-                self.ui_bus.publish("HUD_EDIT_ERROR", Some("EditSession"), Some(&msg));
             }
             MainEvent::PositionSaved { page_id, x, y } => {
                 if let Some(c) = self.controller.as_ref() {

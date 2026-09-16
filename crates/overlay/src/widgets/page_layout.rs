@@ -14,9 +14,11 @@ use kernel::config::json_model::{ComponentDoc, PageDoc};
 
 use crate::layout::anchor::Anchor;
 use crate::layout::hud_layout_node::{HUDLayoutNode, HUDLayoutNodeExt};
+use crate::layout::list_arrange::parse_list_props;
 use crate::layout::minihud_layout::{AutoSizingPlan, ModernHUDLayoutEngine};
 
 use super::env::FactoryCtx;
+use super::list_container::LIST_CONTAINER_TYPE;
 use super::registry::{lookup_widget, WidgetCell};
 
 /// 锚点名解析 ("TopLeft"…; 空串/未知 → TopLeft)
@@ -109,9 +111,12 @@ pub fn build_page_layout(inputs: &PageBuildInputs) -> BuiltPageLayout {
         // 父解析: 缺席退化根 (模块头语义裁决)
         let parent = comp.parent.as_deref().and_then(|pid| engine.get_node(pid));
         let node = HUDLayoutNode::new(comp.id.clone(), cell.clone());
+        // 容器接线: 列表容器类型 → props 解析排列策略挂节点 (引擎求解接管子树)
+        let arrange = (comp.r#type == LIST_CONTAINER_TYPE).then(|| parse_list_props(&comp.props));
         node.set_parent(parent.as_ref())
             .set_relative_position(comp.pos[0], comp.pos[1])
-            .set_anchors(anchor_from_name(&comp.anchor[1]), anchor_from_name(&comp.anchor[0]));
+            .set_anchors(anchor_from_name(&comp.anchor[1]), anchor_from_name(&comp.anchor[0]))
+            .set_arrange(arrange);
         engine.add_node(node);
         cells.insert(comp.id.clone(), cell);
     }

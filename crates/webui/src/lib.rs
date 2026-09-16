@@ -21,7 +21,6 @@ pub mod commands;
 pub mod commands_comparison;
 pub mod commands_formula;
 pub mod commands_edit;
-pub mod commands_layout;
 pub mod commands_powercurve;
 pub mod dto;
 pub mod ipc;
@@ -86,12 +85,9 @@ impl ShellForm {
                 commands::fm_list,
                 // 公式管理编辑器 (直算: 只依赖 kernel formula 模块, 见模块头)
                 commands_formula::get_formula_list,
-                // W4 HUD 布局编辑器 (经主线程 dispatcher — pages 编辑/solve 快照)
+                // W4 HUD 布局编辑器 (经主线程 dispatcher — pages 编辑/solve 快照)。
+                // 编辑会话仅剩进入入口 (阶段 C: 编辑命令/出会话 IPC 退役)
                 commands_edit::begin_edit_session,
-                commands_edit::end_edit_session,
-                commands_edit::edit_command,
-                commands_layout::get_component_catalog,
-                commands_layout::get_pages,
                 commands_formula::formula_validate,
                 commands_formula::formula_try_eval,
                 commands_formula::get_var_catalog,

@@ -19,3 +19,4 @@
 - [ ] format_strings 模板化(显示字符串的模板系统, 最大单项)
 - [ ] SessionInputs 队列消解(C 级会话聚合量: 引擎类型投票/rpm learn/sum 聚合原语)
 - [ ] voice/flag 动作消费面、VoiceWarning 17 条外置(需真机验证)
+- [ ] zeromq?

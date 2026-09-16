@@ -1,4 +1,6 @@
-//! Windows 平台实现: WS_POPUP + WS_EX_LAYERED + UpdateLayeredWindow (纯 CPU, 无 GPU 上下文)
+//! Windows 平台实现: WS_POPUP 窗口两种形态 (WindowKind, 纯 CPU, 无 GPU 上下文):
+//! - Layered: WS_EX_LAYERED + UpdateLayeredWindow (HUD 悬浮透明面, 预乘 BGRA)
+//! - Opaque: 普通窗口 (编辑 chrome; 直通 BGRA, WM_PAINT 经 DIB 重画, 可嵌子控件)
 //! 行为对齐 Java AWT 透明窗 (同为 ULW 路径); 穿透 = WS_EX_TRANSPARENT 切换 (Java 版无, 属增强)
 
 #![allow(non_snake_case)]
@@ -9,9 +11,10 @@ use std::sync::{LazyLock, Mutex};
 use windows::core::w;
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, MonitorFromWindow,
-    ReleaseDC, SelectObject, AC_SRC_ALPHA, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION,
-    DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    BeginPaint, BitBlt, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, EndPaint,
+    GetDC, MonitorFromWindow, ReleaseDC, SelectObject, SetDIBitsToDevice, ValidateRect,
+    AC_SRC_ALPHA, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, HBITMAP,
+    HDC, HGDIOBJ, MONITORINFO, MONITOR_DEFAULTTONEAREST, PAINTSTRUCT, SRCCOPY,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
@@ -21,13 +24,16 @@ use windows::Win32::UI::WindowsAndMessaging::{
     PeekMessageW, RegisterClassW, SetWindowLongPtrW, SetWindowPos, ShowWindow, TranslateMessage,
     CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, GWL_EXSTYLE, HTCLIENT, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST,
     IDC_ARROW, MSG, PM_REMOVE, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_HIDE,
-    SW_SHOWNOACTIVATE, ULW_ALPHA, WINDOW_EX_STYLE, WM_CAPTURECHANGED, WM_DESTROY, WM_LBUTTONDOWN,
-    WM_LBUTTONDBLCLK, WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCHITTEST, WM_POINTERUP, WM_RBUTTONDOWN,
+    SW_SHOWNOACTIVATE, ULW_ALPHA, WINDOW_EX_STYLE, WM_CAPTURECHANGED, WM_DESTROY,
+    WM_ERASEBKGND, WM_LBUTTONDOWN,
+    WM_LBUTTONDBLCLK, WM_LBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_NCHITTEST, WM_PAINT,
+    WM_POINTERUP, WM_RBUTTONDOWN,
+    WM_COMMAND,
     WNDCLASSW, WS_EX_LAYERED,
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
 };
 
-use super::{OverlayEvent, WindowConfig};
+use super::{OverlayEvent, WindowConfig, WindowKind};
 
 /// WNDPROC 按 hwnd 分流的事件队列表 (多窗口支持)
 /// key = HWND.0 as isize; create 时登记条目, Drop 时销毁条目
@@ -36,10 +42,45 @@ use super::{OverlayEvent, WindowConfig};
 static EVENT_QUEUES: LazyLock<Mutex<HashMap<isize, VecDeque<OverlayEvent>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// 裸指针 Send 包装 (静态注册表的类型约束; WNDPROC 与 create/present 同在
+/// 渲染线程实际访问, 包装只为让静态表编译通过)
+struct PaintBits(*const u8);
+unsafe impl Send for PaintBits {}
+
+/// Opaque 窗口的重画面 (hwnd → DIB 位图指针与尺寸): WM_PAINT 时
+/// 系统表面已失效, 经此取 DIB 重画 (Layered 走 ULW 无此需求)。
+/// 裸指针安全性: DIB 内存归 WinOverlay 拥有, Drop 先注销本表再释放
+/// DIB, 注销后不再被访问; set_size 重建 DIB 时同步换新
+static PAINT_SURFACES: LazyLock<Mutex<HashMap<isize, (PaintBits, i32, i32)>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// 查重画面 (None = Layered 窗口 → wnd_proc 走原逻辑)
+fn paint_surface(hwnd: HWND) -> Option<(*const u8, i32, i32)> {
+    PAINT_SURFACES
+        .lock()
+        .ok()
+        .and_then(|m| m.get(&(hwnd.0 as isize)).map(|(b, w, h)| (b.0, *w, *h)))
+}
+
+/// 登记/更新重画面 (create 登记; set_size 重建 DIB 后换新指针)
+fn upsert_paint_surface(hwnd: HWND, bits: *const u8, w: i32, h: i32) {
+    if let Ok(mut m) = PAINT_SURFACES.lock() {
+        m.insert(hwnd.0 as isize, (PaintBits(bits), w, h));
+    }
+}
+
+/// 注销重画面 (Drop 用; 与 remove_queue 对称, Layered 无条目时幂等)
+fn remove_paint_surface(hwnd: HWND) {
+    if let Ok(mut m) = PAINT_SURFACES.lock() {
+        m.remove(&(hwnd.0 as isize));
+    }
+}
+
 pub struct WinOverlay {
     hwnd: HWND,
     width: i32,
     height: i32,
+    kind: WindowKind,
     // DIB 资源 (present 用)
     memdc: HDC,
     dib: HBITMAP,
@@ -115,10 +156,87 @@ unsafe extern "system" fn wnd_proc(
             );
             LRESULT(0)
         }
+        WM_MOUSEWHEEL => {
+            // 编辑面: 侧栏列表滚动 (delta = wparam 高位字, WHEEL_DELTA=120 阶数)
+            let (x, y) = cursor_root_pos();
+            let delta = ((wparam.0 >> 16) & 0xFFFF) as u16 as i16 as i32;
+            push_event(
+                hwnd,
+                OverlayEvent::MouseWheel {
+                    root_x: x,
+                    root_y: y,
+                    delta,
+                },
+            );
+            LRESULT(0)
+        }
+        WM_COMMAND => {
+            // B1 子控件通知: id = wparam 低 16 位, code = 高 16 位 (EN_* 通知码,
+            // 解码与 WM_MOUSEWHEEL 的 GET_WHEEL_DELTA_WPARAM 同模式)。
+            // lParam (控件 hwnd) 不路由; 简单起见全量转发, host 侧按 id 忽略未知控件
+            let id = (wparam.0 & 0xFFFF) as u32;
+            let code = ((wparam.0 >> 16) & 0xFFFF) as u16 as i32;
+            push_event(hwnd, OverlayEvent::Control { id, code });
+            LRESULT(0)
+        }
         WM_CAPTURECHANGED => {
             // 系统夺走捕获时结束拖拽 (防 drag 状态卡死)
             push_event(hwnd, OverlayEvent::MouseRelease);
             LRESULT(0)
+        }
+        WM_ERASEBKGND => {
+            // Opaque: 返回 1 不擦背景 (present 自绘全幅, 擦了闪白);
+            // Layered: 原逻辑 DefWindowProcW (内容恒由 ULW 提供)
+            if paint_surface(hwnd).is_some() {
+                LRESULT(1)
+            } else {
+                DefWindowProcW(hwnd, msg, wparam, lparam)
+            }
+        }
+        WM_PAINT => {
+            // WNDPROC 拿不到实例的 memdc — 重画面只能经 PAINT_SURFACES
+            // 注册表取 (注册表存在的原因)。
+            // Opaque: 系统表面已失效, 用 DIB (SetDIBitsToDevice) 全幅重画,
+            // GDI 裁剪到失效区; EndPaint 校验。
+            // Layered: 未注册 → ValidateRect 直接过 (ULW 窗口不响应 WM_PAINT)
+            match paint_surface(hwnd) {
+                Some((bits, w, h)) => unsafe {
+                    let mut ps = PAINTSTRUCT::default();
+                    let hdc = BeginPaint(hwnd, &mut ps);
+                    let bmi = BITMAPINFO {
+                        bmiHeader: BITMAPINFOHEADER {
+                            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                            biWidth: w,
+                            biHeight: -h, // top-down (与 create 的 DIB 一致)
+                            biPlanes: 1,
+                            biBitCount: 32,
+                            biCompression: BI_RGB.0,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    };
+                    SetDIBitsToDevice(
+                        hdc,
+                        0,
+                        0,
+                        w as u32,
+                        h as u32,
+                        0,
+                        0,
+                        0,
+                        h as u32,
+                        bits as *const std::ffi::c_void,
+                        &bmi,
+                        DIB_RGB_COLORS,
+                    );
+                    let _ = EndPaint(hwnd, &ps);
+                    LRESULT(0)
+                },
+                None => unsafe {
+                    let _ = ValidateRect(Some(hwnd), None);
+                    LRESULT(0)
+                },
+            }
         }
         WM_DESTROY => {
             push_event(hwnd, OverlayEvent::Close);
@@ -211,8 +329,15 @@ pub fn create(cfg: WindowConfig) -> Result<WinOverlay, String> {
             }
         }
 
-        let mut ex_style: WINDOW_EX_STYLE =
-            WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+        let mut ex_style = match cfg.kind {
+            WindowKind::Layered => {
+                WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE
+            }
+            // Opaque 去 WS_EX_LAYERED: ULW 窗口内容全由 ULW 表面提供, WS_CHILD
+            // 子控件不会被合成进来 (互斥是硬约束); 去 WS_EX_NOACTIVATE: 该样式
+            // 阻止子控件获焦 (B 阶段 EDIT 依赖)。置顶/工具窗两形态共用
+            WindowKind::Opaque => WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+        };
         if cfg.click_through {
             ex_style |= WS_EX_TRANSPARENT;
         }
@@ -270,10 +395,16 @@ pub fn create(cfg: WindowConfig) -> Result<WinOverlay, String> {
         let old_obj = SelectObject(memdc, HGDIOBJ(dib.0));
         ReleaseDC(None, hdc_screen);
 
+        // Opaque 登记 WM_PAINT 重画面 (Layered 走 ULW, 内容不依赖 WM_PAINT)
+        if cfg.kind == WindowKind::Opaque {
+            upsert_paint_surface(hwnd, bits as *const u8, cfg.width, cfg.height);
+        }
+
         Ok(WinOverlay {
             hwnd,
             width: cfg.width,
             height: cfg.height,
+            kind: cfg.kind,
             memdc,
             dib,
             old_obj,
@@ -295,33 +426,58 @@ impl super::OverlayWindow for WinOverlay {
             return Err(format!("缓冲尺寸不符: {} != {}", buf.len(), expect));
         }
         unsafe {
-            // buf 已是预乘 BGRA, 直接拷入 DIB
+            // 两 kind 共用 DIB: buf 直拷入 (语义按 kind 分化 —
+            // Layered = 预乘 BGRA / Opaque = 直通 BGRA, 调用方按 kind 喂)
             std::ptr::copy_nonoverlapping(buf.as_ptr(), self.dib_bits, expect);
-            let blend = BLENDFUNCTION {
-                BlendOp: 0, // AC_SRC_OVER
-                BlendFlags: 0,
-                SourceConstantAlpha: 255,
-                AlphaFormat: AC_SRC_ALPHA as u8,
-            };
-            let size = SIZE {
-                cx: self.width,
-                cy: self.height,
-            };
-            let pt_src = POINT { x: 0, y: 0 };
-            // pptDst = None: 保持当前位置
-            let ok = windows::Win32::UI::WindowsAndMessaging::UpdateLayeredWindow(
-                self.hwnd,
-                None,
-                None,
-                Some(&size),
-                Some(self.memdc),
-                Some(&pt_src),
-                COLORREF(0),
-                Some(&blend),
-                ULW_ALPHA,
-            );
-            if ok.is_err() {
-                return Err("UpdateLayeredWindow 失败".into());
+            match self.kind {
+                WindowKind::Layered => {
+                    let blend = BLENDFUNCTION {
+                        BlendOp: 0, // AC_SRC_OVER
+                        BlendFlags: 0,
+                        SourceConstantAlpha: 255,
+                        AlphaFormat: AC_SRC_ALPHA as u8,
+                    };
+                    let size = SIZE {
+                        cx: self.width,
+                        cy: self.height,
+                    };
+                    let pt_src = POINT { x: 0, y: 0 };
+                    // pptDst = None: 保持当前位置
+                    let ok = windows::Win32::UI::WindowsAndMessaging::UpdateLayeredWindow(
+                        self.hwnd,
+                        None,
+                        None,
+                        Some(&size),
+                        Some(self.memdc),
+                        Some(&pt_src),
+                        COLORREF(0),
+                        Some(&blend),
+                        ULW_ALPHA,
+                    );
+                    if ok.is_err() {
+                        return Err("UpdateLayeredWindow 失败".into());
+                    }
+                }
+                WindowKind::Opaque => {
+                    // 普通窗口: DIB 经 BitBlt 上客户区 (DC 即取即还);
+                    // 失败与 ULW 同型向上 Err (诚实暴露, 不静默吞)
+                    let hdc = GetDC(Some(self.hwnd));
+                    let blit = BitBlt(
+                        hdc,
+                        0,
+                        0,
+                        self.width,
+                        self.height,
+                        Some(self.memdc),
+                        0,
+                        0,
+                        SRCCOPY,
+                    );
+                    let _ = ReleaseDC(Some(self.hwnd), hdc);
+                    if blit.is_err() {
+                        return Err("BitBlt 失败".into());
+                    }
+                }
             }
         }
         Ok(())
@@ -444,6 +600,11 @@ impl super::OverlayWindow for WinOverlay {
             self.memdc = new_memdc;
             self.old_obj = SelectObject(new_memdc, HGDIOBJ(new_dib.0));
             self.dib_bits = bits as *mut u8;
+            // Opaque: 重画面换新 (旧 DIB 已释放, 残留旧指针 = WM_PAINT 悬垂读;
+            // 须在 SetWindowPos 之前 — 改几何可能同步派发 WM_PAINT)
+            if self.kind == WindowKind::Opaque {
+                upsert_paint_surface(self.hwnd, bits as *const u8, w, h);
+            }
             let _ = SetWindowPos(
                 self.hwnd,
                 None,
@@ -456,6 +617,12 @@ impl super::OverlayWindow for WinOverlay {
         }
         self.width = w;
         self.height = h;
+    }
+
+    fn child_parent_handle(&self) -> usize {
+        // Opaque 窗口的子控件接线面 (EditBox 父句柄); Layered 返回同值但
+        // ULW 与 WS_CHILD 互斥, 不会被用于建子控件
+        self.hwnd.0 as usize
     }
 
     fn poll_event(&mut self) -> Option<OverlayEvent> {
@@ -502,6 +669,9 @@ impl super::OverlayWindow for WinOverlay {
 
 impl Drop for WinOverlay {
     fn drop(&mut self) {
+        // 先注销 Opaque 重画面再释放 DIB (销毁链可能触发 WM_PAINT,
+        // 注册表残留已释放指针 = 悬垂读; Layered 无条目时幂等)
+        remove_paint_surface(self.hwnd);
         unsafe {
             let _ = SelectObject(self.memdc, self.old_obj);
             let _ = DeleteDC(self.memdc);

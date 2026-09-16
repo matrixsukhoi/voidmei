@@ -13,7 +13,7 @@ use crate::render::canvas::PixCanvas;
 use super::env::{FactoryCtx, MiniHudTemplates, StyleEnv, UpdateEnv};
 use super::{
     axes_atom, data_field, engine_gauge, fm_field, fm_list, fm_sidecar, gauges_composite,
-    gear_flaps_atom, minihud,
+    gear_flaps_atom, list_container, minihud,
 };
 
 // =====================================================================
@@ -211,6 +211,8 @@ pub enum WidgetCategory {
     List,
     Composite,
     Decor,
+    /// 布局容器 (块: 承载子项排列)
+    Layout,
 }
 
 /// 属性 schema 项 (W2 空; W4 编辑器 inspector 的表单定义)
@@ -273,6 +275,7 @@ pub fn widget_registry() -> &'static [&'static WidgetMeta] {
                 .chain(fm_field::REGISTRY_ENTRIES.iter())
                 .chain(fm_list::REGISTRY_ENTRIES.iter())
                 .chain(fm_sidecar::REGISTRY_ENTRIES.iter())
+                .chain(std::iter::once(&list_container::LIST_CONTAINER_META))
                 .collect()
         })
         .as_slice()

@@ -24,7 +24,8 @@
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
-use crate::layout::Anchor;
+use crate::layout::anchor::Anchor;
+use crate::layout::list_arrange::ListArrange;
 
 /// A node in the Modern HUD Layout graph.
 /// Wraps a HUDComponent and defines its dependency-based positioning.
@@ -47,6 +48,10 @@ pub struct HUDLayoutNode<T> {
     unit_y: f64,
     parent_anchor: Anchor,
     self_anchor: Anchor,
+
+    /// 列表容器排列策略 (Some = 容器节点: 引擎求解时接管子树,
+    /// 子项 pos/anchor 忽略, 顺序语义; None = 普通锚定节点)
+    pub arrange: Option<ListArrange>,
 
     // Runtime State (Calculated)
     pixel_rect: Rectangle,
@@ -131,6 +136,7 @@ impl<T> HUDLayoutNode<T> {
             unit_y: 0.0,
             parent_anchor: Anchor::TopLeft,
             self_anchor: Anchor::TopLeft,
+            arrange: None,
             pixel_rect: Rectangle::new(),
             dirty: true,
         }))
@@ -172,6 +178,9 @@ pub trait HUDLayoutNodeExt<T> {
     /// Java `setAnchors(Anchor, Anchor)` (`return this`)
     fn set_anchors(&self, parent_anchor: Anchor, self_anchor: Anchor) -> SharedNode<T>;
 
+    /// 容器排列策略注入 (链式; Some = 引擎接管子树求解)
+    fn set_arrange(&self, arrange: Option<ListArrange>) -> SharedNode<T>;
+
     /// Java `getParent()` (null → None)
     fn get_parent(&self) -> Option<SharedNode<T>>;
 
@@ -190,6 +199,12 @@ pub trait HUDLayoutNodeExt<T> {
     fn solve(&self, line_height: f64, parent_rect: &Rectangle)
     where
         T: HasPreferredSize;
+
+    /// 显式尺寸求解 (容器面: 尺寸来自排列产物而非组件 preferred; 锚点方程同 solve)
+    fn solve_sized(&self, line_height: f64, parent_rect: &Rectangle, size: Dimension);
+
+    /// 直接落位 (容器子项面: 顺序语义, 锚点方程不适用; 引擎排列后写子项矩形)
+    fn place(&self, x: i32, y: i32, size: Dimension);
 }
 
 impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
@@ -223,6 +238,11 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
         this.parent_anchor = parent_anchor;
         this.self_anchor = self_anchor;
         drop(this);
+        self.clone()
+    }
+
+    fn set_arrange(&self, arrange: Option<ListArrange>) -> SharedNode<T> {
+        self.borrow_mut().arrange = arrange;
         self.clone()
     }
 
@@ -260,8 +280,12 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
     where
         T: HasPreferredSize,
     {
+        let size = self.borrow().component.preferred_size(); // Assuming component has valid size
+        self.solve_sized(line_height, parent_rect, size);
+    }
+
+    fn solve_sized(&self, line_height: f64, parent_rect: &Rectangle, size: Dimension) {
         let mut this = self.borrow_mut();
-        let size = this.component.preferred_size(); // Assuming component has valid size
 
         // 1. Determine Target Point (on Parent)
         let mut target_x = HUDLayoutNode::<T>::get_anchor_x(parent_rect, this.parent_anchor);
@@ -297,6 +321,12 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
         this.pixel_rect
             .set_bounds(self_x, self_y, size.width, size.height);
         // (Java 此处有 LayoutDebug info 日志, 未复刻)
+        this.dirty = false;
+    }
+
+    fn place(&self, x: i32, y: i32, size: Dimension) {
+        let mut this = self.borrow_mut();
+        this.pixel_rect.set_bounds(x, y, size.width, size.height);
         this.dirty = false;
     }
 }

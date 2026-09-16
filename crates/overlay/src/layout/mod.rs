@@ -4,6 +4,7 @@
 
 pub mod anchor;
 pub mod hud_layout_node;
+pub mod list_arrange;
 pub mod minihud_layout;
 pub mod ui_constants;
 

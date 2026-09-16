@@ -41,16 +41,11 @@ pub enum RequestKind {
     OpenComparisonWindow { fm0: String, fm1: Option<String> },
     // ---- W4 HUD 布局编辑器 ----
     /// 组件目录 (注册表序列化: palette 分组/复合标记/属性 schema)
-    GetComponentCatalog,
     /// 页面列表 (id/name/switchKey + 升级提示)
-    GetPages,
     // ---- R6/R7 真窗编辑会话 ----
-    /// 进入编辑会话 (渲染线程: 压 z 序/全页 preview 开窗/挂 EditBridge)
+    /// 进入编辑会话 (渲染线程: 压 z 序/全页 preview 开窗/挂 EditBridge)。
+    /// 编辑期动作全在渲染线程内部 — 原编辑命令/出会话 IPC 已随 web 镜像退役
     BeginEditSession,
-    /// 退出编辑会话 (commit=true 提交 / false 丢弃)
-    EndEditSession { commit: bool },
-    /// 编辑命令 (载荷 = EditCommand 的 serde Value; 主线程转发渲染线程)
-    EditCommand { payload: serde_json::Value },
 }
 
 /// 一条 IPC 请求 (含回执通道; 单向通知类 reply=None)
@@ -170,12 +165,8 @@ pub fn dispatch(kind: RequestKind, rt: &mut FormRuntime) -> IpcReply {
         | RequestKind::GetAssetRoot
         | RequestKind::OpenComparisonWindow { .. }
         // W4 布局编辑器域 (同上: voidmei dispatcher 承担)
-        | RequestKind::GetComponentCatalog
-        | RequestKind::GetPages
         // R6/R7 编辑会话域 (同上)
-        | RequestKind::BeginEditSession
-        | RequestKind::EndEditSession { .. }
-        | RequestKind::EditCommand { .. } => {
+        | RequestKind::BeginEditSession => {
             IpcReply::Err("壳形态 dispatcher 不支持数据面请求 (应由 voidmei 注入)".to_string())
         }
     }

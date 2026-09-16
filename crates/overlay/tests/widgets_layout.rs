@@ -18,6 +18,7 @@ fn cat_name(c: WidgetCategory) -> &'static str {
         WidgetCategory::List => "List",
         WidgetCategory::Composite => "Composite",
         WidgetCategory::Decor => "Decor",
+        WidgetCategory::Layout => "Layout",
     }
 }
 
@@ -65,7 +66,8 @@ fn registry_注册名清单() {
         core.fm.field | FM字段 | Text | composite=false
         core.fm.meta | FM文本行 | Text | composite=false
         core.fm.list | FM数据列表 | List | composite=true
-        core.fm.thrust_chart | 推力-真空速曲线 | Chart | composite=true"#]]
+        core.fm.thrust_chart | 推力-真空速曲线 | Chart | composite=true
+        core.layout.list | 列表容器 | Layout | composite=false"#]]
     .assert_eq(&actual);
 }
 
