@@ -88,8 +88,8 @@ def rmtree(path):
         shutil.rmtree(path)
 
 
-def copytree(src, dst):
-    shutil.copytree(src, dst, dirs_exist_ok=True)
+def copytree(src, dst, ignore=None):
+    shutil.copytree(src, dst, dirs_exist_ok=True, ignore=ignore)
 
 
 def sha256_of(path):
@@ -164,6 +164,9 @@ FM_SUITES = {
     # 全量真机 FM 边界普查 (检视反馈): 遍历 fm/ 全部文件断言引擎数/档位极值不触防御护栏,
     # 解析零异常, invalid 仅限空文件。机型参数为 "*" 表示遍历模式 (不传单机型路径)
     "fm-all": ("FM All-Data Boundary Scan", "TestFMAllBoundaries", "*"),
+    # 襟翼控制开关解析: 遍历 fm/ 全部文件, 解析 false 集合与文本显式 false 集合对拍,
+    # 代表机型硬断言 (f_16xl 无襟翼 / p-51d-5 有襟翼), 字段缺失机降级 true
+    "flaps-ctrl": ("HasFlapsControl Parsing Tests", "TestHasFlapsControl", "*"),
     # blkx 文本变异 fuzz (P6): 种子 bf-109e-4 的真机物理 FM (中等体积且含 PASSPORT 曲线块,
     # 覆盖 getAllplotdata 路径; spitfire_f24 无 PASSPORT 块不适用), data 缺失自动跳过 (同上)
     "fuzz-blkx": ("Blkx Parser Fuzz Tests", "FMParserFuzzer", "bf-109e-4"),
@@ -538,11 +541,13 @@ def cmd_fmdata():
         sys.exit(1)
 
     # 裁剪更新项目内 ./data —— 单一来源, 本地即刻可用
+    # weaponpresets (每机型每挂载一个 blkx, ~9800 个文件) 程序零引用, 裁掉:
+    # zip 省 ~11% 但文件数砍七成 (解压/杀软扫描/遍历都轻); 需要时重跑 fmdata 即可再生
     log("裁剪并更新项目内 data/ (仅 version + flightmodels, 程序只读这两处) ...")
     target = DATA / "aces" / "gamedata" / "flightmodels"
     rmtree(target)
     target.mkdir(parents=True)
-    copytree(fm_dir, target)
+    copytree(fm_dir, target, ignore=shutil.ignore_patterns("weaponpresets"))
 
     # 生成 version 文件 (供 Blkx.getVersion() 显示 FM 数据版本)
     # 优先 WT_VERSION 显式指定; 缺省用 wt_ext_cli vromf_version 从 vromfs 二进制头读取
