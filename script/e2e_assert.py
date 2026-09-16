@@ -15,6 +15,11 @@ VoidMei E2E 日志断言器 (纯标准库)
   A6 WARN/ERROR 速率: > 30 行/分钟 (错误场景降级也不该告警刷屏; 实测三档均 0)
   A4 (附加) 消息刷屏: 任意同一模板消息 > 120 次/分钟 (捕获如
      "Aircraft type changed ... Restarting Controller" 的 S4toS1 重启循环)
+  A7 (附加) 语音告警存活: 游戏模式中 VoiceWarning 不得被 preview 刷新误关
+     (历史缺陷 2026-09: ControllerState.PREVIEW 一词二义, fmChangedHandler 在
+      游戏模式调 refreshAllPreviews, gameModeOnly 策略判定失败走 close 分支;
+      表现为首飞/换机后全部语音告警静默 + fatalWarn 大叉冻结。日志特征行:
+      "Closing overlay (inactive strategy): enableVoiceWarn" 出现即失败)
 
 用法:
   python script/e2e_assert.py --log app.log --duration 60 [--allow-missing-notify] [--json]
@@ -78,6 +83,11 @@ def parse_ts(line: str):
 # A6: WARN/ERROR 级别行 (Logger 输出 "[HH:MM:SS.mmm] [Component] [WARN ] msg" / "[ERROR]")
 RE_WARN_ERR = re.compile(r"\[(WARN|ERROR)\s*\]")
 
+# A7: 游戏模式中 VoiceWarning 被 preview 刷新误关的特征行
+#（OverlayManager.close 分支日志; 正常流程游戏模式只会经 closeAll 关闭, 日志为
+#  "Closing overlay: enableVoiceWarn", 带 "(inactive strategy)" 即误杀路径）
+RE_VOICEWARN_KILLED = re.compile(r"Closing overlay \(inactive strategy\): enableVoiceWarn")
+
 def normalize_template(msg: str) -> str:
     """
     把一条消息归一化为模板 (用于"同类提示"分组):
@@ -129,6 +139,7 @@ def analyze(lines, duration_s: float):
     fm_loading = Counter()
     exc_first = Counter()
     stats.setdefault("warn_err_lines", 0)
+    stats.setdefault("voicewarn_killed", 0)
     missing_tpl = Counter()
     msg_tpl = Counter()
 
@@ -140,6 +151,10 @@ def analyze(lines, duration_s: float):
         # A6: WARN/ERROR 级别行计数 (Logger 非 INFO 级格式为 "[WARN ]"/"[ERROR]" 标记)
         if RE_WARN_ERR.search(line):
             stats["warn_err_lines"] += 1
+
+        # A7: VoiceWarning 被 preview 刷新误关的特征行计数 (游戏模式出现即缺陷)
+        if RE_VOICEWARN_KILLED.search(line):
+            stats["voicewarn_killed"] += 1
 
         ts = parse_ts(line)
         if ts is not None:
@@ -262,6 +277,16 @@ def run_assertions(stats, allow_missing_notify: bool):
         "pass": we_rate <= 30.0,
         "detail": "WARN/ERROR %d 行 / 窗口 %.2f 分钟 = %.1f 行/分钟"
                   % (stats.get("warn_err_lines", 0), wmin, we_rate),
+    })
+
+    # ---- A7: 游戏模式中 VoiceWarning 不得被 preview 刷新误关 (0 次) ----
+    # e2e 两场景 (s2 有 FM / s5 缺失) 均强制游戏模式, FM_CHANGED 必发;
+    # 修复后 fmChangedHandler 不再走 preview 刷新, 特征行出现次数必须为 0
+    killed = stats.get("voicewarn_killed", 0)
+    results.append({
+        "id": "A7", "name": "语音告警存活 (VoiceWarning 未被误关)",
+        "pass": killed == 0,
+        "detail": "误关特征行出现 %d 次 (阈值 0)" % killed,
     })
 
     return results

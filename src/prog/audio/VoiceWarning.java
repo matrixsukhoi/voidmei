@@ -526,34 +526,42 @@ public class VoiceWarning implements Runnable {
                 break;
             }
 
-            boolean fatal = false;
-            long t = xS.currentTimeMs;
+            // 修复: 检测逻辑整体加防护——此前任何一项 check 抛异常会静默杀死整个
+            // 告警线程（无日志），且线程无人重启（换机不重建 overlay），表现为全部
+            // 语音告警失效 + fatalWarn 大叉冻结。异常轮跳过，线程必须存活
+            try {
+                boolean fatal = false;
+                long t = xS.currentTimeMs;
 
-            // 更新动态参数（可变翼等）
-            updateDynamicParameters();
+                // 更新动态参数（可变翼等）
+                updateDynamicParameters();
 
-            // 执行所有告警检测，收集 fatal 状态
-            fatal |= checkAoAWarning(t);
-            fatal |= checkSpeedWarning(t);
-            fatal |= checkGearWarning(t);
-            checkBrakeWarning(t);
-            fatal |= checkFlapWarning(t);
-            checkVarioWarning(t);
-            checkEngineOverheatWarning(t);
-            checkFuelWarning(t);
-            fatal |= checkAltitudeWarning(t);
-            checkFuelPressureWarning(t);
-            checkInvertedFlightWarning(t);
-            checkRPMWarning(t);
-            checkStallWarning(t);
-            fatal |= checkLoadFactorWarning(t);
-            checkControlEffectivenessWarning(t);
-            checkCompressorWarning(t);
+                // 执行所有告警检测，收集 fatal 状态
+                fatal |= checkAoAWarning(t);
+                fatal |= checkSpeedWarning(t);
+                fatal |= checkGearWarning(t);
+                checkBrakeWarning(t);
+                fatal |= checkFlapWarning(t);
+                checkVarioWarning(t);
+                checkEngineOverheatWarning(t);
+                checkFuelWarning(t);
+                fatal |= checkAltitudeWarning(t);
+                checkFuelPressureWarning(t);
+                checkInvertedFlightWarning(t);
+                checkRPMWarning(t);
+                checkStallWarning(t);
+                fatal |= checkLoadFactorWarning(t);
+                checkControlEffectivenessWarning(t);
+                checkCompressorWarning(t);
 
-            // 更新起落架/襟翼完好性状态
-            updateStructureHealth();
+                // 更新起落架/襟翼完好性状态
+                updateStructureHealth();
 
-            xS.fatalWarn = fatal;
+                xS.fatalWarn = fatal;
+            } catch (Throwable e) {
+                // 异常轮不更新 fatalWarn（保持上轮值，避免大叉闪灭抖动），下轮重试
+                prog.util.Logger.error("VoiceWarning", "告警检测轮异常（已跳过）: " + e);
+            }
         }
     }
 

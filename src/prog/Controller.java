@@ -195,6 +195,22 @@ public class Controller {
 	 */
 	private String sessionAircraftType = null;
 
+	/**
+	 * 设置窗预览模式标志（修复: ControllerState.PREVIEW 一词二义的区分键）。
+	 * State==PREVIEW 既可能是设置窗预览（Preview() 设置），也可能是游戏模式运行态
+	 * （changeS3() 设置）。历史上 configChangedHandler / fmChangedHandler 只看
+	 * State==PREVIEW 就用 preview 上下文刷新 overlay，导致游戏模式中 FM 加载完成的
+	 * FM_CHANGED 事件把 gameModeOnly 策略的 VoiceWarning 误关——首飞/换机后全部语音
+	 * 告警静默、fatalWarn 大叉冻结。此后判断"是否设置窗预览"一律用本标志。
+	 * 写入者：Preview() 置 true；endPreview()/changeS3() 置 false。
+	 */
+	private volatile boolean settingsPreviewActive = false;
+
+	/** 设置窗预览模式是否激活（OverlayManager 二道防线用，见字段注释） */
+	boolean isSettingsPreviewActive() {
+		return settingsPreviewActive;
+	}
+
 	private AutoMeasure aM;
 
 	private Thread aM1;
@@ -203,6 +219,9 @@ public class Controller {
 		// 状态3，连接成功，释放状态条，打开面板
 		// SB.repaint();
 		if (State == ControllerState.IN_GAME) {
+			// 进入游戏模式：State 也将置为 PREVIEW，显式清除设置预览标志，
+			// 防 FM_CHANGED/config 变化再走 preview 刷新误杀 gameModeOnly overlay
+			settingsPreviewActive = false;
 
 			// 自动隐藏任务栏
 
@@ -513,7 +532,10 @@ public class Controller {
 
 			// Only refresh if we are in PREVIEW state.
 			// In INIT state (startup), we don't want to trigger FM loads yet.
-			if (State == ControllerState.PREVIEW) {
+			// 修复: 只在"设置窗预览模式"做 preview 刷新。此前仅判 State==PREVIEW,
+			// 游戏模式运行态（changeS3 也置 PREVIEW）会走到这里, 用 preview 上下文
+			// 刷新时 gameModeOnly 的 VoiceWarning 被 close 误杀 → 全部语音告警静默
+			if (settingsPreviewActive) {
 				// prog.util.Logger.info("Controller", "ACTION: Controller: Refreshing Previews
 				// (" + key + ")");
 
@@ -565,7 +587,10 @@ public class Controller {
 					ui.util.NotificationService.showBottomRight(h.name + "\n" + msg, 5000);
 				}
 			}
-			if (State == ControllerState.PREVIEW) {
+			// 修复: 游戏模式（State==PREVIEW 但 settingsPreviewActive=false）不做
+			// preview 刷新——FM 感知统一由 overlay 直读 FMManager.current() 实现;
+			// 走 preview 刷新会把 gameModeOnly 的 VoiceWarning 误关（首飞/换机必触发）
+			if (settingsPreviewActive) {
 				// 复用 configDebouncer 200ms 防抖: 连续换机/identify 抖动时只刷一次
 				if (pendingConfigRefresh != null && !pendingConfigRefresh.isDone()) {
 					pendingConfigRefresh.cancel(false);
@@ -849,6 +874,7 @@ public class Controller {
 	public void Preview() {
 		prog.util.Logger.info("Controller", "Enabling Preview mode...");
 		State = ControllerState.PREVIEW;
+		settingsPreviewActive = true;  // 设置窗预览模式标志（见字段注释, 区分游戏模式的同名 PREVIEW 态）
 		final long generation = previewGeneration.get();  // Capture current generation
 		// Offload I/O to background, similar to config change
 		new Thread(() -> {
@@ -891,7 +917,9 @@ public class Controller {
 		// Schedule UI update on EDT to prevent race conditions/NPEs
 		javax.swing.SwingUtilities.invokeLater(() -> {
 			// Check if callback is stale (state changed or generation incremented)
-			if (State != ControllerState.PREVIEW || previewGeneration.get() != generation) {
+			// 修复: 守卫用 settingsPreviewActive 而非 State!=PREVIEW——游戏模式运行态
+			// 也是 PREVIEW, 不拦会把 preview 刷新漏进游戏模式误杀 gameModeOnly overlay
+			if (!settingsPreviewActive || previewGeneration.get() != generation) {
 				prog.util.Logger.info("Controller",
 					"Skipping stale preview refresh (gen=" + generation +
 					", current=" + previewGeneration.get() + ", state=" + State + ")");
@@ -912,6 +940,7 @@ public class Controller {
 	public void endPreview() {
 		prog.util.Logger.info("Controller", "Exiting Preview mode...");
 		previewGeneration.incrementAndGet();  // Invalidate any pending preview callbacks
+		settingsPreviewActive = false;
 		overlayManager.closeAll();
 		// Explicit save when exiting preview
 		configService.saveConfig();

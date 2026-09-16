@@ -1529,6 +1529,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// R1 周期快照: 本方法（及下传的 resetEngLoad）全程使用这一次取到的句柄,
 		// 可能从 Service 轮询线程或构造器调用, current() 均为纯 volatile 读
 		FMHandle fm = FMManager.getInstance().current();
+		// 修复: fatalWarn 唯一写者是 VoiceWarning 线程, 会话切换（换机/退出/加油
+		// 全走本方法）时若残留 true, MiniHUD 大叉会冻结闪烁到下个会话
+		fatalWarn = false;
 		loc = new double[2];
 		dir = new double[2];
 		radioAltValid = false;

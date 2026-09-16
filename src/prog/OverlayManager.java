@@ -114,9 +114,12 @@ public class OverlayManager {
      */
     public void refreshAllPreviews() {
         // Defense-in-depth: verify still in preview mode
-        if (tc.State != ControllerState.PREVIEW) {
+        // 修复: 双守卫——游戏模式运行态 State 也是 PREVIEW（一词二义），仅判 State
+        // 拦不住游戏模式误入，preview 上下文会 close 掉 gameModeOnly overlay
+        //（如 VoiceWarning，被关后全部语音告警静默且无人重启）
+        if (!tc.isSettingsPreviewActive() || tc.State != ControllerState.PREVIEW) {
             prog.util.Logger.info("OverlayManager",
-                "Skipping refreshAllPreviews: not in PREVIEW state (state=" + tc.State + ")");
+                "Skipping refreshAllPreviews: not in settings preview mode (state=" + tc.State + ")");
             return;
         }
         OverlayContext ctx = OverlayContext.forPreviewMode(tc);
@@ -200,6 +203,13 @@ public class OverlayManager {
      * Refresh overlays that are interested in the changed config key.
      */
     public void refreshPreviews(String changedKey) {
+        // 修复: 与 refreshAllPreviews 同款守卫——游戏模式误入时 preview 上下文会
+        // close 掉 gameModeOnly overlay（VoiceWarning 等），非设置预览直接拒绝
+        if (!tc.isSettingsPreviewActive()) {
+            prog.util.Logger.info("OverlayManager",
+                "Skipping refreshPreviews(" + changedKey + "): not in settings preview mode");
+            return;
+        }
         OverlayContext ctx = OverlayContext.forPreviewMode(tc);
         boolean isGlobal = isGlobalConfig(changedKey);
 
