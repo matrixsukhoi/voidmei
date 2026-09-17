@@ -6,6 +6,7 @@
 # 代码里的注释要简洁精炼
 # 写代码时, 关键的地方和问题修复一定要添加和补充中文注释
 # 发布版本前要更新版本更新文档, 不要忘了加入fmdata的版本变化
+# 每次做完特性或修完 bug, 必须在 测试手册.md 补充/更新对应测试场景(含数据依赖与涉及机型); 真机验证通过后在"版本验证记录表"登记版本号 — 出 bug 时靠这张表快速找到最近没问题的版本
 # 历史上发现的容易踩坑的地方:
  - 直升机有的有可释放起落架, 有的是固定起落架
 
@@ -63,9 +64,10 @@ bash script/e2e_fm.sh --scenario s5_missing_fm --duration 120   # 单场景长�
 
 **日常发版（全自动）**：
 1. `更新日志.txt` 顶部（TODO 注释块之后）插入新版本块：`____分隔线 / v1.590 / 一行一条改动`——只写用户可感知的改动
-2. `git commit` → `git tag 1.590 && git push origin master 1.590` ← 触发 CI
-3. CI（release.yml）：checkout tag 的 commit → 从 `data` prerelease 拉 FM 数据 → `build.py dist` → 从更新日志提取该版本条目作 Release body → 创建 **draft** Release
-4. 测试同学验证 draft 附件 → 人工点 "Publish release" 转正
+2. 代码改动走 PR（单人也不例外），**攒若干 commit 后一起发起**（不必一 commit 一 PR）：从 master 切分支/或 `git push origin master:<分支名>` → `gh pr create`（正文 `Fixes #N` 关联 issue）→ rebase-merge 进 master
+3. 在 merge 后的 master commit 上 `git tag 1.590 && git push origin 1.590` ← 触发 CI。**tag 是发版运维动作不走 PR**（业界惯例：PR 管代码变更，tag 管发布；版本号由 tag 驱动，必须打在已 merge 的 commit 上直推）
+4. CI（release.yml）：checkout tag 的 commit → 从 `data` prerelease 拉 FM 数据 → `build.py dist` → 从更新日志提取该版本条目作 Release body → 创建 **draft** Release
+5. 测试同学验证 draft 附件 → 人工点 "Publish release" 转正
 
 **游戏版本更新后（fmdata，纯运维）**：
 ```bash
@@ -73,7 +75,7 @@ python script/build.py fmdata
 python script/build.py fmdata-upload
 # fmdata-upload: 以 dist/data_manifest.json 为真相源选包上传到 data prerelease,
 #                复查线上资产确认成功后自动删除旧版本 zip (防多版本并存时 CI 选错包)
-# 然后在已测试 commit 上更新 更新日志.txt + 打新 tag (如 1.591), 由人拍板
+# 然后更新 更新日志.txt (走 PR) → 在 master 上打新 tag (如 1.591), 由人拍板
 ```
 
 **灰度测试**：push 正式 tag → CI 建 draft（公众不可见，`checkUpdate()` 不弹）→ 测试同学下载验证 → Publish 转正。不通过即删 draft + 删 tag 重来。测试与发布共用同一份产物。**版本号不用 `-rc`/`-test` 后缀**——发布状态由 draft/published 表达。
