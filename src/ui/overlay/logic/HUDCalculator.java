@@ -128,28 +128,36 @@ public class HUDCalculator {
             }
 
             // AoA Warnings
-            double maxAvailableAoA = blkx.getAoAHighVWing(vwing, b.flaps > 0 ? (int) b.flaps : 0);
-            double availableAoA = maxAvailableAoA - b.aoa;
+            // 直升机无机翼失速概念 (issue #65): 机翼临界攻角是模板占位值, 余量比/告警色无意义;
+            // 归零隐藏 AoA 条并保持中性色 (α 数值显示保留, aoaStr 在块外无条件计算)
+            if (!blkx.isHelicopter) {
+                double maxAvailableAoA = blkx.getAoAHighVWing(vwing, b.flaps > 0 ? (int) b.flaps : 0);
+                double availableAoA = maxAvailableAoA - b.aoa;
 
-            if (availableAoA < settings.getAoAWarningRatio() * maxAvailableAoA) {
-                b.aoaColor = Application.colorWarning;
+                if (availableAoA < settings.getAoAWarningRatio() * maxAvailableAoA) {
+                    b.aoaColor = Application.colorWarning;
+                } else {
+                    b.aoaColor = Application.colorNum;
+                }
+                if (availableAoA < settings.getAoABarWarningRatio() * maxAvailableAoA) {
+                    b.aoaBarColor = Application.colorUnit;
+                } else {
+                    b.aoaBarColor = Application.colorNum;
+                }
+
+                if (maxAvailableAoA > 0.001) {
+                    b.aoaRatio = availableAoA / maxAvailableAoA;
+                } else {
+                    b.aoaRatio = 0;
+                }
+
+                if (availableAoA <= 0) {
+                    b.warnStall = true;
+                }
             } else {
                 b.aoaColor = Application.colorNum;
-            }
-            if (availableAoA < settings.getAoABarWarningRatio() * maxAvailableAoA) {
-                b.aoaBarColor = Application.colorUnit;
-            } else {
                 b.aoaBarColor = Application.colorNum;
-            }
-
-            if (maxAvailableAoA > 0.001) {
-                b.aoaRatio = availableAoA / maxAvailableAoA;
-            } else {
                 b.aoaRatio = 0;
-            }
-
-            if (availableAoA <= 0) {
-                b.warnStall = true;
             }
 
         } else {

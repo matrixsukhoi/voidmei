@@ -294,6 +294,7 @@ public class VoiceWarning implements Runnable {
     private volatile boolean currentMismatch = false;  // volatile for thread safety (from FlightDataBus)
     private boolean lastMismatch = false;              // For detecting state change (false→true, true→false)
     private boolean hasFlaps = true;                   // 当前机型是否有襟翼 (FM hasFlapsControl; 仅告警线程读写)
+    private boolean isHeli = false;                    // 当前机型是否直升机 (FM isHelicopter; 仅告警线程读写)
     private long pendingCompressorWarnTime = 0;        // 0 = no pending warning, >0 = scheduled warning time
     private static final long COMPRESSOR_WARN_DELAY = 3000;  // 3-second delay before warning
     private FlightDataListener flightDataListener;
@@ -582,6 +583,8 @@ public class VoiceWarning implements Runnable {
         parser.Blkx b = fm.blkx;
         // 无襟翼机 (FM hasFlapsControl=false, 如 f_16xl/直升机): 襟翼告警/完好性判定跳过; 无 FM 降级为有
         hasFlaps = (b == null) || b.hasFlapsControl;
+        // 直升机 (FM isHelicopter, issue #65): AoA/失速类告警无意义, 禁用; 无 FM 降级为固定翼 (保持开启, 同 hasFlaps 先例)
+        isHeli = (b != null) && b.isHelicopter;
         if (b != null) {
             if (b.isVWing) {
                 vwing = indic.wsweep_indicator;
@@ -601,6 +604,11 @@ public class VoiceWarning implements Runnable {
      * @return true 如果是致命告警
      */
     private boolean checkAoAWarning(long t) {
+        // 直升机: 无机翼失速概念, AoA 语音告警整体禁用 (issue #65)
+        if (isHeli) {
+            return false;
+        }
+
         if (!xS.playerLive || st.IAS <= 80) {
             return false;
         }
@@ -833,6 +841,12 @@ public class VoiceWarning implements Runnable {
      * 原位置：run() 第 632-634 行
      */
     private void checkStallWarning(long t) {
+        // 直升机: 无机翼失速概念, 失速语音告警禁用 (issue #65);
+        // stallSpeed 已被 updateStallSpeed 清零, 此处兜底换机瞬间读到旧值的一次性毛刺
+        if (isHeli) {
+            return;
+        }
+
         // 没放下起落架、有下降率、速度低于失速速度
         if (xS.playerLive && st.gear == 0 && st.Vy != 0 &&
             xS.getStallSpeed() != 0 && st.IAS <= xS.getStallSpeed()) {
@@ -870,6 +884,11 @@ public class VoiceWarning implements Runnable {
      * 原位置：run() 第 653-669 行
      */
     private void checkControlEffectivenessWarning(long t) {
+        // 直升机无副翼/方向舵 (周期变距/尾桨), FM 的 EffectiveSpeed 是模板占位值 (issue #65), 告警禁用
+        if (isHeli) {
+            return;
+        }
+
         // 副翼舵效
         if (st.IAS >= aileronEffIAS) {
             if (!aileronEffCheck) {
