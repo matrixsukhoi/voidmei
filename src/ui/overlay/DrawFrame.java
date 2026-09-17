@@ -583,18 +583,18 @@ public class DrawFrame extends WebFrame implements Runnable {
 						ggy4 = (double) dheight / (double) (pymax - pymin);
 					}
 
-					drawXY(g2d, 50, 50, dwidth, dheight, "示空速-法向过载曲线", "示空速", "法向过载", "km/h", "G", xmin, xmax, ymin,
+					drawXY(g2d, 50, 50, dwidth, dheight, Lang.dFTitle6, Lang.dFTitle6X, Lang.dFTitle6Y, "km/h", "G", xmin, xmax, ymin,
 							ymax, xgap, ygap);
 					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, iasx, gy, pxmin, pymin,
 							new Color(0, 0, 0, 250));
-					drawExample(g2d, 50, 60, dheight, new Color(0, 0, 0, 250), "法向过载");
+					drawExample(g2d, 50, 60, dheight, new Color(0, 0, 0, 250), Lang.dFTitle6Y);
 				}
 				if (pixIndex == 6) {
 					// P5: FMLoader 收编后加载失败时 Blkx 为 null（旧代码为 valid=false 的半成品
 					// 对象, loc1/loc2 同样是 null 会 NPE）—— 判空跳过本页绘制
 					if (Blkx == null || Blkx.loc1 == null || Blkx.loc2 == null) {
 						g2d.setFont(new Font(Application.defaultFontName, Font.PLAIN, 16));
-						g2d.drawString("FM数据未加载", 50, 60);
+						g2d.drawString(Lang.dFFmNotLoaded, 50, 60);
 						return;
 					}
 					double xmin = findMin(Blkx.loc2.x) < findMin(Blkx.loc1.x) ? findMin(Blkx.loc2.x)
@@ -622,14 +622,14 @@ public class DrawFrame extends WebFrame implements Runnable {
 						ggy4 = (double) dheight / (double) (pymax - pymin);
 					}
 
-					drawXY(g2d, 50, 50, dwidth, dheight, "速度-高度曲线（FM文件隐藏面板数据）", "速度", "高度", "km/h", "m", xmin, xmax,
+					drawXY(g2d, 50, 50, dwidth, dheight, Lang.dFTitle7, Lang.dFTitle7X, Lang.dFTitle7Y, "km/h", "m", xmin, xmax,
 							ymin, ymax, xgap, ygap);
 					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, Blkx.loc1.x, Blkx.loc1.y, pxmin, pymin,
 							Color.red);
-					drawExample(g2d, 50, 60, dheight, Color.red, "WEP速度");
+					drawExample(g2d, 50, 60, dheight, Color.red, Lang.dFWepSpeed);
 					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, Blkx.loc2.x, Blkx.loc2.y, pxmin, pymin,
 							Color.blue);
-					drawExample(g2d, 50, 50, dheight, Color.blue, "100%油门速度");
+					drawExample(g2d, 50, 50, dheight, Color.blue, Lang.dFMilSpeed);
 
 				}
 				if (pixIndex == 7) {
@@ -663,11 +663,11 @@ public class DrawFrame extends WebFrame implements Runnable {
 						ggy4 = (double) dheight / (double) (pymax - pymin);
 					}
 
-					drawXY(g2d, 50, 50, dwidth, dheight, "示速度-滚转率曲线", "示速度", "滚转率", "km/h", "Deg/s", xmin, xmax, ymin,
+					drawXY(g2d, 50, 50, dwidth, dheight, Lang.dFTitle8, Lang.dFTitle8X, Lang.dFTitle8Y, "km/h", "Deg/s", xmin, xmax, ymin,
 							ymax, xgap, ygap);
 					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, iasx, wx, pxmin, pymin,
 							new Color(0, 0, 0, 250));
-					drawExample(g2d, 50, 60, dheight, new Color(0, 0, 0, 250), "滚转率");
+					drawExample(g2d, 50, 60, dheight, new Color(0, 0, 0, 250), Lang.dFTitle8Y);
 
 				}
 				// 绘制点

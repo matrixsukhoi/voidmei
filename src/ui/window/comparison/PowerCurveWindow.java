@@ -9,6 +9,7 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 
 import parser.Blkx;
+import prog.i18n.Lang;
 import prog.Application;
 import prog.util.FMPowerExtractor;
 import prog.util.PistonPowerModel;
@@ -177,7 +178,7 @@ public class PowerCurveWindow extends JDialog {
      * @param wepMode   true to show WEP power, false for military power
      */
     public PowerCurveWindow(Window owner, String fm0Name, String fm1Name, int speedKmh, boolean wepMode) {
-        super(owner, "功率曲线", ModalityType.MODELESS);
+        super(owner, Lang.pcTitle, ModalityType.MODELESS);
         this.fm0Name = fm0Name;
         // Treat fm1Name == fm0Name as single curve mode
         this.fm1Name = (fm1Name != null && !fm1Name.isEmpty() && !fm1Name.equals(fm0Name)) ? fm1Name : null;
@@ -246,7 +247,7 @@ public class PowerCurveWindow extends JDialog {
             stages = handle.compressorStages;
             if (stages == null) {
                 return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
-                    fmName + " 不是活塞引擎", curveColor, peakColor, valleyColor, kinkColor);
+                    String.format(Lang.pcNotPiston, fmName), curveColor, peakColor, valleyColor, kinkColor);
             }
         } else {
             // ---- 回退: 按物理文件名直读 fm/<name>.blkx（连字符机型，见方法 javadoc）----
@@ -256,7 +257,7 @@ public class PowerCurveWindow extends JDialog {
             }
             if (!f.exists()) {
                 return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
-                    "找不到FM文件: " + fmName, curveColor, peakColor, valleyColor, kinkColor);
+                    String.format(Lang.pcFmNotFound, fmName), curveColor, peakColor, valleyColor, kinkColor);
             }
 
             blkx = new Blkx(f.getPath(), fmName);
@@ -265,7 +266,7 @@ public class PowerCurveWindow extends JDialog {
             // Check if piston engine
             if (!FMPowerExtractor.isPistonEngine(blkx)) {
                 return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
-                    fmName + " 不是活塞引擎", curveColor, peakColor, valleyColor, kinkColor);
+                    String.format(Lang.pcNotPiston, fmName), curveColor, peakColor, valleyColor, kinkColor);
             }
 
             // Try to load Central file for fuel modifications (回退路径下同名中央文件
@@ -276,7 +277,7 @@ public class PowerCurveWindow extends JDialog {
 
         if (stages == null || stages.length == 0) {
             return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
-                "无法提取 " + fmName + " 的发动机参数", curveColor, peakColor, valleyColor, kinkColor);
+                String.format(Lang.pcNoEngineData, fmName), curveColor, peakColor, valleyColor, kinkColor);
         }
 
         // Generate power curve (0m to 10000m)
@@ -470,7 +471,7 @@ public class PowerCurveWindow extends JDialog {
             int fromStage = Math.max(1, peaksBelow);
             int toStage = fromStage + 1;
 
-            String label = fromStage + "→" + toStage + "档";
+            String label = String.format(Lang.pcStageRange, fromStage, toStage);
             result.add(new InflectionPoint(label, altM, power, valleyColor));
         }
 
@@ -485,7 +486,7 @@ public class PowerCurveWindow extends JDialog {
                 continue;
             }
 
-            String label = stageNum + "档";
+            String label = String.format(Lang.pcStage, stageNum);
             result.add(new InflectionPoint(label, altM, power, peakColor));
             stageNum++;
         }
@@ -557,18 +558,18 @@ public class PowerCurveWindow extends JDialog {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         // Title with aircraft info
-        String modeText = wepMode ? "WEP" : "军用";
-        String speedText = speedKmh > 0 ? speedKmh + " km/h (IAS)" : "静态";
+        String modeText = wepMode ? "WEP" : Lang.pcMilitary;
+        String speedText = speedKmh > 0 ? speedKmh + " km/h (IAS)" : Lang.pcStatic;
         String titleText;
         if (isDualMode()) {
             titleText = String.format(
                 "<html><center><b style='font-size:14pt'>%s vs %s</b><br>" +
-                "<span style='font-size:10pt'>速度: %s | 模式: %s</span></center></html>",
+                Lang.pcSpeedModeHtml,
                 fm0Name, fm1Name, speedText, modeText);
         } else {
             titleText = String.format(
                 "<html><center><b style='font-size:14pt'>%s</b><br>" +
-                "<span style='font-size:10pt'>速度: %s | 模式: %s</span></center></html>",
+                Lang.pcSpeedModeHtml,
                 fm0Name, speedText, modeText);
         }
         WebLabel titleLabel = new WebLabel(titleText, WebLabel.CENTER);
@@ -603,8 +604,8 @@ public class PowerCurveWindow extends JDialog {
             if (hasFm0) {
                 String colorHex = isDualMode() ? "#2EFF71" : "#2EFF71";
                 WebLabel peakLabel = new WebLabel(String.format(
-                    "<html>%s 峰值: <b style='color:%s'>%.0f hp</b> @ <b>%d m</b></html>",
-                    isDualMode() ? fm0Name : "峰值功率", colorHex,
+                    Lang.pcPeakHtml,
+                    isDualMode() ? fm0Name : Lang.pcPeakLabel, colorHex,
                     curveData0.maxPower, curveData0.peakAltitude));
                 peakLabel.setForeground(Color.WHITE);
                 peakLabel.setFont(Application.defaultFont.deriveFont(14f));
@@ -660,7 +661,7 @@ public class PowerCurveWindow extends JDialog {
                 if (sb.length() > 0) sb.append(" | ");
                 sb.append(curveData1.errorMessage);
             }
-            return sb.length() > 0 ? sb.toString() : "无法加载功率曲线";
+            return sb.length() > 0 ? sb.toString() : Lang.pcLoadFail;
         } else if (!hasFm0 && curveData0 != null && curveData0.errorMessage != null) {
             return curveData0.errorMessage;
         } else if (!hasFm1 && curveData1 != null && curveData1.errorMessage != null) {
@@ -670,7 +671,7 @@ public class PowerCurveWindow extends JDialog {
     }
 
     private void addCloseButton(WebPanel mainPanel) {
-        WebLabel close = new WebLabel("关闭", WebLabel.CENTER);
+        WebLabel close = new WebLabel(Lang.pcClose, WebLabel.CENTER);
         close.setOpaque(true);
         close.setBackground(new Color(183, 28, 28));
         close.setForeground(Color.WHITE);

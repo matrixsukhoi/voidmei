@@ -153,7 +153,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 		}
 		int fontsize = 12;
 		int rgbx = (int) (255.0f / (fmblk.altThrNum + 1));
-		drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
+		drawXY(g2d, 50, 50, dwidth, dheight, Lang.dFThrustTitle, Lang.dFThrustX, Lang.dFThrustY, "km/h", "kgf", xmin, xmax, ymin, ymax,
 				xgap, ygap, fontsize);
 		for (int i = 0; i < fmblk.altThrNum; i++) {
 			drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, fmblk.maxThrAft[i], pxmin, pymin,
@@ -161,7 +161,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 
 			drawExample(g2d, dwidth - 40, 60 + i * fontsize - dheight, dheight,
 					new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250),
-					String.format("高度%.0fm", fmblk.altitudeThr[i]), fontsize);
+					String.format(Lang.dFAltFmt, fmblk.altitudeThr[i]), fontsize);
 		}
 
 		// 绘制点
@@ -590,7 +590,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 				}
 				int fontsize = 12;
 				int rgbx = (int) (255.0f / (b.altThrNum + 1));
-				drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
+				drawXY(g2d, 50, 50, dwidth, dheight, Lang.dFThrustTitle, Lang.dFThrustX, Lang.dFThrustY, "km/h", "kgf", xmin, xmax, ymin, ymax,
 						xgap, ygap, fontsize);
 				for (int i = 0; i < b.altThrNum; i++) {
 					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, b.maxThrAft[i], pxmin, pymin,
@@ -598,7 +598,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 
 					drawExample(g2d, dwidth - 40, 60 + i * fontsize - dheight, dheight,
 							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250),
-							String.format("高度%.0fm", b.altitudeThr[i]), fontsize);
+							String.format(Lang.dFAltFmt, b.altitudeThr[i]), fontsize);
 				}
 
 				// 绘制点
@@ -689,7 +689,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 				}
 				int fontsize = 12;
 				int rgbx = (int) (255.0f / (b.altThrNum + 1));
-				drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
+				drawXY(g2d, 50, 50, dwidth, dheight, Lang.dFThrustTitle, Lang.dFThrustX, Lang.dFThrustY, "km/h", "kgf", xmin, xmax, ymin, ymax,
 						xgap, ygap, fontsize);
 				for (int i = 0; i < b.altThrNum; i++) {
 					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, b.maxThrAft[i], pxmin, pymin,
@@ -697,7 +697,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 
 					drawExample(g2d, dwidth - 40, 60 + i * fontsize - dheight, dheight,
 							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250),
-							String.format("高度%.0fm", b.altitudeThr[i]), fontsize);
+							String.format(Lang.dFAltFmt, b.altitudeThr[i]), fontsize);
 				}
 			}
 

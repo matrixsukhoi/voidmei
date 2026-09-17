@@ -489,7 +489,7 @@ public class ConfigImportDialog {
             String mainText;
             if (IS_WINE) {
                 // Wine 环境下不支持拖放，只提示点击
-                mainText = "点击选择文件";
+                mainText = Lang.mImportClickToSelect;
             } else {
                 mainText = dragOver ? Lang.mImportDropZoneRelease : Lang.mImportDropZoneTitle;
             }
@@ -503,7 +503,7 @@ public class ConfigImportDialog {
                 g2d.setColor(new Color(120, 120, 120));
                 String subText;
                 if (IS_WINE) {
-                    subText = "(Wine 环境不支持拖放)";
+                    subText = Lang.mImportWineNoDnd;
                 } else {
                     subText = Lang.mImportDropZoneSubtitle;
                 }
@@ -639,7 +639,7 @@ public class ConfigImportDialog {
                         prog.util.Logger.info("DND", "drop: dropComplete 完成");
                         SwingUtilities.invokeLater(() -> {
                             setInvalidFile(true);
-                            statusLabel.setText("拖放操作超时");
+                            statusLabel.setText(Lang.mImportDndTimeout);
                             statusLabel.setForeground(Color.RED);
                             repaint();
                         });

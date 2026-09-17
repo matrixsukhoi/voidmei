@@ -59,8 +59,9 @@ public class FlightAnalyzer {
 			sep[curaltStage] = xs.SEP;
 			count = 1;
 			if (isInformation)
-				ui.util.NotificationService.show(Lang.fA1 + stage * 100 + Lang.fA2 + (int) time[curaltStage] + Lang.fA3
-						+ (int) ((stage - initaltStage) * 1000 / time[curaltStage]) / 10.0f + Lang.fA4);
+				// 碎片拼接(fA1~fA4)已合并为整句格式串, 语序可随语言重排
+				ui.util.NotificationService.show(String.format(Lang.fAClimbFmt, stage * 100,
+						(int) time[curaltStage], (int) ((stage - initaltStage) * 1000 / time[curaltStage]) / 10.0f));
 		} else {
 			eff[curaltStage] = (eff[curaltStage] + xs.totalHpEff);
 			sep[curaltStage] = (sep[curaltStage] + xs.SEP);
@@ -97,8 +98,7 @@ public class FlightAnalyzer {
 					roll_alr[stage] = abs_alr;
 
 					if (isInformation && (wx - roll_rate[stage] > 40))
-						ui.util.NotificationService.show(
-								Lang.fA_roll1 + stage * 10 + Lang.fA_roll2 + wx + Lang.fA_roll3);
+						ui.util.NotificationService.show(String.format(Lang.fARollFmt, stage * 10, wx));
 
 					roll_rate[stage] = wx;
 				}
@@ -109,9 +109,8 @@ public class FlightAnalyzer {
 				// if (g_load > turn_load[stage] ) {
 				turn_elev[stage] = abs_elev;
 				if (isInformation && (g_load - turn_load[stage] > 3.0f))
-					ui.util.NotificationService.show(Lang.fA_turn1 + stage * 10 + Lang.fA_turn2
-							+ String.format("%.1f", (turn_load[stage] + g_load) / 2) + Lang.fA_turn3
-							+ String.format("%.1f", (sep_loss[stage] + sep) / 2) + Lang.fA_turn4);
+					ui.util.NotificationService.show(String.format(Lang.fATurnFmt, stage * 10,
+							(turn_load[stage] + g_load) / 2, (sep_loss[stage] + sep) / 2));
 				turn_load[stage] = (turn_load[stage] + g_load) / 2;
 				sep_loss[stage] = (sep_loss[stage] + sep) / 2;
 				// }

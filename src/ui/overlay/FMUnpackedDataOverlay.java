@@ -168,8 +168,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
         headerLines.clear();
 
         if (blkx == null) {
-            lines.add("FM Data Preview");
-            lines.add("[No Data Loaded]");
+            lines.add(Lang.bPreview);
+            lines.add(Lang.bNoData);
             return lines;
         }
 
@@ -279,8 +279,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
 
         // If no fields are enabled or all filtered out, show a placeholder
         if (lines.isEmpty()) {
-            lines.add("FM Data Preview");
-            lines.add("[No Fields Enabled]");
+            lines.add(Lang.bPreview);
+            lines.add(Lang.bNoFields);
         }
 
         return lines;

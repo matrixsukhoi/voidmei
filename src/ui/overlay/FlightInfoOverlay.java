@@ -2,6 +2,7 @@ package ui.overlay;
 
 import java.util.List;
 
+import prog.i18n.Lang;
 import ui.base.FieldOverlay;
 import ui.model.FieldDefinition;
 import ui.model.FlightInfoConfig;
@@ -22,7 +23,7 @@ public class FlightInfoOverlay extends FieldOverlay {
 
 	public FlightInfoOverlay() {
 		super();
-		setTitle("飞行信息");
+		setTitle(Lang.oTitleFlightInfo);
 	}
 
 	@Override

@@ -14,6 +14,7 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
+import prog.i18n.Lang;
 import prog.Application;
 import prog.Controller;
 import prog.Service;
@@ -27,7 +28,7 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 
 	public AttitudeOverlay() {
 		super();
-		setTitle("地平仪");
+		setTitle(Lang.oTitleAttitude);
 	}
 
 	public volatile boolean doit = true;

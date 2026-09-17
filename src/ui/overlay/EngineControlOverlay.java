@@ -91,7 +91,7 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 
 	public EngineControlOverlay() {
 		super();
-		setTitle("引擎控制");
+		setTitle(Lang.oTitleEngineControl);
 		// FieldOverlay fields are now accessible
 		this.numFontKey = "NumFont";
 		this.labelFontKey = "FontName";

@@ -2,6 +2,7 @@ package ui.overlay;
 
 import java.util.List;
 
+import prog.i18n.Lang;
 import ui.base.FieldOverlay;
 import ui.layout.renderer.RowRendererRegistry;
 import ui.model.FieldDefinition;
@@ -25,7 +26,7 @@ public class PowerInfoOverlay extends FieldOverlay {
 	public PowerInfoOverlay() {
 		super();
 		this.registry = new RowRendererRegistry();
-		setTitle("动力信息");
+		setTitle(Lang.oTitlePowerInfo);
 	}
 
 	@Override

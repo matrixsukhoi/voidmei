@@ -32,7 +32,7 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 
 	public ControlSurfacesOverlay() {
 		super();
-		setTitle("舵面值");
+		setTitle(Lang.oTitleControlSurfaces);
 	}
 
 	/**

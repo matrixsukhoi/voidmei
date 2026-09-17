@@ -56,6 +56,28 @@ public class Lang {
 	public static String dFTitle5;
 	public static String dFTitle5X;
 	public static String dFTitle5Y;
+	public static String dFTitle6;
+	public static String dFTitle6X;
+	public static String dFTitle6Y;
+	public static String dFTitle7;
+	public static String dFTitle7X;
+	public static String dFTitle7Y;
+	public static String dFTitle8;
+	public static String dFTitle8X;
+	public static String dFTitle8Y;
+	public static String dFThrustTitle;
+	public static String dFThrustX;
+	public static String dFThrustY;
+	public static String dFWepSpeed;
+	public static String dFMilSpeed;
+	public static String dFFmNotLoaded;
+	public static String dFAltFmt;
+	public static String mImportClickToSelect;
+	public static String mImportWineNoDnd;
+	public static String mImportDndTimeout;
+	public static String bPreview;
+	public static String bNoData;
+	public static String bNoFields;
 	public static String dFTitleHZ;
 
 	public static String mResetConfirmTitle;
@@ -178,19 +200,36 @@ public class Lang {
 	public static String lfailWrite;
 
 	// FlightAnalyzer
-	public static String fA1;
-	public static String fA2;
-	public static String fA3;
-	public static String fA4;
 
-	public static String fA_roll1;
-	public static String fA_roll2;
-	public static String fA_roll3;
+	// ===== P3 迁移的硬编码文本 (原散落在 overlay/PowerCurveWindow/FlightAnalyzer) =====
+	// overlay 窗口标题
+	public static String oTitleFlightInfo;
+	public static String oTitlePowerInfo;
+	public static String oTitleEngineControl;
+	public static String oTitleGearFlaps;
+	public static String oTitleControlSurfaces;
+	public static String oTitleAttitude;
+	// PowerCurveWindow 功率曲线窗
+	public static String pcTitle;
+	public static String pcNotPiston;
+	public static String pcFmNotFound;
+	public static String pcNoEngineData;
+	public static String pcStageRange;
+	public static String pcStage;
+	public static String pcMilitary;
+	public static String pcStatic;
+	public static String pcSpeedModeHtml;
+	public static String pcPeakHtml;
+	public static String pcPeakLabel;
+	public static String pcLoadFail;
+	public static String pcClose;
+	// FlightAnalyzer 记录完成通知 (原 fA1~fA4 / fA_roll* / fA_turn* 碎片拼接合并为整句)
+	public static String fAClimbFmt;
+	public static String fARollFmt;
+	public static String fATurnFmt;
 
-	public static String fA_turn1;
-	public static String fA_turn2;
-	public static String fA_turn3;
-	public static String fA_turn4;
+
+
 
 	public static String noblkx;
 	/** FM 缺失/损坏的右下角 toast 提示 (检视需求: 告知用户该飞机无 FM 数据) */
@@ -843,17 +882,6 @@ public class Lang {
 		l31 = updateLanguage("l31", l31);
 		lfailCreate = updateLanguage("lfailCreate", lfailCreate);
 		lfailWrite = updateLanguage("lfailWrite", lfailWrite);
-		fA1 = updateLanguage("fA1", fA1);
-		fA2 = updateLanguage("fA2", fA2);
-		fA3 = updateLanguage("fA3", fA3);
-		fA4 = updateLanguage("fA4", fA4);
-		fA_roll1 = updateLanguage("fA_roll1", fA_roll1);
-		fA_roll2 = updateLanguage("fA_roll2", fA_roll2);
-		fA_roll3 = updateLanguage("fA_roll3", fA_roll3);
-		fA_turn1 = updateLanguage("fA_turn1", fA_turn1);
-		fA_turn2 = updateLanguage("fA_turn2", fA_turn2);
-		fA_turn3 = updateLanguage("fA_turn3", fA_turn3);
-		fA_turn4 = updateLanguage("fA_turn4", fA_turn4);
 
 		noblkx = updateLanguage("noblkx", noblkx);
 		fmMissingToast = updateLanguage("fmMissingToast", fmMissingToast);
@@ -876,6 +904,56 @@ public class Lang {
 		bMaxLiftLoad350 = updateLanguage("bMaxLiftLoad350", bMaxLiftLoad350);
 		bLift = updateLanguage("bLift", bLift);
 		bDrag = updateLanguage("bDrag", bDrag);
+
+		mImportClickToSelect = updateLanguage("mImportClickToSelect", "点击选择文件");
+		mImportWineNoDnd = updateLanguage("mImportWineNoDnd", "(Wine 环境不支持拖放)");
+		mImportDndTimeout = updateLanguage("mImportDndTimeout", "拖放操作超时");
+		bPreview = updateLanguage("bPreview", "FM Data Preview");
+		bNoData = updateLanguage("bNoData", "[No Data Loaded]");
+		bNoFields = updateLanguage("bNoFields", "[No Fields Enabled]");
+		// DrawFrame EM 图 + DrawFrameSimpl 推力曲线 (P3 补齐)
+		dFTitle6 = updateLanguage("dFTitle6", "示空速-法向过载曲线");
+		dFTitle6X = updateLanguage("dFTitle6X", "示空速");
+		dFTitle6Y = updateLanguage("dFTitle6Y", "法向过载");
+		dFTitle7 = updateLanguage("dFTitle7", "速度-高度曲线（FM文件隐藏面板数据）");
+		dFTitle7X = updateLanguage("dFTitle7X", "速度");
+		dFTitle7Y = updateLanguage("dFTitle7Y", "高度");
+		dFTitle8 = updateLanguage("dFTitle8", "示速度-滚转率曲线");
+		dFTitle8X = updateLanguage("dFTitle8X", "示速度");
+		dFTitle8Y = updateLanguage("dFTitle8Y", "滚转率");
+		dFThrustTitle = updateLanguage("dFThrustTitle", "推力-真空速曲线");
+		dFThrustX = updateLanguage("dFThrustX", "真空速");
+		dFThrustY = updateLanguage("dFThrustY", "推力");
+		dFWepSpeed = updateLanguage("dFWepSpeed", "WEP速度");
+		dFMilSpeed = updateLanguage("dFMilSpeed", "100%油门速度");
+		dFFmNotLoaded = updateLanguage("dFFmNotLoaded", "FM数据未加载");
+		dFAltFmt = updateLanguage("dFAltFmt", "高度%.0fm");
+
+		// ===== P3 迁移文本灌值 (dft 为中文内联默认, 语言包缺失时兜底) =====
+		oTitleFlightInfo = updateLanguage("oTitleFlightInfo", "飞行信息");
+		oTitlePowerInfo = updateLanguage("oTitlePowerInfo", "动力信息");
+		oTitleEngineControl = updateLanguage("oTitleEngineControl", "引擎控制");
+		oTitleGearFlaps = updateLanguage("oTitleGearFlaps", "起落襟翼");
+		oTitleControlSurfaces = updateLanguage("oTitleControlSurfaces", "舵面值");
+		oTitleAttitude = updateLanguage("oTitleAttitude", "地平仪");
+		pcTitle = updateLanguage("pcTitle", "功率曲线");
+		pcNotPiston = updateLanguage("pcNotPiston", "%s 不是活塞引擎");
+		pcFmNotFound = updateLanguage("pcFmNotFound", "找不到FM文件: %s");
+		pcNoEngineData = updateLanguage("pcNoEngineData", "无法提取 %s 的发动机参数");
+		pcStageRange = updateLanguage("pcStageRange", "%s→%s档");
+		pcStage = updateLanguage("pcStage", "%d档");
+		pcMilitary = updateLanguage("pcMilitary", "军用");
+		pcStatic = updateLanguage("pcStatic", "静态");
+		pcSpeedModeHtml = updateLanguage("pcSpeedModeHtml",
+				"<span style='font-size:10pt'>速度: %s | 模式: %s</span></center></html>");
+		pcPeakHtml = updateLanguage("pcPeakHtml",
+				"<html>%s 峰值: <b style='color:%s'>%.0f hp</b> @ <b>%d m</b></html>");
+		pcPeakLabel = updateLanguage("pcPeakLabel", "峰值功率");
+		pcLoadFail = updateLanguage("pcLoadFail", "无法加载功率曲线");
+		pcClose = updateLanguage("pcClose", "关闭");
+		fAClimbFmt = updateLanguage("fAClimbFmt", "到达 %d米，用时 %d秒，平均爬升率 %.1f米/秒，记录完成");
+		fARollFmt = updateLanguage("fARollFmt", "速度 %dkm/h下的最大滚转率: %d度/秒,记录完成");
+		fATurnFmt = updateLanguage("fATurnFmt", "速度 %dkm/h下的最大法向过载: %.1fG, 此时SEP为: %.1fm/s, 记录完成");
 
 		// public static String bFmVersion = "FM文件: %s - %s";
 		// public static String bWeight = "空重(kg): %.1f\n最大燃油重量(kg): %.1f\n";

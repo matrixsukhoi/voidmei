@@ -31,7 +31,7 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
 
     public GearFlapsOverlay() {
         super();
-        setTitle("起落襟翼");
+        setTitle(Lang.oTitleGearFlaps);
     }
 
     Service xs;
