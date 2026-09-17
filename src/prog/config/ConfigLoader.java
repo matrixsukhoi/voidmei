@@ -79,6 +79,7 @@ public class ConfigLoader {
 
     public static class GroupConfig {
         public String title;
+        public String id = null; // 稳定标识(与显示标题解耦, i18n 改标题不影响配置键)
         public double x = 0.1;
         public double y = 0.1;
         public int alpha = 150;
@@ -219,6 +220,7 @@ public class ConfigLoader {
                 }
 
                 GroupConfig group = new GroupConfig(title);
+                group.id = getKeywordString(panelExp, ":id", null);
                 group.x = getKeywordDouble(panelExp, ":x", 0.1);
                 group.y = getKeywordDouble(panelExp, ":y", 0.1);
 
@@ -386,6 +388,8 @@ public class ConfigLoader {
                 pw.println();
 
                 String indent = "  "; // 2 spaces base indent for panel attributes as per sample
+                if (group.id != null)
+                    writeAttrLine(pw, indent, ":id", group.id);
                 writeAttrLine(pw, indent, ":x", String.format("%.4f", group.x));
                 writeAttrLine(pw, indent, ":y", String.format("%.4f", group.y));
                 writeAttrLine(pw, indent, ":alpha", group.alpha);

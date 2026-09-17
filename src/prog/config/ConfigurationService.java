@@ -419,7 +419,9 @@ public class ConfigurationService implements ConfigProvider {
             if (layoutConfigs == null)
                 return null;
             for (ConfigLoader.GroupConfig gc : layoutConfigs) {
-                if (sectionName.equalsIgnoreCase(gc.title)) {
+                // 稳定 id 优先; 无 id 的旧配置/测试 fixture 回退 title 匹配
+                if (gc.id != null ? sectionName.equals(gc.id)
+                        : sectionName.equalsIgnoreCase(gc.title)) {
                     return gc;
                 }
             }

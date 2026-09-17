@@ -28,35 +28,35 @@ public class ComparisonRules {
     static {
         // ========== 重量类 ==========
         // 空重: 轻好
-        rules.put("空重(kg)", SimpleRule.lowerIsBetter());
+        rules.put("emptyWeight", SimpleRule.lowerIsBetter());
         // 燃油: 重好
-        rules.put("最大燃油重量(kg)", SimpleRule.higherIsBetter());
+        rules.put("maxFuelWeight", SimpleRule.higherIsBetter());
 
         // ========== 速度类 ==========
         // 临界速度 [min, max]: 后面那个数(vne)大好
-        rules.put("临界速度(km/h)", new ListIndexRule(1, false));
+        rules.put("critSpeed", new ListIndexRule(1, false));
 
         // ========== 过载类 ==========
         // 允许过载 [满油+, 满油-], [半油+, 半油-]: 第一个列表最后一项大好
-        rules.put("允许过载(满/半油)", new MultiListIndexRule(0, 1, false));
+        rules.put("allowLoadFactor", new MultiListIndexRule(0, 1, false));
 
         // ========== 耐热类 ==========
         // 耐热条恢复速率: 大好
-        rules.put("平均耐热条恢复速率", SimpleRule.higherIsBetter());
+        rules.put("avgHeatRecovery", SimpleRule.higherIsBetter());
 
         // ========== 升力类 ==========
         // 最大升力过载 "X / Y(襟)": 第一个数大好
-        rules.put("千米最大升力过载", SimpleRule.higherIsBetter());
+        rules.put("maxLiftLoad350", SimpleRule.higherIsBetter());
 
         // 升力面积因数载荷 "X / Y(襟)": 第一个数大好
-        rules.put("主升力面积因数载荷", SimpleRule.higherIsBetter());
+        rules.put("liftLoadFactor", SimpleRule.higherIsBetter());
 
         // 翼展效率: 大好
-        rules.put("翼展效率", SimpleRule.higherIsBetter());
+        rules.put("oswaldEfficiency", SimpleRule.higherIsBetter());
 
         // ========== 阻力类 (第二个数小好) ==========
         // 主阻力面积因数及加速度系数 "X / Y": 第二个数小好
-        rules.put("主阻力面积因数及加速度系数", new LambdaRule(
+        rules.put("dragAreaFactor", new LambdaRule(
             raw -> {
                 Matcher m = SLASH_SECOND.matcher(raw);
                 return m.find() ? Double.parseDouble(m.group(1)) : null;
@@ -65,7 +65,7 @@ public class ComparisonRules {
         ));
 
         // 诱导阻力因数及加速度系数 "X / Y": 第二个数小好
-        rules.put("诱导阻力因数及加速度系数", new LambdaRule(
+        rules.put("inducedDragFactor", new LambdaRule(
             raw -> {
                 Matcher m = SLASH_SECOND.matcher(raw);
                 return m.find() ? Double.parseDouble(m.group(1)) : null;
@@ -74,7 +74,7 @@ public class ComparisonRules {
         ));
 
         // 散热/油冷器阻力系数 "X / Y": 两个数加在一起，总和小好
-        rules.put("散热/油冷器阻力系数", new LambdaRule(
+        rules.put("radiatorDragCoeff", new LambdaRule(
             raw -> {
                 Matcher m = SLASH_BOTH.matcher(raw);
                 if (m.find()) {
@@ -90,21 +90,24 @@ public class ComparisonRules {
 
     /**
      * Get the comparison rule for a property name.
+     * 显示名(冒号前段, 随语言变化)经 {@link FmPropKeys} 反查稳定 key 后再查表,
+     * 未注册的属性返回 null(显示为平局)。
      *
-     * @param propertyName the property name (e.g., "空重(kg)")
+     * @param propertyName the property display name (e.g., "空重(kg)")
      * @return the rule, or null if no rule is defined (will show as draw)
      */
     public static ComparisonRule get(String propertyName) {
-        return rules.get(propertyName);
+        String key = FmPropKeys.keyOfDisplay(propertyName);
+        return key != null ? rules.get(key) : null;
     }
 
     /**
      * Check if a rule exists for the given property.
      *
-     * @param propertyName the property name
+     * @param propertyName the property display name
      * @return true if a rule is defined
      */
     public static boolean hasRule(String propertyName) {
-        return rules.containsKey(propertyName);
+        return get(propertyName) != null;
     }
 }

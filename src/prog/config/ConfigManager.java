@@ -147,16 +147,20 @@ public class ConfigManager {
      * @return Merged configuration
      */
     public static List<GroupConfig> mergeConfigs(List<GroupConfig> template, List<GroupConfig> user, MergeReport report) {
-        // Build map of user panels by title
+        // Build map of user panels by id (fallback: title, 旧版 user.cfg 无 :id)
         Map<String, GroupConfig> userPanelMap = new HashMap<>();
         for (GroupConfig gc : user) {
-            userPanelMap.put(gc.title, gc);
+            userPanelMap.put(gc.id != null ? "id:" + gc.id : "title:" + gc.title, gc);
         }
 
         List<GroupConfig> merged = new ArrayList<>();
 
         for (GroupConfig templatePanel : template) {
-            GroupConfig userPanel = userPanelMap.get(templatePanel.title);
+            GroupConfig userPanel = templatePanel.id != null ? userPanelMap.get("id:" + templatePanel.id) : null;
+            if (userPanel == null) {
+                // 兼容旧格式: user panel 无 id 时按中文标题匹配(标题本地化前的持久键)
+                userPanel = userPanelMap.get("title:" + templatePanel.title);
+            }
 
             if (userPanel == null) {
                 // New panel in template - use template as-is
@@ -187,6 +191,7 @@ public class ConfigManager {
      */
     private static GroupConfig mergePanel(GroupConfig template, GroupConfig user, MergeReport report) {
         GroupConfig merged = new GroupConfig(template.title);
+        merged.id = template.id; // 结构字段: id 恒取模板, 与显示标题解耦
 
         // User-preserved fields
         merged.x = user.x;

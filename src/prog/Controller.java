@@ -678,16 +678,16 @@ public class Controller {
 		// EngineControlOverlay - supports preview (fully event-driven)
 		overlayManager.registerWithPreview("enableEngineControl",
 				() -> new EngineControlOverlay(),
-				overlay -> ((EngineControlOverlay) overlay).init(this, S, configService.getOverlaySettings("引擎控制")),
-				overlay -> ((EngineControlOverlay) overlay).initPreview(this, configService.getOverlaySettings("引擎控制")),
+				overlay -> ((EngineControlOverlay) overlay).init(this, S, configService.getOverlaySettings("engineControl")),
+				overlay -> ((EngineControlOverlay) overlay).initPreview(this, configService.getOverlaySettings("engineControl")),
 				overlay -> ((EngineControlOverlay) overlay).reinitConfig(),
 				true).withInterest("disableEngineInfo", "fontSize");
 
 		// PowerInfoOverlay (moved from hardcoded to layout config)
 		overlayManager.registerWithPreview("engineInfoSwitch",
 				() -> new PowerInfoOverlay(),
-				overlay -> ((PowerInfoOverlay) overlay).init(this, S, configService.getOverlaySettings("动力信息")),
-				overlay -> ((PowerInfoOverlay) overlay).initPreview(this, configService.getOverlaySettings("动力信息")),
+				overlay -> ((PowerInfoOverlay) overlay).init(this, S, configService.getOverlaySettings("powerInfo")),
+				overlay -> ((PowerInfoOverlay) overlay).initPreview(this, configService.getOverlaySettings("powerInfo")),
 				overlay -> ((PowerInfoOverlay) overlay).reinitConfig(),
 				true).withInterest("fontName", "fontSize", "hudColumns", "S.");
 
@@ -706,8 +706,8 @@ public class Controller {
 		// FlightInfoOverlay - supports preview
 		overlayManager.registerWithPreview("flightInfoSwitch",
 				() -> new FlightInfoOverlay(),
-				overlay -> ((FlightInfoOverlay) overlay).init(this, S, configService.getOverlaySettings("飞行信息")),
-				overlay -> ((FlightInfoOverlay) overlay).initPreview(this, configService.getOverlaySettings("飞行信息")),
+				overlay -> ((FlightInfoOverlay) overlay).init(this, S, configService.getOverlaySettings("flightInfo")),
+				overlay -> ((FlightInfoOverlay) overlay).initPreview(this, configService.getOverlaySettings("flightInfo")),
 				overlay -> ((FlightInfoOverlay) overlay).reinitConfig(),
 				true).withInterest("flightInfo", "fontSize", "disableFlightInfo", "flightInfoFontC");
 
@@ -715,17 +715,17 @@ public class Controller {
 		// Controller 参数已移除，此 overlay 不需要访问配置
 		overlayManager.registerWithPreview("enableAxis",
 				() -> new ControlSurfacesOverlay(),
-				overlay -> ((ControlSurfacesOverlay) overlay).init(S, configService.getOverlaySettings("舵面值")),
+				overlay -> ((ControlSurfacesOverlay) overlay).init(S, configService.getOverlaySettings("controlSurfaces")),
 				overlay -> ((ControlSurfacesOverlay) overlay).initPreview(
-						configService.getOverlaySettings("舵面值")),
+						configService.getOverlaySettings("controlSurfaces")),
 				overlay -> ((ControlSurfacesOverlay) overlay).reinitConfig(),
 				false).withInterest("enableAxisEdge", "fontSize");
 
 		// AttitudeOverlay - supports preview
 		overlayManager.registerWithPreview("enableAttitudeIndicator",
 				() -> new AttitudeOverlay(),
-				overlay -> ((AttitudeOverlay) overlay).init(this, S, configService.getOverlaySettings("地平仪")),
-				overlay -> ((AttitudeOverlay) overlay).initPreview(this, configService.getOverlaySettings("地平仪")),
+				overlay -> ((AttitudeOverlay) overlay).init(this, S, configService.getOverlaySettings("attitude")),
+				overlay -> ((AttitudeOverlay) overlay).initPreview(this, configService.getOverlaySettings("attitude")),
 				overlay -> ((AttitudeOverlay) overlay).reinitConfig(),
 				false).withInterest("attitudeIndicator", "enableAttitudeIndicator");
 
@@ -733,8 +733,8 @@ public class Controller {
 		// Controller 参数已移除，此 overlay 不需要访问配置
 		overlayManager.registerWithPreview("enablegearAndFlaps",
 				() -> new GearFlapsOverlay(),
-				overlay -> ((GearFlapsOverlay) overlay).init(S, configService.getOverlaySettings("起落襟翼")),
-				overlay -> ((GearFlapsOverlay) overlay).initPreview(configService.getOverlaySettings("起落襟翼")),
+				overlay -> ((GearFlapsOverlay) overlay).init(S, configService.getOverlaySettings("gearFlaps")),
+				overlay -> ((GearFlapsOverlay) overlay).initPreview(configService.getOverlaySettings("gearFlaps")),
 				overlay -> ((GearFlapsOverlay) overlay).reinitConfig(),
 				false).withInterest("enablegearAndFlapsEdge", "fontSize");
 
@@ -753,11 +753,11 @@ public class Controller {
 				overlay -> {
 					// 直读 FMManager 句柄（P5 收尾: 桥接方法已删, 与各 overlay 的直读模式一致）
 					fmDataAdapter.setBlkx(FMManager.getInstance().current().blkx);
-					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
+					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("fmData");
 					((FMUnpackedDataOverlay) overlay).init(this, fmDataAdapter, fmSettings);
 				}, overlay -> {
 					fmDataAdapter.setBlkx(FMManager.getInstance().current().blkx);
-					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
+					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("fmData");
 					((FMUnpackedDataOverlay) overlay).initPreview(this, fmDataAdapter, fmSettings);
 				},
 				overlay -> ((FMUnpackedDataOverlay) overlay).reinitConfig(),

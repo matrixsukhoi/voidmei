@@ -33,7 +33,6 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
 
     private static final long serialVersionUID = 1L;
 
-    private Controller controller;
     private FMDataAdapter fmDataAdapter;
     protected OverlaySettings overlaySettings;
     protected ConfigProvider config;
@@ -42,6 +41,11 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
     private boolean visible = true;
     private Consumer<Object> toggleHandler;
     private Consumer<Object> fmLoadedHandler;
+
+    // 本轮产出的表头行快照(译文文本)。表头判定不依赖翻译前缀(i18n 后 startsWith("fm器件") 会失效),
+    // 改为产出侧自知表头身份、渲染侧按快照 contains 匹配 —— 轮内自洽, 语言无关
+    private final java.util.Set<String> headerLines = java.util.Collections
+            .newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
     public FMUnpackedDataOverlay() {
         super();
@@ -55,7 +59,6 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
      * @param settings Overlay settings from ui_layout.cfg
      */
     public void init(Controller c, FMDataAdapter adapter, OverlaySettings settings) {
-        this.controller = c;
         this.fmDataAdapter = adapter;
         // 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
         this.config = c.getConfigProvider();
@@ -83,8 +86,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
         fmLoadedHandler = data -> reloadFMData(data);
         UIStateBus.getInstance().subscribe(UIStateEvents.FM_CHANGED, fmLoadedHandler);
 
-        // Set header matcher for styling (FM parts headers start with "------fm器件")
-        setHeaderMatcher(line -> line.startsWith("FM文件") || line.startsWith("------fm器件"));
+        // 表头判定走本轮快照(见 headerLines 注释), 与翻译文本解耦
+        setHeaderMatcher(headerLines::contains);
 
         // Initialize BaseOverlay with dynamic data supplier
         super.init(settings, this::generateLines);
@@ -101,7 +104,6 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
      * @param settings Overlay settings
      */
     public void initPreview(Controller c, FMDataAdapter adapter, OverlaySettings settings) {
-        this.controller = c;
         this.fmDataAdapter = adapter;
         // 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
         this.config = c.getConfigProvider();
@@ -114,8 +116,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
 
         Logger.info("FMUnpackedDataOverlay", "Initializing for preview mode (visible=" + visible + ")");
 
-        // Set header matcher for styling (FM parts headers start with "------fm器件")
-        setHeaderMatcher(line -> line.startsWith("FM文件") || line.startsWith("------fm器件"));
+        // 表头判定走本轮快照(见 headerLines 注释), 与翻译文本解耦
+        setHeaderMatcher(headerLines::contains);
 
         // Initialize BaseOverlay with dynamic data supplier
         super.initPreview(settings, this::generateLines);
@@ -163,6 +165,7 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
     private List<String> generateLines() {
         List<String> lines = new ArrayList<>();
         Blkx blkx = fmDataAdapter.getBlkx();
+        headerLines.clear();
 
         if (blkx == null) {
             lines.add("FM Data Preview");
@@ -172,7 +175,7 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
 
         // ==================== FM Version (always shown) ====================
         String fmVersion = String.format(Lang.bFmVersion, blkx.readFileName, blkx.version);
-        addLines(lines, fmVersion);
+        addHeaderLines(lines, fmVersion);
 
         // ==================== Weight ====================
         if (isFieldEnabled("showWeight")) {
@@ -288,7 +291,7 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
      */
     private void addFmParts(List<String> lines, Blkx.fm_parts p) {
         if (p == null) return;
-        addLines(lines, String.format(Lang.bFmParts, p.name));
+        addHeaderLines(lines, String.format(Lang.bFmParts, p.name));
         addLines(lines, String.format(Lang.bCdMin, p.CdMin));
         addLines(lines, String.format(Lang.bCl0, p.Cl0));
         addLines(lines, String.format(Lang.bAoACrit, p.AoACritLow, p.AoACritHigh));
@@ -304,6 +307,17 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
             String trimmed = line.trim();
             if (!trimmed.isEmpty()) {
                 lines.add(trimmed);
+            }
+        }
+    }
+
+    /** 表头行收集版 addLines: 行文本同时登记进本轮表头快照(供渲染侧高亮判定) */
+    private void addHeaderLines(List<String> lines, String formatted) {
+        for (String line : formatted.split("\n")) {
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty()) {
+                lines.add(trimmed);
+                headerLines.add(trimmed);
             }
         }
     }
