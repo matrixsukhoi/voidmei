@@ -103,8 +103,10 @@ public class UIBuilder {
         com.alee.laf.label.WebLabel label = new com.alee.laf.label.WebLabel(title);
         label.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         label.setFont(font);
-        // Force a specific dimension to ensure there is space for right alignment
-        label.setPreferredSize(new Dimension(70, 30));
+        // 宽度自适应: 原硬编码 70px 按中文短标题标定, en/ru 长标题截断。
+        // 按标题实测字体宽度放宽(保底 70 保持 zh 零回归), +16 左右余量
+        int textW = label.getFontMetrics(font).stringWidth(title);
+        label.setPreferredSize(new Dimension(Math.max(70, textW + 16), 30));
         // Add padding to satisfy "right align with padding" requirement
         // label.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
