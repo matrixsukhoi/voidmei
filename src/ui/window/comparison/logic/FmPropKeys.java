@@ -1,8 +1,13 @@
 package ui.window.comparison.logic;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import prog.i18n.Lang;
 
 /**
  * FM 属性名稳定键空间。
@@ -11,19 +16,67 @@ import java.util.Map;
  * 随语言变化 —— 翻译后按显示名匹配会静默失效(规则查不到 → 全部平局灰色)。
  * 本类维护 稳定key ↔ 显示名 的双向映射, 消费方拿显示名反查稳定 key。
  *
- * <p>P0: 显示名为内置中文常量, 必须与 lang/cur.properties 中 b* 格式串的属性行
- * 逐字一致(守护测试校验); i18n 化后切换为 Lang 供给并支持语言热切换 rebuild。
+ * <p>显示名经 Lang("fm.prop.<稳定key>")取得, 与 b* 格式串的属性行逐字一致
+ * (守护测试校验); 反查表随语言热切换懒重建。
  */
 public final class FmPropKeys {
 
     private FmPropKeys() {
     }
 
-    /** 稳定 key → 显示名(属性名, 冒号前段)。与 cur.properties 格式串逐字一致 */
-    private static final Map<String, String> KEY_TO_DISPLAY;
-    /** 显示名 → 稳定 key(反向查找表, 只读快照) */
-    private static volatile Map<String, String> displayToKey;
+    /** 已注册的稳定 key 清单 */
+    private static final List<String> STABLE_KEYS = Arrays.asList(
+            "emptyWeight", "maxFuelWeight", "critSpeed", "allowLoadFactor",
+            "avgHeatRecovery", "maxLiftLoad350", "liftLoadFactor", "oswaldEfficiency",
+            "dragAreaFactor", "inducedDragFactor", "radiatorDragCoeff");
 
+    /** 显示名 → 稳定 key(当前语言, 语言切换后由 ensureReverse 懒重建) */
+    private static volatile Map<String, String> displayToKey = new HashMap<>();
+    private static volatile String builtForLocale = "";
+
+    static {
+        for (String k : STABLE_KEYS) {
+            displayToKey.put(displayOf(k), k);
+        }
+        builtForLocale = Lang.locale();
+    }
+
+    /** 语言热切换后首次调用时重建反向表(volatile 写, 线程安全) */
+    private static void ensureReverse() {
+        String loc = Lang.locale();
+        if (!loc.equals(builtForLocale)) {
+            Map<String, String> r = new HashMap<>();
+            for (String k : STABLE_KEYS) {
+                r.put(displayOf(k), k);
+            }
+            displayToKey = r;
+            builtForLocale = loc;
+        }
+    }
+
+    /**
+     * 由显示名(当前语言的属性行冒号前段)反查稳定 key。
+     * @return 稳定 key; 未注册的属性返回 null(调用方按"无规则"处理)
+     */
+    public static String keyOfDisplay(String display) {
+        if (display == null)
+            return null;
+        ensureReverse();
+        return displayToKey.get(display.trim());
+    }
+
+    /** 稳定 key → 显示名(经 Lang, 语言包缺失时回退内置中文) */
+    public static String displayOf(String key) {
+        return Lang.ui("fm.prop." + key, FALLBACK_ZH.get(key));
+    }
+
+    /** 全部稳定 key(守护测试用) */
+    public static Set<String> stableKeys() {
+        return new HashSet<>(STABLE_KEYS);
+    }
+
+    /** 语言文件缺失时的中文兜底(与 zh.properties 的 fm.prop.* 逐字一致) */
+    private static final Map<String, String> FALLBACK_ZH;
     static {
         Map<String, String> m = new HashMap<>();
         m.put("emptyWeight", "空重(kg)");
@@ -37,30 +90,6 @@ public final class FmPropKeys {
         m.put("dragAreaFactor", "主阻力面积因数及加速度系数");
         m.put("inducedDragFactor", "诱导阻力因数及加速度系数");
         m.put("radiatorDragCoeff", "散热/油冷器阻力系数");
-        KEY_TO_DISPLAY = Collections.unmodifiableMap(m);
-        displayToKey = buildReverse();
-    }
-
-    private static Map<String, String> buildReverse() {
-        Map<String, String> r = new HashMap<>();
-        for (Map.Entry<String, String> e : KEY_TO_DISPLAY.entrySet()) {
-            r.put(e.getValue(), e.getKey());
-        }
-        return r;
-    }
-
-    /**
-     * 由显示名(当前语言的属性行冒号前段)反查稳定 key。
-     * @return 稳定 key; 未注册的属性返回 null(调用方按"无规则"处理)
-     */
-    public static String keyOfDisplay(String display) {
-        if (display == null)
-            return null;
-        return displayToKey.get(display.trim());
-    }
-
-    /** 稳定 key → 显示名(调试/测试用) */
-    public static String displayOf(String key) {
-        return KEY_TO_DISPLAY.get(key);
+        FALLBACK_ZH = m;
     }
 }

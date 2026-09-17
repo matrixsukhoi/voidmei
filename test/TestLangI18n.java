@@ -28,7 +28,7 @@ public class TestLangI18n {
 		}
 	}
 
-	/** 回退链: 当前语言缺 key → zh 基准 → 内联默认(修复原"缺 key 变空串"缺陷) */
+	/** 回退链: 完整翻译包命中 → 值生效; 语言包缺失(locale 文件不存在)→ 回退 zh; 全缺 → 内联默认 */
 	private static void testFallbackChain() {
 		System.out.println("-- 回退链测试 --");
 		Lang.initLang("zh");
@@ -36,10 +36,16 @@ public class TestLangI18n {
 		assertNotNull(zhVal, "zh 包应命中 mCancel");
 		assertEquals(false, zhVal.equals("__dft__"), "zh 包命中时不应返回内联默认");
 
-		// en 为空骨架: 缺 key 必须回退到 zh 值, 而非空串
+		// en 完整翻译: key 命中应返回 en 值(而非回退 zh)
 		Lang.initLang("en");
-		String enFallback = Lang.updateLanguage("mCancel", "__dft__");
-		assertEquals(zhVal, enFallback, "en 缺 key 应回退 zh 值");
+		String enVal = Lang.updateLanguage("mCancel", "__dft__");
+		assertEquals(false, enVal.equals(zhVal), "en 包命中时应返回 en 译文(翻译已生效)");
+		assertEquals(false, enVal.equals("__dft__"), "en 包命中时不应返回内联默认");
+
+		// 不存在的 locale(语言包文件缺失): 必须整体回退 zh 基准, 而非空串
+		Lang.initLang("xx_nolocale");
+		String missingPkg = Lang.updateLanguage("mCancel", "__dft__");
+		assertEquals(zhVal, missingPkg, "语言包文件缺失时应回退 zh 值");
 
 		// 两边都缺的 key: 返回内联默认(原版缺陷是返回空串)
 		String dft = Lang.updateLanguage("__no_such_key__", "内联默认值");
@@ -54,10 +60,10 @@ public class TestLangI18n {
 		String zhBWeight = Lang.bWeight;
 		assertNotNull(zhBWeight, "zh 下 bWeight 应非空");
 
-		// ru 为空骨架 → bWeight 经 zh 回退仍非空, 且回退值与 zh 一致
+		// ru 完整翻译: 静态字段应为 ru 值
 		Lang.initLang("ru");
 		assertEquals("ru", Lang.locale(), "热切换后 locale 应为 ru");
-		assertEquals(zhBWeight, Lang.bWeight, "ru 缺 key 时静态字段应回退 zh 值");
+		assertEquals(false, Lang.bWeight.equals(zhBWeight), "ru 包命中时 bWeight 应为 ru 译文");
 
 		// 切回 zh(验证重复灌值不残留)
 		Lang.initLang("zh");
