@@ -515,6 +515,11 @@ public class Controller {
 
 		// Listen for live config changes for WYSIWYG
 		configChangedHandler = key -> {
+			// 语言热切换: 特判并完整重建 UI 层, 不走常规 WYSIWYG 增量刷新
+			if (key instanceof String && "appLanguage".equals(key)) {
+				handleLanguageSwitch();
+				return;
+			}
 			// Check if this is a global reset completed event
 			boolean isResetCompleted = prog.event.UIStateEvents.ACTION_RESET_COMPLETED.equals(key);
 			// Handle FM hotkey config changes
@@ -565,6 +570,7 @@ public class Controller {
 			}
 		};
 		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.CONFIG_CHANGED, configChangedHandler);
+
 
 		// Listen for UI Ready event to start preview
 		uiReadyHandler = data -> {
@@ -673,6 +679,40 @@ public class Controller {
 	 * Register all game mode overlays with OverlayManager.
 	 * Uses registerWithPreview for overlays that support preview mode.
 	 */
+	/**
+	 * 语言热切换: 重灌语言包 → 重解析配置(P2 起 @key 取新译文) → 重建 UI 层。
+	 * 触发: CONFIG_CHANGED(appLanguage)。事件可能在后台线程, 实际重建排到 EDT 尾部,
+	 * 避免销毁正在分发事件的组件源(下拉自身)。
+	 */
+	private void handleLanguageSwitch() {
+		final String pref = configService.getConfig("appLanguage");
+		final String locale = prog.i18n.Lang.localeOfPreference(pref);
+		if (locale.equals(prog.i18n.Lang.locale()))
+			return;
+		prog.util.Logger.info("Controller", "Language hot-switch -> " + locale);
+		javax.swing.SwingUtilities.invokeLater(() -> {
+			// ① 重灌静态字段: String 引用原子换值, Service 线程并发读最多一轮混语言, 无锁安全
+			prog.i18n.Lang.initLang(locale);
+			// ② 重解析配置: GroupConfig 全部换新对象(@key 译文已随语言更新)
+			configService.loadLayout(prog.config.ConfigManager.getUserConfigPath());
+			dynamicConfigs = configService.getLayoutConfigs();
+			// ③ 设置窗 tab 重建(旧 tab 组件快照了旧语言 label)
+			if (M != null) {
+				M.rebuildPanels();
+			}
+			// ④ overlay 全重建后按当前模式重开; PREVIEW 一词二义 —— 设置预览态与
+			// 游戏运行态都为 PREVIEW, 用 isSettingsPreviewActive() 区分(同 VoiceWarning 教训)
+			overlayManager.closeAll();
+			if (isSettingsPreviewActive()) {
+				overlayManager.refreshAllPreviews();
+			} else if (State == ControllerState.PREVIEW) {
+				overlayManager.openAll();
+			}
+			// ⑤ 托盘菜单文本重建(initSystemTray 已幂等: 先摘旧图标)
+			Application.initSystemTray();
+		});
+	}
+
 	private void registerGameModeOverlays() {
 
 		// EngineControlOverlay - supports preview (fully event-driven)

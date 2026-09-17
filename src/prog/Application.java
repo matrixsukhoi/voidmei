@@ -214,11 +214,20 @@ public class Application {
 		prog.util.Logger.info("Legacy", t);
 	}
 
+	/** 当前托盘图标引用 — 语言热切换重跑 initSystemTray 时先移除旧图标(幂等) */
+	private static TrayIcon trayIcon;
+
 	public static void initSystemTray() {
 		if (SystemTray.isSupported()) {
 			SystemTray tray = SystemTray.getSystemTray();
+			// 幂等: 语言切换后重跑此方法重建菜单文本, 先摘旧图标防重复
+			if (trayIcon != null) {
+				tray.remove(trayIcon);
+				trayIcon = null;
+			}
 			Image image = Toolkit.getDefaultToolkit().getImage("image/16x16.png");
 			TrayIcon icon = new TrayIcon(image);
+			trayIcon = icon;
 			icon.setToolTip(appName);
 			PopupMenu p = new PopupMenu("");
 			MenuItem close = new MenuItem(Lang.close);
@@ -555,22 +564,18 @@ public class Application {
 		Lang.initLang();
 		silenceNativeHookLogger();
 
-		// 初始化端口
-		try {
-			appPort = Integer.parseInt(Lang.httpPort);
-		} catch (Exception e) {
-			appPort = 8111; // Default
-		}
+		// 初始化端口(8111 固定: WT 本地 API 约定, 备用端口 +1111)
+		appPort = 8111;
 		appPortBkp = appPort + 1111;
-		requestDest = new InetSocketAddress(Lang.httpIp, appPort);
-		requestDestBkp = new InetSocketAddress(Lang.httpIp, appPortBkp);
+		requestDest = new InetSocketAddress("127.0.0.1", appPort);
+		requestDestBkp = new InetSocketAddress("127.0.0.1", appPortBkp);
 
-		// 相关变量初始化
+		// 相关变量初始化(出厂默认常量; 原 lang/cur.properties 兼职杂项键已退役 — 语言包只放文案)
 		appName = Lang.appName;
 		appTooltips = Lang.appTooltips;
-		httpHeader = Lang.httpHeader;
-		defaultFontName = Lang.lanuageConfig.getValue("defaultFontName");
-		defaultFontsize = Integer.parseInt(Lang.lanuageConfig.getValue("defaultFontSize"));
+		httpHeader = "\n";
+		defaultFontName = "Sarasa Mono SC";
+		defaultFontsize = 12;
 
 		// 线程池
 		threadPool = Executors.newCachedThreadPool();

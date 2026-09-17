@@ -180,13 +180,9 @@ public class ConfigurationService implements ConfigProvider {
                 int port = Integer.parseInt(portStr);
                 Application.appPort = port;
                 Application.appPortBkp = port + 1111;
-                // Assuming httpIp is still from Lang or static 127.0.0.1
-                String ip = "127.0.0.1";
-                if (Lang.httpIp != null && !Lang.httpIp.isEmpty()) {
-                    ip = Lang.httpIp;
-                }
-                Application.requestDest = new InetSocketAddress(ip, Application.appPort);
-                Application.requestDestBkp = new InetSocketAddress(ip, Application.appPortBkp);
+                // WT 本地 API 固定回环地址(原 Lang.httpIp 恒为 127.0.0.1, 已退役为常量)
+                Application.requestDest = new InetSocketAddress("127.0.0.1", Application.appPort);
+                Application.requestDestBkp = new InetSocketAddress("127.0.0.1", Application.appPortBkp);
                 prog.util.Logger.info("ConfigurationService", "HTTP Port synchronized: " + port);
             }
         } catch (NumberFormatException e) {

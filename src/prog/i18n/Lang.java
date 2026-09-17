@@ -1,7 +1,5 @@
 package prog.i18n;
 
-import prog.Application;
-
 public class Lang {
 	public static String appName;
 	public static String appTooltips;
@@ -12,9 +10,6 @@ public class Lang {
 	public static String aboutcontentsub1;
 	public static String aboutcontentsub2;
 	public static String failaddtoTray;
-	public static String httpHeader;
-	public static String httpIp;
-	public static String httpPort;
 	public static String Systemerror;
 	// MainForm
 	public static String mCancel;
@@ -22,187 +17,22 @@ public class Lang {
 	public static String mDisplayPreview;
 	public static String mClosePreview;
 	public static String mMovePanel;
-	public static String mSimpleMode;
-	public static String mDetailedMode;
-	public static String mBasicSettings;
-	public static String mDisplayOverlay;
-	public static String mHotkeyToggle;
-	public static String mWaitHotkey;
 
-	public static String mP1NumColor;
-	public static String mP1NumColorBlank;
-	public static String mP1LabelColor;
-	public static String mP1LabelColorBlank;
-	public static String mP1UnitColor;
-	public static String mP1UnitColorBlank;
-	public static String mP1WarnColor;
-	public static String mP1WarnColorBlank;
-	public static String mP1ShadeColor;
-	public static String mP1ShadeColorBlank;
 
-	public static String mP1TempNotification;
-	public static String mP1TempNotificationBlank;
-	public static String mP1VoiceWarning;
-	public static String mP1VoiceWarningBlank;
-	public static String mP1drawFontShape;
-	public static String mP1drawFontShapeBlank;
-	public static String mP1AAEnable;
-	public static String mP1AAEnableBlank;
-	public static String mP1GlobalNumberFont;
-	public static String mP1GlobalNumberFontBlank;
-	public static String mP1Interval;
 
 	// 新增音量
-	public static String mP1voiceVolume;
-	public static String mP1voiceVolumeBlank;
 	// 新增是否关闭状态条
-	public static String mP1StatusBar;
-	public static String mP1StatusBarBlank;
 
-	public static String mP2EnginePanel;
-	public static String mP2EnginePanelBlank;
-	public static String mP2EngineGlassEdge;
-	public static String mP2EngineGlassEdgeBlank;
-	public static String mP2PanelFont;
-	public static String mP2FontAdjust;
 
-	public static String mP2EngineBlank;
-	public static String mP2eiHorsePower;
-	public static String mP2eiHorsePowerBlank;
-	public static String mP2eiThrust;
-	public static String mP2eiThrustBlank;
-	public static String mP2eiRPM;
-	public static String mP2eiRPMBlank;
-	public static String mP2eiPropPitch;
-	public static String mP2eiPropPitchBlank;
-	public static String mP2eiEffEta;
-	public static String mP2eiEffEtaBlank;
-	public static String mP2eiEffHp;
-	public static String mP2eiEffHpBlank;
-	public static String mP2eiPressure;
-	public static String mP2eiPressureBlank;
-	public static String mP2eiPowerPercent;
-	public static String mP2eiPowerPercentBlank;
-	public static String mP2eiFuelKg;
-	public static String mP2eiFuelKgBlank;
-	public static String mP2eiFuelTime;
-	public static String mP2eiFuelTimeBlank;
-	public static String mP2eiWepKg;
-	public static String mP2eiWepKgBlank;
-	public static String mP2eiWepTime;
-	public static String mP2eiWepTimeBlank;
-	public static String mP2eiTemp;
-	public static String mP2eiTempBlank;
-	public static String mP2eiOilTemp;
-	public static String mP2eiOilTempBlank;
-	public static String mP2eiHeatTolerance;
-	public static String mP2eiHeatToleranceBlank;
-	public static String mP2eiEngResponse;
-	public static String mP2eiEngResponseBlank;
 
-	public static String mP3Crosshair;
-	public static String mP3CrosshairBlank;
-	public static String mP3CrosshairDisplay;
-	public static String mP3CrosshairDisplayBlank;
-	public static String mP3Text;
-	public static String mP3TextBlank;
-	public static String mP3FlapAngleBar;
-	public static String mP3FlapAngleBarBlank;
-	public static String mP3CrosshairTexture;
-	public static String mP3CrosshairTextureBlank;
-	public static String mP3ChooseTexture;
-	public static String mP3ChooseTextureBlank;
-	public static String mP3CrosshairSize;
-	public static String mP3MonoFont;
-	public static String mP3MonoFontBlank;
 
-	public static String mP4FlightInfoPanel;
-	public static String mP4attitudeIndicatorPanel;
-	public static String mP4attitudeIndicatorPanelBlank;
-	public static String mP4FMPanel;
-	public static String mP4FMPanelBlank;
 
-	public static String mP4fiIAS;
-	public static String mP4fiIASBlank;
-	public static String mP4fiTAS;
-	public static String mP4fiTASBlank;
-	public static String mP4fiMach;
-	public static String mP4fiMachBlank;
-	public static String mP4fiCompass;
-	public static String mP4fiCompassBlank;
-	public static String mP4fiHeight;
-	public static String mP4fiHeightBlank;
-	public static String mP4fiVario;
-	public static String mP4fiVarioBlank;
-	public static String mP4fiSEP;
-	public static String mP4fiSEPBlank;
-	public static String mP4fiAcc;
-	public static String mP4fiAccBlank;
-	public static String mP4fiWx;
-	public static String mP4fiWxBlank;
-	public static String mP4fiNy;
-	public static String mP4fiNyBlank;
-	public static String mP4fiTurn;
-	public static String mP4fiTurnBlank;
-	public static String mP4fiTurnRadius;
-	public static String mP4fiTurnRadiusBlank;
-	public static String mP4fiAoA;
-	public static String mP4fiAoABlank;
-	public static String mP4fiAoS;
-	public static String mP4fiAoSBlank;
-	public static String mP4fiWingSweep;
-	public static String mP4fiWingSweepBlank;
-	public static String mP4fiRadioAlt;
-	public static String mP4fiRadioAltBlank;
 
-	public static String mP4FlightInfoBlank;
-	public static String mP4FlightInfoGlassEdge;
-	public static String mP4FlightInfoGlassEdgeBlank;
-	public static String mP4PanelFont;
-	public static String mP4FontAdjust;
-	public static String mP4ColumnAdjust;
 
-	public static String mP5LoggingAndCharting;
-	public static String mP5LoggingAndChartingBlank;
-	public static String mP5Information;
-	public static String mP5InformationBlank;
-	public static String mP5FMChoose;
-	public static String mP5FMChooseBlank;
-	public static String mP5FMDisplayKey;
-	public static String mP5FMDisplayKeyTip;
-	public static String mP5FMPrintEnable;
-	public static String mP5FMPrintEnableBlank;
 
-	public static String mP6AxisPanel;
-	public static String mP6AxisPanelBlank;
-	public static String mP6AxisEdge;
-	public static String mP6AxisEdgeBlank;
-	public static String mP6GearAndFlaps;
-	public static String mP6GearAndFlapsEdge;
 
-	public static String mP6GearAndFlapsEdgeBlank;
-	public static String mP6engineControl;
-	public static String mP6engineControlBlank;
 
-	public static String mP6ecThrottle;
-	public static String mP6ecThrottleBlank;
-	public static String mP6ecPitch;
-	public static String mP6ecPitchBlank;
-	public static String mP6ecMixture;
-	public static String mP6ecMixtureBlank;
-	public static String mP6ecRadiator;
-	public static String mP6ecRadiatorBlank;
-	public static String mP6ecCompressor;
-	public static String mP6ecCompressorBlank;
-	public static String mP6ecLFuel;
-	public static String mP6ecLFuelBlank;
 
-	public static String mFlightInfo;
-	public static String mEngineInfo;
-	public static String mControlInfo;
-	public static String mLoggingAndAnalysis;
-	public static String mCrosshair;
-	public static String mAdvancedOption;
 
 	// OtherService
 	public static String oSkeyWord1;
@@ -241,14 +71,10 @@ public class Lang {
 	public static String mImportConfigTitle;
 	public static String mImportConfirmTitle;
 	public static String mImportConfirmContent;
-	public static String mImportSuccessTitle;
-	public static String mImportSuccessContent;
 	public static String mImportFailTitle;
 	public static String mImportFailContent;
 	public static String mFactoryResetConfirmTitle;
 	public static String mFactoryResetConfirmContent;
-	public static String mFactoryResetSuccessTitle;
-	public static String mFactoryResetSuccessContent;
 	public static String mFactoryResetFailTitle;
 	public static String mFactoryResetFailContent;
 
@@ -274,58 +100,26 @@ public class Lang {
 	public static String eMixture;
 	public static String eCompressor;
 	public static String eRadiator;
-	public static String eThurstP;
 	public static String eFuelPer;
-	public static String ePitchDeg;
 	// public static String eThrottle;
 	// public static String eProppitch;
 	// public static String eMixture;
 	// public static String eCompressor;
 	// public static String eRadiator;
-	public static String eMagneto;
-	public static String eType;
 	public static String ePower;
 	public static String eThurst;
-	public static String eEffPower;
 	public static String ePowerPercent;
-	public static String eFuel;
-	public static String eFuelP;
-	public static String eFuelPrs;
-	public static String eRPM;
-	public static String eTemp;
-	public static String eEff;
-	public static String eFueltime;
-	public static String eWeptime;
-	public static String eWep;
 	// public static String eFueltimeP;
-	public static String eATM;
-	public static String eOil;
-	public static String eOverheat;
-	public static String eEngRes;
-	public static String eTitle;
 
 	// FlightInfo
 	public static String fIAS;
-	public static String fTAS;
-	public static String fCompass;
-	public static String fMach;
 	public static String fWx;
-	public static String fTR;
-	public static String fTRr;
 	public static String fAlt;
-	public static String fVario;
-	public static String fAcc;
 	public static String fSEP;
-	public static String fAoA;
-	public static String fAoS;
-	public static String fWs;
-	public static String fRa;
 	public static String fGL;
-	public static String fTitle;
 
 	// GearAndFlaps
 	public static String gFlaps;
-	public static String gTitle;
 	public static String gGear;
 	public static String gGearDown;
 	public static String gBrake;
@@ -341,16 +135,12 @@ public class Lang {
 	public static String vElevator;
 	public static String vRudder;
 	public static String vVarioW;
-	public static String vTitle;
 
 	// Controller
 	public static String cStartlog;
 	public static String cSavelog;
 	public static String cPlsopen;
-	public static String cOpenpad;
 	public static String cEnginedmg;
-	public static String cWarn1min;
-	public static String cEngBomb;
 
 	// flightlog
 	public static String l1;
@@ -805,22 +595,110 @@ public class Lang {
 	// public static String bDrag = "主阻力面积因数与加速度系数: %.2f / %.2f\n诱导阻力因数及加速度系数: %.3f
 	// / %.0f\n散热/油冷器阻力系数: %.3f / %.3f\n";
 	//
-	public static prog.config.Config lanuageConfig;
+	/** 当前语言包(zh/en/ru)。可被 initLang(locale) 重复灌值 — 支撑语言热切换 */
+	public static String currentLocale = "zh";
+	/** 当前语言包配置。修复历史拼写 lanuageConfig → languageConfig */
+	public static prog.config.Config languageConfig;
+	/** 中文基准包: 当前语言缺 key 时回退, 永不显示空串 */
+	private static prog.config.Config fallbackConfig;
 
+	/**
+	 * 取消息: 当前语言包 → 中文基准包 → 内联默认值 dft。
+	 * 修复原版缺陷: 缺 key 时把 dft 覆盖为空串导致界面静默空白, 默认值从不生效。
+	 */
 	public static String updateLanguage(String key, String dft) {
-		String v = lanuageConfig.getValue(key);
-		if (!v.equals("")) {
-			// Application.debugPrint(v);
-			return v;
-		} else {
-			// Application.debugPrint(key);
-			dft = "";
+		String v = languageConfig != null ? languageConfig.getValue(key) : "";
+		if (v.isEmpty() && fallbackConfig != null) {
+			v = fallbackConfig.getValue(key);
 		}
-		return dft;
+		return v.isEmpty() ? dft : v;
+	}
+
+	/**
+	 * DSL/ui_layout 文本动态查询口(P2 起 ui_layout.cfg 的 @key 引用经此取译文)。
+	 * 回退链与 updateLanguage 相同; 译文缺失时返回调用方给的原文, 保证渐进迁移期可显示。
+	 */
+	public static String ui(String key, String fallback) {
+		return updateLanguage(key, fallback);
+	}
+
+	/** 当前生效 locale(zh/en/ru) */
+	public static String locale() {
+		return currentLocale;
+	}
+
+	/**
+	 * 配置值(ui_layout 下拉: Auto/中文/English/Русский) → locale。
+	 * Auto/未配置/非法值跟随系统语言。启动 resolveLocale 与运行时热切换共用此规则。
+	 */
+	public static String localeOfPreference(String pref) {
+		if ("中文".equals(pref))
+			return "zh";
+		if ("English".equals(pref))
+			return "en";
+		if ("Русский".equals(pref))
+			return "ru";
+		// auto/未配置/非法值: 跟随系统语言
+		String sys = java.util.Locale.getDefault().getLanguage();
+		if ("zh".equals(sys))
+			return "zh";
+		if ("ru".equals(sys))
+			return "ru";
+		return "en";
+	}
+
+	/**
+	 * 决定启动 locale: ui_layout 配置的 appLanguage 下拉值 → auto 跟随系统 Locale。
+	 * 启动早期调用(ConfigurationService 未就绪), 故用逐行文本扫描而非完整加载,
+	 * 避免此阶段引入 ConfigLoader 的 AWT/jnativehook 依赖链。
+	 */
+	private static String resolveLocale() {
+		return localeOfPreference(readAppLanguagePreference());
+	}
+
+	/** ui_layout 每个 item 单行, 同行内 target 在前 value 在后; user.cfg 优先于模板 */
+	private static final java.util.regex.Pattern APP_LANG_LINE = java.util.regex.Pattern
+			.compile(":target\\s+\"appLanguage\".*?:value\\s+\"([^\"]*)\"");
+
+	private static String readAppLanguagePreference() {
+		for (String path : new String[] { "./ui_layout.user.cfg", "./ui_layout.cfg" }) {
+			java.io.File f = new java.io.File(path);
+			if (!f.exists())
+				continue;
+			try (java.io.BufferedReader br = new java.io.BufferedReader(
+					new java.io.InputStreamReader(new java.io.FileInputStream(f), "UTF-8"))) {
+				String line;
+				while ((line = br.readLine()) != null) {
+					java.util.regex.Matcher m = APP_LANG_LINE.matcher(line);
+					if (m.find()) {
+						String v = m.group(1).trim();
+						if (!v.isEmpty())
+							return v;
+					}
+				}
+			} catch (Exception e) {
+				// 读失败按未配置处理, 走 auto
+			}
+		}
+		return "auto";
 	}
 
 	public static void initLang() {
-		lanuageConfig = new prog.config.Config("./lang/cur.properties");
+		initLang(resolveLocale());
+	}
+
+	/**
+	 * 按指定 locale 加载语言包并全量重灌静态字段(幂等, 热切换入口)。
+	 * locale 包不存在时回退 zh。
+	 */
+	public static void initLang(String locale) {
+		currentLocale = locale;
+		languageConfig = new prog.config.Config("./lang/" + locale + ".properties");
+		if (!"zh".equals(locale)) {
+			fallbackConfig = new prog.config.Config("./lang/zh.properties");
+		} else {
+			fallbackConfig = languageConfig;
+		}
 
 		// 挨个更新
 		appName = updateLanguage("appName", appName);
@@ -831,9 +709,6 @@ public class Lang {
 		aboutcontentsub1 = updateLanguage("aboutcontentsub1", aboutcontentsub1);
 		aboutcontentsub2 = updateLanguage("aboutcontentsub2", aboutcontentsub2);
 		failaddtoTray = updateLanguage("failaddtoTray", failaddtoTray);
-		httpHeader = updateLanguage("httpHeader", httpHeader);
-		httpIp = updateLanguage("httpIp", httpIp);
-		httpPort = updateLanguage("httpPort", httpPort);
 		// Application.debugPrint(httpHeader);
 		Systemerror = updateLanguage("Systemerror", Systemerror);
 		mCancel = updateLanguage("mCancel", mCancel);
@@ -853,14 +728,10 @@ public class Lang {
 		mImportConfigTitle = updateLanguage("mImportConfigTitle", "选择配置文件");
 		mImportConfirmTitle = updateLanguage("mImportConfirmTitle", "确认导入");
 		mImportConfirmContent = updateLanguage("mImportConfirmContent", "确定要导入此配置文件吗？\n当前配置将被备份到 ui_layout.user.cfg.bak");
-		mImportSuccessTitle = updateLanguage("mImportSuccessTitle", "导入成功");
-		mImportSuccessContent = updateLanguage("mImportSuccessContent", "配置文件已成功导入，请重启程序以应用所有更改。");
 		mImportFailTitle = updateLanguage("mImportFailTitle", "导入失败");
 		mImportFailContent = updateLanguage("mImportFailContent", "配置文件导入失败，请检查文件格式是否正确。");
 		mFactoryResetConfirmTitle = updateLanguage("mFactoryResetConfirmTitle", "确认恢复出厂设置");
 		mFactoryResetConfirmContent = updateLanguage("mFactoryResetConfirmContent", "确定要恢复出厂设置吗？\n所有自定义配置将被清除，当前配置将被备份。");
-		mFactoryResetSuccessTitle = updateLanguage("mFactoryResetSuccessTitle", "恢复成功");
-		mFactoryResetSuccessContent = updateLanguage("mFactoryResetSuccessContent", "配置已恢复为出厂设置，请重启程序以应用所有更改。");
 		mFactoryResetFailTitle = updateLanguage("mFactoryResetFailTitle", "恢复失败");
 		mFactoryResetFailContent = updateLanguage("mFactoryResetFailContent", "恢复出厂设置失败，请检查模板文件是否存在。");
 
@@ -879,182 +750,16 @@ public class Lang {
 		mUpdateAvailableLinkText = updateLanguage("mUpdateAvailableLinkText", "前往下载页面");
 		mClosePreview = updateLanguage("mClosePreview", mClosePreview);
 		mMovePanel = updateLanguage("mMovePanel", mMovePanel);
-		mSimpleMode = updateLanguage("mSimpleMode", mSimpleMode);
-		mDetailedMode = updateLanguage("mDetailedMode", mDetailedMode);
-		mBasicSettings = updateLanguage("mBasicSettings", mBasicSettings);
-		mDisplayOverlay = updateLanguage("mDisplayOverlay", mDisplayOverlay);
-		mHotkeyToggle = updateLanguage("mHotkeyToggle", mHotkeyToggle);
-		mWaitHotkey = updateLanguage("mWaitHotkey", mWaitHotkey);
 
-		mP1TempNotification = updateLanguage("mP1TempNotification", mP1TempNotification);
-		mP1TempNotificationBlank = updateLanguage("mP1TempNotificationBlank", mP1TempNotificationBlank);
-		mP1drawFontShape = updateLanguage("mP1drawFontShape", mP1drawFontShape);
-		mP1drawFontShapeBlank = updateLanguage("mP1drawFontShapeBlank", mP1drawFontShapeBlank);
-		mP1AAEnable = updateLanguage("mP1AAEnable", mP1AAEnable);
-		mP1AAEnableBlank = updateLanguage("mP1AAEnableBlank", mP1AAEnableBlank);
-		mP1VoiceWarning = updateLanguage("mP1VoiceWarning", mP1VoiceWarning);
-		mP1VoiceWarningBlank = updateLanguage("mP1VoiceWarningBlank", mP1VoiceWarningBlank);
-		mP1GlobalNumberFont = updateLanguage("mP1GlobalNumberFont", mP1GlobalNumberFont);
-		mP1GlobalNumberFontBlank = updateLanguage("mP1GlobalNumberFontBlank", mP1GlobalNumberFontBlank);
-		mP1Interval = updateLanguage("mP1Interval", mP1Interval);
 		// 新增音量
-		mP1voiceVolume = updateLanguage("mP1voiceVolume", mP1voiceVolume);
-		mP1voiceVolumeBlank = updateLanguage("mP1voiceVolumeBlank", mP1voiceVolumeBlank);
 		// 新增是否关闭状态条
-		mP1StatusBar = updateLanguage("mP1StatusBar", mP1StatusBar);
-		mP1StatusBarBlank = updateLanguage("mP1StatusBarBlank", mP1StatusBarBlank);
 
-		mP1NumColor = updateLanguage("mP1NumColor", mP1NumColor);
-		mP1NumColorBlank = updateLanguage("mP1NumColorBlank", mP1NumColorBlank);
-		mP1LabelColor = updateLanguage("mP1LabelColor", mP1LabelColor);
-		mP1LabelColorBlank = updateLanguage("mP1LabelColorBlank", mP1LabelColorBlank);
-		mP1UnitColor = updateLanguage("mP1UnitColor", mP1UnitColor);
-		mP1UnitColorBlank = updateLanguage("mP1UnitColorBlank", mP1UnitColorBlank);
-		mP1WarnColor = updateLanguage("mP1WarnColor", mP1WarnColor);
-		mP1WarnColorBlank = updateLanguage("mP1WarnColorBlank", mP1WarnColorBlank);
-		mP1ShadeColor = updateLanguage("mP1ShadeColor", mP1ShadeColor);
-		mP1ShadeColorBlank = updateLanguage("mP1ShadeColorBlank", mP1ShadeColorBlank);
 
-		mP2EnginePanel = updateLanguage("mP2EnginePanel", mP2EnginePanel);
-		mP2EnginePanelBlank = updateLanguage("mP2EnginePanelBlank", mP2EnginePanelBlank);
-		mP2EngineGlassEdge = updateLanguage("mP2EngineGlassEdge", mP2EngineGlassEdge);
-		mP2EngineGlassEdgeBlank = updateLanguage("mP2EngineGlassEdgeBlank", mP2EngineGlassEdgeBlank);
-		mP2PanelFont = updateLanguage("mP2PanelFont", mP2PanelFont);
-		mP2FontAdjust = updateLanguage("mP2FontAdjust", mP2FontAdjust);
 
-		mP2EngineBlank = updateLanguage("mP2EngineBlank", mP2EngineBlank);
-		mP2eiHorsePower = updateLanguage("mP2eiHorsePower", mP2eiHorsePower);
-		mP2eiHorsePowerBlank = updateLanguage("mP2eiHorsePowerBlank", mP2eiHorsePowerBlank);
-		mP2eiThrust = updateLanguage("mP2eiThrust", mP2eiThrust);
-		mP2eiThrustBlank = updateLanguage("mP2eiThrustBlank", mP2eiThrustBlank);
-		mP2eiRPM = updateLanguage("mP2eiRPM", mP2eiRPM);
-		mP2eiRPMBlank = updateLanguage("mP2eiRPMBlank", mP2eiRPMBlank);
-		mP2eiPropPitch = updateLanguage("mP2eiPropPitch", mP2eiPropPitch);
-		mP2eiPropPitchBlank = updateLanguage("mP2eiPropPitchBlank", mP2eiPropPitchBlank);
-		mP2eiEffEta = updateLanguage("mP2eiEffEta", mP2eiEffEta);
-		mP2eiEffEtaBlank = updateLanguage("mP2eiEffEtaBlank", mP2eiEffEtaBlank);
-		mP2eiEffHp = updateLanguage("mP2eiEffHp", mP2eiEffHp);
-		mP2eiEffHpBlank = updateLanguage("mP2eiEffHpBlank", mP2eiEffHpBlank);
-		mP2eiPressure = updateLanguage("mP2eiPressure", mP2eiPressure);
-		mP2eiPressureBlank = updateLanguage("mP2eiPressureBlank", mP2eiPressureBlank);
-		mP2eiPowerPercent = updateLanguage("mP2eiPowerPercent", mP2eiPowerPercent);
-		mP2eiPowerPercentBlank = updateLanguage("mP2eiPowerPercentBlank", mP2eiPowerPercentBlank);
-		mP2eiFuelKg = updateLanguage("mP2eiFuelKg", mP2eiFuelKg);
-		mP2eiFuelKgBlank = updateLanguage("mP2eiFuelKgBlank", mP2eiFuelKgBlank);
-		mP2eiFuelTime = updateLanguage("mP2eiFuelTime", mP2eiFuelTime);
-		mP2eiFuelTimeBlank = updateLanguage("mP2eiFuelTimeBlank", mP2eiFuelTimeBlank);
-		mP2eiWepKg = updateLanguage("mP2eiWepKg", mP2eiWepKg);
-		mP2eiWepKgBlank = updateLanguage("mP2eiWepKgBlank", mP2eiWepKgBlank);
-		mP2eiWepTime = updateLanguage("mP2eiWepTime", mP2eiWepTime);
-		mP2eiWepTimeBlank = updateLanguage("mP2eiWepTimeBlank", mP2eiWepTimeBlank);
-		mP2eiTemp = updateLanguage("mP2eiTemp", mP2eiTemp);
-		mP2eiTempBlank = updateLanguage("mP2eiTempBlank", mP2eiTempBlank);
-		mP2eiOilTemp = updateLanguage("mP2eiOilTemp", mP2eiOilTemp);
-		mP2eiOilTempBlank = updateLanguage("mP2eiOilTempBlank", mP2eiOilTempBlank);
-		mP2eiHeatTolerance = updateLanguage("mP2eiHeatTolerance", mP2eiHeatTolerance);
-		mP2eiHeatToleranceBlank = updateLanguage("mP2eiHeatToleranceBlank", mP2eiHeatToleranceBlank);
-		mP2eiEngResponse = updateLanguage("mP2eiEngResponse", mP2eiEngResponse);
-		mP2eiEngResponseBlank = updateLanguage("mP2eiEngResponseBlank", mP2eiEngResponseBlank);
 
-		mP3Crosshair = updateLanguage("mP3Crosshair", mP3Crosshair);
-		mP3CrosshairBlank = updateLanguage("mP3CrosshairBlank", mP3CrosshairBlank);
-		mP3CrosshairDisplay = updateLanguage("mP3CrosshairDisplay", mP3CrosshairDisplay);
-		mP3CrosshairDisplayBlank = updateLanguage("mP3CrosshairDisplayBlank", mP3CrosshairDisplayBlank);
-		mP3Text = updateLanguage("mP3Text", mP3Text);
-		mP3TextBlank = updateLanguage("mP3TextBlank", mP3TextBlank);
-		mP3FlapAngleBar = updateLanguage("mP3FlapAngleBar", mP3FlapAngleBar);
-		mP3FlapAngleBarBlank = updateLanguage("mP3FlapAngleBarBlank", mP3FlapAngleBarBlank);
-		mP3CrosshairTexture = updateLanguage("mP3CrosshairTexture", mP3CrosshairTexture);
-		mP3CrosshairTextureBlank = updateLanguage("mP3CrosshairTextureBlank", mP3CrosshairTextureBlank);
-		mP3ChooseTexture = updateLanguage("mP3ChooseTexture", mP3ChooseTexture);
-		mP3ChooseTextureBlank = updateLanguage("mP3ChooseTextureBlank", mP3ChooseTextureBlank);
-		mP3CrosshairSize = updateLanguage("mP3CrosshairSize", mP3CrosshairSize);
-		mP3MonoFont = updateLanguage("mP3MonoFont", mP3MonoFont);
-		mP3MonoFontBlank = updateLanguage("mP3MonoFontBlank", mP3MonoFontBlank);
 
-		mP4FlightInfoPanel = updateLanguage("mP4FlightInfoPanel", mP4FlightInfoPanel);
-		mP4attitudeIndicatorPanel = updateLanguage("mP4attitudeIndicatorPanel", mP4attitudeIndicatorPanel);
-		mP4attitudeIndicatorPanelBlank = updateLanguage("mP4attitudeIndicatorPanelBlank",
-				mP4attitudeIndicatorPanelBlank);
-		mP4FMPanel = updateLanguage("mP4FMPanel", mP4FMPanel);
-		mP4FMPanelBlank = updateLanguage("mP4FMPanelBlank", mP4FMPanelBlank);
-		mP4fiIAS = updateLanguage("mP4fiIAS", mP4fiIAS);
-		mP4fiIASBlank = updateLanguage("mP4fiIASBlank", mP4fiIASBlank);
-		mP4fiTAS = updateLanguage("mP4fiTAS", mP4fiTAS);
-		mP4fiTASBlank = updateLanguage("mP4fiTASBlank", mP4fiTASBlank);
-		mP4fiMach = updateLanguage("mP4fiMach", mP4fiMach);
-		mP4fiMachBlank = updateLanguage("mP4fiMachBlank", mP4fiMachBlank);
-		mP4fiCompass = updateLanguage("mP4fiCompass", mP4fiCompass);
-		mP4fiCompassBlank = updateLanguage("mP4fiCompassBlank", mP4fiCompassBlank);
-		mP4fiHeight = updateLanguage("mP4fiHeight", mP4fiHeight);
-		mP4fiHeightBlank = updateLanguage("mP4fiHeightBlank", mP4fiHeightBlank);
-		mP4fiVario = updateLanguage("mP4fiVario", mP4fiVario);
-		mP4fiVarioBlank = updateLanguage("mP4fiVarioBlank", mP4fiVarioBlank);
-		mP4fiSEP = updateLanguage("mP4fiSEP", mP4fiSEP);
-		mP4fiSEPBlank = updateLanguage("mP4fiSEPBlank", mP4fiSEPBlank);
-		mP4fiAcc = updateLanguage("mP4fiAcc", mP4fiAcc);
-		mP4fiAccBlank = updateLanguage("mP4fiAccBlank", mP4fiAccBlank);
-		mP4fiWx = updateLanguage("mP4fiWx", mP4fiWx);
-		mP4fiWxBlank = updateLanguage("mP4fiWxBlank", mP4fiWxBlank);
-		mP4fiNy = updateLanguage("mP4fiNy", mP4fiNy);
-		mP4fiNyBlank = updateLanguage("mP4fiNyBlank", mP4fiNyBlank);
-		mP4fiTurn = updateLanguage("mP4fiTurn", mP4fiTurn);
-		mP4fiTurnBlank = updateLanguage("mP4fiTurnBlank", mP4fiTurnBlank);
-		mP4fiTurnRadius = updateLanguage("mP4fiTurnRadius", mP4fiTurnRadius);
-		mP4fiTurnRadiusBlank = updateLanguage("mP4fiTurnRadiusBlank", mP4fiTurnRadiusBlank);
-		mP4fiAoA = updateLanguage("mP4fiAoA", mP4fiAoA);
-		mP4fiAoABlank = updateLanguage("mP4fiAoABlank", mP4fiAoABlank);
-		mP4fiAoS = updateLanguage("mP4fiAoS", mP4fiAoS);
-		mP4fiAoSBlank = updateLanguage("mP4fiAoSBlank", mP4fiAoSBlank);
-		mP4fiWingSweep = updateLanguage("mP4fiWingSweep", mP4fiWingSweep);
-		mP4fiWingSweepBlank = updateLanguage("mP4fiWingSweepBlank", mP4fiWingSweepBlank);
-		mP4fiRadioAlt = updateLanguage("mP4fiRadioAlt", mP4fiRadioAlt);
-		mP4fiRadioAltBlank = updateLanguage("mP4fiRadioAltBlank", mP4fiRadioAltBlank);
-		mP4FlightInfoBlank = updateLanguage("mP4FlightInfoBlank", mP4FlightInfoBlank);
-		mP4FlightInfoGlassEdge = updateLanguage("mP4FlightInfoGlassEdge", mP4FlightInfoGlassEdge);
-		mP4FlightInfoGlassEdgeBlank = updateLanguage("mP4FlightInfoGlassEdgeBlank", mP4FlightInfoGlassEdgeBlank);
-		mP4PanelFont = updateLanguage("mP4PanelFont", mP4PanelFont);
-		mP4FontAdjust = updateLanguage("mP4FontAdjust", mP4FontAdjust);
-		mP4ColumnAdjust = updateLanguage("mP4ColumnAdjust", mP4ColumnAdjust);
-		mP5LoggingAndCharting = updateLanguage("mP5LoggingAndCharting", mP5LoggingAndCharting);
-		mP5LoggingAndChartingBlank = updateLanguage("mP5LoggingAndChartingBlank", mP5LoggingAndChartingBlank);
-		mP5Information = updateLanguage("mP5Information", mP5Information);
-		mP5InformationBlank = updateLanguage("mP5InformationBlank", mP5InformationBlank);
-		mP5FMChoose = updateLanguage("mP5FMChoose", mP5FMChoose);
-		mP5FMChooseBlank = updateLanguage("mP5FMChooseBlank", mP5FMChooseBlank);
-		mP5FMDisplayKey = updateLanguage("mP5FMDisplayKey", mP5FMDisplayKey);
-		mP5FMDisplayKeyTip = updateLanguage("mP5FMDisplayKeyTip", mP5FMDisplayKeyTip);
-		mP5FMPrintEnable = updateLanguage("mP5FMPrintEnable", mP5FMPrintEnable);
-		mP5FMPrintEnableBlank = updateLanguage("mP5FMPrintEnableBlank", mP5FMPrintEnableBlank);
 
-		mP6AxisPanel = updateLanguage("mP6AxisPanel", mP6AxisPanel);
-		mP6AxisPanelBlank = updateLanguage("mP6AxisPanelBlank", mP6AxisPanelBlank);
-		mP6AxisEdge = updateLanguage("mP6AxisEdge", mP6AxisEdge);
-		mP6AxisEdgeBlank = updateLanguage("mP6AxisEdgeBlank", mP6AxisEdgeBlank);
-		mP6GearAndFlaps = updateLanguage("mP6GearAndFlaps", mP6GearAndFlaps);
-		mP6GearAndFlapsEdge = updateLanguage("mP6GearAndFlapsEdge", mP6GearAndFlapsEdge);
-		mP6GearAndFlapsEdgeBlank = updateLanguage("mP6GearAndFlapsEdgeBlank", mP6GearAndFlapsEdgeBlank);
-		mP6engineControl = updateLanguage("mP6engineControl", mP6engineControl);
-		mP6engineControlBlank = updateLanguage("mP6engineControlBlank", mP6engineControlBlank);
-		mP6ecThrottle = updateLanguage("mP6ecThrottle", mP6ecThrottle);
-		mP6ecThrottleBlank = updateLanguage("mP6ecThrottleBlank", mP6ecThrottleBlank);
-		mP6ecPitch = updateLanguage("mP6ecPitch", mP6ecPitch);
-		mP6ecPitchBlank = updateLanguage("mP6ecPitchBlank", mP6ecPitchBlank);
-		mP6ecMixture = updateLanguage("mP6ecMixture", mP6ecMixture);
-		mP6ecMixtureBlank = updateLanguage("mP6ecMixtureBlank", mP6ecMixtureBlank);
-		mP6ecRadiator = updateLanguage("mP6ecRadiator", mP6ecRadiator);
-		mP6ecRadiatorBlank = updateLanguage("mP6ecRadiatorBlank", mP6ecRadiatorBlank);
-		mP6ecCompressor = updateLanguage("mP6ecCompressor", mP6ecCompressor);
-		mP6ecCompressorBlank = updateLanguage("mP6ecCompressorBlank", mP6ecCompressorBlank);
-		mP6ecLFuel = updateLanguage("mP6ecLFuel", mP6ecLFuel);
-		mP6ecLFuelBlank = updateLanguage("mP6ecLFuelBlank", mP6ecLFuelBlank);
 
-		mFlightInfo = updateLanguage("mFlightInfo", mFlightInfo);
-		mEngineInfo = updateLanguage("mEngineInfo", mEngineInfo);
-		mControlInfo = updateLanguage("mControlInfo", mControlInfo);
-		mLoggingAndAnalysis = updateLanguage("mLoggingAndAnalysis", mLoggingAndAnalysis);
-		mCrosshair = updateLanguage("mCrosshair", mCrosshair);
-		mAdvancedOption = updateLanguage("mAdvancedOption", mAdvancedOption);
 		oSkeyWord1 = updateLanguage("oSkeyWord1", oSkeyWord1);
 		oSkeyWord2 = updateLanguage("oSkeyWord2", oSkeyWord2);
 		dFprev = updateLanguage("dFprev", dFprev);
@@ -1080,48 +785,16 @@ public class Lang {
 		eMixture = updateLanguage("eMixture", eMixture);
 		eCompressor = updateLanguage("eCompressor", eCompressor);
 		eRadiator = updateLanguage("eRadiator", eRadiator);
-		eThurstP = updateLanguage("eThurstP", eThurstP);
 		eFuelPer = updateLanguage("eFuelPer", eFuelPer);
-		ePitchDeg = updateLanguage("ePitchDeg", ePitchDeg);
-		eMagneto = updateLanguage("eMagneto", eMagneto);
-		eType = updateLanguage("eType", eType);
 		ePower = updateLanguage("ePower", ePower);
 		eThurst = updateLanguage("eThurst", eThurst);
-		eEffPower = updateLanguage("eEffPower", eEffPower);
 		ePowerPercent = updateLanguage("ePowerPercent", ePowerPercent);
-		eFuel = updateLanguage("eFuel", eFuel);
-		eFuelP = updateLanguage("eFuelP", eFuelP);
-		eFuelPrs = updateLanguage("eFuelPrs", eFuelPrs);
-		eRPM = updateLanguage("eRPM", eRPM);
-		eTemp = updateLanguage("eTemp", eTemp);
-		eEff = updateLanguage("eEff", eEff);
-		eFueltime = updateLanguage("eFueltime", eFueltime);
-		eWeptime = updateLanguage("eWeptime", eWeptime);
-		eWep = updateLanguage("eWep", eWep);
-		eATM = updateLanguage("eATM", eATM);
-		eOil = updateLanguage("eOil", eOil);
-		eOverheat = updateLanguage("eOverheat", eOverheat);
-		eEngRes = updateLanguage("eEngRes", eEngRes);
-		eTitle = updateLanguage("eTitle", eTitle);
 		fIAS = updateLanguage("fIAS", fIAS);
-		fTAS = updateLanguage("fTAS", fTAS);
-		fCompass = updateLanguage("fCompass", fCompass);
-		fMach = updateLanguage("fMach", fMach);
 		fWx = updateLanguage("fWx", fWx);
-		fTR = updateLanguage("fTR", fTR);
-		fTRr = updateLanguage("fTRr", fTRr);
 		fAlt = updateLanguage("fAlt", fAlt);
-		fVario = updateLanguage("fVario", fVario);
-		fAcc = updateLanguage("fAcc", fAcc);
 		fSEP = updateLanguage("fSEP", fSEP);
-		fAoA = updateLanguage("fAoA", fAoA);
-		fAoS = updateLanguage("fAoS", fAoS);
-		fWs = updateLanguage("fWs", fWs);
-		fRa = updateLanguage("fRa", fRa);
 		fGL = updateLanguage("fGL", fGL);
-		fTitle = updateLanguage("fTitle", fTitle);
 		gFlaps = updateLanguage("gFlaps", gFlaps);
-		gTitle = updateLanguage("gTitle", gTitle);
 		gGear = updateLanguage("gGear", gGear);
 		gGearDown = updateLanguage("gGearDown", gGearDown);
 		gBrake = updateLanguage("gBrake", gBrake);
@@ -1133,11 +806,9 @@ public class Lang {
 		vElevator = updateLanguage("vElevator", vElevator);
 		vRudder = updateLanguage("vRudder", vRudder);
 		vVarioW = updateLanguage("vVarioW", vVarioW);
-		vTitle = updateLanguage("vTitle", vTitle);
 		cStartlog = updateLanguage("cStartlog", cStartlog);
 		cSavelog = updateLanguage("cSavelog", cSavelog);
 		cPlsopen = updateLanguage("cPlsopen", cPlsopen);
-		cOpenpad = updateLanguage("cOpenpad", cOpenpad);
 
 		l1 = updateLanguage("l1", l1);
 		l2 = updateLanguage("l2", l2);

@@ -185,6 +185,20 @@ public class MainForm extends WebFrame {
 		});
 	}
 
+	/**
+	 * 语言热切换后的整页重建: 丢弃旧 tab(快照了旧语言 label), 按重解析的
+	 * tc.dynamicConfigs 重建。EDT 调用。
+	 */
+	public void rebuildPanels() {
+		if (tabbedPane != null) {
+			this.remove(tabbedPane);
+		}
+		initPanel();
+		updateDynamicSize();
+		revalidate();
+		repaint();
+	}
+
 	public void updateDynamicSize() {
 		if (isInitializing || tabbedPane == null)
 			return;

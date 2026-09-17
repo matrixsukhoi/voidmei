@@ -154,6 +154,7 @@ SUITES = [
     ("fmstore", "FM Manager Store Tests", "TestFMStore"),
     ("fmpaths", "FM Data Paths Tests", "TestFMDataPaths"),
     ("fmhandle", "FM Handle Tests", "TestFMHandle"),
+    ("i18n", "Lang i18n Tests", "TestLangI18n"),
 ]
 SUITE_ALIASES = {"atm": "atmosphere", "power": "piston", "vis": "visibility", "voice": "voicepack"}
 # 真机 FM 端到端验证套件 (用项目内 data/ 的真实 blkx 跑功率曲线核对): 名 -> (label, 测试类, 机型)
@@ -391,10 +392,8 @@ def cmd_dist():
     if (ROOT / "VoidMei.exe").is_file():
         shutil.copy2(ROOT / "VoidMei.exe", stage / "VoidMei.exe")
     # --- 依赖与资源 (白名单复制, 天然排除 records/ config/ ui_layout.user.cfg 等用户数据) ---
-    for d in ("dep", "fonts", "image", "voice"):
+    for d in ("dep", "fonts", "image", "voice", "lang"):
         copytree(ROOT / d, stage / d)
-    (stage / "lang").mkdir()
-    shutil.copy2(ROOT / "lang" / "cur.properties", stage / "lang" / "cur.properties")
     shutil.copy2(ROOT / "ui_layout.cfg", stage / "ui_layout.cfg")
     for txt in ("使用说明.txt", "快速使用说明.txt", "更新日志.txt"):
         if (ROOT / txt).is_file():
