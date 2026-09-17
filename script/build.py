@@ -155,6 +155,7 @@ SUITES = [
     ("fmpaths", "FM Data Paths Tests", "TestFMDataPaths"),
     ("fmhandle", "FM Handle Tests", "TestFMHandle"),
     ("i18n", "Lang i18n Tests", "TestLangI18n"),
+    ("i18n-guard", "i18n Guard Tests", "TestI18nGuard"),
 ]
 SUITE_ALIASES = {"atm": "atmosphere", "power": "piston", "vis": "visibility", "voice": "voicepack"}
 # 真机 FM 端到端验证套件 (用项目内 data/ 的真实 blkx 跑功率曲线核对): 名 -> (label, 测试类, 机型)
