@@ -867,7 +867,7 @@ public class Lang {
 		// Config Import Dialog - 拖放导入
 		mImportDropZoneTitle = updateLanguage("mImportDropZoneTitle", "拖放配置文件到此处");
 		mImportDropZoneSubtitle = updateLanguage("mImportDropZoneSubtitle", "或点击选择文件");
-		mImportDropZoneFormat = updateLanguage("mImportDropZoneFormat", "支持的格式: *.cfg, *.bak");
+		mImportDropZoneFormat = updateLanguage("mImportDropZoneFormat", "导入 ui_layout.user.cfg（支持 .cfg / .bak 文件）");
 		mImportDropZoneRelease = updateLanguage("mImportDropZoneRelease", "松开以导入");
 		mImportDropZoneInvalid = updateLanguage("mImportDropZoneInvalid", "不支持的文件格式，请选择 .cfg 或 .bak 文件");
 		mImportFileSelected = updateLanguage("mImportFileSelected", "已选择: %s");
