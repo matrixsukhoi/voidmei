@@ -1209,6 +1209,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		double machLimit = blkx.getMNEVWing(wingSweep);
 		double aileronLockSpeed = blkx.aileronEff;
 		double rudderLockSpeed = blkx.rudderEff;
+		// 直升机无副翼/方向舵 (周期变距/尾桨), FM 的 EffectiveSpeed 是模板占位值 (issue #65):
+		// 锁定速度归零 → 速度条锁定线隐藏; VNE/Mach 超速比值保留 (直升机超速限制真实存在)
+		if (blkx.isHelicopter) {
+			aileronLockSpeed = 0;
+			rudderLockSpeed = 0;
+		}
 		
 		// 1. 根据地球大气模型计算mach
 		double iasPerMach = 3.6 * Math.sqrt(1.4 / 1.225 * 101325 * Math.pow((1 - 0.0000225577 * sState.heightm), 5.25588));
@@ -1242,6 +1248,13 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// R2 hasFM 守卫: 无 FM 时保持上次值/初始值 0（UI 端按无效值隐藏）
 		parser.Blkx blkx = fm.blkx;
 		if (blkx == null) {
+			return;
+		}
+
+		// 直升机无机翼失速概念 (issue #65): 纯机翼公式对直升机无意义 (小翼面积算出 ~500km/h);
+		// 必须显式清零而非早退——Service 跨换机长存且 stallSpeed 无重置点, 早退会残留上一架固定翼的值
+		if (blkx.isHelicopter) {
+			stallSpeed = 0;
 			return;
 		}
 

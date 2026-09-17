@@ -404,6 +404,10 @@ public class Blkx {
 	// AvailableControls.hasFlapsControl: 游戏引擎的襟翼控制开关 (false=无襟翼机, 如 f_16xl/直升机/三角翼/双翼机)
 	// 注意不能靠 FlapsDestructionIndSpeed/FlapsPolar 有无判断——无襟翼机的模板数据是齐全的
 	public boolean hasFlapsControl = true;
+	// 直升机判别: 涡环系数 VortexRingVFlowMult 仅直升机 FM 有非零值 (段名不固定 Propeller0~N/PropellerType0~N);
+	// 固定翼恒为 0,0, 老格式无此字段, 均按非直升机降级
+	// 演进注记: 若未来出现第二个非机翼升力类别, 消费点语义应从"是否直升机"升级为"机翼失速语义是否适用"
+	public boolean isHelicopter = false;
 	public double halfweight;
 
 	// public
@@ -1229,6 +1233,8 @@ public class Blkx {
 			hasFlapsControl = false;
 		}
 
+		detectHelicopter();
+
 		// Application.debugPrint("Flaps Destruction Stages: " + FlapsDestructionNum +
 		// ", Gear Destruction Speed: "
 		// + GearDestructionIndSpeed);
@@ -1911,6 +1917,38 @@ public class Blkx {
 			eix++;
 		value = text.substring(bix, eix);
 		return value;
+	}
+
+	// 直升机判别: 全文任一 VortexRingVFlowMult 首数 > 0 即直升机 (固定翼恒 0,0; 老格式无此字段按固定翼)。
+	// 段名不固定(Propeller0~N/PropellerType0~N)且同文件可有多处(如 mi_24a 主旋翼非零+尾桨为零),
+	// getone 只取第一处不够, 故全文遍历; 脏值跳过该处继续找
+	private void detectHelicopter() {
+		final String needle = "VortexRingVFlowMult";
+		int pos = 0;
+		// 出现次数上界, 防畸形文件扫爆 (全库实测最多 2 处)
+		for (int i = 0; i < 16; i++) {
+			int hit = data.indexOf(needle, pos);
+			if (hit < 0)
+				return;
+			// 以下 '=' 与行尾扫描同 getone 的有界写法
+			int bix = hit;
+			while (bix < data.length() && data.charAt(bix) != '=')
+				bix++;
+			if (bix >= data.length())
+				return;
+			int eix = ++bix;
+			while (eix < data.length() && data.charAt(eix) != '\n')
+				eix++;
+			try {
+				if (Double.parseDouble(data.substring(bix, eix).split(",")[0].trim()) > 0) {
+					isHelicopter = true;
+					return;
+				}
+			} catch (NumberFormatException e) {
+				// 脏值跳过该处, 继续找下一处
+			}
+			pos = eix;
+		}
 	}
 
 	// --- Reflection & Dynamic Config Support ---
