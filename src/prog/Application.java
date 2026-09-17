@@ -219,7 +219,8 @@ public class Application {
 			SystemTray tray = SystemTray.getSystemTray();
 			Image image = Toolkit.getDefaultToolkit().getImage("image/16x16.png");
 			TrayIcon icon = new TrayIcon(image);
-			icon.setToolTip(appName);
+			// 悬浮提示携带版本号, 与主窗口标题格式一致; dev 构建显示 "VoidMei vdev"
+			icon.setToolTip(appName + " v" + version);
 			PopupMenu p = new PopupMenu("");
 			MenuItem close = new MenuItem(Lang.close);
 			MenuItem about = new MenuItem(Lang.about);
