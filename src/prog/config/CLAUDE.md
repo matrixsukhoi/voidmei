@@ -21,11 +21,21 @@ ui_layout.cfg (S 表达式 DSL) → ConfigLoader/SExpParser → GroupConfig/RowC
 ## ui_layout.cfg DSL 速查
 
 ```lisp
-(panel "标题" :cols 2
-  (group "组名" :switch "组开关键"          ; 可选: 可见性开关/位置/透明度/字体/热键
-    (item "标签" :type switch :target "配置键" :value true :default true
-          :desc "提示" :descImg "帮助图")))
+(panel "@ui.<id>.title" :id "<稳定id>" :cols 2
+  (group "@ui.<id>.g0.title"
+    (item "@ui.<id>.<target>.label" :type switch :target "配置键" :value true :default true
+          :desc "@ui.<id>.<target>.desc" :descImg "帮助图")))
 ```
+
+## i18n 约定（多语言， 2026-09 P0~P5 落地）
+
+- **`@key` 引用**：title/label/desc/target-name/info-value 以 `@` 前缀引用 `lang/*.properties` 的 key；无前缀=原文直显（渐进迁移）。`label` 内存存**当前语言译文**（renderer 零改动），`labelKey/descKey/targetNameKey/valueKey/titleKey` 存引用——saveConfig 写回 `@key`，**user.cfg 语言无关**
+- **panel `:id` 是配置键**：`getOverlaySettings("<id>")`（如 `engineControl`），中文标题只是显示文本；`StatusBar` 是无 panel 匹配的居中特例
+- **语言包**：`lang/zh|en|ru.properties`，回退链 当前包→zh→内联默认（`Lang.updateLanguage`）；`appLanguage` 下拉（Auto/中文/English/Русский）存 user.cfg，启动早期 `Lang.resolveLocale()` 逐行扫描预读
+- **热切换**：`Controller.handleLanguageSwitch()`——重灌 Lang→`loadLayout` 重解析→MainForm `rebuildPanels()`→overlay closeAll+按模式重开→托盘重建（幂等）
+- **文本抽取**：cfg 加新 item 后跑 `python script/extract_i18n.py`（幂等：新文本入 zh.properties + cfg 原地 @key 化；en/ru 需补译，漏翻由 `test i18n-guard` 闸门1 捕获）
+- **禁中文逻辑键**：FM 对比规则经 `FmPropKeys` 稳定键（`fm.prop.*` 三语与 b* 格式串属性行逐字一致，闸门5 守护）；`test i18n-guard` 五道闸门进全量
+
 
 **item 类型**：`switch`/`switch_inv`（反相，UI ON = value false）/`slider`（`:min :max :unit`）/`combo`（`:options`）/`color`（hex `#RRGGBBAA` 或十进制 `R,G,B,A`；显示用 hex、存储用十进制）/`font`/`hotkey`/`button`/`data`。
 
