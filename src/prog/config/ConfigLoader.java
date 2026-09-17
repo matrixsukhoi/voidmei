@@ -25,14 +25,20 @@ public class ConfigLoader {
 
     public static class RowConfig {
         public String label;
+        // i18n: "@key" 引用原文时的 key(null = label 为直显原文)。
+        // label 本身存解析后的当前语言译文(消费方零改动); saveConfig 写回 @key 使 user.cfg 语言无关
+        public String labelKey = null;
         public String targetName = null; // Display name for overlay if different from label
+        public String targetNameKey = null;
         public String formula; // Kept for reflection paths (e.g. S.rpm)
         public String format;
         public String unit = ""; // Unit string (e.g. "Hp")
         public Object value = true; // Typed value (Boolean, Integer, String)
         public Object defaultValue = null; // Default value for reset
+        public String valueKey = null; // i18n @key of value (仅 info 长文本, null = 非引用)
         public String fgColor = null; // Foreground color (e.g. for buttons)
         public String desc = null; // Help description tooltip
+        public String descKey = null; // i18n @key of desc (null = 直显原文)
         public String descImg = null; // Help image path (relative to project root)
         public String previewValue = null; // Default value for UI preview/placeholder
         public boolean hideWhenZero = false; // Hide if value is zero
@@ -80,6 +86,7 @@ public class ConfigLoader {
     public static class GroupConfig {
         public String title;
         public String id = null; // 稳定标识(与显示标题解耦, i18n 改标题不影响配置键)
+        public String titleKey = null; // i18n @key of title (null = 直显原文)
         public double x = 0.1;
         public double y = 0.1;
         public int alpha = 150;
@@ -120,6 +127,18 @@ public class ConfigLoader {
     }
 
     // --- S-Expression Parsing Helpers ---
+
+    /**
+     * i18n "@key" 前缀约定: DSL 文本字段以 @ 开头表示引用语言包 key。
+     * 返回 [译文或原文, key或null]; 译文经 Lang.ui 回退链(当前包→zh→原文)。
+     */
+    private static String[] splitI18nRef(String raw) {
+        if (raw != null && raw.startsWith("@")) {
+            String key = raw.substring(1);
+            return new String[] { prog.i18n.Lang.ui(key, raw), key };
+        }
+        return new String[] { raw, null };
+    }
 
     private static String getKeywordString(SList list, String keyword, String def) {
         for (int i = 0; i < list.children.size() - 1; i++) {
@@ -218,8 +237,11 @@ public class ConfigLoader {
                 if (panelExp.children.size() > 1 && panelExp.children.get(1).isAtom()) {
                     title = panelExp.children.get(1).asAtom().getString();
                 }
+                // @key 引用: title 存译文, titleKey 存引用(供 saveConfig 写回, user.cfg 语言无关)
+                String[] t = splitI18nRef(title);
 
-                GroupConfig group = new GroupConfig(title);
+                GroupConfig group = new GroupConfig(t[0]);
+                group.titleKey = t[1];
                 group.id = getKeywordString(panelExp, ":id", null);
                 group.x = getKeywordDouble(panelExp, ":x", 0.1);
                 group.y = getKeywordDouble(panelExp, ":y", 0.1);
@@ -273,8 +295,10 @@ public class ConfigLoader {
                 String label = "Group";
                 if (list.children.size() > 1)
                     label = list.children.get(1).asAtom().getString();
+                String[] gt = splitI18nRef(label);
 
-                RowConfig headerRow = new RowConfig(label, null, "%s");
+                RowConfig headerRow = new RowConfig(gt[0], null, "%s");
+                headerRow.labelKey = gt[1];
                 headerRow.type = "HEADER";
                 headerRow.groupColumns = getKeywordInt(list, ":column", 0);
                 headerRow.value = true;
@@ -289,8 +313,10 @@ public class ConfigLoader {
                 String label = "Item";
                 if (list.children.size() > 1)
                     label = list.children.get(1).asAtom().getString();
+                String[] lt = splitI18nRef(label);
 
-                RowConfig row = new RowConfig(label, null, "%s");
+                RowConfig row = new RowConfig(lt[0], null, "%s");
+                row.labelKey = lt[1];
                 String rawType = getKeywordString(list, ":type", "DATA");
 
                 // Map logical types to internal types
@@ -310,16 +336,28 @@ public class ConfigLoader {
                 // value defaults to true for switches, 0 for slider, null/string for others
                 // But we need to check the SExp type
                 row.value = extractValue(list, ":value");
+                // info 行的长正文 value 支持 @key(其余类型 value 是布尔/数字/枚举, 不翻译)
+                if (row.value instanceof String) {
+                    String[] vt = splitI18nRef((String) row.value);
+                    if (vt[1] != null) {
+                        row.value = vt[0];
+                        row.valueKey = vt[1];
+                    }
+                }
                 row.defaultValue = extractValue(list, ":default");
                 row.fgColor = getKeywordString(list, ":fgcolor", null);
-                row.desc = getKeywordString(list, ":desc", null);
+                String[] dsc = splitI18nRef(getKeywordString(list, ":desc", null));
+                row.desc = dsc[0];
+                row.descKey = dsc[1];
                 row.descImg = getKeywordString(list, ":desc-img", null);
                 row.previewValue = getKeywordString(list, ":preview-value", null);
                 row.hideWhenZero = getKeywordBool(list, ":hide-when-zero", false);
                 row.precision = getKeywordInt(list, ":precision", 0);
                 row.unitSource = getKeywordString(list, ":unit-source", null);
                 row.precisionSource = getKeywordString(list, ":precision-source", null);
-                row.targetName = getKeywordString(list, ":target-name", null);
+                String[] tn = splitI18nRef(getKeywordString(list, ":target-name", null));
+                row.targetName = tn[0];
+                row.targetNameKey = tn[1];
                 row.visibleWhen = getKeywordSExp(list, ":visible-when"); // 解析显示条件表达式
                 row.naWhen = getKeywordSExp(list, ":na-when"); // 解析NA显示条件表达式
 
@@ -384,7 +422,7 @@ public class ConfigLoader {
 
             for (GroupConfig group : groups) {
                 pw.print("(panel ");
-                pw.print(quote(group.title));
+                pw.print(quotedText(group.title, group.titleKey));
                 pw.println();
 
                 String indent = "  "; // 2 spaces base indent for panel attributes as per sample
@@ -423,7 +461,7 @@ public class ConfigLoader {
         for (RowConfig row : rows) {
             if ("HEADER".equals(row.type)) {
                 pw.print(indent + "(group ");
-                pw.print(quote(row.label));
+                pw.print(quotedText(row.label, row.labelKey));
                 if (row.groupColumns > 0) {
                     pw.print(" :column " + row.groupColumns);
                 }
@@ -436,7 +474,7 @@ public class ConfigLoader {
             } else {
                 // Item
                 pw.print(indent + "(item ");
-                pw.print(quote(row.label));
+                pw.print(quotedText(row.label, row.labelKey));
 
                 String lispType = row.type.toLowerCase().replace("_", "-");
                 pw.print(" :type " + lispType);
@@ -464,13 +502,14 @@ public class ConfigLoader {
 
                 // Value is last
                 if (!"button".equals(lispType)) {
-                    pw.print(" :value " + serializeAtom(row.value));
+                    // info 长正文的 @key 引用写回(其余类型 value 非文本)
+                    pw.print(" :value " + (row.valueKey != null ? quote("@" + row.valueKey) : serializeAtom(row.value)));
                 }
                 if (row.defaultValue != null && !"button".equals(lispType)) {
                     pw.print(" :default " + serializeAtom(row.defaultValue));
                 }
                 if (row.desc != null) {
-                    pw.print(" :desc " + quote(row.desc));
+                    pw.print(" :desc " + quotedText(row.desc, row.descKey));
                 }
                 if (row.descImg != null) {
                     pw.print(" :desc-img " + quote(row.descImg));
@@ -491,7 +530,7 @@ public class ConfigLoader {
                     pw.print(" :precision-source " + quote(row.precisionSource));
                 }
                 if (row.targetName != null) {
-                    pw.print(" :target-name " + quote(row.targetName));
+                    pw.print(" :target-name " + quotedText(row.targetName, row.targetNameKey));
                 }
                 if (row.fgColor != null) {
                     pw.print(" :fgcolor " + quote(row.fgColor));
@@ -507,6 +546,11 @@ public class ConfigLoader {
                 pw.println(")");
             }
         }
+    }
+
+    /** 序列化文本字段: 有 i18n 引用写 "@key"(user.cfg 语言无关), 否则写原文 */
+    private static String quotedText(String text, String key) {
+        return key != null ? quote("@" + key) : quote(text);
     }
 
     private static String quote(String s) {

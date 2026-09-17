@@ -192,6 +192,7 @@ public class ConfigManager {
     private static GroupConfig mergePanel(GroupConfig template, GroupConfig user, MergeReport report) {
         GroupConfig merged = new GroupConfig(template.title);
         merged.id = template.id; // 结构字段: id 恒取模板, 与显示标题解耦
+        merged.titleKey = template.titleKey; // i18n 引用属结构, 恒取模板
 
         // User-preserved fields
         merged.x = user.x;
@@ -288,6 +289,7 @@ public class ConfigManager {
      */
     private static RowConfig mergeRow(RowConfig template, RowConfig user, String panelTitle, MergeReport report) {
         RowConfig merged = new RowConfig(template.label, template.formula, template.format);
+        merged.labelKey = template.labelKey; // i18n 引用属结构, 恒取模板
 
         // Template fields (structure/definition)
         merged.type = template.type;
@@ -295,11 +297,14 @@ public class ConfigManager {
         merged.unit = template.unit;
         merged.format = template.format;
         merged.desc = template.desc;
+        merged.descKey = template.descKey; // i18n 引用属结构, 恒取模板
         merged.descImg = template.descImg;
         merged.previewValue = template.previewValue;
         merged.hideWhenZero = template.hideWhenZero;
         merged.precision = template.precision;
         merged.targetName = template.targetName;
+        merged.targetNameKey = template.targetNameKey;
+        merged.valueKey = template.valueKey;
         merged.minVal = template.minVal;
         merged.maxVal = template.maxVal;
         merged.groupColumns = template.groupColumns;
