@@ -13,6 +13,7 @@
   python script/build.py exe                launch4j 打 VoidMei.exe (版本号注入 EXE 资源)
   python script/build.py dist               jar+exe 后组装完整分发包 -> dist/VoidMei_v*.zip
   python script/build.py fmdata             从 War Thunder 客户端解包并裁剪 FM 数据 (游戏版本更新后执行)
+  python script/build.py fmdata-upload      上传 dist 的 data zip+manifest 到 data prerelease, 成功后清理旧版
   python script/build.py clean              清理 bin/ build/ dist/
 
 环境变量:
@@ -167,6 +168,9 @@ FM_SUITES = {
     # 襟翼控制开关解析: 遍历 fm/ 全部文件, 解析 false 集合与文本显式 false 集合对拍,
     # 代表机型硬断言 (f_16xl 无襟翼 / p-51d-5 有襟翼), 字段缺失机降级 true
     "flaps-ctrl": ("HasFlapsControl Parsing Tests", "TestHasFlapsControl", "*"),
+    # 直升机判别解析: 遍历 fm/ 全部文件, 解析直升机集合与文本非零 VortexRingVFlowMult 集合对拍,
+    # 代表机型硬断言 (mi_24a/ka_50/uh_1b 直升机 / spitfire_f24/a6m2/f_16 固定翼)
+    "heli-detect": ("IsHelicopter Parsing Tests", "TestIsHelicopter", "*"),
     # blkx 文本变异 fuzz (P6): 种子 bf-109e-4 的真机物理 FM (中等体积且含 PASSPORT 曲线块,
     # 覆盖 getAllplotdata 路径; spitfire_f24 无 PASSPORT 块不适用), data 缺失自动跳过 (同上)
     "fuzz-blkx": ("Blkx Parser Fuzz Tests", "FMParserFuzzer", "bf-109e-4"),
@@ -499,6 +503,47 @@ def find_wt_ext_cli():
     return None
 
 
+def diff_tree(old_dir, new_dir, exclude=("weaponpresets",)):
+    """按相对路径 + SHA256 对比两棵目录树, 返回 (added, removed, changed) 有序相对路径列表。
+
+    exclude 按路径段匹配且对两侧对称生效 —— 与 copytree 的 ignore_patterns 语义一致,
+    防止 weaponpresets (~9800 个文件, 仅新解包侧存在) 产生虚假 diff。
+    """
+    def scan(root):
+        # 收集 {相对路径: 文件大小}; 目录不存在 (首次构建) 返回空集
+        files = {}
+        root = Path(root)
+        if not root.is_dir():
+            return files
+        for p in root.rglob("*"):
+            rel = p.relative_to(root)
+            if not p.is_file() or any(part in exclude for part in rel.parts):
+                continue
+            files[rel] = p.stat().st_size
+        return files
+
+    old_files, new_files = scan(old_dir), scan(new_dir)
+    added = sorted(set(new_files) - set(old_files))
+    removed = sorted(set(old_files) - set(new_files))
+    changed = []
+    for rel in sorted(set(old_files) & set(new_files)):
+        # size 异 -> 内容必异, 免双侧全量 hash (blkx 更新常伴随 size 变化, 剪枝命中率高)
+        if old_files[rel] != new_files[rel]:
+            changed.append(rel)
+        elif sha256_of(Path(old_dir) / rel) != sha256_of(Path(new_dir) / rel):
+            changed.append(rel)
+    return added, removed, changed
+
+
+def version_desc(old, new):
+    """版本对比描述: 供最终汇总行复用。"""
+    if not new:
+        return "unknown"
+    if not old:
+        return "%s (首次)" % new
+    return "%s -> %s" % (old, new) if old != new else "%s (未变)" % new
+
+
 def cmd_fmdata():
     game_dir = resolve_game_dir()
     log("游戏目录: %s" % game_dir)
@@ -521,6 +566,25 @@ def cmd_fmdata():
         err("工具主页: https://github.com/Warthunder-Open-Source-Foundation/wt_ext_cli")
         sys.exit(1)
 
+    # 读版本提前到解包前: vromf_version 直读 vromfs 二进制头, 不依赖解包结果,
+    # 耗时解包开始前即可看到版本结论 (行为不变: 版本未变仍照常重建)
+    # 优先 WT_VERSION 显式指定; 缺省用 wt_ext_cli vromf_version 从 vromfs 二进制头读取
+    wtver = os.environ.get("WT_VERSION", "")
+    if not wtver:
+        out = capture([wtcli, "vromf_version", "-i", vromfs, "-f", "plain"])
+        wtver = out.strip().splitlines()[0].strip() if out.strip() else ""
+    # 旧版本必须在裁剪覆盖前读 (data/aces/version 是项目内 data 唯一版本标记)
+    old_ver_file = DATA / "aces" / "version"
+    old_wtver = old_ver_file.read_text(encoding="utf-8").strip() if old_ver_file.is_file() else ""
+    if not wtver:
+        warn("未读到游戏版本号 (建议设置 WT_VERSION 显式指定), data/aces/version 将不生成 (程序可容错运行)")
+    elif old_wtver and wtver != old_wtver:
+        log("游戏版本: %s -> %s (有更新)" % (old_wtver, wtver))
+    elif old_wtver:
+        log("游戏版本: %s (与项目内 data/ 相同, 仍照常重建)" % wtver)
+    else:
+        log("游戏版本: %s (首次构建, 项目内暂无 data/aces/version)" % wtver)
+
     # wt_ext_cli 解包 (仅 flightmodels 子树, 数秒完成)
     # --format BlkText: 输出 "名字:类型 = 值" 文本格式; --blk_extension blkx: 程序主加载路径
     # (Controller/DrawFrame) 硬编码查找 .blkx 扩展名, 缺省的 .blk 不兼容
@@ -540,6 +604,16 @@ def cmd_fmdata():
             "(wt_ext_cli 版本可能滞后于游戏格式, 请检查其 releases)")
         sys.exit(1)
 
+    # diff 必须在 rmtree 覆盖旧 data 之前做 (旧内容此后不复存在)
+    log("对比项目内旧 data/ 与新解包结果 (相对路径 + SHA256) ...")
+    added, removed, changed = diff_tree(DATA / "aces" / "gamedata" / "flightmodels", fm_dir)
+    log("对比旧 data/: 新增 %d / 删除 %d / 修改 %d 个文件" % (len(added), len(removed), len(changed)))
+    # 样例帮助定位游戏更新动了哪些机型 (运维写更新日志时关心), 每类最多 3 个防刷屏
+    for label, lst in (("新增", added), ("删除", removed), ("修改", changed)):
+        if lst:
+            log("  %s样例: %s%s" % (label, ", ".join(str(p) for p in lst[:3]),
+                                    " ..." if len(lst) > 3 else ""))
+
     # 裁剪更新项目内 ./data —— 单一来源, 本地即刻可用
     # weaponpresets (每机型每挂载一个 blkx, ~9800 个文件) 程序零引用, 裁掉:
     # zip 省 ~11% 但文件数砍七成 (解压/杀软扫描/遍历都轻); 需要时重跑 fmdata 即可再生
@@ -549,16 +623,10 @@ def cmd_fmdata():
     target.mkdir(parents=True)
     copytree(fm_dir, target, ignore=shutil.ignore_patterns("weaponpresets"))
 
-    # 生成 version 文件 (供 Blkx.getVersion() 显示 FM 数据版本)
-    # 优先 WT_VERSION 显式指定; 缺省用 wt_ext_cli vromf_version 从 vromfs 二进制头读取
-    wtver = os.environ.get("WT_VERSION", "")
-    if not wtver:
-        out = capture([wtcli, "vromf_version", "-i", vromfs, "-f", "plain"])
-        wtver = out.strip().splitlines()[0].strip() if out.strip() else ""
+    # 生成 version 文件 (供 Blkx.getVersion() 显示 FM 数据版本); wtver 已在解包前读好。
+    # 仅在数据成功落地后写入 —— 解包失败 exit 时 version 不被写, 行为与重排前一致
     if wtver:
         (DATA / "aces" / "version").write_text(wtver + "\n", encoding="utf-8")
-    else:
-        warn("未读到游戏版本号 (建议设置 WT_VERSION 显式指定), data/aces/version 未生成 (程序可容错运行)")
 
     # 统计并产出上传用的 data zip + manifest
     blkx_count = sum(1 for _ in target.rglob("*.blkx"))
@@ -575,10 +643,12 @@ def cmd_fmdata():
 
     manifest = {
         "wt_version": wtver or "unknown",
+        "prev_wt_version": old_wtver or None,   # 本次更新来源版本; 首次为 null (键常在, schema 稳定)
         "date": date,
         "blkx_count": blkx_count,
         "file_count": file_count,
         "total_bytes": total_bytes,
+        "diff": {"added": len(added), "removed": len(removed), "changed": len(changed)},
         "zip": data_zip.name,
         "sha256": sha256_of(data_zip),
     }
@@ -588,7 +658,93 @@ def cmd_fmdata():
     rmtree(unpack_tmp)
     log("fmdata 更新完成: %s (%.1f MB, %d 个 blkx)" % (
         data_zip, data_zip.stat().st_size / (1 << 20), blkx_count))
-    log("上传到 data 存储 (供 CI 组包): gh release upload data \"%s\" dist/data_manifest.json --clobber" % data_zip.name)
+    # 汇总: 把只在 manifest 里的统计补上屏, 一行看全 (zip MB 为压缩后, total_bytes 为原始)
+    log("数据: %d 个文件 / %.1f MB | 版本 %s | 对比旧 data: +%d / -%d / ~%d" % (
+        file_count, total_bytes / (1 << 20), version_desc(old_wtver, wtver),
+        len(added), len(removed), len(changed)))
+    log("上传到 data 存储 (供 CI 组包): python script/build.py fmdata-upload")
+
+
+# ---------- fmdata-upload: 上传 FM 数据到 data prerelease ----------
+DATA_RELEASE = "data"
+
+
+def gh_assets(release):
+    """gh release view 取资产列表 [{name,size}]; release 不存在返回 None, 其他失败终止。"""
+    r = subprocess.run(["gh", "release", "view", release, "--json", "assets"],
+                       capture_output=True)
+    if r.returncode == 0:
+        return json.loads(r.stdout.decode("utf-8", errors="replace"))["assets"]
+    msg = r.stderr.decode("utf-8", errors="replace")
+    if "not found" in msg.lower() or "404" in msg:
+        return None
+    err("gh release view %s 失败: %s" % (release, msg.strip()))
+    sys.exit(1)
+
+
+def cmd_fmdata_upload(dry_run=False):
+    """上传 dist/ 的 data zip + manifest 到 data prerelease, 确认成功后清理旧版本 zip。
+
+    以 dist/data_manifest.json 为单一真相源选包 (与 CI 组包逻辑一致, 避免 glob 选错旧包);
+    删除不可逆 —— 必须复查线上资产 (存在且 size 一致) 确认上传成功后才清理。
+    """
+    # 读 manifest (单一真相源) + 本地完整性校验: sha256 复核防上传过期/半成品
+    manifest_path = DIST / "data_manifest.json"
+    if not manifest_path.is_file():
+        err("缺少 %s (先运行 python script/build.py fmdata)" % manifest_path)
+        sys.exit(1)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    zip_name = manifest.get("zip", "")
+    data_zip = DIST / zip_name
+    if not zip_name or not data_zip.is_file():
+        err("manifest 指定的 zip 不存在: %s (重跑 fmdata)" % data_zip)
+        sys.exit(1)
+    if sha256_of(data_zip) != manifest.get("sha256"):
+        err("%s 与 manifest 的 sha256 不一致 (dist 产物过期, 重跑 fmdata)" % zip_name)
+        sys.exit(1)
+    log("上传: %s (%.1f MB) + data_manifest.json (wt_version=%s)" % (
+        zip_name, data_zip.stat().st_size / (1 << 20), manifest.get("wt_version")))
+
+    assets = gh_assets(DATA_RELEASE)
+    if assets is None:
+        # release 尚不存在: 创建 prerelease 并完成首次上传 (--prerelease 保证 checkUpdate() 看不到)
+        if dry_run:
+            log("[dry-run] release '%s' 不存在, 将创建 prerelease 并上传" % DATA_RELEASE)
+            return
+        run(["gh", "release", "create", DATA_RELEASE, data_zip, manifest_path,
+             "--prerelease", "--title", DATA_RELEASE,
+             "--notes", "FM 数据云端存储 (CI 组包用, prerelease 对用户不可见)"])
+        log("已创建 prerelease '%s' 并上传完成 (首次, 无旧资产需清理)" % DATA_RELEASE)
+        return
+
+    # 旧版本 zip = 线上存在的 VoidMei_data_*.zip 中非本次的 (manifest 由 --clobber 覆盖, 无需单独删)
+    old_zips = [a["name"] for a in assets
+                if a["name"].startswith("VoidMei_data_") and a["name"] != zip_name]
+
+    if dry_run:
+        log("[dry-run] 将上传: %s, data_manifest.json (--clobber 覆盖)" % zip_name)
+        for name in old_zips:
+            log("[dry-run] 将删除旧资产: %s" % name)
+        if not old_zips:
+            log("[dry-run] 无旧版本 zip 需清理")
+        return
+
+    run(["gh", "release", "upload", DATA_RELEASE, data_zip, manifest_path, "--clobber"])
+
+    # 复查线上资产: 存在且 size 一致才算上传成功, 否则绝不删旧
+    assets = gh_assets(DATA_RELEASE)
+    uploaded = next((a for a in assets or [] if a["name"] == zip_name), None)
+    if not uploaded or uploaded.get("size") != data_zip.stat().st_size:
+        err("上传后复核失败: 线上未找到 %s 或大小不一致, 不清理旧资产 (请手动检查)" % zip_name)
+        sys.exit(1)
+    log("上传确认 OK: %s (%d 字节)" % (zip_name, uploaded["size"]))
+
+    for name in old_zips:
+        run(["gh", "release", "delete-asset", DATA_RELEASE, name, "--yes"])
+        log("已删除旧资产: %s" % name)
+    if not old_zips:
+        log("无旧版本 zip 需清理")
+    log("fmdata 上传完成: %s" % zip_name)
 
 
 # ---------- clean ----------
@@ -610,6 +766,8 @@ def main():
     sub.add_parser("exe", help="launch4j 打 VoidMei.exe")
     sub.add_parser("dist", help="组装完整分发包")
     sub.add_parser("fmdata", help="解包并裁剪 FM 数据")
+    p_up = sub.add_parser("fmdata-upload", help="上传 data zip+manifest 到 data prerelease, 成功后清理旧版")
+    p_up.add_argument("--dry-run", action="store_true", help="只打印将上传/删除的清单, 不执行")
     sub.add_parser("clean", help="清理构建产物")
     args = parser.parse_args()
 
@@ -627,6 +785,8 @@ def main():
         cmd_dist()
     elif args.cmd == "fmdata":
         cmd_fmdata()
+    elif args.cmd == "fmdata-upload":
+        cmd_fmdata_upload(args.dry_run)
     elif args.cmd == "clean":
         cmd_clean()
 

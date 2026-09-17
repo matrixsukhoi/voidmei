@@ -31,5 +31,9 @@ script/voidmeil4j.gen.xml
 # fmdata 游戏目录探测缓存
 .wt_game_dir
 
+# Python 字节码（script/build.py 被 import/编译时生成）
+__pycache__/
+*.pyc
+
 # 本地进行中的 Rust 重写工作区（未入库）
 crates/
