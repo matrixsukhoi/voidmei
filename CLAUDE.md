@@ -1,8 +1,13 @@
 # *** 使用中文思考 ***
+# 做完需求后和修复问题后, 要将对项目的理解和容易踩坑的地方更新到CLAUDE.md和相关文档里. 主要是记录high level的东西.
+# *** fmdata在data下, 写需求时会依赖data下的各种飞机的数据; 对于做需求来说, 需求影响到的每一个飞机, 要列出一个列表确认. 每一个需求的测试也要遍历data的所有涉及的飞机 ***
 # 如果子agent出现了没有读写权限的情况, 及时停止子agent
 # 不要让测试假通过
 # 代码里的注释要简洁精炼
 # 写代码时, 关键的地方和问题修复一定要添加和补充中文注释
+# 发布版本前要更新版本更新文档, 不要忘了加入fmdata的版本变化
+# 历史上发现的容易踩坑的地方:
+ - 直升机有的有可释放起落架, 有的是固定起落架
 
 # CLAUDE.md
 
@@ -65,7 +70,9 @@ bash script/e2e_fm.sh --scenario s5_missing_fm --duration 120   # 单场景长�
 **游戏版本更新后（fmdata，纯运维）**：
 ```bash
 python script/build.py fmdata
-gh release upload data dist/VoidMei_data_*.zip dist/data_manifest.json --clobber
+python script/build.py fmdata-upload
+# fmdata-upload: 以 dist/data_manifest.json 为真相源选包上传到 data prerelease,
+#                复查线上资产确认成功后自动删除旧版本 zip (防多版本并存时 CI 选错包)
 # 然后在已测试 commit 上更新 更新日志.txt + 打新 tag (如 1.591), 由人拍板
 ```
 
