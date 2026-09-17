@@ -58,6 +58,13 @@ public class ResponsiveGridLayout implements LayoutManager {
                     int col = i % columns;
                     int row = i / columns;
                     Dimension d = comp.getPreferredSize();
+                    // i18n 宽度协商: 带紧凑申报(滑条行)的单元按 minPrefWidth 参与测量,
+                    // 挤掉滑条 preferred 的虚高(滑条可压到 minimum, 不应主导窗口宽度)
+                    if (comp instanceof javax.swing.JComponent) {
+                        Object mp = ((javax.swing.JComponent) comp).getClientProperty("minPrefWidth");
+                        if (mp instanceof Integer && (Integer) mp < d.width)
+                            d = new Dimension((Integer) mp, d.height);
+                    }
                     colWidths[col] = Math.max(colWidths[col], d.width);
                     rowHeights[row] = Math.max(rowHeights[row], d.height);
                 }

@@ -168,7 +168,11 @@ def main():
                 if getattr(it.items[0], 'val', '') != 'item':
                     continue
                 target = kw(it, ':target')
-                base = ('ui.%s.%s' % (pid, target.val)) if target else ('ui.%s.g%di%d' % (pid, g, ii))
+                # key 只允许字母数字: properties 语法 key 在首个空格截断,
+                # 含空格/符号的 target(如 "getWingSweep * 100")必须 slug 化(getWingSweepx100)
+                tslug = target.val.replace('*', 'x') if target else ''
+                tslug = ''.join(ch for ch in tslug if ch.isalnum())
+                base = ('ui.%s.%s' % (pid, tslug)) if target else ('ui.%s.g%di%d' % (pid, g, ii))
                 ii += 1
                 if len(it.items) > 1 and has_text(it.items[1]):
                     emit(base + '.label', it.items[1])

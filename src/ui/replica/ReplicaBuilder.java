@@ -233,6 +233,12 @@ public class ReplicaBuilder {
         WebPanel controls = new WebPanel(new BorderLayout(5, 0));
         controls.setOpaque(false);
 
+        // i18n 宽度协商: 滑条 preferred(如 150)是虚高 — 实际可压到 minimum(60)。
+        // 窗口宽度测量按紧凑宽申报(ResponsiveGridLayout 读取), 防止滑条行把窗口顶宽;
+        // 实际布局仍用满列宽, 滑条显示不受影响
+        panel.putClientProperty("minPrefWidth",
+                label.getPreferredSize().width + 5 + 60 + 5 + 66 + 10);
+
         com.alee.laf.slider.WebSlider slider = new com.alee.laf.slider.WebSlider(
                 com.alee.laf.slider.WebSlider.HORIZONTAL, min, max, value);
         // Use minimum size instead of preferred - allows slider to shrink in narrow columns

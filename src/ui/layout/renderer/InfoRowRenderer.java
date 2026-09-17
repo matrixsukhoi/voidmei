@@ -11,7 +11,9 @@ import javax.swing.JEditorPane;
 import javax.swing.event.HyperlinkEvent;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.Desktop;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,6 +31,8 @@ public class InfoRowRenderer implements RowRenderer {
 
     private static final Color LABEL_COLOR = new Color(80, 80, 80);
     private static final Color VALUE_COLOR = new Color(60, 60, 60);
+    /** preferred 高度计算用的固定 wrap 宽(保守值: 实际卡片更宽时留白不裁字) */
+    private static final int INFO_WRAP_WIDTH = 560;
 
     /**
      * URL pattern for automatic hyperlink detection.
@@ -61,7 +65,20 @@ public class InfoRowRenderer implements RowRenderer {
         // Build HTML content with auto-wrapping and hyperlink support
         String html = buildHtmlContent(text);
 
-        JEditorPane editorPane = new JEditorPane("text/html", html);
+        JEditorPane editorPane = new JEditorPane("text/html", html) {
+            @Override
+            public Dimension getPreferredSize() {
+                // i18n 修复: HTMLEditorKit 的默认 preferred 宽 = 整段文本单行排开的全宽
+                // (诊断实测欢迎页长句 1620/1188/1110px), 会把卡片→页面→窗口一路撑爆。
+                // 父容器宽感知方案无效(父宽本身就是被子撑出的, 循环未切断)。
+                // 彻底切断: 宽度恒 0 不参与容器协商; 高度按固定 wrap 宽计算,
+                // 取保守值(实际卡片更宽时留白, 绝不裁字)
+                setSize(INFO_WRAP_WIDTH, Integer.MAX_VALUE);
+                Dimension d = super.getPreferredSize();
+                d.width = 0;
+                return d;
+            }
+        };
         editorPane.setEditable(false);
         editorPane.setOpaque(false);
         editorPane.setBackground(new Color(0, 0, 0, 0));

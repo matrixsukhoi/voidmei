@@ -28,6 +28,8 @@ public class MainForm extends WebFrame {
 	 */
 	private static final long serialVersionUID = 5917570099029563038L;
 	public int width;
+	/** 构造时的基准宽(800), 语言宽度自适应的下限锚点 — 防止 width 被历史最大值污染 */
+	private int baseWidth;
 	public int height;
 	public Controller tc;
 	// Store dynamic pages for updates
@@ -188,20 +190,24 @@ public class MainForm extends WebFrame {
 	}
 
 	/**
-	 * 窗口宽度自适应内容: 原 width=800 按中文标签标定, en/ru 长标签会大量换行。
-	 * 按 tab 内容 preferred 宽度放大(只放大不缩小, zh 下零回归);
-	 * 上限: 屏幕宽度-40 与 1.5×基准 取小, 防布局异常撑爆。
-	 * 语言热切换经 rebuildPanels→initPanel 重跑, 宽度自动跟随新语言。
+	 * 窗口宽度自适应: 800 基准按中文短标签标定, en/ru 长 label 会被列布局压缩截断
+	 * (en 实测 Flight Info 需 826/viewport 仅 ~620, 开关右侧被裁)。
+	 * 宽度信号 = tabbedPane preferred(滑条行已按紧凑宽申报, 见 ResponsiveGridLayout)。
+	 * 双向钳制 [baseWidth, cap]: en/ru 需要则放宽, 切回 zh 自动缩回 —
+	 * 不能用"只放不缩"(width 会被历史最大值污染, en→zh 后回不到 800)。
+	 * 语言热切换经 rebuildPanels→initPanel 重跑, 宽度跟随新语言。
 	 */
 	private void adjustWidthToContent() {
 		if (tabbedPane == null)
 			return;
-		int prefW = tabbedPane.getPreferredSize().width + 30; // +30 = webLaf 左右边框余量
-		int cap = Math.min(Application.logicalWidth - 40, (int) (width * 1.5));
-		int newWidth = Math.max(width, Math.min(prefW, cap));
+		// 必须测量在首次布局之前: ResponsiveGridLayout.layoutContainer 会给 label
+		// setPreferredSize(列宽)实现列对齐, 布局后 preferred 被"上次分配宽"污染,
+		// 形成 窗口越布越宽 的自我增强(实测 800→936)。initPanel 新建的组件天然干净
+		int prefW = tabbedPane.getPreferredSize().width - 16 + 30; // -16 滚动条, +30 边框余量
+		int cap = Math.min(Application.logicalWidth - 40, baseWidth * 2);
+		int newWidth = Math.max(baseWidth, Math.min(prefW, cap));
 		if (newWidth != width) {
 			width = newWidth;
-			// 左上角不动, 越界拉回屏幕
 			int x = Math.max(0, Math.min(getX(), Application.logicalWidth - width));
 			setSize(width, getHeight());
 			setLocation(x, getY());
@@ -329,6 +335,7 @@ public class MainForm extends WebFrame {
 		// Application.debugPrint("mainForm初始化了");
 		// Cap width to logical screen width for high-DPI support
 		width = Math.min(800, Application.logicalWidth - 40);
+		baseWidth = width; // 语言自适应的下限锚点: en/ru 放宽后切回 zh 缩到这里
 		tc = c;
 		height = calculateMinHeightForTabs();
 		Image I = Toolkit.getDefaultToolkit().getImage("image/form1.png");
