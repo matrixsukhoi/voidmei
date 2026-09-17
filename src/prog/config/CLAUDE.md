@@ -59,3 +59,6 @@ ui_layout.cfg (S 表达式 DSL) → ConfigLoader/SExpParser → GroupConfig/RowC
 - 配置键**大小写敏感**，ui_layout.cfg 与代码必须精确一致
 - 配置在用户退出 MainForm/游戏模式时自动持久化；`saveLayoutConfig()` 强制立即保存
 - 首运行自动把出厂配置拷到用户路径（`ConfigManager.getUserConfigPath()` 平台相关）
+- **改模板 info 行文案必须同时改 label**：`mergeRow()` 中 `value` 是用户保留字段，非空 label 的 info 行只改 `:value` 时老用户 user.cfg 的旧值会覆盖新文案；同时改 label 则视为新行走模板。空 label 行（key 为空）直接取模板，改 value 即生效
+- v1.580 及以前的设置文件 `config/config.properties` 与本系统**无迁移路径**（升级即回默认），文档已向用户明示；勿假设存在迁移代码
+- `Lang.mImportSuccessContent`（"请重启程序"）是死文案且说法过时——导入实际走 CONFIG_CHANGED 热重载即时生效，接入时需删掉"重启"表述
