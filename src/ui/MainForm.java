@@ -183,6 +183,29 @@ public class MainForm extends WebFrame {
 		tabbedPane.addChangeListener(e -> {
 			updateDynamicSize();
 		});
+
+		adjustWidthToContent();
+	}
+
+	/**
+	 * 窗口宽度自适应内容: 原 width=800 按中文标签标定, en/ru 长标签会大量换行。
+	 * 按 tab 内容 preferred 宽度放大(只放大不缩小, zh 下零回归);
+	 * 上限: 屏幕宽度-40 与 1.5×基准 取小, 防布局异常撑爆。
+	 * 语言热切换经 rebuildPanels→initPanel 重跑, 宽度自动跟随新语言。
+	 */
+	private void adjustWidthToContent() {
+		if (tabbedPane == null)
+			return;
+		int prefW = tabbedPane.getPreferredSize().width + 30; // +30 = webLaf 左右边框余量
+		int cap = Math.min(Application.logicalWidth - 40, (int) (width * 1.5));
+		int newWidth = Math.max(width, Math.min(prefW, cap));
+		if (newWidth != width) {
+			width = newWidth;
+			// 左上角不动, 越界拉回屏幕
+			int x = Math.max(0, Math.min(getX(), Application.logicalWidth - width));
+			setSize(width, getHeight());
+			setLocation(x, getY());
+		}
 	}
 
 	/**

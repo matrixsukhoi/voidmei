@@ -22,6 +22,9 @@ import static ui.util.UIConstants.*;
 public class BaseOverlay extends DraggableOverlay {
     private static final long serialVersionUID = 1L;
 
+    /** 宽度自适应时的内容内边距(窗口边框/shade 余量) */
+    private static final int CONTENT_PAD = 24;
+
     public volatile boolean doit = true;
     protected WebPanel dataPanel;
     protected String fontName = "";
@@ -276,10 +279,24 @@ public class BaseOverlay extends DraggableOverlay {
         if (preferredHeight > maxHeight)
             preferredHeight = maxHeight;
 
-        if (Math.abs(this.getHeight() - preferredHeight) > 2) {
+        // 宽度自适应: dataPanel 为 VerticalFlowLayout, preferred 宽 = 最宽数据行。
+        // 原 width 为"字号×固定系数"(按中文短标签标定), en/ru 长行会被截断。
+        // 新宽 = max(基准宽, 内容宽+内边距), 上限防失控; 迟滞防数字位数变化导致的宽度抖动
+        java.awt.Dimension pref = dataPanel.getPreferredSize();
+        int baseWidth = Math.round(Application.defaultFontsize * WIDTH_MULTIPLIER * scaleFactor);
+        if (width < baseWidth)
+            width = baseWidth;
+        int needed = Math.max(baseWidth, pref.width + CONTENT_PAD);
+        int maxWidthCap = Math.min(Application.logicalWidth - 40, baseWidth * 3);
+        if (needed > maxWidthCap)
+            needed = maxWidthCap;
+        // 放宽门槛低(内容变宽立即跟随), 收缩门槛高(短暂长值不缩回, 防反复横跳)
+        boolean heightChanged = Math.abs(this.getHeight() - preferredHeight) > 2;
+        boolean widthChanged = needed > this.getWidth() + 4 || this.getWidth() - needed > 24;
+        if (heightChanged || widthChanged) {
             // Only adjust size, preserve current position.
             // Position is managed by loadPosition() and saveCurrentPosition() via OverlaySettings.
-            this.setSize(width, preferredHeight);
+            this.setSize(widthChanged ? needed : this.getWidth(), preferredHeight);
         }
     }
 
