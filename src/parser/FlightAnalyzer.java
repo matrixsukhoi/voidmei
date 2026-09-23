@@ -1,9 +1,8 @@
 package parser;
 
-import prog.Application;
-
 import prog.i18n.Lang;
 import prog.Service;
+import prog.util.Logger;
 import static prog.util.PhysicsConstants.g;
 
 public class FlightAnalyzer {
@@ -182,7 +181,7 @@ public class FlightAnalyzer {
 	}
 
 	public void showAllEMChart() {
-		Application.debugPrint("roll rate:");
+		Logger.debug("FlightAnalyzer", "roll rate:");
 		for (int i = 0; i < 256; i++) {
 			System.out.print(roll_rate[i] + ",");
 		}

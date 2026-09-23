@@ -7,11 +7,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import prog.Application;
 import prog.i18n.Lang;
+import prog.util.Logger;
 import static prog.util.PhysicsConstants.g;
 
 public class Blkx {
+	/** 引擎档位 (Load 块) 数组容量护栏; 原在 Application, 下沉解析层自持 (headless 安全, issue #71 CI) */
+	public static final int MAX_ENG_LOAD = 10;
+
 	public boolean valid;
 
 	// ==================== Fuel Modification Support ====================
@@ -538,7 +541,7 @@ public class Blkx {
 
 					ret[i] = Float.parseFloat(tmp[i]);
 				} catch (Exception e) {
-					Application.debugPrint("getdouble error" + c);
+					Logger.debug("Blkx", "getdouble error" + c);
 					return null;
 				}
 			}
@@ -554,7 +557,7 @@ public class Blkx {
 			try {
 				ret = Float.parseFloat(tmp[0]);
 			} catch (Exception e) {
-				Application.debugPrint("getdouble error" + c);
+				Logger.debug("Blkx", "getdouble error" + c);
 				return 0;
 			}
 		}
@@ -568,7 +571,7 @@ public class Blkx {
 			try {
 				ret = Float.parseFloat(tmp[0]);
 			} catch (Exception e) {
-				Application.debugPrint("getdouble error" + c);
+				Logger.debug("Blkx", "getdouble error" + c);
 				return 0;
 			}
 		}
@@ -823,14 +826,14 @@ public class Blkx {
 
 	public void initEngineLoad() {
 		avgEngRecoveryRate = 0.0f;
-		engLoad = new engineLoad[Application.maxEngLoad];
-		for (int i = 0; i < Application.maxEngLoad; i++) {
+		engLoad = new engineLoad[MAX_ENG_LOAD];
+		for (int i = 0; i < MAX_ENG_LOAD; i++) {
 			engLoad[i] = new engineLoad();
 		}
 		maxEngLoad = 0;
 		// 防御加固: do-while 原本无护栏——畸形 FM 若 Load0..Load10 全部存在, maxEngLoad 会
 		// 自增到 10, getEngineLoad(engLoad, 10) 写 engLoad[10] 越界 (数组长度恰为
-		// Application.maxEngLoad=10)。加数组长度守卫; 正常文件 Load 块数 < 数组容量, 行为不变
+		// MAX_ENG_LOAD=10)。加数组长度守卫; 正常文件 Load 块数 < 数组容量, 行为不变
 		do {
 
 		} while (maxEngLoad < engLoad.length && getEngineLoad(engLoad, maxEngLoad++));
@@ -839,7 +842,7 @@ public class Blkx {
 		if (maxEngLoad >= engLoad.length
 				&& getdouble("Load" + engLoad.length + ".WaterTemperature") != 0) {
 			prog.util.Logger.warn("Blkx", "发动机负载档位数超过数组容量 " + engLoad.length
-				+ ", Load" + engLoad.length + "+ 被截断 (如为真实机型请上调 Application.maxEngLoad), FM: "
+				+ ", Load" + engLoad.length + "+ 被截断 (如为真实机型请上调 Blx.MAX_ENG_LOAD), FM: "
 				+ readFileName);
 		}
 		maxEngLoad -= 1;

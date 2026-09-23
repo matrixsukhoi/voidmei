@@ -189,11 +189,19 @@ def cmd_test(suite="all"):
     def run_one(label, cls, extra_args=()):
         nonlocal passed, failed
         print("Running %s ..." % label)
-        if run_ok(["java", "-classpath", "bin", cls] + list(extra_args)):
+        r = subprocess.run(["java", "-classpath", "bin", cls] + list(extra_args), capture_output=True)
+        if r.returncode == 0:
             print("%s: PASSED" % label)
             passed += 1
         else:
             print("%s: FAILED" % label, file=sys.stderr)
+            # 失败时透传测试输出 (断言明细) —— 吞掉输出会导致 CI 失败无从诊断
+            out = r.stdout.decode("utf-8", errors="replace")
+            errout = r.stderr.decode("utf-8", errors="replace")
+            if out.strip():
+                print(out, end="" if out.endswith("\n") else "\n")
+            if errout.strip():
+                print(errout, file=sys.stderr, end="" if errout.endswith("\n") else "\n")
             failed += 1
 
     def run_fm_test(label, cls, plane):

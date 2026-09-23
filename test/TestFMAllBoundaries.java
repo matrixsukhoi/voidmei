@@ -31,7 +31,7 @@ import java.util.TreeMap;
  * 7. 全部 public 数组字段结构合法: 二维数组必须矩形（锯齿 = 解析不完整）
  *
  * 已知"计数字段→容量上限"配对表（KNOWN_LIMITS, 数据驱动, 新边界加一行即可）:
- *    engineNum→State.maxEngNum, maxEngLoad→Application.maxEngLoad,
+ *    engineNum→State.maxEngNum, maxEngLoad→Blkx.MAX_ENG_LOAD,
  *    altThrNum/velThrNum→30(altitudeThr/velocityThr 数组), modeEngineNum→10,
  *    FlapsDestructionNum→6(FlapsDestructionIndSpeed[6][2])
  *
@@ -48,7 +48,7 @@ public class TestFMAllBoundaries {
 	private static final Map<String, Integer> KNOWN_LIMITS = new LinkedHashMap<String, Integer>();
 	static {
 		KNOWN_LIMITS.put("engineNum", parser.State.maxEngNum);
-		KNOWN_LIMITS.put("maxEngLoad", prog.Application.maxEngLoad);
+		KNOWN_LIMITS.put("maxEngLoad", Blkx.MAX_ENG_LOAD);
 		KNOWN_LIMITS.put("altThrNum", 30);        // altitudeThr = new double[30]
 		KNOWN_LIMITS.put("velThrNum", 30);        // velocityThr = new double[30]
 		KNOWN_LIMITS.put("FlapsDestructionNum", 6); // FlapsDestructionIndSpeed[6][2]
