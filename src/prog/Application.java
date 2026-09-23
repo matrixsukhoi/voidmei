@@ -64,7 +64,6 @@ public class Application {
 
 	// 调试日志
 	public static boolean debugLog = false;
-	public static final int maxEngLoad = 10;
 
 	// 用于检查最新版本
 	public static String owner = "matrixsukhoi";

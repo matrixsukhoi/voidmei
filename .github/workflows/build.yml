@@ -28,6 +28,25 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: 下载 fmdata (让 FM 真机验证套件跑起来, 而非跳过)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/fmdata
+          # manifest 是 zip 文件名的单一真相源 (多版本 zip 并存时防误选旧包, 流程同 release.yml)
+          if ! gh release download data --pattern "data_manifest.json" --dir build/fmdata --clobber; then
+            echo "::error::data Release 不存在或无 data_manifest.json, FM 套件无法运行"
+            exit 1
+          fi
+          FMDATA_ZIP=$(python3 -c "import json; print(json.load(open('build/fmdata/data_manifest.json'))['zip'])")
+          if ! gh release download data --pattern "$FMDATA_ZIP" --dir build/fmdata --clobber; then
+            echo "::error::manifest 指向的 $FMDATA_ZIP 不在 data Release 附件中, manifest 与附件不一致"
+            exit 1
+          fi
+          # zip 顶层为 data/, 解压到仓库根即项目内 data/ (build.py test 的 FM 套件从这里取数)
+          unzip -q "build/fmdata/$FMDATA_ZIP" -d .
+          ls data/aces/gamedata/flightmodels | head -3
+
       - name: Compile & Test
         run: python script/build.py test
 
