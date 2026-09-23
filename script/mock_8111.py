@@ -9,14 +9,14 @@ VoidMei 战雷 8111 端口模拟器（纯标准库实现, Python 3.8+, CI 可跑
   serve    启动模拟服务器 (默认端口 8111 = VoidMei 实际轮询端口, 备用 9222 由应用自行翻转)
   list     列出可用快照与场景
 
-=== 游戏端点响应的 byte-perfect 兼容性 (勿破坏!) =========================
-VoidMei 用 HttpHelper.sendGetFastBuf 裸 socket 读响应, StringHelper.getString
-做子串级朴素解析, 因此 mock 响应必须满足:
-  1. 恰好 6 行头: 状态行 + 4 个头 + 空行 (Java 端 readLine x6 跳头)
-  2. 头标签避开 "type"/"valid" 子串 (否则 getString 抢先命中头字段)
-  3. JSON 冒号后恰好一个空格 (getString 的 bix = 冒号后第 2 字符,
+=== 游戏端点响应的兼容性约束 (勿破坏!) ===================================
+VoidMei 用 OneShotHttp (一次一连接, Content-Length 精读) 取数, 解析层做
+子串级朴素解析:
+  1. 头标签避开 "type"/"valid" 子串 (否则 getString 抢先命中头字段)
+  2. JSON 冒号后恰好一个空格 (getString 的 bix = 冒号后第 2 字符,
      无空格会吃掉字符串值的首引号)
-  4. 整个响应一次 write 发出, 保证 Java 单次 read() 拿全 (无 Content-Type 头)
+游戏端点忠实模拟真机: 答完即关、无 Connection 头、恒带 Content-Length
+(2026-09 探针实测, 服务器无 keep-alive 能力)。
 =========================================================================
 
 === 控制通道 (前缀 /_mock/, 与游戏端口共用; VoidMei 不会请求这些路径) ===
@@ -387,17 +387,16 @@ class MockState:
 # ---------------- byte-perfect 响应包装 ----------------
 def wrap_raw_response(body: bytes) -> bytes:
     """
-    手工拼整个 HTTP 响应 (勿改!):
-      恰好 6 行: 状态行 + Date + Server + Connection + Content-Length + 空行
-      头标签避开 "type"/"valid" 子串 (StringHelper 朴素子串搜索会抢先命中)
-      一次 write 发出, 保证 Java sendGetFastBuf 的单次 read() 读全
+    手工拼整个 HTTP 响应, 忠实模拟真机 8111 服务器 (2026-09 实测):
+      不发 Connection 头、答完即关 (一条连接只答一个请求)、恒带 Content-Length。
+      勿改头标签——避开 "type"/"valid" 子串 (StringHelper 朴素子串搜索会抢先命中)。
+    一次 write 发出。
     """
     date_str = datetime.datetime.now(datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
     raw = [
         b"HTTP/1.1 200 OK",
         ("Date: " + date_str).encode("ascii"),
         b"Server: MockServer/3.0",
-        b"Connection: close",
         ("Content-Length: %d" % len(body)).encode("ascii"),
         b"",  # 空行
         body,
@@ -433,7 +432,6 @@ class MockRequestHandler(http.server.BaseHTTPRequestHandler):
         raw = [
             b"HTTP/1.1 404 Not Found",
             b"Server: MockServer/3.0",
-            b"Connection: close",
             ("Content-Length: %d" % len(body)).encode("ascii"),
             b"",
             body,
@@ -461,13 +459,13 @@ class MockRequestHandler(http.server.BaseHTTPRequestHandler):
     def handle_game(self, ep: str):
         kind, payload = self.mstate.game_response(ep)
         if kind == "drop":
-            # disconnect step: 不回任何字节直接关连接 (Java 侧 read()==-1 → 空串 → 翻转端口)
+            # disconnect step: 不回任何字节直接关连接 (Java 侧读到 EOF → 空串 → 翻转端口)
             self.close_connection = True
             return
         if kind == "404":
             self._send_raw_404()
             return
-        # byte-perfect 响应: 一次 write + 主动关闭 (Java 每次 poll 都新建连接)
+        # 一次 write; 答完即关 (真机行为: 一条连接只答一个请求)
         self.close_connection = True
         self.wfile.write(payload)
 
