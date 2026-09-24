@@ -36,14 +36,6 @@ public class FMDataAdapter implements FMDataSource {
     // ==================== Basic Info ====================
 
     @Override
-    public String getFmVersion() {
-        if (blkx == null) return "";
-        String name = blkx.readFileName != null ? blkx.readFileName : "N/A";
-        String ver = blkx.version != null ? blkx.version : "N/A";
-        return name;
-    }
-
-    @Override
     public double getEmptyWeight() {
         return blkx != null ? blkx.emptyweight : 0;
     }
