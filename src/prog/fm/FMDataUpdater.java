@@ -108,7 +108,7 @@ public final class FMDataUpdater {
 	}
 
 	/**
-	 * 同步执行一次更新周期。baseUrl 参数化供白盒测试（本地 HttpServer 整链回归）。
+	 * 同步执行一次更新周期（baseUrl 参数化, 便于定向/调试注入）。
 	 */
 	public void runUpdateCycle(String baseUrl, boolean manual) {
 		if ("off".equals(System.getProperty("voidmei.fmdata.update")))
