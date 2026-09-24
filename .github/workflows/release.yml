@@ -126,6 +126,17 @@ jobs:
           TAG: ${{ steps.ver.outputs.tag }}
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
+          # 同名 release 已存在: draft 是可再生产物, 删了重建 (重打 tag 场景);
+          # 已 published 则红线报错——旧版本一经发布不再改动, 只能递增版本号
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "true" ]; then
+              echo "同名 draft 已存在, 删除重建: $TAG"
+              gh release delete "$TAG" --yes
+            else
+              echo "::error::$TAG 已发布, 旧版本一经发布不再改动; 请递增版本号"
+              exit 1
+            fi
+          fi
           # 一律 draft: 公众不可见、不进 /releases/latest, checkUpdate() 不受影响;
           # 测试同学 (需仓库协作者权限) 下载验证后, 在 GitHub 页面点
           # "Publish release" (或 gh release edit "$TAG" --draft=false) 转正
