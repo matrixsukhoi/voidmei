@@ -31,15 +31,7 @@ public class DynamicDataPage extends BasePage {
         // Force Pink Style (Modern) for this page as per design requirement
         UIBuilder.setStyle(ReplicaBuilder.getStyle());
 
-        // Subscribe to global config changes (specifically for RESET_ALL)
-        configHandler = key -> {
-            if (UIStateEvents.ACTION_RESET_COMPLETED.equals(key)) {
-                // Ensure we are on EDT, though event bus usually dispatches there or logic
-                // handles it
-                javax.swing.SwingUtilities.invokeLater(() -> rebuild());
-            }
-        };
-        UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, configHandler);
+        installConfigHandler();
 
         rebuild();
     }
@@ -47,12 +39,74 @@ public class DynamicDataPage extends BasePage {
     public DynamicDataPage(MainForm parent) {
         super(parent);
         // Also subscribe here in case this constructor is used
+        installConfigHandler();
+    }
+
+    /** 上次因外部 key 变更触发 rebuild 的时刻（节流防重建风暴） */
+    private volatile long lastKeyRebuildMs = 0;
+
+    /**
+     * 面板控件自身写入配置的标志（静态：所有页共享）。此期间的 CONFIG_CHANGED
+     * 不触发任何页 rebuild——控件上的显示就是用户刚操作的值，重建只会闪一遍
+     * 构造动画（bug：点任何开关整页重造）。setConfig 的 publish 是同步的，
+     * 标志在写入调用栈内设置/检查/复位，时序天然安全。
+     */
+    private static volatile boolean uiWriteInProgress = false;
+
+    /** 以"UI 内部写入"身份执行一次配置写（所有面板控件的 sync 都包这一层） */
+    private static void markUiWrite(Runnable write) {
+        boolean prev = uiWriteInProgress;
+        uiWriteInProgress = true;
+        try {
+            write.run();
+        } finally {
+            uiWriteInProgress = prev;
+        }
+    }
+
+    /**
+     * 订阅全局 CONFIG_CHANGED：恢复出厂完成 → 全页重建；
+     * 普通 key（外部代码 setConfig，如 FMDataUpdater"禁止自动更新"关开关）→
+     * key 属于本页时重建同步控件显示（控件是渲染时快照，不会自己变）。
+     * 300ms 节流：高频 setConfig 的 key 不会引发重建风暴。
+     */
+    private void installConfigHandler() {
         configHandler = key -> {
             if (UIStateEvents.ACTION_RESET_COMPLETED.equals(key)) {
+                // Ensure we are on EDT, though event bus usually dispatches there or logic
+                // handles it
                 javax.swing.SwingUtilities.invokeLater(() -> rebuild());
+                return;
+            }
+            if (key instanceof String && !uiWriteInProgress
+                    && pageOwnsKey(groupConfig, (String) key)) {
+                long now = System.currentTimeMillis();
+                if (now - lastKeyRebuildMs > 300) {
+                    lastKeyRebuildMs = now;
+                    javax.swing.SwingUtilities.invokeLater(() -> rebuild());
+                }
             }
         };
         UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, configHandler);
+    }
+
+    /** 递归判断 key 是否为本页某行的配置键（含嵌套组） */
+    private static boolean pageOwnsKey(prog.config.ConfigLoader.GroupConfig g, String key) {
+        if (g == null || key == null)
+            return false;
+        return rowsOwnKey(g.rows, key);
+    }
+
+    private static boolean rowsOwnKey(java.util.List<prog.config.ConfigLoader.RowConfig> rows, String key) {
+        if (rows == null)
+            return false;
+        for (prog.config.ConfigLoader.RowConfig row : rows) {
+            if (key.equals(row.property))
+                return true;
+            if (rowsOwnKey(row.children, key))
+                return true;
+        }
+        return false;
     }
 
     public void setGroupConfig(prog.config.ConfigLoader.GroupConfig groupConfig) {
@@ -142,7 +196,7 @@ public class DynamicDataPage extends BasePage {
             @Override
             public void syncToConfigService(String key, boolean value) {
                 // Bridge to ConfigurationService for overlay visibility control
-                parent.tc.configService.setConfig(key, Boolean.toString(value));
+                markUiWrite(() -> parent.tc.configService.setConfig(key, Boolean.toString(value)));
 
                 // Special event handling for FM Print
                 if ("enableFMPrint".equals(key)) {
@@ -162,7 +216,7 @@ public class DynamicDataPage extends BasePage {
 
             @Override
             public void syncStringToConfigService(String key, String value) {
-                parent.tc.configService.setConfig(key, value);
+                markUiWrite(() -> parent.tc.configService.setConfig(key, value));
             }
 
             @Override
