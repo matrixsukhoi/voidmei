@@ -27,9 +27,63 @@ public class Launcher {
         // Step 1: Apply GPU compatibility settings BEFORE any AWT classes load
         applyGPUCompatibilitySettings();
 
-        // Step 2: Now delegate to the real Application entry point
+        // Step 2: Network proxy bootstrap — must run before the first HTTP connection
+        // (DefaultProxySelector reads these properties when first used)
+        applyProxySettings();
+
+        // Step 3: Now delegate to the real Application entry point
         // This will load AWT classes, but the system properties are already set
         Application.main(args);
+    }
+
+    /**
+     * Network proxy bootstrap (JVM ignores environment proxies — a long-standing Java pitfall:
+     * HttpURLConnection does not read HTTPS_PROXY/HTTP_PROXY, and does not read OS-level
+     * proxy settings unless told to):
+     *
+     * 1. java.net.useSystemProxies=true — follow OS-level proxy settings (the "system proxy"
+     *    toggled by Clash/v2rayN etc. on Windows); zero-config auto for most users behind GFW.
+     *    Local 8111 polling is unaffected: DefaultProxySelector's default nonProxyHosts
+     *    excludes localhost/127.*.
+     * 2. Env var mapping — parse HTTPS_PROXY/HTTP_PROXY into the standard properties
+     *    https.proxyHost/Port. Only helps users launching from a terminal (GUI launch
+     *    inherits no shell env); explicit -D flags always take precedence.
+     */
+    private static void applyProxySettings() {
+        System.setProperty("java.net.useSystemProxies", "true");
+        mapEnvProxy("HTTPS_PROXY", "https.proxyHost", "https.proxyPort");
+        mapEnvProxy("https_proxy", "https.proxyHost", "https.proxyPort");
+        mapEnvProxy("HTTP_PROXY", "http.proxyHost", "http.proxyPort");
+        mapEnvProxy("http_proxy", "http.proxyHost", "http.proxyPort");
+    }
+
+    /**
+     * Parse "http://user@host:port" style env value into host/port standard properties.
+     * Skips silently (direct connection) on missing env, existing explicit property,
+     * or malformed value.
+     */
+    private static void mapEnvProxy(String envKey, String hostProp, String portProp) {
+        String v = System.getenv(envKey);
+        if (v == null || v.isEmpty() || System.getProperty(hostProp) != null)
+            return;
+        String s = v;
+        int slash = s.indexOf("://");
+        if (slash >= 0)
+            s = s.substring(slash + 3);
+        int at = s.lastIndexOf('@'); // credentials unsupported by properties — strip
+        if (at >= 0)
+            s = s.substring(at + 1);
+        int colon = s.indexOf(':');
+        if (colon <= 0 || colon == s.length() - 1)
+            return;
+        try {
+            int port = Integer.parseInt(s.substring(colon + 1).trim());
+            System.setProperty(hostProp, s.substring(0, colon).trim());
+            System.setProperty(portProp, String.valueOf(port));
+            System.out.println("[Proxy] " + envKey + " -> " + s.substring(0, colon).trim() + ":" + port);
+        } catch (NumberFormatException e) {
+            // malformed value — keep direct connection
+        }
     }
 
     /**
