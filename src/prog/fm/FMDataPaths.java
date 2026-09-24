@@ -60,4 +60,9 @@ public final class FMDataPaths {
 	public static File versionFile() {
 		return new File(dataRoot, "aces/version");
 	}
+
+	/** FM 数据打包日期文件：&lt;root&gt;/aces/date（yyyymmdd，设置面板版本信息行显示用） */
+	public static File dateFile() {
+		return new File(dataRoot, "aces/date");
+	}
 }

@@ -2,10 +2,15 @@ package prog.util;
 
 import prog.Application;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
@@ -137,10 +142,18 @@ public class HttpHelper {
 
 	/** 更新检查等外部 URL (低频, 走 HttpURLConnection) */
 	public String sendGetURL(String url) throws Exception {
+		return sendGetURL(url, 10_000, 15_000);
+	}
+
+	/** 带超时的 GET (整读为 String)。无超时的旧版挂死会占死池线程, 所有公网请求必须走本重载 */
+	public String sendGetURL(String url, int connectMs, int readMs) throws Exception {
 
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
+		con.setConnectTimeout(connectMs);
+		con.setReadTimeout(readMs);
+		con.setRequestProperty("User-Agent", "VoidMei/" + Application.version);
 		con.setRequestMethod("GET");
 
 		int responseCode = con.getResponseCode();
@@ -160,5 +173,54 @@ public class HttpHelper {
 			prog.util.Logger.info("Update", "Latest version info fetched successfully (HTTP " + responseCode + ")");
 		}
 		return result;
+	}
+
+	/** 下载进度回调: done=已写字节, total=Content-Length(响应头缺失时 -1) */
+	public interface DownloadProgress {
+		void onProgress(long done, long total);
+	}
+
+	/**
+	 * 流式下载到文件(64KB 缓冲), 返回字节数。任何失败删除半成品后抛出
+	 * (无断点续传, 下次整文件重下)。
+	 *
+	 * <p>安全: 仅当发生跨 host 重定向时校验最终 host 白名单
+	 * github.com / *.githubusercontent.com——直连目标由调用方显式信任
+	 * (生产传 github.com, 白盒测试传本地 HttpServer), 被重定向引到别处才收紧。
+	 */
+	public long downloadToFile(String url, File dest, int connectMs, int readMs, DownloadProgress cb) throws Exception {
+		try {
+			URL obj = new URL(url);
+			HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+			con.setConnectTimeout(connectMs);
+			con.setReadTimeout(readMs);
+			con.setRequestProperty("User-Agent", "VoidMei/" + Application.version);
+
+			int code = con.getResponseCode();
+			if (code != 200)
+				throw new IOException("HTTP " + code + ": " + url);
+			String finalHost = con.getURL().getHost();
+			boolean redirected = !obj.getHost().equals(finalHost);
+			if (redirected && !"github.com".equals(finalHost) && !finalHost.endsWith(".githubusercontent.com"))
+				throw new IOException("下载重定向目标不在白名单: " + finalHost);
+
+			long total = con.getContentLengthLong();
+			try (InputStream in = con.getInputStream();
+					OutputStream os = new BufferedOutputStream(new FileOutputStream(dest), 65536)) {
+				byte[] buf = new byte[65536];
+				long done = 0;
+				int n;
+				while ((n = in.read(buf)) > 0) {
+					os.write(buf, 0, n);
+					done += n;
+					if (cb != null)
+						cb.onProgress(done, total);
+				}
+				return done;
+			}
+		} catch (Exception e) {
+			dest.delete();
+			throw e;
+		}
 	}
 }

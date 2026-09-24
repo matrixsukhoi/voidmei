@@ -406,6 +406,17 @@ public class Lang {
 	/** FM 缺失/损坏的右下角 toast 提示 (检视需求: 告知用户该飞机无 FM 数据) */
 	public static String fmMissingToast;
 	public static String fmCorruptToast;
+	/** FM 数据在线更新 (FMDataUpdater): 进度通知/结果 toast 文案 */
+	public static String fmDataUpdateToast;
+	public static String fmDataCheckRunning;
+	public static String fmDataCheckUpToDate;
+	public static String fmDataCheckFailed;
+	public static String fmDataDownloadProgress;
+	public static String fmDataInstallStage;
+	public static String fmDataInfoLine;
+	public static String fmDataActionBackground;
+	public static String fmDataActionDisable;
+	public static String fmDataAutoDisabled;
 	public static String bFmParts;
 	public static String bCdMin;
 	public static String bCl0;
@@ -1187,6 +1198,16 @@ public class Lang {
 		noblkx = updateLanguage("noblkx", noblkx);
 		fmMissingToast = updateLanguage("fmMissingToast", fmMissingToast);
 		fmCorruptToast = updateLanguage("fmCorruptToast", fmCorruptToast);
+		fmDataUpdateToast = updateLanguage("fmDataUpdateToast", fmDataUpdateToast);
+		fmDataCheckRunning = updateLanguage("fmDataCheckRunning", fmDataCheckRunning);
+		fmDataCheckUpToDate = updateLanguage("fmDataCheckUpToDate", fmDataCheckUpToDate);
+		fmDataCheckFailed = updateLanguage("fmDataCheckFailed", fmDataCheckFailed);
+		fmDataDownloadProgress = updateLanguage("fmDataDownloadProgress", fmDataDownloadProgress);
+		fmDataInstallStage = updateLanguage("fmDataInstallStage", fmDataInstallStage);
+		fmDataInfoLine = updateLanguage("fmDataInfoLine", fmDataInfoLine);
+		fmDataActionBackground = updateLanguage("fmDataActionBackground", fmDataActionBackground);
+		fmDataActionDisable = updateLanguage("fmDataActionDisable", fmDataActionDisable);
+		fmDataAutoDisabled = updateLanguage("fmDataAutoDisabled", fmDataAutoDisabled);
 		bFmParts = updateLanguage("bFmParts", bFmParts);
 		bCdMin = updateLanguage("bCdMin", bCdMin);
 		bCl0 = updateLanguage("bCl0", bCl0);

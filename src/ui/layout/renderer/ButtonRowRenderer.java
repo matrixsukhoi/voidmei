@@ -146,6 +146,45 @@ public class ButtonRowRenderer implements RowRenderer {
             });
         }
 
+        // Handle FM data update check button - 手动入口(关闭自动更新后仍可检查);
+        // 按钮下方常显当前 FM 数据版本与打包日期, 检查完成后即时刷新
+        if ("checkFmDataUpdate".equals(row.property)) {
+            com.alee.laf.label.WebLabel info = new com.alee.laf.label.WebLabel(fmDataInfoText());
+            info.setFont(Application.defaultFontSmall);
+            info.setForeground(new java.awt.Color(130, 130, 130));
+            info.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 4, 0, 0));
+            // 打开面板时若更新正在进行, 按钮直接渲染为"正在检查..."禁用态;
+            // 轮询恢复(该次渲染没有挂 onDone 回调, 不轮询会永久停在禁用态)
+            if (prog.fm.FMDataUpdater.getInstance().isRunning()) {
+                btn.setEnabled(false);
+                btn.setText(Lang.fmDataCheckRunning);
+                javax.swing.Timer t = new javax.swing.Timer(500, ev -> {
+                    if (!prog.fm.FMDataUpdater.getInstance().isRunning()) {
+                        ((javax.swing.Timer) ev.getSource()).stop();
+                        btn.setEnabled(true);
+                        btn.setText(row.label);
+                        info.setText(fmDataInfoText());
+                    }
+                });
+                t.start();
+            }
+            btn.addActionListener(e -> {
+                ReplicaBuilder.disposeAllPopovers();
+                // 检查期间按钮禁用防重复; 进度与结果统一由 ProgressToast/toast 反馈
+                btn.setEnabled(false);
+                btn.setText(Lang.fmDataCheckRunning);
+                prog.fm.FMDataUpdater.getInstance().checkAndApplyAsync(true,
+                        () -> javax.swing.SwingUtilities.invokeLater(() -> {
+                            btn.setEnabled(true);
+                            btn.setText(row.label);
+                            info.setText(fmDataInfoText());
+                        }));
+            });
+            p.add(btn);
+            p.add(info);
+            return p;
+        }
+
         if (row.fgColor != null) {
             java.awt.Color color = parseColor(row.fgColor);
             if (color != null) {
@@ -183,6 +222,19 @@ public class ButtonRowRenderer implements RowRenderer {
                         com.alee.laf.optionpane.WebOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    /**
+     * 版本信息行文案: "FM 数据: 2.59.0.28 (2026-09-23, 1 天前)" ——
+     * 版本缺失显示 "-", 打包日期缺失(旧版 data 无 date 文件)省略括号段
+     */
+    private static String fmDataInfoText() {
+        String ver = prog.fm.FMDataUpdater.readLocalVersion();
+        String date = prog.fm.FMDataUpdater.readLocalDate();
+        String dd = prog.fm.FMDataUpdater.displayDate(date);
+        String rel = prog.fm.FMDataUpdater.relativeDays(date);
+        String d = dd != null ? " (" + dd + (rel != null ? ", " + rel : "") + ")" : "";
+        return String.format(Lang.fmDataInfoLine, ver != null ? ver : "-", d);
     }
 
     private java.awt.Color parseColor(String s) {

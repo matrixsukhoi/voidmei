@@ -613,7 +613,8 @@ public class Blkx {
 	}
 
 	public String getVersion() {
-		File file = new File("./data/aces/version");
+		// 路径统一走 FMDataPaths (历史遗留硬编码, 修掉与 setDataRoot 注入不一致)
+		File file = prog.fm.FMDataPaths.versionFile();
 		String tmp_data = null;
 		if (file.exists()) {
 			StringBuilder sb = new StringBuilder();
