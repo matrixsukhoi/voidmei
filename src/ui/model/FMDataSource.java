@@ -11,9 +11,6 @@ public interface FMDataSource {
 
     // ==================== Basic Info ====================
 
-    /** Get FM file name and version string */
-    String getFmVersion();
-
     /** Get empty aircraft weight (kg) */
     double getEmptyWeight();
 
