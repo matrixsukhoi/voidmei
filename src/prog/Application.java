@@ -457,23 +457,28 @@ public class Application {
 		try {
 			/* 异步请求 */
 			threadPool.submit(() -> {
-				String res;
-				res = httpClient
-						.sendGetURL("https://api.github.com/repos/" + owner + "/" + repository + "/releases/latest");
-				// debugPrint(res);
-				/* 截取tag_name */
-				int sidx = res.indexOf("tag_name");
-				int eidx = res.indexOf(",", sidx);
-				res = res.substring(sidx, eidx);
-				/* 正则匹配版本号 */
-				Pattern pt = Pattern.compile("[0-9].([0-9])*");
-				Matcher m = pt.matcher(res);
-				if (m.find()) {
-					String latestVersion = m.group(0);
-					prog.util.Logger.info("Update", "Latest remote version: " + latestVersion);
-					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
-						SwingUtilities.invokeLater(() -> showUpdateDialog(latestVersion));
+				try {
+					String res;
+					res = httpClient
+							.sendGetURL("https://api.github.com/repos/" + owner + "/" + repository + "/releases/latest");
+					// debugPrint(res);
+					/* 截取tag_name */
+					int sidx = res.indexOf("tag_name");
+					int eidx = res.indexOf(",", sidx);
+					res = res.substring(sidx, eidx);
+					/* 正则匹配版本号 */
+					Pattern pt = Pattern.compile("[0-9].([0-9])*");
+					Matcher m = pt.matcher(res);
+					if (m.find()) {
+						String latestVersion = m.group(0);
+						prog.util.Logger.info("Update", "Latest remote version: " + latestVersion);
+						if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
+							SwingUtilities.invokeLater(() -> showUpdateDialog(latestVersion));
+						}
 					}
+				} catch (Exception e) {
+					// 修复: lambda 内异常(网络失败/解析失败)曾被丢弃的 Future 吞掉且无日志
+					prog.util.Logger.warn("Update", "检查更新失败: " + e);
 				}
 				return null;
 			});
@@ -593,6 +598,10 @@ public class Application {
 				// AlwaysOnTopCoordinator handles dialog/overlay z-order coordination,
 				// so update dialogs will properly suspend any overlays that exist.
 				checkUpdate();
+
+				// FM 数据在线更新: 与程序更新检查并列(后台静默)。
+				// 比的是 data 版本与 app 版本无关, dev 构建不跳过——本地可真链验证
+				prog.fm.FMDataUpdater.getInstance().checkAndApplyAsync(false, null);
 
 				if (System.getProperty("java.version").indexOf("1.8") == -1) {
 					ui.util.NotificationService.showAbout(

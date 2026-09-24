@@ -150,7 +150,9 @@ if [[ "$MANUAL_APP" == "1" || ! -d "$ROOT/bin/prog" ]]; then
   fi
 else
   echo "[e2e] 启动应用 (python script/build.py run, 日志: $LOG) ..."
-  ( cd "$ROOT" && python script/build.py run >"$LOG" 2>&1 ) &
+  # JAVA_TOOL_OPTIONS 硬关 FM 数据在线更新: 防真连 GitHub 下载拖慢/抖动 e2e
+  # (java 原生认此环境变量, 无需 build.py 支持透传 JVM 参数)
+  ( cd "$ROOT" && JAVA_TOOL_OPTIONS="-Dvoidmei.fmdata.update=off" python script/build.py run >"$LOG" 2>&1 ) &
   APP_PID=$!
 fi
 

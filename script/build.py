@@ -155,6 +155,8 @@ SUITES = [
     ("fmstore", "FM Manager Store Tests", "TestFMStore"),
     ("fmpaths", "FM Data Paths Tests", "TestFMDataPaths"),
     ("fmhandle", "FM Handle Tests", "TestFMHandle"),
+    # FM 数据在线更新 (manifest 解析/版本比较/sha/unzip 防护/替换/生效链/本地 HttpServer 整链)
+    ("fmupdate", "FM Data Update Tests", "TestFMDataUpdate"),
 ]
 SUITE_ALIASES = {"atm": "atmosphere", "power": "piston", "vis": "visibility", "voice": "voicepack"}
 # 真机 FM 端到端验证套件 (用项目内 data/ 的真实 blkx 跑功率曲线核对): 名 -> (label, 测试类, 机型)
@@ -189,7 +191,9 @@ def cmd_test(suite="all"):
     def run_one(label, cls, extra_args=()):
         nonlocal passed, failed
         print("Running %s ..." % label)
-        r = subprocess.run(["java", "-classpath", "bin", cls] + list(extra_args), capture_output=True)
+        # classpath 与生产一致 (bin + dep): fmupdate 等套件引用链会触达 WebLaF 类
+        cp = os.pathsep.join(["bin", "dep/*"])
+        r = subprocess.run(["java", "-classpath", cp, cls] + list(extra_args), capture_output=True)
         if r.returncode == 0:
             print("%s: PASSED" % label)
             passed += 1
@@ -631,16 +635,18 @@ def cmd_fmdata():
     target.mkdir(parents=True)
     copytree(fm_dir, target, ignore=shutil.ignore_patterns("weaponpresets"))
 
-    # 生成 version 文件 (供 Blkx.getVersion() 显示 FM 数据版本); wtver 已在解包前读好。
-    # 仅在数据成功落地后写入 —— 解包失败 exit 时 version 不被写, 行为与重排前一致
+    # 生成 version/date 文件 (version 供 Blkx.getVersion() 显示; date 为打包日期,
+    # 供设置面板 FM 数据版本信息行显示); wtver 已在解包前读好。
+    # 仅在数据成功落地后写入 —— 解包失败 exit 时不写, 行为与重排前一致
+    date = datetime.now().strftime("%Y%m%d")
     if wtver:
         (DATA / "aces" / "version").write_text(wtver + "\n", encoding="utf-8")
+        (DATA / "aces" / "date").write_text(date + "\n", encoding="utf-8")
 
     # 统计并产出上传用的 data zip + manifest
     blkx_count = sum(1 for _ in target.rglob("*.blkx"))
     file_count = sum(1 for _ in DATA.rglob("*") if _.is_file())
     total_bytes = sum(f.stat().st_size for f in DATA.rglob("*") if f.is_file())
-    date = datetime.now().strftime("%Y%m%d")
 
     DIST.mkdir(exist_ok=True)
     for old in DIST.glob("VoidMei_data_*.zip"):

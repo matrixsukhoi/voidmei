@@ -162,6 +162,22 @@ public final class FMManager {
 	}
 
 	/**
+	 * data/ 目录被 FMDataUpdater 热替换后调用：清全部负缓存与速率护栏，
+	 * 并强制重载当前目标——不能走 {@link #identify}（其"目标未变零成本"与
+	 * "句柄已在秒开"两个分支都会拦截同名重载），直接 submitLoad 排队即可。
+	 * 不清 current：重载完成前 HUD 继续用旧 FM 平滑过渡，结果原子 swap 覆盖。
+	 * 未识别 / 非飞机目标（坦克等）无需动作——后续 identify 自然走新数据。
+	 */
+	public void dataUpdated() {
+		negativeCache.clear();
+		lastAttemptMs.clear();
+		String t = currentTarget;
+		if (t != null && t.indexOf('/') < 0) {
+			submitLoad(t);
+		}
+	}
+
+	/**
 	 * 测试用：清一切状态（current/target/负缓存/护栏计数）并停掉排队中的任务，
 	 * 重建 loader 线程供后续用例使用。
 	 */
