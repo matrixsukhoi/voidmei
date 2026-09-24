@@ -58,7 +58,7 @@ public class FlightAnalyzer {
 			sep[curaltStage] = xs.SEP;
 			count = 1;
 			if (isInformation)
-				ui.util.NotificationService.show(Lang.fA1 + stage * 100 + Lang.fA2 + (int) time[curaltStage] + Lang.fA3
+				ui.util.Toast.show(Lang.fA1 + stage * 100 + Lang.fA2 + (int) time[curaltStage] + Lang.fA3
 						+ (int) ((stage - initaltStage) * 1000 / time[curaltStage]) / 10.0f + Lang.fA4);
 		} else {
 			eff[curaltStage] = (eff[curaltStage] + xs.totalHpEff);
@@ -96,7 +96,7 @@ public class FlightAnalyzer {
 					roll_alr[stage] = abs_alr;
 
 					if (isInformation && (wx - roll_rate[stage] > 40))
-						ui.util.NotificationService.show(
+						ui.util.Toast.show(
 								Lang.fA_roll1 + stage * 10 + Lang.fA_roll2 + wx + Lang.fA_roll3);
 
 					roll_rate[stage] = wx;
@@ -108,7 +108,7 @@ public class FlightAnalyzer {
 				// if (g_load > turn_load[stage] ) {
 				turn_elev[stage] = abs_elev;
 				if (isInformation && (g_load - turn_load[stage] > 3.0f))
-					ui.util.NotificationService.show(Lang.fA_turn1 + stage * 10 + Lang.fA_turn2
+					ui.util.Toast.show(Lang.fA_turn1 + stage * 10 + Lang.fA_turn2
 							+ String.format("%.1f", (turn_load[stage] + g_load) / 2) + Lang.fA_turn3
 							+ String.format("%.1f", (sep_loss[stage] + sep) / 2) + Lang.fA_turn4);
 				turn_load[stage] = (turn_load[stage] + g_load) / 2;

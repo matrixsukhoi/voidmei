@@ -337,7 +337,7 @@ public class Controller {
 			}
 			// FlightLog 关旧开新 —— 收尾逻辑复用 closepad：保存通知 + 爬升档数≥1 弹 DrawFrame
 			if (Log != null) {
-				ui.util.NotificationService.show(Lang.cSavelog + Log.fileName + Lang.cPlsopen);
+				ui.util.Toast.show(Lang.cSavelog + Log.fileName + Lang.cPlsopen);
 				// fA 可能为 null（旧机全程未触发高度分析），防护避免 NPE 中断换机流程
 				if (Log.fA != null && Log.fA.curaltStage - Log.fA.initaltStage >= 1) {
 					dF = new DrawFrame();
@@ -387,7 +387,7 @@ public class Controller {
 				dF.doit = false;
 				dF = null;
 			}
-			ui.util.NotificationService.show(Lang.cStartlog);
+			ui.util.Toast.show(Lang.cStartlog);
 			Log = new FlightLog();
 			// 使用 configService 作为 ConfigProvider，而不是 Controller (this)
 			Log.init(this, S, configService);
@@ -420,7 +420,7 @@ public class Controller {
 
 		// Special case: FlightLog (has notification and DrawFrame logic)
 		if (Boolean.parseBoolean(configService.getConfig("enableLogging")) && (Log != null)) {
-			ui.util.NotificationService.show(Lang.cSavelog + Log.fileName + Lang.cPlsopen);
+			ui.util.Toast.show(Lang.cSavelog + Log.fileName + Lang.cPlsopen);
 			if (Log.fA.curaltStage - Log.fA.initaltStage >= 1) {
 				dF = new DrawFrame();
 				showdrawFrame(Log.fA);
@@ -584,7 +584,7 @@ public class Controller {
 				if (h.isMissingLike()) {
 					String msg = h.status == prog.fm.FMStatus.CORRUPT
 							? prog.i18n.Lang.fmCorruptToast : prog.i18n.Lang.fmMissingToast;
-					ui.util.NotificationService.showBottomRight(h.name + "\n" + msg, 5000);
+					ui.util.Toast.show(h.name + "\n" + msg, 5000);
 				}
 			}
 			// 修复: 游戏模式（State==PREVIEW 但 settingsPreviewActive=false）不做
