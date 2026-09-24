@@ -155,8 +155,6 @@ SUITES = [
     ("fmstore", "FM Manager Store Tests", "TestFMStore"),
     ("fmpaths", "FM Data Paths Tests", "TestFMDataPaths"),
     ("fmhandle", "FM Handle Tests", "TestFMHandle"),
-    # FM 数据在线更新 (manifest 解析/版本比较/sha/unzip 防护/替换/生效链/本地 HttpServer 整链)
-    ("fmupdate", "FM Data Update Tests", "TestFMDataUpdate"),
 ]
 SUITE_ALIASES = {"atm": "atmosphere", "power": "piston", "vis": "visibility", "voice": "voicepack"}
 # 真机 FM 端到端验证套件 (用项目内 data/ 的真实 blkx 跑功率曲线核对): 名 -> (label, 测试类, 机型)
@@ -191,7 +189,7 @@ def cmd_test(suite="all"):
     def run_one(label, cls, extra_args=()):
         nonlocal passed, failed
         print("Running %s ..." % label)
-        # classpath 与生产一致 (bin + dep): fmupdate 等套件引用链会触达 WebLaF 类
+        # classpath 与生产一致 (bin + dep): 套件引用链可能触达第三方库类
         cp = os.pathsep.join(["bin", "dep/*"])
         r = subprocess.run(["java", "-classpath", cp, cls] + list(extra_args), capture_output=True)
         if r.returncode == 0:

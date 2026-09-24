@@ -10,6 +10,7 @@
 # push和发起pr需要在用户的指挥下进行, 不能自行发起
 # commit要保持简洁. push或者pr前都要尽量按照功能合并, 不要零零散散
 # 你不用考虑什么时候打tag发版. 听用户的明确指令就行.
+# 本地验证时可以写临时测试用例/脚本测试, 但是是否要保留并git提交最终一定要问用户! 很多测试用例是没有用的, 听用户的判断
 # 历史上发现的容易踩坑的地方:
  - 直升机有的有可释放起落架, 有的是固定起落架
 
@@ -31,7 +32,7 @@ Java 8 Swing 遥测悬浮窗（War Thunder HUD overlay）。轮询游戏本地 H
 python script/build.py compile   # 编译 src/ → bin/
 python script/build.py run       # 本地运行 (bin/ 缺失自动编译)
 python script/build.py test      # 全部单元测试; test <套件> 跑指定套件
-                                #   (atmosphere/piston/visibility/voicepack/fmstore/fmpaths/fmhandle/fmupdate/e2e)
+                                #   (atmosphere/piston/visibility/voicepack/fmstore/fmpaths/fmhandle/e2e)
 python script/build.py test spitfire  # 真机 FM 验证 (项目内 data/ 的 blkx, 无 data 自动跳过)
                                 #   spitfire / tempest / fuzz-blkx (blkx 变异 fuzz)
 python script/build.py jar       # 打 jar (MANIFEST 注入版本号)
