@@ -8,6 +8,8 @@
 # 发布版本和发布tag时要更新版本更新文档, 不要忘了加入"FM文件更新到"
 # 测试手册.md 由 agent 维护, 审美与规则见正文"测试手册"节; 每次做完特性或修完 bug 必须补充/更新场景并做纯审美审查, 真机验证后在测试版本列登记版本号
 # push和发起pr需要在用户的指挥下进行, 不能自行发起
+# commit要保持简洁. push或者pr前都要尽量按照功能合并, 不要零零散散
+# 你不用考虑什么时候打tag发版. 听用户的明确指令就行.
 # 历史上发现的容易踩坑的地方:
  - 直升机有的有可释放起落架, 有的是固定起落架
 
@@ -29,7 +31,7 @@ Java 8 Swing 遥测悬浮窗（War Thunder HUD overlay）。轮询游戏本地 H
 python script/build.py compile   # 编译 src/ → bin/
 python script/build.py run       # 本地运行 (bin/ 缺失自动编译)
 python script/build.py test      # 全部单元测试; test <套件> 跑指定套件
-                                #   (atmosphere/piston/visibility/voicepack/fmstore/fmpaths/fmhandle/e2e)
+                                #   (atmosphere/piston/visibility/voicepack/fmstore/fmpaths/fmhandle/fmupdate/e2e)
 python script/build.py test spitfire  # 真机 FM 验证 (项目内 data/ 的 blkx, 无 data 自动跳过)
                                 #   spitfire / tempest / fuzz-blkx (blkx 变异 fuzz)
 python script/build.py jar       # 打 jar (MANIFEST 注入版本号)
@@ -53,7 +55,7 @@ bash script/e2e_fm.sh --scenario s5_missing_fm --duration 120   # 单场景长�
 | 项目根 | 唯一源 + 本地运行工作区（git 跟踪源码/资源 + gitignore 的本地 data/、运行时生成物） |
 | `dist/` | 构建产物（gitignore） |
 | GitHub `v*` Release | 唯一分发渠道（CI 自动构建） |
-| GitHub `data` prerelease | fmdata 云端存储层（CI 组包用，`--prerelease` 保证 `checkUpdate()` 看不到） |
+| GitHub `data` prerelease | fmdata 云端存储层（CI 组包 + **客户端自动更新源**：`FMDataUpdater` 启动静默检查/下载/替换/即时生效；`--prerelease` 保证 `checkUpdate()` 看不到，release 直链匿名可下） |
 
 **资源管理（按"丢了怎么恢复"分类）**：源码+自有资产进 git；`data/` 是派生数据不进 git（wt_ext_cli 从游戏客户端再生成）；运行时数据（records/ config/ ui_layout.user.cfg）gitignore。`fonts/DIN Pro 400.otf` 为商业字体，gitignore 排除、不分发。
 
@@ -78,6 +80,10 @@ python script/build.py fmdata-upload
 # fmdata-upload: 以 dist/data_manifest.json 为真相源选包上传到 data prerelease,
 #                复查线上资产确认成功后自动删除旧版本 zip (防多版本并存时 CI 选错包)
 # 然后更新 更新日志.txt (走 PR) → 在 master 上打新 tag (如 1.591), 由人拍板
+# 注意: 客户端 FMDataUpdater 会在用户下次启动时自动拉取新 data (无需发版即生效,
+#       但要不要发版/打 tag 仍由人拍板, 流程不变)
+# data/aces/version(WT 版本号) + data/aces/date(打包日期) 两个标记文件:
+#       build.py fmdata 写入, FMDataUpdater 更新后对 date 兜底补写, 设置面板版本信息行显示
 ```
 
 **灰度测试**：push 正式 tag → CI 建 draft（公众不可见，`checkUpdate()` 不弹）→ 测试同学下载验证 → Publish 转正。不通过即删 draft + 删 tag 重来。测试与发布共用同一份产物。**版本号不用 `-rc`/`-test` 后缀**——发布状态由 draft/published 表达。
@@ -94,7 +100,7 @@ python script/build.py fmdata-upload
 - **操作列文体**："动作, 看什么; 动作, 听什么"的流水句，真实最短路径。标杆：`试飞并摔死重生, 没问题; 然后重新试飞, 没问题`（一句覆盖冷启动/连接/异常退出/幂等）。"没问题"就够了；只在**不直观的回归点**写具体预期（如"直升机不出现失速红区"）
 - **机型列**：具体机型（一般检查用 f4u-4b），前提括号跟在机型后（`mi-24a (带起落架)`、`he51a1 (无罗盘仪表)`），不同前提拆行；禁止"任意机型/—/临时选"占位
 - **等价类收敛**：普适特性（所见即所得/拖拽/持久化）和设置生效类（字体/边框/开关）拿飞行信息测一个例子；出过问题的项（字体大小, v1.585）补第二个面板做双份（现 MiniHUD）；后续某面板出新问题再照此补双份，不逐面板列等价类
-- **收录门槛**：只收**用户可感知**且有出错空间的场景（复杂算法/长传递链/机型前提分支），纯透传显示不收，纯系统层指标（如 TCP 连接数/TIME_WAIT——用户看不到，回归靠 mock/e2e 白盒覆盖）不收；预期必须可判定，"合理/正常/随x变化"这类看不出错的措辞不要
+- **收录门槛**：只收**用户可感知**且有出错空间的场景（复杂算法/长传递链/机型前提分支），纯透传显示不收，纯系统层指标（如 TCP 连接数/TIME_WAIT——用户看不到，回归靠 mock/e2e 白盒覆盖）不收；**测试同学必须能自行触发**（依赖"云端发新数据"之类前置不受控的场景不收——agent 用 mock+改本地数据验证一次即可，不进手册）；预期必须可判定，"合理/正常/随x变化"这类看不出错的措辞不要
 - **禁止进手册**：场景编号、数据依赖字段名、实现细节（类名/配置键）、操作列里的版本备注、规则解释与元信息（"双份"）——这些只写在 CLAUDE.md。版本号只出现在测试版本列，且只填真机验证过的
 - **写完必须做纯审美审查**（重点，单独一步）：只对照上面的文体标准逐行过——"正常/合理"改"没问题"或删、空话（"试XX功能"）、冗余副词、元信息、占位机型、表格断裂。**这一步不做事实正确性核查**（机型文件是否存在/代码行为/配置项），内容对错是另一回事
 
@@ -102,7 +108,7 @@ python script/build.py fmdata-upload
 
 ### 包一览（src/）
 
-- **`prog/`** 内核：`Launcher`（GPU 兼容 JVM 属性，须在 AWT 加载前设置）→ `Application` → `Controller`（生命周期/overlay 协调）→ `Service`（HTTP 轮询+计算后台线程，最大文件）；`OverlayManager`（overlay 可见性，方法须 synchronized）；`AlwaysOnTopCoordinator`（单例 z-order/对话框协调，WeakReference）；`FocusMonitor`（游戏失焦自动隐藏，复用 Service 轮询）；`fm/`（FM 单一真相源：`FMManager` 单例 identify/负缓存/FM_CHANGED 广播；`FMLoader` 项目内唯一 `new Blkx` 点，全程 catch(Throwable)→READY/MISSING/CORRUPT；`FMHandle` 不可变句柄；`FMDataPaths` 路径唯一来源）；`config/`、`audio/`、`util/`、`hotkey/`、`i18n/`、`model/`、`event/`（`UIStateBus`/`FlightDataBus`）
+- **`prog/`** 内核：`Launcher`（GPU 兼容 JVM 属性，须在 AWT 加载前设置）→ `Application` → `Controller`（生命周期/overlay 协调）→ `Service`（HTTP 轮询+计算后台线程，最大文件）；`OverlayManager`（overlay 可见性，方法须 synchronized）；`AlwaysOnTopCoordinator`（单例 z-order/对话框协调，WeakReference）；`FocusMonitor`（游戏失焦自动隐藏，复用 Service 轮询）；`fm/`（FM 单一真相源：`FMManager` 单例 identify/负缓存/FM_CHANGED 广播，`dataUpdated()` 供热替换后清负缓存强制重载；`FMLoader` 项目内唯一 `new Blkx` 点，全程 catch(Throwable)→READY/MISSING/CORRUPT；`FMDataUpdater` FM 数据在线自动更新一条链（检查→下载→sha256→解压→rename 替换→`dataUpdated()` 生效，`-Dvoidmei.fmdata.update=force/off` 开发与 e2e 用）；`FMHandle` 不可变句柄；`FMDataPaths` 路径唯一来源）；`config/`、`audio/`、`util/`、`hotkey/`、`i18n/`、`model/`、`event/`（`UIStateBus`/`FlightDataBus`）
 - **`parser/`** 数据摄取：`State`/`Indicators`（8111 JSON）、`Blkx`（FM .blk 解析）、`FlightAnalyzer`、`FlightLog` 等
 - **`ui/`** 界面：`MainForm`（设置窗）、`overlay/`（各 HUD overlay + `logic/HUDCalculator` + `model/HUDData`）、`layout/`（ui_layout.cfg 动态生成设置面板 + 17 种 renderer）、`component/`（HUD 部件）、`base/`（`DraggableOverlay`/`FieldOverlay`）、`model/`（`TelemetrySource` 等）、`replica/`、`util/`、`window/comparison/`（飞机对比）
 
@@ -134,6 +140,7 @@ python script/build.py fmdata-upload
 | GPU 兼容 | `Launcher`（无 AWT import）在 AWT 加载**前**设 `sun.java2d.*` 属性关硬件加速；状态存 `gpu_compat.properties`（必须早于 ui_layout.cfg 可读，故独立文件）；`gpuCompatibilityMode` 配置键在 SwitchRowRenderer 有特殊处理 |
 | DPI 缩放 | `DPIHelper` 经 `GraphicsConfiguration.getDefaultTransform()` 探测，暴露 `Application.dpiScale`（2.0=200%）与 `logicalWidth/Height`；字体/尺寸计算一律乘 dpiScale，屏幕定位用 logical 尺寸不用 `Toolkit.getScreenSize()`（那是物理像素） |
 | 失焦自动隐藏 | `FocusMonitor`(200ms 节流)+`FocusDetector`（Windows: PowerShell 查 `aces` 进程；Linux: xdotool；macOS: AppleScript）；无新线程 |
+| 网络代理 | **JVM 不读 `HTTPS_PROXY` 环境变量**（Java 老坑，`HttpURLConnection` 只认系统属性）。`Launcher` 启动最早期做两层：设 `java.net.useSystemProxies=true`（跟随 Windows 系统代理，Clash/v2rayN"系统代理"模式用户零配置自动生效；8111 不受影响——默认 nonProxyHosts 排除 localhost）+ 把 `HTTPS_PROXY/HTTP_PROXY` 映射成 `https.proxyHost/Port`（只对终端启动生效，GUI 双击无 shell 环境；`-D` 显式设置优先）。**不做端口扫描探测**（用户拍板）：只开本地端口没开系统代理的工具属于用户侧开关没开，不代猜 |
 
 ### 工具类去向（禁止自写）
 
