@@ -237,9 +237,11 @@ public class Application {
 
 				public void actionPerformed(ActionEvent e) {
 					// Controller.s
-					ui.util.NotificationService.showAbout(Lang.aboutcontentsub2, 24000);
-					ui.util.NotificationService.showAbout(Lang.aboutcontentsub1, 16000);
-					ui.util.NotificationService.showAbout(Lang.aboutcontent, 8000);
+					// 托盘 about 三连弹: 带 fubuki 图标 (Toast 白卡片左侧)
+					java.awt.Image aboutIcon = java.awt.Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg");
+					ui.util.Toast.show(Lang.aboutcontentsub2, 24000, aboutIcon);
+					ui.util.Toast.show(Lang.aboutcontentsub1, 16000, aboutIcon);
+					ui.util.Toast.show(Lang.aboutcontent, 8000, aboutIcon);
 
 				}
 			});
@@ -284,7 +286,7 @@ public class Application {
 
 	public static void checkOS() {
 		if (Float.parseFloat(System.getProperty("os.version")) < 6.0) {
-			ui.util.NotificationService.showTimed(Lang.Systemerror, 10000);
+			ui.util.Toast.show(Lang.Systemerror, 10000);
 			// 使用 ExceptionHelper 替代冗余的 try-catch
 			prog.util.ExceptionHelper.sleepQuietly(10000);
 		}
@@ -604,10 +606,11 @@ public class Application {
 				prog.fm.FMDataUpdater.getInstance().checkAndApplyAsync(false, null);
 
 				if (System.getProperty("java.version").indexOf("1.8") == -1) {
-					ui.util.NotificationService.showAbout(
+					ui.util.Toast.show(
 							String.format("Detected current Java version %s. Java 1.8 is needed.",
 									System.getProperty("java.version")),
-							3000);
+							3000,
+							java.awt.Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg"));
 				}
 			}
 		});

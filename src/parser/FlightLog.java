@@ -245,7 +245,7 @@ public class FlightLog implements Runnable {
 			tcsv = new FileWriter(climbName, true);
 			// Application.debugPrint("打开文件成功");
 		} catch (IOException e) {
-			ui.util.NotificationService.show(Lang.lfailCreate);
+			ui.util.Toast.show(Lang.lfailCreate);
 			Logger.warn("文件创建失败: " + e.getMessage());
 			return;
 		}
@@ -300,7 +300,7 @@ public class FlightLog implements Runnable {
 			tcsv = new FileWriter(rollName, true);
 			// Application.debugPrint("打开文件成功");
 		} catch (IOException e) {
-			ui.util.NotificationService.show(Lang.lfailCreate);
+			ui.util.Toast.show(Lang.lfailCreate);
 			Logger.warn("文件创建失败: " + e.getMessage());
 			return;
 		}
@@ -359,7 +359,7 @@ public class FlightLog implements Runnable {
 			tcsv = new FileWriter(loadName, true);
 			// Application.debugPrint("打开文件成功");
 		} catch (IOException e) {
-			ui.util.NotificationService.show(Lang.lfailCreate);
+			ui.util.Toast.show(Lang.lfailCreate);
 			Logger.warn("文件创建失败: " + e.getMessage());
 			return;
 		}
@@ -404,14 +404,14 @@ public class FlightLog implements Runnable {
 			resultsFile = new FileOutputStream(fileName);
 			// Application.debugPrint("文件创建成功");
 		} catch (FileNotFoundException e) {
-			ui.util.NotificationService.show(Lang.lfailCreate);
+			ui.util.Toast.show(Lang.lfailCreate);
 			Logger.warn("日志文件创建失败: " + e.getMessage());
 			xc.logon = false;
 		}
 		try {
 			csv = new FileWriter(fileName, true);
 		} catch (IOException e) {
-			ui.util.NotificationService.show(Lang.lfailCreate);
+			ui.util.Toast.show(Lang.lfailCreate);
 			Logger.warn("日志文件打开失败: " + e.getMessage());
 		}
 		try {
@@ -443,7 +443,7 @@ public class FlightLog implements Runnable {
 			analyzeData();
 			writeData(csvWritter);
 		} catch (IOException e) {
-			ui.util.NotificationService.show(Lang.lfailWrite);
+			ui.util.Toast.show(Lang.lfailWrite);
 			Logger.warn("写入日志数据失败: " + e.getMessage());
 		}
 		if (writeTime++ % 1024 == 0) {

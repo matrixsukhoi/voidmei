@@ -12,7 +12,6 @@ import prog.i18n.Lang;
 import prog.util.FileUtils;
 import prog.util.HttpHelper;
 import prog.util.Logger;
-import ui.util.NotificationService;
 import ui.util.Toast;
 
 /**
@@ -151,7 +150,7 @@ public final class FMDataUpdater {
 					String dd = displayDate(m.date);
 					String rel = relativeDays(m.date);
 					String extra = dd != null ? ", " + dd + " 发布" + (rel != null ? ", " + rel : "") : "";
-					NotificationService.showBottomRight(
+					Toast.show(
 							String.format(Lang.fmDataCheckUpToDate, m.wtVersion + extra), 4000);
 				}
 				return;
@@ -223,7 +222,7 @@ public final class FMDataUpdater {
 					" (下载 %.1fs, 总耗时 %.1fs)",
 					(System.currentTimeMillis() - downloadStart[0]) / 1000.0,
 					(System.currentTimeMillis() - cycleStart) / 1000.0));
-			NotificationService.showBottomRight(
+			Toast.show(
 					String.format(Lang.fmDataUpdateToast, m.wtVersion), 6000);
 		} catch (Exception e) {
 			if (cancelled) {
@@ -245,7 +244,7 @@ public final class FMDataUpdater {
 	}
 
 	private void notifyFailed() {
-		NotificationService.showBottomRight(Lang.fmDataCheckFailed, 6000);
+		Toast.show(Lang.fmDataCheckFailed, 6000);
 	}
 
 	/**
@@ -258,7 +257,7 @@ public final class FMDataUpdater {
 		if (c != null && c.configService != null) {
 			c.configService.setConfig("autoUpdateFmData", "false");
 		}
-		NotificationService.showBottomRight(Lang.fmDataAutoDisabled, 5000);
+		Toast.show(Lang.fmDataAutoDisabled, 5000);
 	}
 
 	/** 本地 FM 数据版本（data/aces/version）；缺失/空返回 null（按"需要更新"处理）。供设置面板版本信息行复用 */

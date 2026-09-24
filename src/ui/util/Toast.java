@@ -62,6 +62,13 @@ public final class Toast {
 	private static final int STACK_GAP = 8;
 	/** 进度窗底部额外高度(容纳进度条) */
 	private static final int PROGRESS_EXTRA = PAD_BOTTOM + BAR_H + 4;
+	/** 文本区最大宽度 (HTML 折行用, 防长文案撑出超宽卡片; 380 太窄像被掐断, 560 约两行收纳 about) */
+	private static final int MAX_TEXT_W = 560;
+	/** URL 识别 (ASCII 白名单; 中文紧跟 URL 时自然截断) */
+	private static final java.util.regex.Pattern URL_RE = java.util.regex.Pattern
+			.compile("https?://[A-Za-z0-9./_#?&=%+\\-]+");
+	/** 链接蓝 (与进度条/动作按钮同色系) */
+	private static final String LINK_HEX = "#508CFF";
 
 	/** 活动窗栈 (仅 EDT 上增删; CopyOnWriteArrayList 供 relayout 读) */
 	private static final List<ToastWindow> stack = new CopyOnWriteArrayList<>();
@@ -70,14 +77,64 @@ public final class Toast {
 		return java.awt.GraphicsEnvironment.isHeadless();
 	}
 
+	/** 文本中的首个 URL; 无则 null。public 供白盒测试 */
+	public static String firstUrl(String text) {
+		if (text == null)
+			return null;
+		java.util.regex.Matcher m = URL_RE.matcher(text);
+		return m.find() ? m.group() : null;
+	}
+
+	/** 转 HTML: 非 URL 段转义(换行→<br>), URL 段包蓝色下划线链接。public 供白盒测试 */
+	public static String toHtml(String text) {
+		StringBuilder sb = new StringBuilder(text.length() + 32);
+		java.util.regex.Matcher m = URL_RE.matcher(text);
+		int last = 0;
+		while (m.find()) {
+			appendEscaped(sb, text.substring(last, m.start()));
+			String href = m.group().replace("&", "&amp;");
+			sb.append("<a href='").append(href).append("'><font color='").append(LINK_HEX)
+					.append("'><u>").append(href).append("</u></font></a>");
+			last = m.end();
+		}
+		appendEscaped(sb, text.substring(last));
+		return sb.toString();
+	}
+
+	private static void appendEscaped(StringBuilder sb, String s) {
+		for (int i = 0; i < s.length(); i++) {
+			char c = s.charAt(i);
+			if (c == '<')
+				sb.append("&lt;");
+			else if (c == '>')
+				sb.append("&gt;");
+			else if (c == '&')
+				sb.append("&amp;");
+			else if (c == '\n' || c == '\r')
+				sb.append("<br>");
+			else
+				sb.append(c);
+		}
+	}
+
 	// ---- 门面 ----
+
+	/** 显示一条定时通知, 默认 5 秒后自动销毁 (对齐旧 NotificationService.show 的默认时长) */
+	public static void show(final String text) {
+		show(text, 5000);
+	}
 
 	/** 显示一条定时通知, displayMs 后自动销毁 */
 	public static void show(final String text, final int displayMs) {
+		show(text, displayMs, null);
+	}
+
+	/** 同上, 带左侧图标 (about 等品牌通知用) */
+	public static void show(final String text, final int displayMs, final java.awt.Image icon) {
 		if (headless())
 			return;
 		SwingUtilities.invokeLater(() -> {
-			PlainToast t = new PlainToast(text);
+			PlainToast t = new PlainToast(text, icon);
 			t.display();
 			Timer timer = new Timer(displayMs, e -> t.close());
 			timer.setRepeats(false);
@@ -158,10 +215,12 @@ public final class Toast {
 		Timer indeterminateTimer = null;
 		/** 动作按钮衬板 (null=无动作行); 高度参与窗尺寸计算 */
 		JPanel actionsPad = null;
+		/** 左侧图标占宽 (0=无图标), 参与窗宽计算 */
+		int iconWidth = 0;
 		/** 窗已销毁标记: dismiss/close 后后续 update 静默忽略, 不再操作已 dispose 的窗 */
 		volatile boolean closed = false;
 
-		ToastWindow(Action[] actions) {
+		ToastWindow(Action[] actions, java.awt.Image icon) {
 			JPanel panel = new JPanel() {
 				@Override
 				protected void paintComponent(java.awt.Graphics g) {
@@ -174,9 +233,18 @@ public final class Toast {
 			panel.setBackground(new Color(0, 0, 0, 0));
 			label.setForeground(TEXT_FG);
 			label.setFont(Application.defaultFontBig); // 14pt: 通知要醒目一档, 与 MainForm 按钮同级
-			label.setBorder(BorderFactory.createEmptyBorder(PAD_TOP, PAD_X, 2, PAD_X));
-			// NORTH: CENTER 会把 label 垂直拉伸占满窗高, 文字垂直居中后压到底部进度条区
-			panel.add(label, java.awt.BorderLayout.NORTH);
+			label.setBorder(BorderFactory.createEmptyBorder(PAD_TOP, icon != null ? 8 : PAD_X, 2, PAD_X));
+			// 文本行: 左侧可选图标 + 文字; 整行放 NORTH (CENTER 会垂直拉伸压到底部进度条区)
+			JPanel textRow = new JPanel(new java.awt.BorderLayout());
+			textRow.setOpaque(false);
+			if (icon != null) {
+				WebLabel iconLabel = new WebLabel(new javax.swing.ImageIcon(icon));
+				iconLabel.setBorder(BorderFactory.createEmptyBorder(0, PAD_X, 0, 8));
+				textRow.add(iconLabel, java.awt.BorderLayout.WEST);
+				iconWidth = iconLabel.getPreferredSize().width;
+			}
+			textRow.add(label, java.awt.BorderLayout.CENTER);
+			panel.add(textRow, java.awt.BorderLayout.NORTH);
 			// 动作按钮行: 文本下方右对齐, 平面文字按钮 (蓝字与进度条同色)
 			if (actions != null && actions.length > 0) {
 				JPanel actionsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 0));
@@ -205,10 +273,37 @@ public final class Toast {
 			setBackground(new Color(0, 0, 0, 0));
 			setAlwaysOnTop(true);
 			setFocusable(false);
+			// 含 URL 的文本整卡可点 (通知瞬态, 不做精确命中)
+			label.addMouseListener(new java.awt.event.MouseAdapter() {
+				@Override
+				public void mouseClicked(java.awt.event.MouseEvent e) {
+					String url = hyperlink;
+					if (url != null) {
+						try {
+							java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
+						} catch (Exception ex) {
+							prog.util.Logger.warn("Toast", "打开链接失败: " + url);
+						}
+					}
+				}
+			});
 		}
 
+		/** 文本中的 URL (无则 null); 点击 label 开浏览器 */
+		volatile String hyperlink = null;
+
 		void setLabel(String text) {
+			hyperlink = firstUrl(text);
+			// HTML 化的两种动因: 含 URL(链接化) 或 纯文本单行超宽(HTML 才有折行机制,
+			// 纯文本 JLabel 不折行, 曾致 about 无链接的两条单行溢出卡片)
 			label.setText(text);
+			boolean tooWide = label.getPreferredSize().width > MAX_TEXT_W;
+			if (hyperlink != null || tooWide) {
+				label.setText("<html>" + toHtml(text) + "</html>");
+			}
+			// 手型光标只在真有链接时 (仅超宽折行的纯文本不该显示可点)
+			label.setCursor(hyperlink != null
+					? java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR) : null);
 		}
 
 		/** 画假阴影 + 圆角卡片底 */
@@ -249,13 +344,32 @@ public final class Toast {
 			}
 		}
 
+		/**
+		 * 文本区 preferred 尺寸。HTML 文案必须用 View 量折行后的真实高度——
+		 * setSize trick 对 WebLaF 的 label UI 无效, 曾致宽度 cap 了而高度仍按单行算,
+		 * 多行文字从卡片底部溢出。纯文本(未超宽未链接)无 BasicHTML view, 走普通 pref。
+		 */
+		Dimension textPref(int maxW) {
+			Object v = label.getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey);
+			if (v instanceof javax.swing.text.View) {
+				javax.swing.text.View view = (javax.swing.text.View) v;
+				java.awt.Insets bi = label.getInsets();
+				view.setSize(maxW - bi.left - bi.right, 0);
+				int w = (int) Math.ceil(view.getPreferredSpan(javax.swing.text.View.X_AXIS));
+				int h = (int) Math.ceil(view.getPreferredSpan(javax.swing.text.View.Y_AXIS));
+				return new Dimension(w + bi.left + bi.right, h + bi.top + bi.bottom);
+			}
+			return label.getPreferredSize();
+		}
+
 		/** 计算内容尺寸并贴右下角 (调用前 label 文本已设好) */
 		void layoutAndPlace(int extraBottom) {
 			// label 的 preferred size 已含 empty border (上 PAD_TOP/左右 PAD_X/下 2),
 			// 此处只补阴影 inset 与额外底部区, 再加一次 padding 会重复算宽高
-			Dimension pref = label.getPreferredSize();
+			Dimension pref = textPref(MAX_TEXT_W);
 			Dimension ap = actionsPad != null ? actionsPad.getPreferredSize() : new Dimension(0, 0);
-			int w = Math.max(pref.width, ap.width) + SHADOW_LAYERS * 2 * 2;
+			int w = Math.max(Math.min(pref.width, MAX_TEXT_W) + iconWidth, ap.width)
+					+ SHADOW_LAYERS * 2 * 2;
 			int h = pref.height + ap.height + extraBottom + SHADOW_LAYERS * 2 * 2;
 			setSize(w, h);
 		}
@@ -295,9 +409,10 @@ public final class Toast {
 
 	/** 纯文本结果通知 */
 	private static class PlainToast {
-		final ToastWindow window = new ToastWindow(null);
+		final ToastWindow window;
 
-		PlainToast(String text) {
+		PlainToast(String text, java.awt.Image icon) {
+			window = new ToastWindow(null, icon);
 			window.setLabel(text);
 			window.layoutAndPlace(PAD_BOTTOM / 2);
 		}
@@ -319,7 +434,7 @@ public final class Toast {
 		private static final long THROTTLE_MS = 100;
 
 		ProgressToastCard(Action[] actions) {
-			window = new ToastWindow(actions);
+			window = new ToastWindow(actions, null);
 			window.progress = -1; // 初始不确定模式
 			window.layoutAndPlace(PROGRESS_EXTRA);
 			// 不确定动画: 16ms 步进(60fps; 旧 40ms 一顿一顿), 仅 indeterminate 时重绘

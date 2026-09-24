@@ -420,7 +420,7 @@ public class MainForm extends WebFrame {
 			prog.util.Logger.info("MainForm", "--------------------------------------------------");
 			prog.util.Logger.info("MainForm", "ACTION: User clicked Start Preview.");
 			prog.util.Logger.info("MainForm", "--------------------------------------------------");
-			ui.util.NotificationService.show(prog.i18n.Lang.mMovePanel);
+			ui.util.Toast.show(prog.i18n.Lang.mMovePanel);
 			saveConfig();
 			tc.Preview();
 			moveCheckFlag = true;

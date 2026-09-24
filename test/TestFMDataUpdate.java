@@ -56,6 +56,7 @@ public class TestFMDataUpdate {
 			testReplaceDataDir();
 			testEffectiveChain();
 			testDateFormat();
+			testLinkify();
 			testFullCycle();
 		} finally {
 			FMDataPaths.setDataRoot("./data");
@@ -313,6 +314,23 @@ public class TestFMDataUpdate {
 		check("relativeDays 非法日期返 null", FMDataUpdater.relativeDays("20261399") == null);
 		check("relativeDays 空/非 8 位返 null",
 				FMDataUpdater.relativeDays(null) == null && FMDataUpdater.relativeDays("x") == null);
+	}
+
+	// ---- 7b. Toast 链接化 ----
+
+	private static void testLinkify() {
+		System.out.println("-- Toast 链接化 --");
+		// 中文紧跟 URL 时自然截断 (about 文案的真实形态)
+		check("URL 后跟中文截断",
+				"https://github.com/matrixsukhoi/voidmei".equals(
+						ui.util.Toast.firstUrl("访问https://github.com/matrixsukhoi/voidmei可获得最新源码.")));
+		check("无 URL 返 null", ui.util.Toast.firstUrl("普通文本, 没有链接") == null);
+		check("null 返 null", ui.util.Toast.firstUrl(null) == null);
+		String html = ui.util.Toast.toHtml("访问https://github.com/matrixsukhoi/voidmei可获得\n源码");
+		check("HTML 含链接标签",
+				html.contains("<a href='https://github.com/matrixsukhoi/voidmei'>") && html.contains("<u>"));
+		check("HTML 换行转 br", html.contains("<br>"));
+		check("HTML 转义尖括号", ui.util.Toast.toHtml("a<b>c").contains("&lt;b&gt;"));
 	}
 
 	// ---- 8. 本地 HttpServer 整链 ----
