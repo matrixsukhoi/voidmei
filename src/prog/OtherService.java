@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.Socket;
 import java.net.SocketAddress;
 
@@ -73,7 +74,8 @@ public class OtherService implements Runnable {
 	public String sendGet(String host, int port, String path) throws IOException {
 
 		String result = "";
-		Socket socket = new Socket();
+		// NO_PROXY: 本地 8111 永不经过系统代理 (裸 Socket 默认会查 ProxySelector, 开代理时被当 SOCKS 目标)
+		Socket socket = new Socket(Proxy.NO_PROXY);
 		SocketAddress dest = new InetSocketAddress(host, port);
 		socket.connect(dest);
 		OutputStreamWriter streamWriter = new OutputStreamWriter(socket.getOutputStream());

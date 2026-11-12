@@ -37,50 +37,62 @@ public class Launcher {
     }
 
     /**
-     * Network proxy bootstrap (JVM ignores environment proxies — a long-standing Java pitfall:
-     * HttpURLConnection does not read HTTPS_PROXY/HTTP_PROXY, and does not read OS-level
-     * proxy settings unless told to):
+     * 网络代理引导：只给 HttpURLConnection 设置 http(s).proxyHost/Port（GitHub 更新检查与
+     * FM 数据下载走这条路），代理作用域到此为止。
      *
-     * 1. java.net.useSystemProxies=true — follow OS-level proxy settings (the "system proxy"
-     *    toggled by Clash/v2rayN etc. on Windows); zero-config auto for most users behind GFW.
-     *    Local 8111 polling is unaffected: DefaultProxySelector's default nonProxyHosts
-     *    excludes localhost/127.*.
-     * 2. Env var mapping — parse HTTPS_PROXY/HTTP_PROXY into the standard properties
-     *    https.proxyHost/Port. Only helps users launching from a terminal (GUI launch
-     *    inherits no shell env); explicit -D flags always take precedence.
+     * <p><b>绝不设置 java.net.useSystemProxies=true</b>（1.586 线上回归根因）：该属性会让
+     * JDK 8 的裸 Socket（SocksSocketImpl.connect）也查 ProxySelector；Windows 系统代理是
+     * host:port 简写时，JDK 把系统代理当 SOCKS 返回，连 127.0.0.1:8111 都被塞进代理隧道
+     * （系统代理分支不检查默认 nonProxyHosts；ProxyOverride 只做前缀匹配，"127.*" 匹配不到
+     * "127.0.0.1"）。属性模式只被 HttpURLConnection 读取，裸 Socket 查的是 socksProxyHost，
+     * 我们不设它 → 8111 永远直连（8111 的 Socket 另显式带 Proxy.NO_PROXY）。
+     *
+     * <p>代理来源优先级：显式 -D > HTTPS_PROXY/HTTP_PROXY 环境变量（仅终端启动可见）>
+     * Windows 系统代理注册表（{@link prog.util.SystemProxyResolver}，Clash/v2rayN 写在这里）。
      */
     private static void applyProxySettings() {
-        System.setProperty("java.net.useSystemProxies", "true");
         mapEnvProxy("HTTPS_PROXY", "https.proxyHost", "https.proxyPort");
         mapEnvProxy("https_proxy", "https.proxyHost", "https.proxyPort");
         mapEnvProxy("HTTP_PROXY", "http.proxyHost", "http.proxyPort");
         mapEnvProxy("http_proxy", "http.proxyHost", "http.proxyPort");
+
+        // 环境变量没给出时, 再读系统代理; 已显式设置(-D/环境变量)的不覆盖
+        String hp = prog.util.SystemProxyResolver.resolveWindowsProxy();
+        if (hp != null) {
+            applyProxyValue(hp, "Windows 系统代理", "https.proxyHost", "https.proxyPort");
+            applyProxyValue(hp, "Windows 系统代理", "http.proxyHost", "http.proxyPort");
+        }
+    }
+
+    private static void mapEnvProxy(String envKey, String hostProp, String portProp) {
+        String v = System.getenv(envKey);
+        if (v != null && !v.isEmpty())
+            applyProxyValue(v, envKey, hostProp, portProp);
     }
 
     /**
-     * Parse "http://user@host:port" style env value into host/port standard properties.
-     * Skips silently (direct connection) on missing env, existing explicit property,
-     * or malformed value.
+     * 解析 "http://user@host:port" 形式的代理值写入标准属性。
+     * 属性已存在（显式 -D 优先）或格式非法时静默跳过（直连）。
      */
-    private static void mapEnvProxy(String envKey, String hostProp, String portProp) {
-        String v = System.getenv(envKey);
-        if (v == null || v.isEmpty() || System.getProperty(hostProp) != null)
+    private static void applyProxyValue(String v, String source, String hostProp, String portProp) {
+        if (System.getProperty(hostProp) != null)
             return;
-        String s = v;
+        String s = v.trim();
         int slash = s.indexOf("://");
         if (slash >= 0)
             s = s.substring(slash + 3);
         int at = s.lastIndexOf('@'); // credentials unsupported by properties — strip
         if (at >= 0)
             s = s.substring(at + 1);
-        int colon = s.indexOf(':');
+        int colon = s.lastIndexOf(':');
         if (colon <= 0 || colon == s.length() - 1)
             return;
         try {
             int port = Integer.parseInt(s.substring(colon + 1).trim());
-            System.setProperty(hostProp, s.substring(0, colon).trim());
+            String host = s.substring(0, colon).trim();
+            System.setProperty(hostProp, host);
             System.setProperty(portProp, String.valueOf(port));
-            System.out.println("[Proxy] " + envKey + " -> " + s.substring(0, colon).trim() + ":" + port);
+            System.out.println("[Proxy] " + source + " -> " + host + ":" + port);
         } catch (NumberFormatException e) {
             // malformed value — keep direct connection
         }

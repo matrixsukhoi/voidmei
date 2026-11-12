@@ -115,7 +115,8 @@ public class HttpHelper {
 
 	/** fmCmd 一次性写命令: 发完读到服务器关闭即止 (调试路径, 保持旧请求串格式) */
 	private static void sendFmCmd(String requestLine, SocketAddress dest) throws IOException {
-		Socket socket = new Socket();
+		// NO_PROXY: 本地 8111 永不经过系统代理 (裸 Socket 默认会查 ProxySelector, 开代理时被当 SOCKS 目标)
+		Socket socket = new Socket(java.net.Proxy.NO_PROXY);
 		try {
 			socket.connect(dest, 500);
 			BufferedWriter w = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));

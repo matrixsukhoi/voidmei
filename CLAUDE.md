@@ -147,7 +147,7 @@ python script/build.py fmdata-upload
 | GPU 兼容 | `Launcher`（无 AWT import）在 AWT 加载**前**设 `sun.java2d.*` 属性关硬件加速；状态存 `gpu_compat.properties`（必须早于 ui_layout.cfg 可读，故独立文件）；`gpuCompatibilityMode` 配置键在 SwitchRowRenderer 有特殊处理 |
 | DPI 缩放 | `DPIHelper` 经 `GraphicsConfiguration.getDefaultTransform()` 探测，暴露 `Application.dpiScale`（2.0=200%）与 `logicalWidth/Height`；字体/尺寸计算一律乘 dpiScale，屏幕定位用 logical 尺寸不用 `Toolkit.getScreenSize()`（那是物理像素） |
 | 失焦自动隐藏 | `FocusMonitor`(200ms 节流)+`FocusDetector`（Windows: PowerShell 查 `aces` 进程；Linux: xdotool；macOS: AppleScript）；无新线程 |
-| 网络代理 | **JVM 不读 `HTTPS_PROXY` 环境变量**（Java 老坑，`HttpURLConnection` 只认系统属性）。`Launcher` 启动最早期做两层：设 `java.net.useSystemProxies=true`（跟随 Windows 系统代理，Clash/v2rayN"系统代理"模式用户零配置自动生效；8111 不受影响——默认 nonProxyHosts 排除 localhost）+ 把 `HTTPS_PROXY/HTTP_PROXY` 映射成 `https.proxyHost/Port`（只对终端启动生效，GUI 双击无 shell 环境；`-D` 显式设置优先）。**不做端口扫描探测**（用户拍板）：只开本地端口没开系统代理的工具属于用户侧开关没开，不代猜 |
+| 网络代理 | **代理只作用于 HttpURLConnection（GitHub 更新检查/FM 数据下载），绝不全局生效**。`Launcher` 设 `http(s).proxyHost/Port`，来源优先级 `-D` > `HTTPS_PROXY/HTTP_PROXY` 环境变量（仅终端启动可见，GUI 双击无 shell 环境）> Windows 系统代理注册表（`SystemProxyResolver` 读 `HKCU\...\Internet Settings`，Clash/v2rayN 写这里；支持 `host:port` 与协议列表两种 ProxyServer 形式）。**禁止设 `java.net.useSystemProxies=true`**（1.586 线上回归根因）：JDK 8 裸 Socket（`SocksSocketImpl.connect`）每个连接都查 ProxySelector，系统代理为 `host:port` 简写时 JDK 原生实现把它当 SOCKS 返回 → 连 `127.0.0.1:8111` 都进代理隧道；系统代理分支不检查默认 nonProxyHosts，ProxyOverride 又只做字符串前缀匹配（`127.*` 匹配不到 `127.0.0.1`，只有 `localhost` 命中）。8111 的裸 Socket 一律 `new Socket(Proxy.NO_PROXY)`（OneShotHttp/OtherService/fmCmd），本地流量永不经过代理。**不做端口扫描探测**（用户拍板）：只开本地端口没开系统代理的工具属于用户侧开关没开，不代猜 |
 
 ### 工具类去向（禁止自写）
 

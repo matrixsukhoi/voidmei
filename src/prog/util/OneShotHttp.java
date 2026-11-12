@@ -45,7 +45,9 @@ public class OneShotHttp {
 	public static String get(String path, SocketAddress dest) {
 		Socket s = null;
 		try {
-			s = new Socket();
+			// Proxy.NO_PROXY: 裸 Socket 默认会查 ProxySelector, 系统代理开启时 8111 会被当 SOCKS 目标
+			// 塞进代理隧道 (1.586 线上回归); 显式 NO_PROXY 走 PlainSocketImpl, 永不经过代理
+			s = new Socket(java.net.Proxy.NO_PROXY);
 			s.connect(dest, CONNECT_TIMEOUT_MS); // 拒绝 (游戏未开/断连) → 外层 catch → null → 调用方翻转端口
 			s.setSoTimeout(SO_TIMEOUT_MS);
 			s.setTcpNoDelay(true); // 请求小包, 消除 Nagle 不确定性
