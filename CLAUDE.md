@@ -7,8 +7,8 @@
 # 写代码时, 关键的地方和问题修复一定要添加和补充中文注释
 # 发布版本和发布tag时要更新版本更新文档, 不要忘了加入"FM文件更新到"
 # 测试手册.md 由 agent 维护, 审美与规则见正文"测试手册"节; 每次做完特性或修完 bug 必须补充/更新场景并做纯审美审查, 真机验证后在测试版本列登记版本号
-# push和发起pr需要在用户的指挥下进行, 不能自行发起
-# commit要保持简洁. push或者pr前都要尽量按照功能合并, 不要零零散散
+# commit 和 push 都需要用户的明确指令, 不能自行发起或扩大动作 (例如让你 commit 时不要自行切分支)
+# 所有改动直推 master, 不走 PR、不切分支. commit要保持简洁. push前要尽量按照功能合并, 不要零零散散
 # 你不用考虑什么时候打tag发版. 听用户的明确指令就行.
 # 打tag发版时, 先去github的release里看上一个版本的版本号是什么. 版本号一定要严格根据github的release递增, 递增基准是已发布的 Latest,不是 tag/draft. 打tag和更新更新日志时不要立刻commit&push, 一步一步等用户指令
 # 本地验证时可以写临时测试用例/脚本测试, 但是是否要保留并git提交最终一定要问用户! 很多测试用例是没有用的, 听用户的判断
@@ -72,9 +72,9 @@ bash script/e2e_fm.sh --scenario s5_missing_fm --duration 120   # 单场景长�
 
 **日常发版（全自动）**：
 1. `更新日志.txt` 顶部（TODO 注释块之后）插入新版本块：`____分隔线 / v1.590 / 一行一条改动`——只写用户可感知的改动
-2. 代码改动走 PR（单人也不例外），**攒若干 commit 后一起发起**（不必一 commit 一 PR）：从 master 切分支/或 `git push origin master:<分支名>` → `gh pr create`（正文 `Fixes #N` 关联 issue）→ rebase-merge 进 master
-3. 更新日志的改动不用走pr
-4. 在 merge 后的 master commit 上 `git tag 1.590 && git push origin 1.590` ← 触发 CI。**tag 是发版运维动作不走 PR**（业界惯例：PR 管代码变更，tag 管发布；版本号由 tag 驱动，必须打在已 merge 的 commit 上直推）
+2. 代码改动直接 commit 到 master 后 push（不走 PR，不切分支）；**攒若干 commit 后一起 push**，按功能合并，不要零零散散
+3. 更新日志同样直推 master
+4. 在 master 最新 commit 上 `git tag 1.590 && git push origin 1.590` ← 触发 CI。**tag 是发版运维动作直推**（版本号由 tag 驱动，必须打在已 push 的 commit 上）
 5. CI（release.yml）：checkout tag 的 commit → 从 `data` prerelease 拉 FM 数据 → `build.py dist` → 从更新日志提取该版本条目作 Release body → 创建 **draft** Release
 6. 测试同学验证 draft 附件 → 人工点 "Publish release" 转正
 
@@ -84,7 +84,7 @@ python script/build.py fmdata
 python script/build.py fmdata-upload
 # fmdata-upload: 以 dist/data_manifest.json 为真相源选包上传到 data prerelease,
 #                复查线上资产确认成功后自动删除旧版本 zip (防多版本并存时 CI 选错包)
-# 然后更新 更新日志.txt (走 PR) → 在 master 上打新 tag (如 1.591), 由人拍板
+# 然后更新 更新日志.txt (直推 master) → 在 master 上打新 tag (如 1.591), 由人拍板
 # 注意: 客户端 FMDataUpdater 会在用户下次启动时自动拉取新 data (无需发版即生效,
 #       但要不要发版/打 tag 仍由人拍板, 流程不变)
 # data/aces/version(WT 版本号) + data/aces/date(打包日期) 两个标记文件:
@@ -117,7 +117,7 @@ python script/build.py fmdata-upload
 
 - **`prog/`** 内核：`Launcher`（GPU 兼容 JVM 属性，须在 AWT 加载前设置）→ `Application` → `Controller`（生命周期/overlay 协调）→ `Service`（HTTP 轮询+计算后台线程，最大文件）；`OverlayManager`（overlay 可见性，方法须 synchronized）；`AlwaysOnTopCoordinator`（单例 z-order/对话框协调，WeakReference）；`FocusMonitor`（游戏失焦自动隐藏，复用 Service 轮询）；`fm/`（FM 单一真相源：`FMManager` 单例 identify/负缓存/FM_CHANGED 广播，`dataUpdated()` 供热替换后清负缓存强制重载；`FMLoader` 项目内唯一 `new Blkx` 点，全程 catch(Throwable)→READY/MISSING/CORRUPT；`FMDataUpdater` FM 数据在线自动更新一条链（检查→下载→sha256→解压→rename 替换→`dataUpdated()` 生效，`-Dvoidmei.fmdata.update=force/off` 开发与 e2e 用）；`FMHandle` 不可变句柄；`FMDataPaths` 路径唯一来源）；`config/`、`audio/`、`util/`、`hotkey/`、`i18n/`、`model/`、`event/`（`UIStateBus`/`FlightDataBus`）
 - **`parser/`** 数据摄取：`State`/`Indicators`（8111 JSON）、`Blkx`（FM .blk 解析）、`FlightAnalyzer`、`FlightLog` 等
-- **`ui/`** 界面：`MainForm`（设置窗）、`overlay/`（各 HUD overlay + `logic/HUDCalculator` + `model/HUDData`）、`layout/`（ui_layout.cfg 动态生成设置面板 + 17 种 renderer）、`component/`（HUD 部件）、`base/`（`DraggableOverlay`/`FieldOverlay`）、`model/`（`TelemetrySource` 等）、`replica/`、`util/`、`window/comparison/`（飞机对比）
+- **`ui/`** 界面：`MainForm`（设置窗）、`overlay/`（各 HUD overlay：MiniHUD 与准星已拆为独立窗 + `logic/HUDCalculator` + `model/HUDData`）、`layout/`（ui_layout.cfg 动态生成设置面板 + 17 种 renderer）、`component/`（HUD 部件）、`base/`（`DraggableOverlay`/`FieldOverlay`）、`model/`（`TelemetrySource` 等）、`replica/`、`util/`、`window/comparison/`（飞机对比）
 
 ### 数据流
 
