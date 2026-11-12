@@ -16,6 +16,9 @@ import prog.config.ConfigLoader.RowConfig;
 import prog.i18n.Lang;
 import prog.util.Logger;
 import prog.util.UIStateStorage;
+import ui.minihud.MiniHudLayoutCodec;
+import ui.minihud.MiniHudLayoutDoc;
+import ui.minihud.MiniHudLegacyMigrator;
 import ui.util.DialogService;
 
 /**
@@ -173,6 +176,10 @@ public class ConfigManager {
             } else {
                 // Merge existing panel
                 GroupConfig mergedPanel = mergePanel(templatePanel, userPanel, report);
+                // MiniHUD 逐项开关 → 自定义布局的一次性迁移（旧行随后被模板删除）
+                if ("MiniHUD".equals(templatePanel.title)) {
+                    seedMiniHudLayout(mergedPanel, userPanel);
+                }
                 merged.add(mergedPanel);
             }
         }
@@ -185,6 +192,37 @@ public class ConfigManager {
      */
     public static List<GroupConfig> mergeConfigs(List<GroupConfig> template, List<GroupConfig> user) {
         return mergeConfigs(template, user, null);
+    }
+
+    /**
+     * 旧 MiniHUD 逐项开关 → 自定义布局文档。
+     * 只在 miniHudLayout 为空时执行（用户已自定义则不动）；缺失旧键按旧默认值。
+     */
+    private static void seedMiniHudLayout(GroupConfig target, GroupConfig legacy) {
+        if (legacy == null)
+            return;
+        Object existing = findRowValue(target.rows, "miniHudLayout");
+        if (existing != null && !String.valueOf(existing).isEmpty())
+            return;
+
+        Map<String, String> legacyValues = new HashMap<>();
+        for (String key : MiniHudLegacyMigrator.LEGACY_KEYS) {
+            Object v = findRowValue(legacy.rows, key);
+            if (v != null)
+                legacyValues.put(key, String.valueOf(v));
+        }
+
+        // 总内容开关：新键存在则复制旧 drawHUDtext
+        Object draw = findRowValue(legacy.rows, "drawHUDtext");
+        if (draw != null && findRowValue(target.rows, "miniHudContentVisible") != null) {
+            setRowValue(target.rows, "miniHudContentVisible", Boolean.parseBoolean(String.valueOf(draw)));
+        }
+
+        if (legacyValues.isEmpty())
+            return;
+        MiniHudLayoutDoc doc = MiniHudLegacyMigrator.fromLegacy(legacyValues);
+        setRowValue(target.rows, "miniHudLayout", MiniHudLayoutCodec.encode(doc));
+        Logger.info("ConfigManager", "Migrated legacy MiniHUD switches to custom layout");
     }
 
     /**

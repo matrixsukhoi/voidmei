@@ -90,7 +90,7 @@ public class HUDCalculator {
 
         b.energyM = source.getEnergyJKg() / g;
 
-        b.isMachMode = settings.drawHudMach();
+        // 显示格式（IAS/Ma、标签、雷达高度）已下沉为条目属性；HUDData 不再携带全局模式
         b.isGearDown = b.gear > 0;
         b.isFlapsDown = b.flaps > 0;
         b.isAirbrakeActive = b.airbrake > 0;
@@ -171,44 +171,20 @@ public class HUDCalculator {
         // Warnings
         double radioAlt = b.radioAltitude;
         boolean radioAltValid = source.isRadioAltitudeValid();
-        boolean alwaysRadar = settings.alwaysShowRadarAltitude();
+        b.radioAltitudeValid = radioAltValid;
 
         // Low altitude warning flag (for color/audio warnings) - always based on <=500m threshold
         if (radioAltValid && radioAlt <= 500) {
             b.warnAltitude = true;
         }
 
-        // --- Strings Formatting (using Data) ---
-        if (b.isMachMode) {
-            b.speedStr = String.format("M%5.2f", b.mach);
-        } else {
-            String spdPre = settings.isSpeedLabelDisabled() ? "" : "SPD";
-            b.speedStr = String.format("%s%6d", spdPre, (int) b.ias);
-        }
-
-        String altPre = settings.isAltitudeLabelDisabled() ? "" : "ALT";
-        // Display decision: separate from warning flag
-        // When alwaysRadar is enabled, use radar altitude if valid; otherwise use warning-based logic
-        boolean useRadarAlt = alwaysRadar ? radioAltValid : b.warnAltitude;
-
-        if (useRadarAlt) {
-            b.altStr = altPre + String.format("R%5.0f", b.radioAltitude);
-        } else {
-            b.altStr = altPre + String.format("%6.0f", b.altitude);
-        }
-
-        // AoA 和 Energy 数据始终计算，显示/隐藏由组件级开关控制
+        // --- 兼容字符串（显示格式已下沉到各条目组件，主 HUD 不再消费） ---
+        b.speedStr = String.format("M%5.2f", b.mach);
+        b.altStr = "ALT" + (b.warnAltitude ? String.format("R%5.0f", b.radioAltitude)
+                : String.format("%6.0f", b.altitude));
         b.aoaStr = String.format("α%3.0f", b.aoa);
         b.energyStr = String.format("E%5.0f", b.energyM);
-
-        String sepPre = settings.isSEPLabelDisabled() ? "" : "SEP";
-        if (b.verticalSpeed > 0) {
-            b.sepStr = String.format("%s↑%-4.0f", sepPre, b.verticalSpeed);
-        } else {
-            b.sepStr = String.format("%s↓%-4.0f", sepPre, b.verticalSpeed);
-        }
-
-        // Maneuver / Time
+        b.sepStr = "SEP" + (b.verticalSpeed > 0 ? "↑" : "↓") + String.format("%-4.0f", b.verticalSpeed);
         if (b.gLoad > 1.5f || b.gLoad < -0.5f) {
             b.maneuverStateStr = String.format("G%5.1f", b.gLoad);
         } else {
@@ -242,13 +218,8 @@ public class HUDCalculator {
         b.gearStr = gear;
 
         if (b.flaps > 0) {
-            // Restore readable text if Bar is disabled
-            if (!settings.enableFlapAngleBar()) {
-                b.mechanizationStr = String.format("F%3.0f%s%s", b.flaps, brk, gear);
-            } else {
-                // Bar enabled -> Hide text (keep Brk/Gear)
-                b.mechanizationStr = String.format("%4s%s%s", "", brk, gear);
-            }
+            // 襟翼条与数据区互相独立：这里始终给完整文本，具体显示由条目开关决定
+            b.mechanizationStr = String.format("F%3.0f%s%s", b.flaps, brk, gear);
         } else {
             if (blkx != null && blkx.isVWing && sIndic != null) {
                 b.mechanizationStr = String.format("W%3.0f%s%s", sIndic.wsweep_indicator * 100, brk, gear); // approx

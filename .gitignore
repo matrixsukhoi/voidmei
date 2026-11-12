@@ -7,7 +7,7 @@ dist/
 data/
 # 运行时生成物：用户数据与日志
 records/
-config/
+/config/
 ui_layout.user.cfg*
 voidmei_config.json*
 output.log

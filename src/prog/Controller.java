@@ -701,9 +701,8 @@ public class Controller {
 				overlay -> ((MiniHUDOverlay) overlay).initPreview(this, configService.getHUDSettings()),
 				overlay -> ((MiniHUDOverlay) overlay).reinitConfig(),
 				false)
-				.withInterest("drawHUD", "disableHUD", "crosshairScale", "miniHUD", "enableLayoutDebug",
-						"enableFlapAngleBar", "hudMach", "showSpeedBar", "showAttitudeGauge", "attitudeIndicatorInertialMode",
-						"alwaysShowRadarAltitude", "showHUD");
+				.withInterest("crosshairScale", "miniHUD", "enableLayoutDebug",
+						"miniHudLayout", "miniHudContentVisible", "MonoNumFont");
 
 		// CrosshairOverlay - 独立准星, 与 MiniHUD 平级; 配置面板「准星」
 		overlayManager.registerWithPreview("displayCrosshair",

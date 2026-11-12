@@ -17,6 +17,8 @@ import prog.event.UIStateEvents;
  */
 public class ConfigurationService implements ConfigProvider {
     private java.util.List<ConfigLoader.GroupConfig> layoutConfigs;
+    // 数据字段目录缓存：配置重载/导入/出厂后必须清空
+    private MiniHudFieldCatalog fieldCatalogCache;
     // private Timer saveTimer; // Removed
     // private final long SAVE_DELAY = 2000; // Removed
 
@@ -28,6 +30,7 @@ public class ConfigurationService implements ConfigProvider {
     public void initConfig() {
         // Load layout config using ConfigManager (handles first-run, upgrade, errors)
         layoutConfigs = ConfigManager.initialize();
+        fieldCatalogCache = null;
         prog.util.Logger.info("ConfigurationService", "Loaded layout config with " + layoutConfigs.size() + " groups.");
 
         // Subscribe to global reset requests (EDA implementation)
@@ -40,6 +43,7 @@ public class ConfigurationService implements ConfigProvider {
 
     public void loadLayout(String path) {
         layoutConfigs = ConfigLoader.loadConfig(path);
+        fieldCatalogCache = null;
         prog.util.Logger.info("ConfigurationService", "Loaded layout config with " + layoutConfigs.size() + " groups.");
     }
 
@@ -61,6 +65,7 @@ public class ConfigurationService implements ConfigProvider {
         if (success) {
             // Reload configuration
             layoutConfigs = ConfigLoader.loadConfig(ConfigManager.getUserConfigPath());
+            fieldCatalogCache = null;
             // Notify all subscribers about the change
             UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED,
                     "ConfigurationService", UIStateEvents.ACTION_RESET_COMPLETED);
@@ -78,11 +83,20 @@ public class ConfigurationService implements ConfigProvider {
         if (success) {
             // Reload configuration
             layoutConfigs = ConfigLoader.loadConfig(ConfigManager.getUserConfigPath());
+            fieldCatalogCache = null;
             // Notify all subscribers about the change
             UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED,
                     "ConfigurationService", UIStateEvents.ACTION_RESET_COMPLETED);
         }
         return success;
+    }
+
+    /** 数据字段目录（懒加载，配置重载后自动重建）。 */
+    public MiniHudFieldCatalog getMiniHudFieldCatalog() {
+        if (fieldCatalogCache == null) {
+            fieldCatalogCache = MiniHudFieldCatalog.from(layoutConfigs);
+        }
+        return fieldCatalogCache;
     }
 
     public java.util.List<ConfigLoader.GroupConfig> getLayoutConfigs() {
@@ -631,16 +645,6 @@ public class ConfigurationService implements ConfigProvider {
             return scale == 0 ? 1 : scale;
         }
 
-        @Override
-        public boolean drawHUDText() {
-            return getBool("drawHUDtext", true);
-        }
-
-        @Override
-        public boolean showAttitudeGauge() {
-            return getBool("showAttitudeGauge", true);
-        }
-
         private double getDoubleFromLayoutFirst(String section, String property, double defaultVal) {
             // Priority 1: Check in-memory LayoutConfigs
             if (layoutConfigs != null) {
@@ -677,103 +681,35 @@ public class ConfigurationService implements ConfigProvider {
         }
 
         @Override
-        public boolean enableFlapAngleBar() {
-            return getBool("enableFlapAngleBar", true);
-        }
-
-        @Override
-        public boolean showSpeedBar() {
-            return getBool("showSpeedBar", true);
-        }
-
-        @Override
-        public boolean drawHudMach() {
-            return getBool("hudMach", false);
-        }
-
-        @Override
-        public boolean isSpeedLabelDisabled() {
-            return getBool("disableHUDSpeedLabel", false);
-        }
-
-        @Override
-        public boolean isAltitudeLabelDisabled() {
-            return getBool("disableHUDHeightLabel", false);
-        }
-
-        @Override
-        public boolean isSEPLabelDisabled() {
-            return getBool("disableHUDSEPLabel", false);
-        }
-
-        @Override
-        public boolean showHUDSpeed() {
-            return getBool("showHUDSpeed", true);
-        }
-
-        @Override
-        public boolean showHUDAoA() {
-            return getBool("showHUDAoA", true);
-        }
-
-        @Override
-        public boolean showHUDAltitude() {
-            return getBool("showHUDAltitude", true);
-        }
-
-        @Override
-        public boolean showHUDEnergy() {
-            return getBool("showHUDEnergy", true);
-        }
-
-        @Override
-        public boolean showHUDMechanization() {
-            return getBool("showHUDMechanization", true);
-        }
-
-        @Override
-        public boolean showHUDFlaps() {
-            return getBool("showHUDFlaps", true);
-        }
-
-        @Override
-        public boolean showHUDAirbrake() {
-            return getBool("showHUDAirbrake", true);
-        }
-
-        @Override
-        public boolean showHUDGear() {
-            return getBool("showHUDGear", true);
-        }
-
-        @Override
-        public boolean showHUDSep() {
-            return getBool("showHUDSep", true);
-        }
-
-        @Override
-        public boolean showHUDGLoad() {
-            return getBool("showHUDGLoad", true);
-        }
-
-        @Override
-        public boolean showHUDManeuverBar() {
-            return getBool("showHUDManeuverBar", true);
-        }
-
-        @Override
-        public boolean isAttitudeIndicatorInertialMode() {
-            return getBool("attitudeIndicatorInertialMode", false);
-        }
-
-        @Override
         public boolean isGPUCompatibilityMode() {
             return getBool("gpuCompatibilityMode", false);
         }
 
         @Override
-        public boolean alwaysShowRadarAltitude() {
-            return getBool("alwaysShowRadarAltitude", false);
+        public boolean isMiniHudContentVisible() {
+            // 迁移期兼容：新键不存在时沿用旧 drawHUDtext
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null && findRowRecursive(gc.rows, "miniHudContentVisible") == null) {
+                return getBool("drawHUDtext", true);
+            }
+            return getBool("miniHudContentVisible", true);
+        }
+
+        @Override
+        public String getMiniHudLayout() {
+            String s = getString("miniHudLayout", "");
+            return s != null ? s : "";
+        }
+
+        @Override
+        public void saveMiniHudLayout(String encoded) {
+            setConfig("miniHudLayout", encoded != null ? encoded : "");
+            saveLayoutConfig();
+        }
+
+        @Override
+        public MiniHudFieldCatalog getMiniHudFieldCatalog() {
+            return ConfigurationService.this.getMiniHudFieldCatalog();
         }
     }
 }

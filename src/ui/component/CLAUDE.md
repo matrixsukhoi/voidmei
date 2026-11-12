@@ -1,6 +1,8 @@
 # HUD 组件（ui.component）
 
-MiniHUD 的可插拔视觉部件：`HUDComponent` 接口（`getId`/`getPreferredSize`/`draw(Graphics2D,x,y)`/`onDataUpdate(HUDData)`），`AbstractHUDComponent` 提供可见性管理。现有：`LinearGauge`/`LabeledLinearGauge`（条形表）、`SpeedRatioBar`、`FlapAngleBar`、`CompassGauge`（含离体/随体模式与北极三角）、`CrosshairGauge`（贴图或软件绘制）、`AttitudeIndicatorGauge`、`TextGauge`、`WarningOverlay`、`row/`（HUDRow/HUDTextRow/HUDAkbRow/HUDEnergyRow/HUDFlapsRow/HUDManeuverRow）。
+MiniHUD 的可插拔视觉部件：`HUDComponent` 接口（`getId`/`getPreferredSize`/`draw(Graphics2D,x,y)`/`onDataUpdate(HUDData)`），`AbstractHUDComponent` 提供可见性管理。现有：`LinearGauge`/`LabeledLinearGauge`（条形表）、`SpeedRatioBar`、`FlapAngleBar`、`CompassGauge`（含离体/随体模式与北极三角）、`CrosshairGauge`（贴图或软件绘制）、`AttitudeIndicatorGauge`、`TextGauge`、`WarningOverlay`、`row/`（HUDRow/HUDTextRow/HUDAkbRow/HUDEnergyRow/HUDFlapsRow/HUDMechanizationRow/HUDSepRow/HUDManeuverRow）。
+
+**条目化（v1.587+）**：预览/游戏渲染由用户布局实例化组件，不再有固定组件列表。新增可编辑组件：实现 `HUDComponent` 后，在 MiniHUD 组件注册表登记一个类型（type 一经发布不复用/改名）。文本行是最基础的 grid 组件（一行多格，可放数据字段或静态文本）；旧 5 行保留为预设。显示格式由各组件按条目属性自行生成，不再依赖全局开关。
 
 `CrosshairGauge` 现由独立 `CrosshairOverlay` 使用：矢量臂从中心向两侧各延伸 `width`，自然外接 `2×width`（`getPreferredSize()` 的 `width×width` 只是圆）；独立开窗和绘制原点按此计算。
 
@@ -19,9 +21,11 @@ MiniHUD 的可插拔视觉部件：`HUDComponent` 接口（`getId`/`getPreferred
 ## 新增组件四步
 
 1. 实现 `HUDComponent`（或继承 `AbstractHUDComponent`），遵守上述契约
-2. `MiniHUDOverlay.initComponentsLayout()` 实例化
-3. `HUDLayoutNode` 挂进布局 DAG
-4. `MiniHUDOverlay.updateComponents()` 里 `onDataUpdate(data)` 接线
+2. 在 MiniHUD 组件注册表登记类型（type 永不复用/改名，并声明分类/缩放能力）
+3. 按条目属性创建组件并套用样式
+4. 需要实时数据的在场景构建/更新里接线
+
+不要再往 Overlay 里加固定组件列表；组件由布局文档实例化。
 
 ## 常见坑
 

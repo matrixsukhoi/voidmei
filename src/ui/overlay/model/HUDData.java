@@ -14,6 +14,7 @@ public class HUDData {
     public final double mach; // Mach number
     public final double altitude; // Barometric altitude (m)
     public final double radioAltitude; // Radio altitude (m)
+    public final boolean radioAltitudeValid; // 8111 雷达高度是否有效
     public final double verticalSpeed; // SEP (m/s)
     public final double heading; // Heading (degrees, 0-360)
     public final double pitch; // Pitch (degrees)
@@ -83,6 +84,7 @@ public class HUDData {
         this.mach = builder.mach;
         this.altitude = builder.altitude;
         this.radioAltitude = builder.radioAltitude;
+        this.radioAltitudeValid = builder.radioAltitudeValid;
         this.verticalSpeed = builder.verticalSpeed;
         this.heading = builder.heading;
         this.pitch = builder.pitch;
@@ -139,6 +141,7 @@ public class HUDData {
         public double mach;
         public double altitude;
         public double radioAltitude;
+        public boolean radioAltitudeValid;
         public double verticalSpeed;
         public double heading;
         public double pitch;

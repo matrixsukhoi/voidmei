@@ -12,6 +12,12 @@ public class HUDManeuverRow extends HUDTextRow {
     private int halfLine;
     private int lineWidth;
     private double maneuverIndex;
+    private String gLabel = "G";
+
+    /** 条目级 G 标签。 */
+    public void setGLabel(String label) {
+        this.gLabel = label != null ? label : "";
+    }
 
     /** 组件级可见性开关：G-force 文字（左侧主文字） */
     private boolean showGLoad = true;
@@ -54,6 +60,27 @@ public class HUDManeuverRow extends HUDTextRow {
     /** 组件级可见性开关 */
     public void setShowGLoad(boolean v) { this.showGLoad = v; }
     public void setShowManeuverBar(boolean v) { this.showManeuverBar = v; }
+
+    /** 场景化更新：文本与刻度都从 HUDData 直接生成，避免 overlay 手工拼装。 */
+    @Override
+    public void onDataUpdate(ui.overlay.model.HUDData data) {
+        if (data == null)
+            return;
+        String text;
+        if (data.gLoad > 1.5 || data.gLoad < -0.5) {
+            text = gLabel + String.format("%5.1f", data.gLoad);
+        } else {
+            text = (data.timeStr != null && !data.timeStr.isEmpty()) ? "L" + data.timeStr : "";
+        }
+        super.update(text, false);
+        this.maneuverIndex = data.maneuverIndex;
+        this.maneuverIndexLen = (int) Math.round(data.maneuverIndex / 0.5 * rightDraw);
+        this.maneuverIndexLen10 = (int) Math.round(0.1 / 0.5 * rightDraw);
+        this.maneuverIndexLen20 = (int) Math.round(0.2 / 0.5 * rightDraw);
+        this.maneuverIndexLen30 = (int) Math.round(0.3 / 0.5 * rightDraw);
+        this.maneuverIndexLen40 = (int) Math.round(0.4 / 0.5 * rightDraw);
+        this.maneuverIndexLen50 = rightDraw;
+    }
 
     public void update(String text, boolean isWarning, double maneuverIndex,
             int len, int len10, int len20, int len30, int len40, int len50) {

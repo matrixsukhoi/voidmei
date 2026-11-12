@@ -117,7 +117,7 @@ python script/build.py fmdata-upload
 
 - **`prog/`** 内核：`Launcher`（GPU 兼容 JVM 属性，须在 AWT 加载前设置）→ `Application` → `Controller`（生命周期/overlay 协调）→ `Service`（HTTP 轮询+计算后台线程，最大文件）；`OverlayManager`（overlay 可见性，方法须 synchronized）；`AlwaysOnTopCoordinator`（单例 z-order/对话框协调，WeakReference）；`FocusMonitor`（游戏失焦自动隐藏，复用 Service 轮询）；`fm/`（FM 单一真相源：`FMManager` 单例 identify/负缓存/FM_CHANGED 广播，`dataUpdated()` 供热替换后清负缓存强制重载；`FMLoader` 项目内唯一 `new Blkx` 点，全程 catch(Throwable)→READY/MISSING/CORRUPT；`FMDataUpdater` FM 数据在线自动更新一条链（检查→下载→sha256→解压→rename 替换→`dataUpdated()` 生效，`-Dvoidmei.fmdata.update=force/off` 开发与 e2e 用）；`FMHandle` 不可变句柄；`FMDataPaths` 路径唯一来源）；`config/`、`audio/`、`util/`、`hotkey/`、`i18n/`、`model/`、`event/`（`UIStateBus`/`FlightDataBus`）
 - **`parser/`** 数据摄取：`State`/`Indicators`（8111 JSON）、`Blkx`（FM .blk 解析）、`FlightAnalyzer`、`FlightLog` 等
-- **`ui/`** 界面：`MainForm`（设置窗）、`overlay/`（各 HUD overlay：MiniHUD 与准星已拆为独立窗 + `logic/HUDCalculator` + `model/HUDData`）、`layout/`（ui_layout.cfg 动态生成设置面板 + 17 种 renderer）、`component/`（HUD 部件）、`base/`（`DraggableOverlay`/`FieldOverlay`）、`model/`（`TelemetrySource` 等）、`replica/`、`util/`、`window/comparison/`（飞机对比）
+- **`ui/`** 界面：`MainForm`（设置窗）、`overlay/`（各 HUD overlay：MiniHUD 与准星已拆为独立窗 + `logic/HUDCalculator` + `model/HUDData`）、`minihud/`（MiniHUD 自定义布局与编辑器）、`layout/`（ui_layout.cfg 动态生成设置面板 + 17 种 renderer）、`component/`（HUD 部件）、`base/`（`DraggableOverlay`/`FieldOverlay`）、`model/`（`TelemetrySource` 等）、`replica/`、`util/`、`window/comparison/`（飞机对比）
 
 ### 数据流
 
@@ -182,6 +182,14 @@ python script/build.py fmdata-upload
 
 **新增 HUD 组件**：实现 `HUDComponent`，尺寸一律基于 `ctx.hudFontSize`（禁硬编码像素），`draw()` 零分配，在 `MiniHUDOverlay` 实例化/布局/接线。详见 `src/ui/component/CLAUDE.md`。
 
+### MiniHUD 自定义布局
+
+- MiniHUD 的内容与位置由用户布局决定，不再有逐项显隐开关；布局存在 `ui_layout.user.cfg` 的一个隐藏配置项里，随模板合并/备份/导入/恢复出厂一起走。
+- 界面分**预览（只读）**和**编辑**两种状态：默认只读，点「编辑」才能拖动/缩放/右键增删；编辑态自动显示条目边界框，只读态不出编辑辅助；游戏内始终只读。拖动中不写盘，松手后保存。
+- 所有“怎么显示”都是条目自己的属性：表速还是马赫、标签文字、自动/气压/雷达高度、罗盘随体/离体；不存在全局显示方式开关。襟翼条与数据区襟翼文字互相独立。
+- 老用户升级时，旧逐项开关会一次性换算成等价布局；窗口位置/字体/大小等偏好不动；旧开关随后消失。
+- 改渲染/布局后先用离屏快照 + 基线对比确认（工具在本地 `build/`，不进 git），不要只看编译，也不要把效果验证全推给测试同学。
+
 ### 子模块文档
 
 | 模块 | 文档 |
@@ -191,6 +199,7 @@ python script/build.py fmdata-upload
 | 工具类 | [`src/prog/util/CLAUDE.md`](src/prog/util/CLAUDE.md) |
 | UI 工具 | [`src/ui/util/CLAUDE.md`](src/ui/util/CLAUDE.md) |
 | Overlay 开发 | [`src/ui/overlay/CLAUDE.md`](src/ui/overlay/CLAUDE.md) |
+| HUD 布局引擎 | [`src/ui/layout/CLAUDE.md`](src/ui/layout/CLAUDE.md) |
 | UI 模型 / TelemetrySource | [`src/ui/model/CLAUDE.md`](src/ui/model/CLAUDE.md) |
 | HUD 组件 | [`src/ui/component/CLAUDE.md`](src/ui/component/CLAUDE.md) |
 | FM 对比规则 | [`src/ui/window/comparison/CLAUDE.md`](src/ui/window/comparison/CLAUDE.md) |

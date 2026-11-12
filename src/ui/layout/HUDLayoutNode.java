@@ -28,6 +28,7 @@ public class HUDLayoutNode {
 
     // Flags
     private boolean ignoreBounds = false; // If true, doesn't affect parent's bound calculation (Overlay)
+    private int zOrder = 0; // 仅影响绘制顺序，不影响 DAG 解算
 
     // Runtime State (Calculated)
     private Rectangle pixelRect = new Rectangle();
@@ -64,6 +65,20 @@ public class HUDLayoutNode {
     public HUDLayoutNode setIgnoreBounds(boolean ignore) {
         this.ignoreBounds = ignore;
         return this;
+    }
+
+    public HUDLayoutNode setZOrder(int z) {
+        this.zOrder = z;
+        return this;
+    }
+
+    public int getZOrder() {
+        return zOrder;
+    }
+
+    /** 编辑态命中测试（像素坐标，未含 renderOffset）。 */
+    public boolean contains(int px, int py) {
+        return pixelRect.contains(px, py);
     }
 
     public HUDLayoutNode getParent() {

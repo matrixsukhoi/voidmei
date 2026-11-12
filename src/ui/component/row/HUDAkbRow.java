@@ -8,6 +8,15 @@ import ui.UIBaseElements;
 
 public class HUDAkbRow extends HUDTextRow {
 
+    private String speedField = "getMach";
+    private String speedLabel = "SPD";
+
+    /** 条目级显示方式：速度字段（IAS/Ma）与标签文本。 */
+    public void setSpeedFormat(String field, String label) {
+        this.speedField = field != null ? field : "getMach";
+        this.speedLabel = label != null ? label : "";
+    }
+
     private String aoaText;
     private int aoaY;
     private int rightDraw;
@@ -57,11 +66,17 @@ public class HUDAkbRow extends HUDTextRow {
         if (data == null)
             return;
 
-        // Speed Text (uses default text field from HUDTextRow)
-        super.update(data.speedStr, data.warnVne);
+        // Speed Text：按条目属性自格式化（IAS/Ma + 标签），不再依赖全局开关
+        String speedText;
+        if ("getIAS".equals(speedField)) {
+            speedText = speedLabel + String.format("%6d", (int) data.ias);
+        } else {
+            speedText = String.format("M%5.2f", data.mach);
+        }
+        super.update(speedText, data.warnVne);
 
         // AoA Text and Bar
-        this.aoaText = data.aoaStr;
+        this.aoaText = String.format("α%3.0f", data.aoa);
         this.aoaColor = data.aoaColor;
         this.aoaBarColor = data.aoaBarColor;
 

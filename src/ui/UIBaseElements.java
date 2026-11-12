@@ -13,6 +13,9 @@ import prog.Application;
 
 public class UIBaseElements {
 	static AffineTransform tx = new AffineTransform();
+	// 常用 shadeWidth=1 的描边缓存，避免每帧 new BasicStroke
+	private static final BasicStroke SHADE_STROKE_1 = new BasicStroke(1, BasicStroke.CAP_ROUND,
+			BasicStroke.JOIN_ROUND);
 
 	// public BasiStroke roundstroke = new BasicStroke(1, BasicStroke.CAP_ROUND,
 	// BasicStroke.JOIN_ROUND);
@@ -20,7 +23,8 @@ public class UIBaseElements {
 	public static void __drawStringShade(Graphics2D g2d, int x, int y, int shadeWidth, String s, Font f, Color c) {
 		g2d.setFont(f);
 
-		g2d.setStroke(new BasicStroke(shadeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		g2d.setStroke(shadeWidth == 1 ? SHADE_STROKE_1
+				: new BasicStroke(shadeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
 		// drawshade
 		if (Application.drawFontShape) {
@@ -46,7 +50,8 @@ public class UIBaseElements {
 	public static void __drawStringShade(Graphics2D g2d, int x, int y, int shadeWidth, char[] buf, int len, Font f,
 			Color c) {
 		g2d.setFont(f);
-		g2d.setStroke(new BasicStroke(shadeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		g2d.setStroke(shadeWidth == 1 ? SHADE_STROKE_1
+				: new BasicStroke(shadeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 		// drawshade (No Shape support for char[] yet, fallback to simple shade)
 		g2d.setColor(Application.colorShadeShape);
 		g2d.drawChars(buf, 0, len, x + 1, y + 1);

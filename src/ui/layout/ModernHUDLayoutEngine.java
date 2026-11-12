@@ -3,12 +3,13 @@ package ui.layout;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
 
 import prog.util.Logger;
 
@@ -21,7 +22,8 @@ import prog.util.Logger;
  */
 public class ModernHUDLayoutEngine {
 
-    private final Map<String, HUDLayoutNode> nodes = new HashMap<>(); // ID -> Node
+    // LinkedHashMap 保证未显式设置 z 时绘制/命中顺序稳定
+    private final Map<String, HUDLayoutNode> nodes = new LinkedHashMap<>(); // ID -> Node
     private double lineHeight = 20.0;
     private int canvasWidth;
     private int canvasHeight;
@@ -154,9 +156,51 @@ public class ModernHUDLayoutEngine {
         this.renderOffsetY = y;
     }
 
+    /** 绘制顺序：稳定按 z 升序（同 z 保持拓扑插入顺序）。 */
+    public List<HUDLayoutNode> getRenderOrder() {
+        List<HUDLayoutNode> order = new ArrayList<>(sortedNodes);
+        Collections.sort(order, new Comparator<HUDLayoutNode>() {
+            @Override
+            public int compare(HUDLayoutNode a, HUDLayoutNode b) {
+                return Integer.compare(a.getZOrder(), b.getZOrder());
+            }
+        });
+        return order;
+    }
+
+    /**
+     * 编辑态命中测试：传入 panel 像素坐标（未含 renderOffset），从最上层往前找。
+     *
+     * @param includeHidden true 时隐藏条目也可选中（编辑态）
+     */
+    public HUDLayoutNode hitTest(int panelX, int panelY, boolean includeHidden) {
+        int px = panelX - renderOffsetX;
+        int py = panelY - renderOffsetY;
+        List<HUDLayoutNode> order = getRenderOrder();
+        for (int i = order.size() - 1; i >= 0; i--) {
+            HUDLayoutNode node = order.get(i);
+            if (!includeHidden && !node.component.isVisible())
+                continue;
+            if (node.contains(px, py))
+                return node;
+        }
+        return null;
+    }
+
+    public int getRenderOffsetX() {
+        return renderOffsetX;
+    }
+
+    public int getRenderOffsetY() {
+        return renderOffsetY;
+    }
+
+    public void markDirty() {
+        this.dirty = true;
+    }
+
     public void render(Graphics2D g) {
-        // ... (existing render logic)
-        for (HUDLayoutNode node : sortedNodes) {
+        for (HUDLayoutNode node : getRenderOrder()) {
             if (!node.component.isVisible())
                 continue;
 

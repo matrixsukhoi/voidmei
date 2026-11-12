@@ -108,14 +108,9 @@ public class MinimalHUDContext {
 
         b.roundCompass = (int) (Math.round(b.hudFontSize * 0.8f));
 
-        // Dynamic rightDraw calculation (WYSWYG Overlap Fix)
-        // Standard value (~5 chars): 3.5f * fontSize
-        // Labeled value (~9 chars): 5.5f * fontSize
-        float multiplier = 3.5f;
-        if (!settings.isSpeedLabelDisabled() || !settings.isAltitudeLabelDisabled() || !settings.isSEPLabelDisabled()) {
-            multiplier = 5.5f;
-        }
-        b.rightDraw = (int) (b.hudFontSize * multiplier);
+        // 右列宽度固定按带标签的 9 字符估算；标签显隐已下沉为条目属性，
+        // 各行的模板宽度自行兜底，不再需要全局开关参与。
+        b.rightDraw = (int) (b.hudFontSize * 5.5f);
 
         b.compassDiameter = (int) Math.round(2 * b.hudFontSize * 0.618);
         b.compassRadius = (int) Math.round(b.compassDiameter / 2.0);
@@ -138,6 +133,78 @@ public class MinimalHUDContext {
                 "MinimalHUD Config: Width=" + b.width + ", Height=" + b.height + ", Scale=" + b.miniHUDScale);
 
         return new MinimalHUDContext(b);
+    }
+
+    /**
+     * 派生一个按条目缩放后的上下文（字体/线宽/仪表尺寸同步缩放，窗口基准尺寸不变）。
+     * scale = 1.0 时返回 this，避免重复创建。
+     */
+    public MinimalHUDContext withScale(double factor) {
+        if (Math.abs(factor - 1.0) < 1e-6)
+            return this;
+        Builder b = new Builder();
+        b.width = this.width;
+        b.height = this.height;
+        b.windowX = this.windowX;
+        b.windowY = this.windowY;
+        b.miniHUDScale = this.miniHUDScale;
+
+        b.hudFontSize = Math.max(8, (int) Math.round(this.hudFontSize * factor));
+        b.hudFontSizeSmall = Math.max(6, (int) Math.round(this.hudFontSizeSmall * factor));
+        b.barWidth = Math.max(1, (int) Math.round(this.barWidth * factor));
+        b.lineWidth = Math.max(1, (int) Math.round(this.lineWidth * factor));
+        b.roundCompass = Math.max(2, (int) Math.round(this.roundCompass * factor));
+        b.rightDraw = (int) Math.round(this.rightDraw * factor);
+        b.compassDiameter = Math.max(2, (int) Math.round(this.compassDiameter * factor));
+        b.compassRadius = Math.max(1, (int) Math.round(this.compassRadius * factor));
+        b.compassInnerMarkRadius = Math.max(1, (int) Math.round(this.compassInnerMarkRadius * factor));
+        b.aoaLength = this.aoaLength * factor;
+
+        b.halfLine = Math.max(1, (int) Math.round(this.halfLine * factor));
+        b.strokeThick = new BasicStroke(b.halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+        b.strokeThin = new BasicStroke(b.halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+
+        b.drawFont = this.drawFont.deriveFont((float) b.hudFontSize);
+        b.drawFontSmall = this.drawFontSmall.deriveFont((float) b.hudFontSizeSmall);
+        b.drawFontSSmall = this.drawFontSSmall.deriveFont((float) Math.max(4,
+                Math.round(this.drawFontSSmall.getSize() * factor)));
+        return new MinimalHUDContext(b);
+    }
+
+    /** 派生一个右列宽度不同的上下文（旧版三标签全关时用 3.5 行高）。 */
+    public MinimalHUDContext withRightDraw(int rightDraw) {
+        if (this.rightDraw == rightDraw)
+            return this;
+        Builder b = copyBuilder();
+        b.rightDraw = rightDraw;
+        b.aoaLength = rightDraw - b.hudFontSize / 1.5;
+        return new MinimalHUDContext(b);
+    }
+
+    private Builder copyBuilder() {
+        Builder b = new Builder();
+        b.width = this.width;
+        b.height = this.height;
+        b.hudFontSize = this.hudFontSize;
+        b.hudFontSizeSmall = this.hudFontSizeSmall;
+        b.windowX = this.windowX;
+        b.windowY = this.windowY;
+        b.miniHUDScale = this.miniHUDScale;
+        b.roundCompass = this.roundCompass;
+        b.rightDraw = this.rightDraw;
+        b.compassDiameter = this.compassDiameter;
+        b.compassRadius = this.compassRadius;
+        b.compassInnerMarkRadius = this.compassInnerMarkRadius;
+        b.aoaLength = this.aoaLength;
+        b.lineWidth = this.lineWidth;
+        b.barWidth = this.barWidth;
+        b.halfLine = this.halfLine;
+        b.drawFont = this.drawFont;
+        b.drawFontSmall = this.drawFontSmall;
+        b.drawFontSSmall = this.drawFontSSmall;
+        b.strokeThick = this.strokeThick;
+        b.strokeThin = this.strokeThin;
+        return b;
     }
 
     // Builder pattern for internal convenience

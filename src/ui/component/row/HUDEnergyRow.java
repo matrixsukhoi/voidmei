@@ -11,6 +11,17 @@ public class HUDEnergyRow extends HUDTextRow {
     private int rightDraw;
     private Font smallFont;
 
+    private String altSource = "AUTO"; // AUTO / BARO / RADAR
+    private String altLabel = "ALT";
+    private String energyLabel = "E";
+
+    /** 条目级显示方式：高度来源与标签。 */
+    public void setAltFormat(String source, String altLabel, String energyLabel) {
+        this.altSource = source != null ? source : "AUTO";
+        this.altLabel = altLabel != null ? altLabel : "";
+        this.energyLabel = energyLabel != null ? energyLabel : "";
+    }
+
     /** 组件级可见性开关：高度文字（左侧主文字） */
     private boolean showAltitude = true;
     /** 组件级可见性开关：能量读数（右侧） */
@@ -45,8 +56,18 @@ public class HUDEnergyRow extends HUDTextRow {
         if (data == null)
             return;
 
-        this.update(data.altStr, data.warnAltitude);
-        this.energyText = data.energyStr;
+        boolean useRadar;
+        if ("RADAR".equals(altSource)) {
+            useRadar = data.radioAltitudeValid;
+        } else if ("BARO".equals(altSource)) {
+            useRadar = false;
+        } else {
+            useRadar = data.warnAltitude; // AUTO：<=500m 时用雷达高度
+        }
+        String alt = altLabel + (useRadar ? String.format("R%5.0f", data.radioAltitude)
+                : String.format("%6.0f", data.altitude));
+        this.update(alt, data.warnAltitude);
+        this.energyText = energyLabel + String.format("%5.0f", data.energyM);
     }
 
     /**

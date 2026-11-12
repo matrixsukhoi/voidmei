@@ -50,11 +50,22 @@ ui_layout.cfg (S 表达式 DSL) → ConfigLoader/SExpParser → GroupConfig/RowC
 4. 目标 overlay/组件用配置控制行为
 5. `Controller` 把 key 加进对应 overlay 的 `.withInterest()`（WYSIWYG 预览刷新）
 
+## MiniHUD 自定义布局存储
+
+- MiniHUD 的布局存在该面板的一个**隐藏配置项**（`miniHudLayout`）里，不生成控件；随模板合并、备份、导入、恢复出厂一起走。
+- 该配置项的值**必须是字符串**：配置更新会按现有值类型强转，初始值写成布尔/数字会把布局串吃掉。
+- **不要把布局拆成“每条目一行”**：模板升级/导入合并只保留模板行，用户新增行会丢；整份布局必须活在一个固定配置项的值里（同类先例：语音包配置）。
+- 老用户升级时一次性把旧逐项开关换算成等价布局；旧行随模板删除消失；运行时坏/空布局回退默认布局。
+- 新增这类隐藏行时，解析/序列化/合并三处都要能往返（见上方“新增 RowConfig 字段检查清单”）。
+- 数据字段目录从现有 `:type data` 行汇总，配置重载/导入/出厂后重建。
+
 ## WYSIWYG 预览链
 
 `setConfig(key)` → `UIStateBus.publish(CONFIG_CHANGED, key)` → Controller（仅 PREVIEW 态）→ `OverlayManager.refreshPreviews(key)` → 匹配 interest → `reinitConfig()`。
 
 ## 注意事项
+
+- 根 `.gitignore` 的运行时目录规则必须写成 `/config/`（只匹配项目根的 config/）；写成 `config/` 会把 `src/prog/config/` 下**新增**文件静默忽略（本目录历史文件已跟踪所以不易发现）。新增本目录文件后 `git status` 看不到时先查这个。
 
 - 配置键**大小写敏感**，ui_layout.cfg 与代码必须精确一致
 - 配置在用户退出 MainForm/游戏模式时自动持久化；`saveLayoutConfig()` 强制立即保存
