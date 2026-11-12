@@ -54,6 +54,33 @@ public class HUDData {
     public final String mapGrid; // e.g. "C4"
     public final String timeStr; // Mission time or Fuel time
 
+    // Airfield Indicator (nearest friendly airfield, from 8111 map_obj)
+    /** 所有飞机场标记(已排除直升机场), 由 HUDCalculator 每帧生成. */
+    public final AirfieldMarkUI[] airfields;
+    public final boolean airfieldAligned; // 机头对准最近友方飞机场
+
+    /** 单个机场在罗盘上的展示数据. */
+    public static final class AirfieldMarkUI {
+        public final boolean enemy;
+        public final boolean alert;      // 敌方且小于告警距离
+        public final double distKm;      // 距离 (标签重叠时优先最近)
+        public final double bearingDeg;  // 绝对方位
+        public final double relDeg;      // 相对机头, 右正
+        public final String label;       // 整数 km
+
+        public AirfieldMarkUI(boolean enemy, boolean alert, double distKm,
+                double bearingDeg, double relDeg, String label) {
+            this.enemy = enemy;
+            this.alert = alert;
+            this.distKm = distKm;
+            this.bearingDeg = bearingDeg;
+            this.relDeg = relDeg;
+            this.label = label;
+        }
+    }
+
+    private static final AirfieldMarkUI[] EMPTY_AIRFIELDS = new AirfieldMarkUI[0];
+
     // Formatting Helpers (Optional, can be computed by components if raw data is
     // sufficient)
     public final String speedStr;
@@ -113,6 +140,8 @@ public class HUDData {
         this.throttleColor = builder.throttleColor;
         this.mapGrid = builder.mapGrid;
         this.timeStr = builder.timeStr;
+        this.airfields = builder.airfields != null ? builder.airfields : EMPTY_AIRFIELDS;
+        this.airfieldAligned = builder.airfieldAligned;
         this.speedStr = builder.speedStr;
         this.altStr = builder.altStr;
         this.aoaStr = builder.aoaStr;
@@ -169,6 +198,8 @@ public class HUDData {
         public Color throttleColor = Color.GREEN;
         public String mapGrid = "";
         public String timeStr = "";
+        public AirfieldMarkUI[] airfields = EMPTY_AIRFIELDS;
+        public boolean airfieldAligned;
         public String speedStr = "";
         public String altStr = "";
         public String aoaStr = "";

@@ -491,19 +491,60 @@ public class MapObj {
 			dir[1] = dy;
         }
 	}
-	public static void getAirfieldLoc(String jsonText, double[][] loc){
-		// 正则表达式用于匹配整个JSON对象，并捕获icon为"Player"的x和y坐标
-		String pattern = "\\{[^{}]*\\\"type\\\"\\s*:\\s*\\\"airfield\\\"[^{}]*,[^{}]*\\\"sx\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?),[^{}]*\\\"sy\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?)[^{}]*\\}";
-		Pattern r = Pattern.compile(pattern);
-		Matcher m = r.matcher(jsonText);
-
-		while (m.find()) {
-			double x = Double.parseDouble(m.group(1));
-			double y = Double.parseDouble(m.group(3));
-			// System.out.println("Airfield coordinates: x = " + x + ", y = " + y);
-			// loc[0] = x;
-			// loc[1] = y;
+	/**
+	 * 解析 map_obj.json 中的机场跑道中心点(归一化地图坐标)与敌我标记。
+	 * 敌我判定沿用社区库规则: 红色系 RGB(R>100 且 R>B)或 blink!=0 为敌方。
+	 * 坐标与玩家 x/y 同一归一化系, 乘 map_info.grid_size 得到世界米数。
+	 *
+	 * @param centers      输出跑道中心
+	 * @param enemy        输出是否敌方(与 centers 一一对应)
+	 * @param runwayMeters 输出跑道长度(米, 用于区分飞机场/直升机场)
+	 * @return 实际写入的机场数量(上限 centers.length)
+	 */
+	public static int getAirfields(String jsonText, double[][] centers, boolean[] enemy,
+			double[] runwayMeters, double gridSizeX, double gridSizeY) {
+		if (jsonText == null || jsonText.isEmpty() || centers == null || enemy == null)
+			return 0;
+		Pattern objPat = Pattern.compile("\\{[^{}]*\\\"type\\\"\\s*:\\s*\\\"airfield\\\"[^{}]*\\}");
+		Pattern colorPat = Pattern.compile(
+				"\\\"color\\[\\]\\\"\\s*:\\s*\\[\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\]");
+		Pattern blinkPat = Pattern.compile("\\\"blink\\\"\\s*:\\s*(-?\\d+)");
+		Pattern coordPat = Pattern.compile(
+				"\\\"(sx|sy|ex|ey)\\\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)");
+		Matcher m = objPat.matcher(jsonText);
+		int n = 0;
+		while (m.find() && n < centers.length) {
+			String obj = m.group();
+			double sx = 0, sy = 0, ex = 0, ey = 0;
+			Matcher cm = coordPat.matcher(obj);
+			while (cm.find()) {
+				double v = Double.parseDouble(cm.group(2));
+				switch (cm.group(1)) {
+					case "sx": sx = v; break;
+					case "sy": sy = v; break;
+					case "ex": ex = v; break;
+					case "ey": ey = v; break;
+					default: break;
+				}
+			}
+			int red = 0, green = 0, blue = 0, blink = 0;
+			Matcher colm = colorPat.matcher(obj);
+			if (colm.find()) {
+				red = Integer.parseInt(colm.group(1));
+				green = Integer.parseInt(colm.group(2));
+				blue = Integer.parseInt(colm.group(3));
+			}
+			Matcher bm = blinkPat.matcher(obj);
+			if (bm.find())
+				blink = Integer.parseInt(bm.group(1));
+			centers[n][0] = (sx + ex) * 0.5;
+			centers[n][1] = (sy + ey) * 0.5;
+			enemy[n] = blink != 0 || (red > 100 && red > blue);
+			// 跑道长度(米): 用于区分飞机场/直升机场
+			runwayMeters[n] = Math.hypot((ex - sx) * gridSizeX, (ey - sy) * gridSizeY);
+			n++;
 		}
+		return n;
 	}
 	public void update(String S) {
 		s = S;

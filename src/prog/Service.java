@@ -36,6 +36,14 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	// public static URL urlindicators;
 	public double loc[];
 	public double dir[];
+	// === 机场标记 (map_obj 每 10*freq 轮询后重建, 已排除直升机场) ===
+	// 跑道长度低于该值视为直升机场, 不参与罗盘标记(实时抓包: 主机场 3200m, 直升机场 250/500m)
+	private static final double MIN_AIRFIELD_RUNWAY_M = 1000.0;
+	private final double[][] airfieldCenters = new double[16][2];
+	private final boolean[] airfieldEnemyFlags = new boolean[16];
+	private final double[] airfieldRunways = new double[16];
+	private int airfieldCount = 0;
+	private volatile prog.event.AirfieldMark[] airfieldMarks = new prog.event.AirfieldMark[0];
 	public double energyJKg;
 	public double prevEnergyJKg;
 	public long calcPeriod;
@@ -458,6 +466,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			.engineCheckDone(checkEngineFlag)
 			.optimalCompressorStage(optimalCompressorStage)
 			.compressorStageMismatch(compressorStageMismatch)
+			.airfields(airfieldMarks)
 			.build();
 
 		FlightDataEvent event = new FlightDataEvent(payload, sState, sIndic);
@@ -1098,6 +1107,39 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		}
 	}
 
+	/**
+	 * 从 map_obj 重建罗盘机场标记: 排除直升机场(短跑道), 其余全部保留(友方+敌方)。
+	 * 敌我按对象颜色/blink 判定(见 MapObj.getAirfields)。
+	 * 归一化坐标×grid_size 得米数, 换算关系已在真机快照上验证。
+	 */
+	private void updateAirfield() {
+		if (airfieldCount <= 0 || !playerLive || !sIndic.flag || mapinfo == null || loc == null
+				|| mapinfo.grid_sizeX <= 0 || mapinfo.grid_sizeY <= 0) {
+			airfieldMarks = new prog.event.AirfieldMark[0];
+			return;
+		}
+		java.util.ArrayList<prog.event.AirfieldMark> marks = new java.util.ArrayList<>();
+		for (int i = 0; i < airfieldCount; i++) {
+			if (airfieldRunways[i] < MIN_AIRFIELD_RUNWAY_M)
+				continue; // 直升机场/前哨起降点
+			double dx = (airfieldCenters[i][0] - loc[0]) * mapinfo.grid_sizeX;
+			double dy = (airfieldCenters[i][1] - loc[1]) * mapinfo.grid_sizeY;
+			double distKm = Math.sqrt(dx * dx + dy * dy) / 1000.0;
+			double bearing = bearingDeg(dx, dy);
+			if (Double.isNaN(bearing))
+				bearing = 0;
+			marks.add(new prog.event.AirfieldMark(airfieldEnemyFlags[i], distKm, bearing));
+		}
+		airfieldMarks = marks.toArray(new prog.event.AirfieldMark[0]);
+	}
+
+	/** 世界向量 → 0..360 罗盘方位(与 updateCompass 无仪表回退公式一致) */
+	private static double bearingDeg(double dx, double dy) {
+		if (dy < 0)
+			return (360 - Math.toDegrees(Math.atan(dx / dy))) % 360;
+		return 180 - Math.toDegrees(Math.atan(dx / dy));
+	}
+
 	public void updateCompass() {
 		if (sIndic.compass != -65535) {
 			// 如果有仪表罗盘，读取仪表罗表盘数据
@@ -1547,6 +1589,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		fatalWarn = false;
 		loc = new double[2];
 		dir = new double[2];
+		// 换机/换局/退出时清掉旧机场, 避免残留提示
+		airfieldCount = 0;
+		airfieldMarks = new prog.event.AirfieldMark[0];
 		radioAltValid = false;
 		playerLive = false;
 		iEngType = ENGINE_TYPE_UNKNOWN;
@@ -1862,6 +1907,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 						httpClient.getReqMapObjResult(Application.requestDestBkp);
 					MapObj.getPlayerLoc(httpClient.strMapObj, loc);
 					MapObj.getPlayerDir(httpClient.strMapObj, dir);
+					airfieldCount = MapObj.getAirfields(httpClient.strMapObj, airfieldCenters,
+							airfieldEnemyFlags, airfieldRunways, mapinfo.grid_sizeX, mapinfo.grid_sizeY);
+					updateAirfield();
 				}
 
 				long sleeptime = currentTimeMs + freq - System.currentTimeMillis();

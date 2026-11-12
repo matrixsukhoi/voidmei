@@ -54,6 +54,8 @@ public interface HUDSettings extends OverlaySettings {
     boolean showHUDAirbrake();      // Row 2: 减速板 BRK
     boolean showHUDGear();          // Row 2: 起落架 GEA
     boolean showHUDSep();           // Row 3: 爬升率文字
+    boolean showHUDAirfield();      // Row 5: 最近己方机场距离/方向
+    int getAirfieldWarnDistKm();    // 机场闪烁告警距离阈值 (km)
     boolean showHUDGLoad();         // Row 4: G-force 文字
     boolean showHUDManeuverBar();   // Row 4: 机动条
 

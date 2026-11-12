@@ -767,6 +767,16 @@ public class ConfigurationService implements ConfigProvider {
         }
 
         @Override
+        public boolean showHUDAirfield() {
+            return getBool("showHUDAirfield", true);
+        }
+
+        @Override
+        public int getAirfieldWarnDistKm() {
+            return getInt("airfieldWarnDistKm", 5);
+        }
+
+        @Override
         public boolean showHUDGLoad() {
             return getBool("showHUDGLoad", true);
         }

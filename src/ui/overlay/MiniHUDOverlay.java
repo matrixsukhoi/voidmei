@@ -319,6 +319,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         boolean showAttitude = hudSettings.showAttitudeGauge();
         if (compassGauge != null) {
             compassGauge.setVisible(textVisible && !showAttitude);
+            // 预览态没有实时数据, 用演示机场标记体现开关/样式
+            compassGauge.setPreviewAirfield(service == null && hudSettings.showHUDAirfield());
         }
         if (attitudeIndicatorGauge != null) {
             attitudeIndicatorGauge.setVisible(textVisible && showAttitude && !disableAttitude);
@@ -488,6 +490,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         ((ui.component.row.HUDManeuverRow) hudRows.get(4)).update(data.maneuverStateStr, false, data.maneuverIndex,
                 maneuverIndexLen, maneuverIndexLen10, maneuverIndexLen20, maneuverIndexLen30,
                 maneuverIndexLen40, maneuverIndexLen50);
+        // Row 5: 机场指示, 低于告警距离时按 400ms 周期闪警告色
         // Note: maneuverIndexLen variables are member fields of MinimalHUD calculated
         // in legacy loop.
         // We need to recalculate them or move calculation to Calculator.

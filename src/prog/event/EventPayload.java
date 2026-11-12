@@ -19,11 +19,13 @@ public final class EventPayload {
     public final int optimalCompressorStage;
     /** True when actual compressor stage doesn't match optimal (at full throttle). */
     public final boolean compressorStageMismatch;
+    /** 所有飞机场(已排除直升机场), 由 Service 在 map_obj 轮询时生成并复用. */
+    public final AirfieldMark[] airfields;
 
     public EventPayload(String mapGrid, boolean fatalWarn, boolean radioAltValid,
                         boolean isDowningFlap, String timeStr, boolean isJet,
                         boolean engineCheckDone, int optimalCompressorStage,
-                        boolean compressorStageMismatch) {
+                        boolean compressorStageMismatch, AirfieldMark[] airfields) {
         this.mapGrid = mapGrid;
         this.fatalWarn = fatalWarn;
         this.radioAltValid = radioAltValid;
@@ -33,7 +35,10 @@ public final class EventPayload {
         this.engineCheckDone = engineCheckDone;
         this.optimalCompressorStage = optimalCompressorStage;
         this.compressorStageMismatch = compressorStageMismatch;
+        this.airfields = airfields != null ? airfields : EMPTY_AIRFIELDS;
     }
+
+    private static final AirfieldMark[] EMPTY_AIRFIELDS = new AirfieldMark[0];
 
     public static class Builder {
         private String mapGrid = "--";
@@ -45,6 +50,7 @@ public final class EventPayload {
         private boolean engineCheckDone = false;
         private int optimalCompressorStage = -1;
         private boolean compressorStageMismatch = false;
+        private AirfieldMark[] airfields = EMPTY_AIRFIELDS;
 
         public Builder mapGrid(String v) { this.mapGrid = v; return this; }
         public Builder fatalWarn(boolean v) { this.fatalWarn = v; return this; }
@@ -55,11 +61,12 @@ public final class EventPayload {
         public Builder engineCheckDone(boolean v) { this.engineCheckDone = v; return this; }
         public Builder optimalCompressorStage(int v) { this.optimalCompressorStage = v; return this; }
         public Builder compressorStageMismatch(boolean v) { this.compressorStageMismatch = v; return this; }
+        public Builder airfields(AirfieldMark[] v) { this.airfields = v != null ? v : EMPTY_AIRFIELDS; return this; }
 
         public EventPayload build() {
             return new EventPayload(mapGrid, fatalWarn, radioAltValid,
                                     isDowningFlap, timeStr, isJet, engineCheckDone,
-                                    optimalCompressorStage, compressorStageMismatch);
+                                    optimalCompressorStage, compressorStageMismatch, airfields);
         }
     }
 

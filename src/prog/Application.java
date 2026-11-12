@@ -103,6 +103,10 @@ public class Application {
 
 	public static Color colorFailure = new Color(255, 69, 0, 100);
 	public static Color colorWarning = new Color(216, 33, 13, 100);
+	// 文字/标记告警: colorWarning 线条用太透, 少量高频告警改用高不透明度红
+	public static Color colorWarningStrong = new Color(255, 64, 48, 235);
+	// 正向指示(如机头对准回场机场): 固定绿色, 不随主题文字色变化
+	public static Color colorGo = new Color(40, 230, 90, 240);
 	public static Color colorShade = new Color(0, 0, 0, 240);
 	public static Color colorShadeShape = new Color(0, 0, 0, 42);
 	public static Color colorUnit = new Color(166, 166, 166, 220);

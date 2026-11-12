@@ -37,6 +37,31 @@ public class HUDCalculator {
 
         b.mapGrid = payload.mapGrid;
 
+        // 机场指示: 画所有飞机场(Service 已排除直升机场), 每个标记独立算相对角/告警
+        boolean showAirfield = settings.showHUDAirfield();
+        int warnKm = settings.getAirfieldWarnDistKm();
+        prog.event.AirfieldMark[] srcMarks = payload.airfields;
+        HUDData.AirfieldMarkUI[] marks = new HUDData.AirfieldMarkUI[showAirfield ? srcMarks.length : 0];
+        int markCount = 0;
+        boolean alignedToFriendly = false;
+        for (prog.event.AirfieldMark m : srcMarks) {
+            // 相对角必须每帧用当前航向现算, 否则转弯时会"冲过头再弹回"
+            double rel = ((m.bearingDeg - b.heading) % 360 + 360) % 360;
+            if (rel > 180)
+                rel -= 360;
+            boolean alert = m.enemy && warnKm > 0 && m.distKm < warnKm;
+            if (showAirfield) {
+                marks[markCount++] = new HUDData.AirfieldMarkUI(m.enemy, alert, m.distKm,
+                        m.bearingDeg, rel, String.format("%.0f", m.distKm));
+            }
+            // 任意一个友方飞机场与机头对齐(±5°)都点亮回场指示, 不限于最近
+            if (!m.enemy && Math.abs(rel) <= 5.0) {
+                alignedToFriendly = true;
+            }
+        }
+        b.airfields = marks;
+        b.airfieldAligned = showAirfield && alignedToFriendly;
+
         // --- Attitude ---
         double aviahp = 0;
         double aviar = 0;
