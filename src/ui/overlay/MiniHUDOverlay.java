@@ -49,7 +49,6 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     public boolean warnRH;
     public boolean warnVne;
 
-    private ui.component.CrosshairGauge crosshairGauge;
     private ui.component.FlapAngleBar flapAngleBar;
     private ui.component.WarningOverlay warningOverlay;
     private ui.component.CompassGauge compassGauge;
@@ -140,10 +139,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         refreshTemplates();
 
         // Apply dimensions (Initial guess, will be refined by dynamic layout)
-        if (hudSettings.isDisplayCrosshair())
-            this.setBounds(ctx.windowX, ctx.windowY, ctx.width * 2, ctx.height);
-        else
-            this.setBounds(ctx.windowX, ctx.windowY, ctx.width, ctx.height);
+        this.setBounds(ctx.windowX, ctx.windowY, ctx.width, ctx.height);
 
         // 2. Sync Component State (Style & Visibility) BEFORE Layout
         // This ensures getContentBounds() sees the correct visible components
@@ -322,13 +318,6 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         }
         if (attitudeIndicatorGauge != null) {
             attitudeIndicatorGauge.setVisible(textVisible && showAttitude && !disableAttitude);
-        }
-        if (crosshairGauge != null) {
-            crosshairGauge.setVisible(hudSettings.isDisplayCrosshair());
-            // Dynamic position based on current Width/CrossX
-            if (ctx != null) {
-                // Position handled by ModernHUDLayoutEngine
-            }
         }
         boolean showSpeed = hudSettings.showSpeedBar();
         if (throttleBar != null) {
@@ -550,11 +539,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         attitudeIndicatorGauge = new ui.component.AttitudeIndicatorGauge();
         components.add(attitudeIndicatorGauge);
 
-        // 3. Crosshair
-        crosshairGauge = new ui.component.CrosshairGauge();
-        components.add(crosshairGauge);
-
-        // 4. Rows
+        // 3. Rows
         hudRows = new java.util.ArrayList<>();
 
         ui.component.row.HUDAkbRow row0 = new ui.component.row.HUDAkbRow(0, ctx.drawFont, ctx.hudFontSize,
@@ -610,14 +595,6 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
             speedRatioBar.setStyleContext(w, h, ctx.drawFontSSmall);
         }
 
-        if (crosshairGauge != null) {
-            if (hudSettings.useTextureCrosshair()) {
-                // Use loaded image from Context if available
-                crosshairGauge.setTextureStyle(true, ctx.crosshairImageScaled, ctx.crossScale);
-            } else {
-                crosshairGauge.setStyleContext(hudSettings.getCrosshairScale());
-            }
-        }
         if (flapAngleBar != null) {
             // Dynamic width
             int responsiveWidth = (int) (ctx.hudFontSize * 6);
@@ -659,10 +636,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     private ui.layout.ModernHUDLayoutEngine modernLayout;
 
     private void initModernLayout() {
-        // Apply Global Debug Setting
-        boolean showCrosshair = hudSettings.isDisplayCrosshair();
-        int layoutWidth = showCrosshair ? ctx.width * 2 : ctx.width;
-        Logger.info("MinimalHUD", "initModernLayout: showCrosshair=" + showCrosshair + ", layoutWidth=" + layoutWidth);
+        int layoutWidth = ctx.width;
+        Logger.info("MinimalHUD", "initModernLayout: layoutWidth=" + layoutWidth);
 
         modernLayout = new ui.layout.ModernHUDLayoutEngine(layoutWidth, ctx.height);
 
@@ -753,14 +728,6 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
                 .setRelativePosition(-0.3, 0)
                 .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.BOTTOM_RIGHT);
         modernLayout.addNode(throttleNode);
-
-        // Crosshair (Independent, Center of Attention)
-        if (hudSettings.isDisplayCrosshair()) {
-            ui.layout.HUDLayoutNode crosshairNode = new ui.layout.HUDLayoutNode("crosshair", crosshairGauge);
-            crosshairNode.setRelativePosition(0, 0)
-                    .setAnchors(ui.layout.Anchor.MIDDLE_RIGHT, ui.layout.Anchor.MIDDLE_RIGHT);
-            modernLayout.addNode(crosshairNode);
-        }
 
         // Force layout calculation to populate sortedNodes for logging
         modernLayout.doLayout();

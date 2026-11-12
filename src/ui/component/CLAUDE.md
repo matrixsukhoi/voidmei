@@ -2,6 +2,8 @@
 
 MiniHUD 的可插拔视觉部件：`HUDComponent` 接口（`getId`/`getPreferredSize`/`draw(Graphics2D,x,y)`/`onDataUpdate(HUDData)`），`AbstractHUDComponent` 提供可见性管理。现有：`LinearGauge`/`LabeledLinearGauge`（条形表）、`SpeedRatioBar`、`FlapAngleBar`、`CompassGauge`（含离体/随体模式与北极三角）、`CrosshairGauge`（贴图或软件绘制）、`AttitudeIndicatorGauge`、`TextGauge`、`WarningOverlay`、`row/`（HUDRow/HUDTextRow/HUDAkbRow/HUDEnergyRow/HUDFlapsRow/HUDManeuverRow）。
 
+`CrosshairGauge` 现由独立 `CrosshairOverlay` 使用：矢量臂从中心向两侧各延伸 `width`，自然外接 `2×width`（`getPreferredSize()` 的 `width×width` 只是圆）；独立开窗和绘制原点按此计算。
+
 ## 硬性契约
 
 - **单位化尺寸**：**禁止硬编码像素**（4K/低分屏必坏）。一切尺寸 = `ctx.hudFontSize` × 浮点倍数（1 Unit ≈ 1 行高）；`getPreferredSize()` 按字体度量计算
@@ -30,4 +32,4 @@ MiniHUD 的可插拔视觉部件：`HUDComponent` 接口（`getId`/`getPreferred
 | 布局引擎栈溢出 | 父链成环 |
 | NPE | ctx 未判空 |
 
-无自动化测试，用 `script/mock_8111.py` 起 mock + 应用预览模式人工验证（不同 crosshair 缩放下渲染正确、数据更新无闪烁、长时间运行无内存增长）。
+无自动化测试，用 `script/mock_8111.py` 起 mock + 应用预览模式人工验证（不同 HUD 缩放下渲染正确、数据更新无闪烁、长时间运行无内存增长）。

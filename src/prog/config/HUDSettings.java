@@ -16,13 +16,10 @@ public interface HUDSettings extends OverlaySettings {
     @Override
     void saveWindowPosition(double x, double y);
 
-    int getCrosshairScale();
-
-    String getCrosshairName();
-
-    boolean isDisplayCrosshair();
-
-    boolean useTextureCrosshair();
+    /**
+     * MiniHUD 整体缩放（历史配置键仍为 crosshairScale）。
+     */
+    int getMiniHUDScale();
 
     boolean drawHUDText();
 

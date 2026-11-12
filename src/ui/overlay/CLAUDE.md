@@ -7,6 +7,7 @@ DraggableOverlay (ui/base/, WebLaF 可拖拽窗)
   ├─ BaseOverlay (列表型: dataPanel + 可插拔 OverlayRenderer/ZebraListRenderer, 后台线程轮 dataSupplier)
   │    └─ FlightInfoOverlay / PowerInfoOverlay / GearFlapsOverlay / FMUnpackedDataOverlay
   ├─ MiniHUDOverlay (组件化自绘, 非 BaseOverlay)
+  ├─ CrosshairOverlay (独立准星, 纯静态绘制, 无 FlightDataBus 订阅)
   └─ AttitudeOverlay / EngineControlOverlay / ControlSurfacesOverlay (自绘)
 ```
 
@@ -34,6 +35,8 @@ DraggableOverlay (ui/base/, WebLaF 可拖拽窗)
 ## MiniHUD 特有架构
 
 组件化而非列表渲染：`MinimalHUDContext`（不可变快照，reinitConfig 时重建）+ `HUDCalculator`（Service 线程预计算 HUDData）+ `ModernHUDLayoutEngine`（DAG 拓扑布局）+ `HUDComponent[]`。HUDData 在 Service 线程预计算后才发布事件，EDT 只消费（降延迟 40-60ms）。组件细节见 `../component/CLAUDE.md`。
+
+准星已拆为独立 `CrosshairOverlay`（配置面板「准星」）。它的面板 x/y 表示**窗口中心**（不是左上角），改大小时围绕中心缩放；`saveCurrentPosition()` 也存中心点。`CrosshairGauge` 矢量臂自然外接 `2×width`，开窗按此留 padding。
 
 ## 性能
 

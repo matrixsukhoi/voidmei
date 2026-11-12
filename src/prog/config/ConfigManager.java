@@ -159,6 +159,11 @@ public class ConfigManager {
             GroupConfig userPanel = userPanelMap.get(templatePanel.title);
 
             if (userPanel == null) {
+                // 准星从 MiniHUD 面板拆出时的一次性迁移：
+                // 行是按面板隔离合并的，若不迁移，老用户的准星开关/样式会回默认
+                if ("准星".equals(templatePanel.title)) {
+                    seedCrosshairPanel(templatePanel, userPanelMap.get("MiniHUD"));
+                }
                 // New panel in template - use template as-is
                 merged.add(templatePanel);
                 Logger.info("ConfigManager", "Added new panel: " + templatePanel.title);
@@ -183,6 +188,68 @@ public class ConfigManager {
     }
 
     /**
+     * 把老 MiniHUD 面板里的准星偏好复制到新「准星」面板。
+     * 仅在「准星」面板不存在时调用，天然只跑一次；导入旧配置同样覆盖。
+     */
+    private static void seedCrosshairPanel(GroupConfig target, GroupConfig legacyMiniHUD) {
+        if (legacyMiniHUD == null) {
+            return;
+        }
+        Object enabled = findRowValue(legacyMiniHUD.rows, "displayCrosshair");
+        Object name = findRowValue(legacyMiniHUD.rows, "crosshairName");
+        Object size = findRowValue(legacyMiniHUD.rows, "crosshairScale");
+
+        if (enabled != null) {
+            setRowValue(target.rows, "displayCrosshair", enabled);
+        }
+        if (name != null) {
+            setRowValue(target.rows, "crosshairName", name);
+        }
+        if (size != null) {
+            int v;
+            if (size instanceof Number) {
+                v = ((Number) size).intValue();
+            } else {
+                try {
+                    v = Integer.parseInt(size.toString());
+                } catch (NumberFormatException e) {
+                    return;
+                }
+            }
+            v = Math.max(0, Math.min(200, v));
+            setRowValue(target.rows, "crosshairSize", v);
+        }
+    }
+
+    private static Object findRowValue(List<RowConfig> rows, String property) {
+        for (RowConfig row : rows) {
+            if (property.equals(row.property) && row.value != null) {
+                return row.value;
+            }
+            if (row.children != null && !row.children.isEmpty()) {
+                Object v = findRowValue(row.children, property);
+                if (v != null) {
+                    return v;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean setRowValue(List<RowConfig> rows, String property, Object value) {
+        for (RowConfig row : rows) {
+            if (property.equals(row.property)) {
+                row.value = value;
+                return true;
+            }
+            if (row.children != null && !row.children.isEmpty() && setRowValue(row.children, property, value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Merges a single panel from template and user.
      */
     private static GroupConfig mergePanel(GroupConfig template, GroupConfig user, MergeReport report) {
@@ -204,6 +271,14 @@ public class ConfigManager {
 
         // Merge rows (pass panel title for report context)
         merged.rows = mergeRows(template.rows, user.rows, template.title, template.title, report);
+
+        // MiniHUD 启用键改名 crosshairSwitch -> miniHUDSwitch 的一次性兼容
+        if ("MiniHUD".equals(template.title)) {
+            Object legacySwitch = findRowValue(user.rows, "crosshairSwitch");
+            if (legacySwitch != null) {
+                setRowValue(merged.rows, "miniHUDSwitch", legacySwitch);
+            }
+        }
 
         return merged;
     }

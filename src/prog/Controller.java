@@ -13,6 +13,7 @@ import parser.FlightLog;
 import ui.StatusBar;
 import ui.overlay.ControlSurfacesOverlay;
 import ui.overlay.AttitudeOverlay;
+import ui.overlay.CrosshairOverlay;
 import ui.overlay.MiniHUDOverlay;
 import ui.overlay.DrawFrame;
 import ui.overlay.DrawFrameSimpl;
@@ -691,17 +692,27 @@ public class Controller {
 				overlay -> ((PowerInfoOverlay) overlay).reinitConfig(),
 				true).withInterest("fontName", "fontSize", "hudColumns", "S.");
 
-		// MiniHUDOverlay (crosshair) - supports preview
+		// MiniHUDOverlay - supports preview
 		// HUDSettings 直接传入 init()，不通过 Controller 获取 configService（遵循解耦原则）
-		overlayManager.registerWithPreview("crosshairSwitch",
+		// 注意: crosshairScale 是「minihud大小」的历史键名, 必须留在 interest 里
+		overlayManager.registerWithPreview("miniHUDSwitch",
 				() -> new MiniHUDOverlay(),
 				overlay -> ((MiniHUDOverlay) overlay).init(this, S, configService.getHUDSettings()),
 				overlay -> ((MiniHUDOverlay) overlay).initPreview(this, configService.getHUDSettings()),
 				overlay -> ((MiniHUDOverlay) overlay).reinitConfig(),
 				false)
-				.withInterest("displayCrosshair", "drawHUD", "disableHUD", "crosshair", "miniHUD", "enableLayoutDebug",
+				.withInterest("drawHUD", "disableHUD", "crosshairScale", "miniHUD", "enableLayoutDebug",
 						"enableFlapAngleBar", "hudMach", "showSpeedBar", "showAttitudeGauge", "attitudeIndicatorInertialMode",
 						"alwaysShowRadarAltitude", "showHUD");
+
+		// CrosshairOverlay - 独立准星, 与 MiniHUD 平级; 配置面板「准星」
+		overlayManager.registerWithPreview("displayCrosshair",
+				() -> new CrosshairOverlay(),
+				overlay -> ((CrosshairOverlay) overlay).init(this, S, configService.getOverlaySettings("准星")),
+				overlay -> ((CrosshairOverlay) overlay).initPreview(this, configService.getOverlaySettings("准星")),
+				overlay -> ((CrosshairOverlay) overlay).reinitConfig(),
+				false)
+				.withInterest("crosshairName", "crosshairSize");
 
 		// FlightInfoOverlay - supports preview
 		overlayManager.registerWithPreview("flightInfoSwitch",

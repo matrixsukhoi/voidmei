@@ -625,25 +625,10 @@ public class ConfigurationService implements ConfigProvider {
         }
 
         @Override
-        public int getCrosshairScale() {
-            int scale = getInt("crosshairScale", 70);
+        public int getMiniHUDScale() {
+            // 历史键名保持 crosshairScale：改名会让所有老用户的 MiniHUD 尺寸被重置
+            int scale = getInt("crosshairScale", 113);
             return scale == 0 ? 1 : scale;
-        }
-
-        @Override
-        public String getCrosshairName() {
-            return getConfig("crosshairName").trim();
-        }
-
-        @Override
-        public boolean isDisplayCrosshair() {
-            return getBool("displayCrosshair", false);
-        }
-
-        @Override
-        public boolean useTextureCrosshair() {
-            String name = getCrosshairName();
-            return name != null && !name.isEmpty() && !"软件渲染准星".equalsIgnoreCase(name);
         }
 
         @Override
