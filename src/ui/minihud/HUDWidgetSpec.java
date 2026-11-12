@@ -1,15 +1,15 @@
 package ui.minihud;
 
-/** 条目类型元信息：右键菜单、属性编辑与缩放能力都从这里取。 */
+/**
+ * 原子组件类型元信息。注册表只登记原子组件；
+ * “行/预设”是编辑器宏，不是组件类型。
+ */
 public final class HUDWidgetSpec {
     public final String type;
     public final String category;
     public final String displayName;
-    /** 是否支持“替换数据字段” */
     public final boolean dataField;
-    /** 是否显示四角缩放柄 */
     public final boolean scalable;
-    /** 条/仪表边缩放方向 */
     public final EdgeResize edgeResize;
     public final HUDWidgetFactory factory;
 

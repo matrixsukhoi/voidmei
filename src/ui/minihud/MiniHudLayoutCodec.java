@@ -2,102 +2,139 @@ package ui.minihud;
 
 import java.util.Map;
 
-import ui.layout.Anchor;
-
 /**
- * 布局文档 ↔ 单行紧凑串。
- * 格式：V1;id|type|parent|parentAnchor|selfAnchor|x|y|scale|visible|locked|z|props
- * - 记录分隔 ;，字段分隔 |
- * - props 为 k=v,k=v（cells 的值内部用 ~ 分格、: 分列，子值已百分号编码）
- * - 所有字符串值经 MiniHudTextCodec 编码，故分隔符永不出现在值里
- * 空串/坏串返回 null，由调用方回退默认布局。
+ * 自由画布文档 ↔ 单行紧凑串（V2）。
+ *
+ * 记录：W|id|type|x|y|scale|visible|locked|z|groupId|props
+ *      G|id|name
+ * 记录分隔 ;，字段分隔 |，props 为 k=v,k=v。
+ * 所有字符串值经 MiniHudTextCodec 百分号编码，故分隔符不会出现在值里。
+ * 空串/坏串/旧 V1 返回 null，由调用方回退默认布局。
  */
 public final class MiniHudLayoutCodec {
 
-    private static final String HEADER = "V1";
-    private static final int FIELD_COUNT = 12;
+    private static final String HEADER = "V2";
+    private static final int WIDGET_FIELDS = 11;
+    private static final int GROUP_FIELDS = 3;
 
     private MiniHudLayoutCodec() {
     }
 
-    public static String encode(MiniHudLayoutDoc doc) {
+    public static String encode(MiniHudDocument doc) {
         if (doc == null)
             return "";
         StringBuilder sb = new StringBuilder(HEADER);
-        for (MiniHudEntry e : doc.entries) {
-            sb.append(';');
-            sb.append(enc(e.id)).append('|')
-                    .append(enc(e.type)).append('|')
-                    .append(enc(e.parentId)).append('|')
-                    .append(e.parentAnchor.name()).append('|')
-                    .append(e.selfAnchor.name()).append('|')
-                    .append(num(e.unitX)).append('|')
-                    .append(num(e.unitY)).append('|')
-                    .append(num(e.scale)).append('|')
-                    .append(e.visible ? '1' : '0').append('|')
-                    .append(e.locked ? '1' : '0').append('|')
-                    .append(e.z).append('|')
-                    .append(encodeProps(e));
+        for (MiniHudGroup g : doc.groups) {
+            sb.append(';').append('G').append('|')
+                    .append(MiniHudTextCodec.encode(g.id)).append('|')
+                    .append(MiniHudTextCodec.encode(g.name));
+        }
+        for (MiniHudWidget w : doc.widgets) {
+            sb.append(';').append('W').append('|')
+                    .append(MiniHudTextCodec.encode(w.id)).append('|')
+                    .append(MiniHudTextCodec.encode(w.type)).append('|')
+                    .append(num(w.x)).append('|')
+                    .append(num(w.y)).append('|')
+                    .append(num(w.scale)).append('|')
+                    .append(w.visible ? '1' : '0').append('|')
+                    .append(w.locked ? '1' : '0').append('|')
+                    .append(w.z).append('|')
+                    .append(MiniHudTextCodec.encode(w.groupId)).append('|')
+                    .append(encodeProps(w));
         }
         return sb.toString();
     }
 
-    public static MiniHudLayoutDoc decode(String text) {
-        if (text == null || text.isEmpty())
+    public static MiniHudDocument decode(String text) {
+        if (!isValid(text))
             return null;
         String[] records = text.split(";", -1);
-        if (records.length == 0 || !HEADER.equals(records[0]))
-            return null;
-        MiniHudLayoutDoc doc = new MiniHudLayoutDoc();
+        MiniHudDocument doc = new MiniHudDocument();
         for (int i = 1; i < records.length; i++) {
             String rec = records[i];
             if (rec.isEmpty())
                 continue;
             String[] f = rec.split("\\|", -1);
-            if (f.length != FIELD_COUNT)
+            if (f.length == 0)
+                continue;
+            if ("G".equals(f[0])) {
+                if (f.length != GROUP_FIELDS)
+                    return null;
+                String id = MiniHudTextCodec.decode(f[1]);
+                String name = MiniHudTextCodec.decode(f[2]);
+                doc.groups.add(new MiniHudGroup(id, name.isEmpty() ? id : name));
+            } else if ("W".equals(f[0])) {
+                if (f.length != WIDGET_FIELDS)
+                    return null;
+                MiniHudWidget w = new MiniHudWidget(MiniHudTextCodec.decode(f[1]),
+                        MiniHudTextCodec.decode(f[2]));
+                w.x = doubleValue(f[3], 0);
+                w.y = doubleValue(f[4], 0);
+                w.scale = doubleValue(f[5], 1.0);
+                w.visible = "1".equals(f[6]);
+                w.locked = "1".equals(f[7]);
+                w.z = intValue(f[8], 0);
+                String gid = MiniHudTextCodec.decode(f[9]);
+                w.groupId = gid.isEmpty() ? null : gid;
+                decodeProps(f[10], w);
+                doc.widgets.add(w);
+            } else {
                 return null;
-            MiniHudEntry e = new MiniHudEntry(MiniHudTextCodec.decode(f[0]), MiniHudTextCodec.decode(f[1]));
-            String parent = MiniHudTextCodec.decode(f[2]);
-            e.parentId = parent.isEmpty() ? null : parent;
-            e.parentAnchor = anchor(f[3], Anchor.TOP_LEFT);
-            e.selfAnchor = anchor(f[4], Anchor.TOP_LEFT);
-            e.unitX = doubleValue(f[5], 0);
-            e.unitY = doubleValue(f[6], 0);
-            e.scale = doubleValue(f[7], 1.0);
-            e.visible = "1".equals(f[8]);
-            e.locked = "1".equals(f[9]);
-            e.z = intValue(f[10], 0);
-            decodeProps(f[11], e);
-            doc.entries.add(e);
+            }
         }
         doc.validate();
         return doc;
     }
 
-    public static MiniHudLayoutDoc decodeOrDefault(String text) {
-        MiniHudLayoutDoc doc = decode(text);
+    public static MiniHudDocument decodeOrDefault(String text) {
+        MiniHudDocument doc = decode(text);
         return doc != null ? doc : MiniHudDefaultLayout.create();
     }
 
-    public static String encodeProps(MiniHudEntry e) {
+    /** 空串/旧版本/坏串都视为无效，调用方应回退默认布局。 */
+    public static boolean isValid(String text) {
+        if (text == null || text.isEmpty())
+            return false;
+        if (!text.startsWith(HEADER + ";") && !HEADER.equals(text))
+            return false;
+        return decodeRecords(text) != null;
+    }
+
+    private static Object decodeRecords(String text) {
+        String[] records = text.split(";", -1);
+        for (int i = 1; i < records.length; i++) {
+            String rec = records[i];
+            if (rec.isEmpty())
+                continue;
+            String[] f = rec.split("\\|", -1);
+            if (f.length == 0)
+                return null;
+            if ("G".equals(f[0])) {
+                if (f.length != GROUP_FIELDS)
+                    return null;
+            } else if ("W".equals(f[0])) {
+                if (f.length != WIDGET_FIELDS)
+                    return null;
+            } else {
+                return null;
+            }
+        }
+        return Boolean.TRUE;
+    }
+
+    private static String encodeProps(MiniHudWidget w) {
         StringBuilder sb = new StringBuilder();
         boolean first = true;
-        for (Map.Entry<String, String> en : e.props.entrySet()) {
+        for (Map.Entry<String, String> en : w.props.entrySet()) {
             if (!first)
                 sb.append(',');
             first = false;
-            sb.append(en.getKey()).append('=');
-            // cells 的值是嵌套结构（已编码子值），不能再整体编码，否则分隔符丢失
-            if ("cells".equals(en.getKey())) {
-                sb.append(en.getValue());
-            } else {
-                sb.append(MiniHudTextCodec.encode(en.getValue()));
-            }
+            sb.append(en.getKey()).append('=').append(MiniHudTextCodec.encode(en.getValue()));
         }
         return sb.toString();
     }
 
-    public static void decodeProps(String raw, MiniHudEntry e) {
+    private static void decodeProps(String raw, MiniHudWidget w) {
         if (raw == null || raw.isEmpty())
             return;
         for (String kv : raw.split(",", -1)) {
@@ -106,18 +143,11 @@ public final class MiniHudLayoutCodec {
             int eq = kv.indexOf('=');
             if (eq <= 0)
                 continue;
-            String k = kv.substring(0, eq);
-            String v = kv.substring(eq + 1);
-            e.props.put(k, "cells".equals(k) ? v : MiniHudTextCodec.decode(v));
+            w.props.put(kv.substring(0, eq), MiniHudTextCodec.decode(kv.substring(eq + 1)));
         }
     }
 
-    private static String enc(String s) {
-        return MiniHudTextCodec.encode(s);
-    }
-
     private static String num(double v) {
-        // 避免 1.0 存成 "1.0" 的冗长，且与 Locale 无关
         if (v == Math.rint(v) && Math.abs(v) < 1e9)
             return Long.toString((long) v);
         return Double.toString(v);
@@ -134,14 +164,6 @@ public final class MiniHudLayoutCodec {
     private static int intValue(String s, int def) {
         try {
             return Integer.parseInt(s);
-        } catch (Exception e) {
-            return def;
-        }
-    }
-
-    private static Anchor anchor(String s, Anchor def) {
-        try {
-            return Anchor.valueOf(s);
         } catch (Exception e) {
             return def;
         }

@@ -117,7 +117,7 @@ python script/build.py fmdata-upload
 
 - **`prog/`** 内核：`Launcher`（GPU 兼容 JVM 属性，须在 AWT 加载前设置）→ `Application` → `Controller`（生命周期/overlay 协调）→ `Service`（HTTP 轮询+计算后台线程，最大文件）；`OverlayManager`（overlay 可见性，方法须 synchronized）；`AlwaysOnTopCoordinator`（单例 z-order/对话框协调，WeakReference）；`FocusMonitor`（游戏失焦自动隐藏，复用 Service 轮询）；`fm/`（FM 单一真相源：`FMManager` 单例 identify/负缓存/FM_CHANGED 广播，`dataUpdated()` 供热替换后清负缓存强制重载；`FMLoader` 项目内唯一 `new Blkx` 点，全程 catch(Throwable)→READY/MISSING/CORRUPT；`FMDataUpdater` FM 数据在线自动更新一条链（检查→下载→sha256→解压→rename 替换→`dataUpdated()` 生效，`-Dvoidmei.fmdata.update=force/off` 开发与 e2e 用）；`FMHandle` 不可变句柄；`FMDataPaths` 路径唯一来源）；`config/`、`audio/`、`util/`、`hotkey/`、`i18n/`、`model/`、`event/`（`UIStateBus`/`FlightDataBus`）
 - **`parser/`** 数据摄取：`State`/`Indicators`（8111 JSON）、`Blkx`（FM .blk 解析）、`FlightAnalyzer`、`FlightLog` 等
-- **`ui/`** 界面：`MainForm`（设置窗）、`overlay/`（各 HUD overlay：MiniHUD 与准星已拆为独立窗 + `logic/HUDCalculator` + `model/HUDData`）、`minihud/`（MiniHUD 自定义布局与编辑器）、`layout/`（ui_layout.cfg 动态生成设置面板 + 17 种 renderer）、`component/`（HUD 部件）、`base/`（`DraggableOverlay`/`FieldOverlay`）、`model/`（`TelemetrySource` 等）、`replica/`、`util/`、`window/comparison/`（飞机对比）
+- **`ui/`** 界面：`MainForm`（设置窗）、`overlay/`（各 HUD overlay：MiniHUD 与准星已拆为独立窗 + `logic/HUDCalculator` + `model/HUDData`）、`minihud/`（MiniHUD 自由画布布局与编辑器）、`layout/`（ui_layout.cfg 动态生成设置面板 + 17 种 renderer）、`component/`（HUD 原子部件）、`base/`（`DraggableOverlay`/`FieldOverlay`）、`model/`（`TelemetrySource` 等）、`replica/`、`util/`、`window/comparison/`（飞机对比）
 
 ### 数据流
 
@@ -180,14 +180,19 @@ python script/build.py fmdata-upload
 
 **新增 overlay**：继承 `BaseOverlay`（列表型）或 `DraggableOverlay`（自绘），实现 `init()`/`initPreview()`/`reinitConfig()`/`dispose()`（**必须**注销 FlightDataBus 与 AlwaysOnTopCoordinator），在 `Controller.registerGameModeOverlays()` 用 `registerWithPreview(...).withInterest(...)` 注册 + ui_layout.cfg 加开关。
 
-**新增 HUD 组件**：实现 `HUDComponent`，尺寸一律基于 `ctx.hudFontSize`（禁硬编码像素），`draw()` 零分配，在 `MiniHUDOverlay` 实例化/布局/接线。详见 `src/ui/component/CLAUDE.md`。
+**新增 HUD 原子组件**：实现 `HUDComponent`，尺寸一律基于 `ctx.hudFontSize`（禁硬编码像素），`draw()` 零分配，在 MiniHUD 组件注册表登记类型；不要再做“复合行”类型。详见 `src/ui/component/CLAUDE.md`。
 
 ### MiniHUD 自定义布局
 
-- MiniHUD 的内容与位置由用户布局决定，不再有逐项显隐开关；布局存在 `ui_layout.user.cfg` 的一个隐藏配置项里，随模板合并/备份/导入/恢复出厂一起走。
-- 界面分**预览（只读）**和**编辑**两种状态：默认只读，点「编辑」才能拖动/缩放/右键增删；编辑态自动显示条目边界框，只读态不出编辑辅助；游戏内始终只读。拖动中不写盘，松手后保存。
-- 所有“怎么显示”都是条目自己的属性：表速还是马赫、标签文字、自动/气压/雷达高度、罗盘随体/离体；不存在全局显示方式开关。襟翼条与数据区襟翼文字互相独立。
-- 老用户升级时，旧逐项开关会一次性换算成等价布局；窗口位置/字体/大小等偏好不动；旧开关随后消失。
+- 布局模型是**自由画布**：所有组件都是原子组件，保存画布绝对坐标（单位 = 基准行高），没有父级/锚点/隐式依赖；拖动谁只改谁。窗口跟随内容包围盒，游戏态紧贴内容，编辑态额外留工作区余量。
+- 不存“复合组件”：文本组件只表达一个读数或一段静态文本，条/仪表只画自己的表盘。编辑器里的“行/预设”是一次性创建多个原子组件并成组的宏，不是组件类型；插入后与手摆组件完全等价，可解组、单删、单改。
+- 分组是显式的选择/移动集合，不是坐标父级；双击组件可选中同组。窗口位置按画布原点锚定保存（编辑工作区不落盘），内容增删/字体变化时 HUD 不整体漂移。
+- 不要再把父子/九宫格/锚点带回来：分组一旦参与坐标换算，就会重新出现“拖一个动一片”。窗口只按可见内容包围盒贴合；编辑态额外留工作区余量。
+- 界面分**预览（只读）**和**编辑**：默认只读，点「编辑」才能多选、拖动、缩放、右键增删/改属性；编辑态显示边界框、图层、撤销/重做；游戏内始终只读。拖动中不写盘，松手后保存。
+- 所有“怎么显示”都是组件实例属性：表速还是马赫、标签文字、自动/气压/雷达高度、罗盘随体/离体；不存在全局显示方式开关。襟翼条与数据区襟翼文字互相独立。
+- 预览态显示值也归组件：`preview` 是组件自己的演示文本，`template` 只负责宽度防抖；预览时文本组件不被全局演示数据覆盖。
+- 出厂默认必须与旧版一致：**三个文字标签全关**，右列按 3.5 行高；旧版默认预览是 `α 20`、`0/100`、数据区不显示襟翼文字但显示 `BRK/GEA`。不要把 ALT/SEP 标签带进默认布局；导入旧配置时才按旧开关还原标签偏好。
+- 老用户升级时，旧逐项开关会一次性换算成等价布局；窗口位置/字体/大小等偏好不动；旧开关随后消失。旧版三个标签全关时右列会收窄到 3.5 行高，迁移/默认布局必须按标签状态选几何，不能只改 label 文本。未发布的相对父子布局（V1）会提取标签/可见性偏好后重建为自由画布。
 - 改渲染/布局后先用离屏快照 + 基线对比确认（工具在本地 `build/`，不进 git），不要只看编译，也不要把效果验证全推给测试同学。
 
 ### 子模块文档

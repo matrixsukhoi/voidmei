@@ -1,21 +1,13 @@
-# HUD 布局引擎（ui.layout）
+# 设置面板布局（ui.layout）
 
-MiniHUD 的唯一坐标来源：**单位化坐标 + 九宫格锚点 + 父子 DAG**。
+本包只负责把 `ui_layout.cfg` 动态生成设置面板：`FlexGridLayout`/`ResponsiveGridLayout` + `renderer/` 下的行渲染器（switch/slider/combo/data 等）。
 
-## 契约
-
-- 每个条目保存父级、父/自身锚点、相对偏移（单位 = 行高）；拖动像素直接换算成单位偏移，与父级无关。
-- 父条目移动会带上整棵子树；用户新增条目默认挂根。
-- 构建前必须校验布局文档（断环、父级存在、缩放范围），否则 DFS 可能栈溢出。
-- 隐藏节点仍参与坐标计算（保留占位），但不计入窗口内容包围盒。
-- 绘制/命中按 z 序；编辑命中从最上层往前找。
-- 编辑拖动中冻结窗口尺寸，松手后再按内容重新适配，避免条目随窗口跳动。
+**MiniHUD 已不再使用本包**。MiniHUD 是自由画布：组件保存绝对坐标，没有父链/锚点/DAG；详见根 `CLAUDE.md`、`src/ui/overlay/CLAUDE.md`、`src/ui/component/CLAUDE.md`。
 
 ## 常见坑
 
 | 症状 | 原因 |
 |---|---|
-| 栈溢出 | 布局文档父链成环 |
-| 条目拖动位置飘 | 用了物理像素/屏幕尺寸；应走逻辑像素与 DPI 缩放后的上下文 |
-| 隐藏条目留空 | 隐藏节点仍参与坐标解算（有意保留占位）；删条目要重建场景 |
-| 选中错层 | 未按 z 序逆序命中 |
+| 新行类型不显示 | 未在 `RowRendererRegistry` 注册 renderer |
+| 设置改动不即时生效 | 配置键没进 `Controller` 对应 overlay 的 `.withInterest()` |
+| hidden 行占位/崩溃 | hidden renderer 返回 null；动态页需容忍 null 组件 |

@@ -16,8 +16,8 @@ import prog.config.ConfigLoader.RowConfig;
 import prog.i18n.Lang;
 import prog.util.Logger;
 import prog.util.UIStateStorage;
+import ui.minihud.MiniHudDocument;
 import ui.minihud.MiniHudLayoutCodec;
-import ui.minihud.MiniHudLayoutDoc;
 import ui.minihud.MiniHudLegacyMigrator;
 import ui.util.DialogService;
 
@@ -89,14 +89,18 @@ public class ConfigManager {
         // Read stored hash from UIStateStorage
         String storedHash = UIStateStorage.loadTemplateHash();
 
-        // Hash matches - no merge needed
-        if (currentTemplateHash != null && currentTemplateHash.equals(storedHash)) {
+        // Hash matches - no merge needed，除非用户放回了旧版 MiniHUD 配置
+        if (currentTemplateHash != null && currentTemplateHash.equals(storedHash)
+                && !needsMiniHudMigration(userConfigs)) {
             Logger.info("ConfigManager", String.format("Template unchanged, skipping merge, %s == %s", currentTemplateHash, storedHash));
             return userConfigs;
         }
 
-        // Hash differs or missing - perform merge
-        Logger.info("ConfigManager", "Template changed, merging configs");
+        // Hash differs/missing，或检测到旧 MiniHUD 布局 - perform merge
+        if (currentTemplateHash != null && currentTemplateHash.equals(storedHash))
+            Logger.info("ConfigManager", "Legacy MiniHUD layout detected, forcing merge");
+        else
+            Logger.info("ConfigManager", "Template changed, merging configs");
         createBackup();
 
         List<GroupConfig> templateConfigs = ConfigLoader.loadConfig(TEMPLATE_PATH);
@@ -112,6 +116,33 @@ public class ConfigManager {
         }
 
         return merged;
+    }
+
+
+    /**
+     * 用户手工放回旧配置时，模板 hash 可能没变，但 MiniHUD 仍需要迁移：
+     * - miniHudLayout 是 V1/坏串
+     * - 还存在旧 showHUD / disableHUD 开关
+     */
+    private static boolean needsMiniHudMigration(List<GroupConfig> userConfigs) {
+        GroupConfig mini = null;
+        for (GroupConfig g : userConfigs) {
+            if ("MiniHUD".equals(g.title)) {
+                mini = g;
+                break;
+            }
+        }
+        if (mini == null)
+            return false;
+        Object layout = findRowValue(mini.rows, "miniHudLayout");
+        if (layout != null && !String.valueOf(layout).isEmpty()
+                && !MiniHudLayoutCodec.isValid(String.valueOf(layout)))
+            return true;
+        for (String key : MiniHudLegacyMigrator.LEGACY_KEYS) {
+            if (findRowValue(mini.rows, key) != null)
+                return true;
+        }
+        return false;
     }
 
     /**
@@ -202,8 +233,24 @@ public class ConfigManager {
         if (legacy == null)
             return;
         Object existing = findRowValue(target.rows, "miniHudLayout");
-        if (existing != null && !String.valueOf(existing).isEmpty())
+        // 新模板的隐藏行可能只是模板副本；V1 也可能只在用户旧面板里
+        Object legacyLayout = findRowValue(legacy.rows, "miniHudLayout");
+        Object effective = (existing != null && !String.valueOf(existing).isEmpty()) ? existing : legacyLayout;
+        // 已存在的合法 V2 布局不覆盖；若只是用户旧面板里有、合并后目标为空则补回
+        if (effective != null && MiniHudLayoutCodec.isValid(String.valueOf(effective))) {
+            if (existing == null || String.valueOf(existing).isEmpty())
+                setRowValue(target.rows, "miniHudLayout", String.valueOf(effective));
             return;
+        }
+        // 未发布的相对布局 V1：保留旧标签/可见性偏好，重建为自由画布 V2
+        if (effective != null && String.valueOf(effective).startsWith("V1;")) {
+            MiniHudDocument v1 = MiniHudLegacyMigrator.fromV1(String.valueOf(effective));
+            if (v1 != null) {
+                setRowValue(target.rows, "miniHudLayout", MiniHudLayoutCodec.encode(v1));
+                Logger.info("ConfigManager", "Migrated V1 relative MiniHUD layout to free canvas");
+                return;
+            }
+        }
 
         Map<String, String> legacyValues = new HashMap<>();
         for (String key : MiniHudLegacyMigrator.LEGACY_KEYS) {
@@ -218,9 +265,13 @@ public class ConfigManager {
             setRowValue(target.rows, "miniHudContentVisible", Boolean.parseBoolean(String.valueOf(draw)));
         }
 
-        if (legacyValues.isEmpty())
+        if (legacyValues.isEmpty()) {
+            // 清掉无法识别的旧布局串，运行时回退默认布局（自愈）
+            if (effective != null && !String.valueOf(effective).isEmpty())
+                setRowValue(target.rows, "miniHudLayout", "");
             return;
-        MiniHudLayoutDoc doc = MiniHudLegacyMigrator.fromLegacy(legacyValues);
+        }
+        MiniHudDocument doc = MiniHudLegacyMigrator.fromLegacy(legacyValues);
         setRowValue(target.rows, "miniHudLayout", MiniHudLayoutCodec.encode(doc));
         Logger.info("ConfigManager", "Migrated legacy MiniHUD switches to custom layout");
     }
@@ -346,7 +397,6 @@ public class ConfigManager {
             }
 
             RowConfig userRow = userRowMap.get(key);
-
             if (userRow == null) {
                 // New row in template - use template as-is
                 merged.add(templateRow);

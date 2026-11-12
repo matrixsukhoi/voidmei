@@ -2,29 +2,26 @@ package ui.minihud;
 
 import java.util.LinkedHashMap;
 
-import ui.layout.Anchor;
-
 /**
- * MiniHUD 布局中的一个条目（组件实例）。
- * 几何单位 = hudFontSize；父子锚点沿用 ModernHUDLayoutEngine 的相对坐标语义。
+ * 自由画布上的一个原子组件实例。
+ * 坐标是画布绝对坐标，单位 = 基准行高；没有父级/锚点/相对偏移。
  */
-public final class MiniHudEntry {
+public final class MiniHudWidget {
     public String id;
     public String type;
-    public String parentId;
-    public Anchor parentAnchor = Anchor.TOP_LEFT;
-    public Anchor selfAnchor = Anchor.TOP_LEFT;
-    public double unitX;
-    public double unitY;
+    public double x;
+    public double y;
     public double scale = 1.0;
+    public int z;
     public boolean visible = true;
     public boolean locked = false;
-    public int z = 0;
+    /** 可空的显式分组 id；组只影响选择/一起移动，不参与坐标换算。 */
+    public String groupId;
 
-    /** 条目属性：字段/文本/槽位/标签/单元格等，值均为字符串（便于序列化）。 */
+    /** 组件属性；值统一存字符串，具体含义由组件 schema 决定。 */
     public final LinkedHashMap<String, String> props = new LinkedHashMap<>();
 
-    public MiniHudEntry(String id, String type) {
+    public MiniHudWidget(String id, String type) {
         this.id = id;
         this.type = type;
     }
@@ -66,18 +63,16 @@ public final class MiniHudEntry {
             props.put(key, value);
     }
 
-    public MiniHudEntry copy(String newId) {
-        MiniHudEntry e = new MiniHudEntry(newId, type);
-        e.parentId = parentId;
-        e.parentAnchor = parentAnchor;
-        e.selfAnchor = selfAnchor;
-        e.unitX = unitX;
-        e.unitY = unitY;
-        e.scale = scale;
-        e.visible = visible;
-        e.locked = locked;
-        e.z = z;
-        e.props.putAll(props);
-        return e;
+    public MiniHudWidget copy(String newId) {
+        MiniHudWidget w = new MiniHudWidget(newId, type);
+        w.x = x;
+        w.y = y;
+        w.scale = scale;
+        w.z = z;
+        w.visible = visible;
+        w.locked = locked;
+        w.groupId = groupId;
+        w.props.putAll(props);
+        return w;
     }
 }

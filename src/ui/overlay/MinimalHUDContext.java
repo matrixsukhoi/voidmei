@@ -25,11 +25,9 @@ public class MinimalHUDContext {
     // --- Component Metrics ---
     public final int miniHUDScale;
     public final int roundCompass;
-    public final int rightDraw;
     public final int compassDiameter;
     public final int compassRadius;
     public final int compassInnerMarkRadius;
-    public final double aoaLength;
 
     // --- Styling ---
     public final int lineWidth;
@@ -51,11 +49,9 @@ public class MinimalHUDContext {
 
         this.miniHUDScale = builder.miniHUDScale;
         this.roundCompass = builder.roundCompass;
-        this.rightDraw = builder.rightDraw;
         this.compassDiameter = builder.compassDiameter;
         this.compassRadius = builder.compassRadius;
         this.compassInnerMarkRadius = builder.compassInnerMarkRadius;
-        this.aoaLength = builder.aoaLength;
 
         this.lineWidth = builder.lineWidth;
         this.barWidth = builder.barWidth;
@@ -108,15 +104,9 @@ public class MinimalHUDContext {
 
         b.roundCompass = (int) (Math.round(b.hudFontSize * 0.8f));
 
-        // 右列宽度固定按带标签的 9 字符估算；标签显隐已下沉为条目属性，
-        // 各行的模板宽度自行兜底，不再需要全局开关参与。
-        b.rightDraw = (int) (b.hudFontSize * 5.5f);
-
         b.compassDiameter = (int) Math.round(2 * b.hudFontSize * 0.618);
         b.compassRadius = (int) Math.round(b.compassDiameter / 2.0);
         b.compassInnerMarkRadius = (int) Math.round(0.618 * b.compassDiameter);
-
-        b.aoaLength = b.rightDraw - b.hudFontSize / 1.5; // Adjusted for dynamic rightDraw
 
         // 4. Strokes & Fonts - scaled stroke widths for crisp lines
         b.halfLine = (b.lineWidth / 2 == 0) ? 1 : (int) Math.round(b.lineWidth / 2.0f);
@@ -154,11 +144,9 @@ public class MinimalHUDContext {
         b.barWidth = Math.max(1, (int) Math.round(this.barWidth * factor));
         b.lineWidth = Math.max(1, (int) Math.round(this.lineWidth * factor));
         b.roundCompass = Math.max(2, (int) Math.round(this.roundCompass * factor));
-        b.rightDraw = (int) Math.round(this.rightDraw * factor);
         b.compassDiameter = Math.max(2, (int) Math.round(this.compassDiameter * factor));
         b.compassRadius = Math.max(1, (int) Math.round(this.compassRadius * factor));
         b.compassInnerMarkRadius = Math.max(1, (int) Math.round(this.compassInnerMarkRadius * factor));
-        b.aoaLength = this.aoaLength * factor;
 
         b.halfLine = Math.max(1, (int) Math.round(this.halfLine * factor));
         b.strokeThick = new BasicStroke(b.halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
@@ -171,48 +159,11 @@ public class MinimalHUDContext {
         return new MinimalHUDContext(b);
     }
 
-    /** 派生一个右列宽度不同的上下文（旧版三标签全关时用 3.5 行高）。 */
-    public MinimalHUDContext withRightDraw(int rightDraw) {
-        if (this.rightDraw == rightDraw)
-            return this;
-        Builder b = copyBuilder();
-        b.rightDraw = rightDraw;
-        b.aoaLength = rightDraw - b.hudFontSize / 1.5;
-        return new MinimalHUDContext(b);
-    }
-
-    private Builder copyBuilder() {
-        Builder b = new Builder();
-        b.width = this.width;
-        b.height = this.height;
-        b.hudFontSize = this.hudFontSize;
-        b.hudFontSizeSmall = this.hudFontSizeSmall;
-        b.windowX = this.windowX;
-        b.windowY = this.windowY;
-        b.miniHUDScale = this.miniHUDScale;
-        b.roundCompass = this.roundCompass;
-        b.rightDraw = this.rightDraw;
-        b.compassDiameter = this.compassDiameter;
-        b.compassRadius = this.compassRadius;
-        b.compassInnerMarkRadius = this.compassInnerMarkRadius;
-        b.aoaLength = this.aoaLength;
-        b.lineWidth = this.lineWidth;
-        b.barWidth = this.barWidth;
-        b.halfLine = this.halfLine;
-        b.drawFont = this.drawFont;
-        b.drawFontSmall = this.drawFontSmall;
-        b.drawFontSSmall = this.drawFontSSmall;
-        b.strokeThick = this.strokeThick;
-        b.strokeThin = this.strokeThin;
-        return b;
-    }
-
     // Builder pattern for internal convenience
     private static class Builder {
         int width, height, hudFontSize, hudFontSizeSmall, windowX, windowY;
-        int miniHUDScale, roundCompass, rightDraw;
+        int miniHUDScale, roundCompass;
         int compassDiameter, compassRadius, compassInnerMarkRadius;
-        double aoaLength;
         int lineWidth, barWidth, halfLine;
         Font drawFont, drawFontSmall, drawFontSSmall;
         BasicStroke strokeThick, strokeThin;

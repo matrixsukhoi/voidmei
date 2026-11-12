@@ -16,6 +16,7 @@ public final class MiniHudPreviewData {
         b.mach = 0.85;
         b.altitude = 1024;
         b.radioAltitude = 510;
+        b.radioAltitudeValid = true;
         b.verticalSpeed = 30;
         b.heading = 270;
         b.pitch = 5;

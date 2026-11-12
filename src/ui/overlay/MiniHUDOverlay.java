@@ -1,42 +1,44 @@
 package ui.overlay;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 
 import com.alee.laf.panel.WebPanel;
 
 import prog.Application;
-import prog.util.Logger;
 import prog.Controller;
 import prog.Service;
+import prog.config.HUDSettings;
+import prog.config.MiniHudFieldCatalog;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 import prog.event.FlightDataListener;
-import prog.config.HUDSettings;
-import prog.config.MiniHudFieldCatalog;
+import prog.util.Logger;
 import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
-import ui.util.OverlayStyleHelper;
-
-import ui.overlay.model.HUDData;
-import ui.overlay.logic.HUDCalculator;
 import ui.component.HUDComponent;
 import ui.minihud.MiniHudDefaultLayout;
+import ui.minihud.MiniHudDocument;
 import ui.minihud.MiniHudLayoutCodec;
-import ui.minihud.MiniHudLayoutDoc;
+import ui.minihud.MiniHudLegacyMigrator;
 import ui.minihud.MiniHudScene;
 import ui.minihud.MiniHudSceneBuilder;
-import ui.minihud.TextRowWidget;
 import ui.minihud.editor.MiniHudEditor;
 import ui.minihud.editor.MiniHudEditorHost;
+import ui.overlay.logic.HUDCalculator;
+import ui.overlay.model.HUDData;
+import ui.util.OverlayStyleHelper;
 
 /**
- * MiniHUD：组件化自绘 overlay。
- * 内容与布局由 MiniHudLayoutDoc 描述（旧硬编码布局已迁移为默认文档），
- * 编辑器（预览态）直接修改文档并重建场景。
+ * MiniHUD：自由画布驱动的组件化自绘 overlay。
+ * 文档中的组件全部是绝对坐标的原子组件；窗口跟随内容包围盒，
+ * 编辑态额外留出工作区余量，游戏态紧贴内容。
  */
 public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListener, MiniHudEditorHost {
 
@@ -49,12 +51,12 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     }
 
     private MinimalHUDContext ctx;
-    private MiniHudLayoutDoc doc;
+    private MiniHudDocument doc;
     private MiniHudScene scene;
     private MiniHudEditor editor;
     private boolean contentVisible = true;
-    private boolean editorEditing; // 编辑器处于编辑态（显示布局调试框）
-    private boolean settingsLayoutDebug; // 设置里的“布局调试”开关
+    private boolean editorEditing;
+    private boolean settingsLayoutDebug;
 
     int blinkTicks = 1;
     int blinkCheckTicks = 0;
@@ -66,12 +68,19 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     private ui.component.WarningOverlay warningOverlay;
     private WebPanel panel;
 
-    // HUDSettings 通过 init() 参数传入，不应从 Controller 获取 configService
     private HUDSettings hudSettings;
-
     private Controller controller;
     private Service service;
     private Container root;
+
+    // 文档原点的屏幕锚点：内容增删/字体变化时保持 HUD 不整体漂移
+    private int anchorX;
+    private int anchorY;
+    private boolean anchorInitialized;
+    private int lastWorkX;
+    private int lastWorkY;
+    private int lastPadLeft = LAYOUT_PADDING;
+    private boolean windowFrozen;
 
     public void setFrameOpaque() {
         OverlayStyleHelper.applyTransparentStyle(this);
@@ -83,25 +92,19 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     }
 
     public void drawBlinkX(Graphics2D g) {
-        // 高度警告标记 - 由系统层 WarningOverlay 统一绘制（不进布局文档）
-        if (blinkX && ctx != null) {
-            if (warningOverlay != null) {
-                warningOverlay.draw(g, 0, 0, ctx.width, ctx.height, blinkActing);
-            }
+        if (blinkX && warningOverlay != null) {
+            warningOverlay.draw(g, 0, 0, getWidth(), getHeight(), blinkActing);
             blinkCheckTicks += 1;
-            if (blinkCheckTicks % blinkTicks == 0) {
+            if (blinkCheckTicks % blinkTicks == 0)
                 blinkActing = !blinkActing;
-            }
         }
     }
 
     public void initPreview(Controller c, HUDSettings settings) {
         Logger.info("MinimalHUD", "initPreview called");
         init(c, null, settings);
-
         this.getWebRootPaneUI().setTopBg(Application.previewColor);
         this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
-        // 预览态由编辑器统一处理鼠标：条目拖动 / 空白拖窗（不再用 setupDragListeners）
         installPreviewEditor();
         applyPreviewStyle();
         this.setCursor(null);
@@ -116,29 +119,42 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         }
     }
 
+    public MiniHudEditor getEditor() {
+        return editor;
+    }
+
+    @Override
     public MiniHudScene getScene() {
         return scene;
     }
 
-    public MiniHudLayoutDoc getDoc() {
+    @Override
+    public MiniHudDocument getDoc() {
         return doc;
     }
 
+    @Override
+    public void setDoc(MiniHudDocument doc) {
+        this.doc = doc != null ? doc : MiniHudDefaultLayout.create();
+    }
+
+    @Override
     public MinimalHUDContext getCtx() {
         return ctx;
     }
 
-    /** 仅设置窗预览态允许编辑；游戏态（service != null）一律只读。 */
+    @Override
     public boolean isPreviewMode() {
         return service == null;
     }
 
-    /** 编辑器把当前文档写回配置（拖动结束/增删改时调用）。 */
     @Override
     public void commitLayout() {
-        if (hudSettings != null && doc != null) {
-            hudSettings.saveMiniHudLayout(MiniHudLayoutCodec.encode(doc));
-        }
+        if (hudSettings == null || doc == null)
+            return;
+        hudSettings.saveMiniHudLayout(MiniHudLayoutCodec.encode(doc));
+        // 组件移动可能改变内容包围盒并带动窗口位置；同步保存新的窗口位置
+        saveCurrentPosition();
     }
 
     @Override
@@ -147,7 +163,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     }
 
     @Override
-    public java.awt.Point getEditorLocation() {
+    public Point getEditorLocation() {
         return getLocation();
     }
 
@@ -158,46 +174,59 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
 
     @Override
     public void saveEditorWindowPosition() {
+        updateAnchorFromWindow();
         saveCurrentPosition();
     }
 
     public void saveCurrentPosition() {
-        if (hudSettings != null) {
-            hudSettings.saveWindowPosition(getLocation().x, getLocation().y);
+        if (hudSettings == null)
+            return;
+        // 持久化“只读态窗口位置”，而不是编辑工作区窗口位置：
+        // 编辑态窗口额外含工作区余量，直接存左上角会让重启后的 HUD 漂移。
+        int sx = getLocation().x;
+        int sy = getLocation().y;
+        if (anchorInitialized && scene != null) {
+            Rectangle b = scene.bounds(false);
+            sx = anchorX - padLeftForScene() + b.x;
+            sy = anchorY - LAYOUT_PADDING + b.y;
         }
+        hudSettings.saveWindowPosition(sx, sy);
+    }
+
+    private int padLeftForScene() {
+        return scene != null ? Math.max(LAYOUT_PADDING, scene.getMaxDrawPadLeft()) : LAYOUT_PADDING;
+    }
+
+    private void updateAnchorFromWindow() {
+        anchorX = getX() + lastPadLeft - lastWorkX;
+        anchorY = getY() + LAYOUT_PADDING - lastWorkY;
+        anchorInitialized = true;
     }
 
     public void reinitConfig() {
         Logger.info("MinimalHUD", "reinitConfig called");
         if (hudSettings == null)
             return;
-        // 拖动中不做外部刷新，避免坐标被重置；松手保存后会再次触发刷新
         if (editor != null && editor.isDragging())
             return;
 
-        // 1. 重建不可变样式快照
         ctx = MinimalHUDContext.create(hudSettings);
-
-        // 2. 读取布局文档；空/坏串回退默认布局
-        doc = MiniHudLayoutCodec.decodeOrDefault(hudSettings.getMiniHudLayout());
-
-        // 3. 构建组件与布局 DAG（预览态用演示值，游戏态接 TelemetrySource）
-        buildScene();
-        this.setBounds(ctx.windowX, ctx.windowY, ctx.width, ctx.height);
-        applyAutoSizing();
-        repaint();
-    }
-
-    private void applyAutoSizing() {
-        scene.engine.applyAutoSizing(this, LAYOUT_PADDING);
-        // 预览工具条需要最小窗口，避免删空后无法点“默认/添加”
-        if (service == null) {
-            int minW = Math.max(260, ctx.hudFontSize * 12);
-            if (getWidth() < minW)
-                setSize(minW, getHeight());
-            if (getHeight() < 90)
-                setSize(getWidth(), 90);
+        String encoded = hudSettings.getMiniHudLayout();
+        MiniHudDocument decoded = MiniHudLayoutCodec.decode(encoded);
+        if (decoded == null && encoded != null && encoded.startsWith("V1;"))
+            decoded = MiniHudLegacyMigrator.fromV1(encoded);
+        if (decoded == null) {
+            if (encoded != null && !encoded.isEmpty())
+                Logger.warn("MinimalHUD", "MiniHUD 布局无效/版本过旧，回退默认布局");
+            decoded = MiniHudDefaultLayout.create();
         }
+        doc = decoded;
+
+        buildScene();
+        layoutAndFit();
+        // 字体/缩放变化会改变包围盒并移动窗口，保存新位置避免重启漂移
+        saveCurrentPosition();
+        repaint();
     }
 
     private void buildScene() {
@@ -208,18 +237,26 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         applyLayoutDebug();
     }
 
-    /** 编辑态强制显示布局调试框；只读态遵循设置里的“布局调试”开关。 */
     private void applyLayoutDebug() {
-        if (scene != null) {
-            scene.engine.setDebug(editorEditing || settingsLayoutDebug);
-        }
+        if (scene != null)
+            scene.setDebug(editorEditing || settingsLayoutDebug);
     }
 
     @Override
     public void setEditorEditing(boolean editing) {
+        if (editorEditing == editing)
+            return;
         editorEditing = editing;
         applyLayoutDebug();
+        layoutAndFit();
         repaint();
+    }
+
+    @Override
+    public void setWindowFrozen(boolean frozen) {
+        this.windowFrozen = frozen;
+        if (!frozen)
+            layoutAndFit();
     }
 
     @Override
@@ -227,7 +264,15 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         if (doc == null || ctx == null)
             return;
         buildScene();
-        applyAutoSizing();
+        layoutAndFit();
+        repaint();
+    }
+
+    @Override
+    public void refreshLayout() {
+        if (scene == null)
+            return;
+        scene.layout();
         repaint();
     }
 
@@ -244,8 +289,55 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     }
 
     @Override
-    public java.awt.Component getEditorComponent() {
+    public Component getEditorComponent() {
         return panel;
+    }
+
+    /**
+     * 解算场景并按内容包围盒设置窗口。
+     * 编辑态在内容外留工作区余量，游戏态紧贴内容，避免透明区域过大。
+     */
+    private void layoutAndFit() {
+        if (scene == null || ctx == null)
+            return;
+        scene.layout();
+        if (windowFrozen) {
+            repaint();
+            return;
+        }
+
+        Rectangle b = scene.bounds(editorEditing);
+        int margin = editorEditing ? Math.max(60, ctx.hudFontSize * 3) : 0;
+        int workX = b.x - margin;
+        int workY = b.y - margin;
+        int workW = b.width + margin * 2;
+        int workH = b.height + margin * 2;
+
+        int padLeft = padLeftForScene();
+        int windowW = workW + padLeft + LAYOUT_PADDING;
+        int windowH = workH + LAYOUT_PADDING * 2;
+        // 预览工具条/最小可操作区域
+        if (service == null) {
+            int minW = Math.max(260, ctx.hudFontSize * 12);
+            if (windowW < minW)
+                windowW = minW;
+            if (windowH < 90)
+                windowH = 90;
+        }
+
+        if (!anchorInitialized) {
+            anchorX = ctx.windowX + padLeft - workX;
+            anchorY = ctx.windowY + LAYOUT_PADDING - workY;
+            anchorInitialized = true;
+        }
+        int wx = anchorX - padLeft + workX;
+        int wy = anchorY - LAYOUT_PADDING + workY;
+        lastWorkX = workX;
+        lastWorkY = workY;
+        lastPadLeft = padLeft;
+
+        scene.setOffset(padLeft - workX, LAYOUT_PADDING - workY);
+        setBounds(wx, wy, windowW, windowH);
     }
 
     public void init(Controller c, Service s, HUDSettings settings) {
@@ -270,11 +362,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
                 g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
                         RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
                 g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
-
-                if (scene != null) {
-                    scene.engine.doLayout();
-                    scene.engine.render(g2d);
-                }
+                if (scene != null)
+                    scene.render(g2d);
                 if (editor != null)
                     editor.paint(g2d);
                 drawBlinkX(g2d);
@@ -290,7 +379,6 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         blinkTicks = (int) ((1000 / loopMs) >> 3);
         if (blinkTicks == 0)
             blinkTicks = 1;
-
         refreshInterval = loopMs;
 
         setTitle("miniHUD");
@@ -318,16 +406,15 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
 
     // --- Event-Driven Update ---
 
-    private static final long DEFAULT_REFRESH_INTERVAL = 100; // ms
+    private static final long DEFAULT_REFRESH_INTERVAL = 100;
     private long refreshInterval = DEFAULT_REFRESH_INTERVAL;
     private long lastRefreshTime = 0;
 
     @Override
     public void onFlightData(FlightDataEvent event) {
         long now = System.currentTimeMillis();
-        if (now - lastRefreshTime < refreshInterval) {
+        if (now - lastRefreshTime < refreshInterval)
             return;
-        }
         lastRefreshTime = now;
 
         javax.swing.SwingUtilities.invokeLater(() -> {
@@ -346,15 +433,10 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
             data = HUDCalculator.calculate(event, service,
                     prog.fm.FMManager.getInstance().current().blkx, hudSettings, ctx);
         }
-
-        for (HUDComponent comp : scene.components) {
+        for (HUDComponent comp : scene.components)
             comp.onDataUpdate(data);
-        }
-        // 自定义数据字段：EDT 上直接读 TelemetrySource（FlightInfo/FieldOverlay 同款先例）
-        for (TextRowWidget w : scene.liveFields) {
-            w.updateData(service);
-        }
-
+        // 配置字段：EDT 上直接读 TelemetrySource（FlightInfo/FieldOverlay 同款先例）
+        scene.updateFieldData(service);
         scene.updateDynamicVisibility(data, contentVisible);
 
         warnVne = data.warnVne;

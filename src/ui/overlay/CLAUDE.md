@@ -34,9 +34,9 @@ DraggableOverlay (ui/base/, WebLaF 可拖拽窗)
 
 ## MiniHUD 特有架构
 
-组件化而非列表渲染：`MinimalHUDContext`（不可变快照，reinitConfig 时重建）+ `HUDCalculator`（Service 线程预计算 HUDData）+ `ModernHUDLayoutEngine`（DAG 拓扑布局）+ `HUDComponent[]`。HUDData 在 Service 线程预计算后才发布事件，EDT 只消费（降延迟 40-60ms）。组件细节见 `../component/CLAUDE.md`。
+组件化而非列表渲染：`MinimalHUDContext`（不可变快照，reinitConfig 时重建）+ `HUDCalculator`（Service 线程预计算 HUDData）+ 自由画布场景 + 原子 `HUDComponent[]`。HUDData 在 Service 线程预计算后才发布事件，EDT 只消费（降延迟 40-60ms）。组件细节见 `../component/CLAUDE.md`。
 
-**自定义布局（v1.587+）**：MiniHUD 的内容/位置由用户布局决定，旧 `showHUD*` 开关已删除。仅设置窗预览态可编辑：**默认只读（只显示「编辑」按钮）**，点「编辑」后才能拖动/缩放/右键增删，编辑态自动显示条目边界框；游戏态只读。布局存在 MiniHUD 面板的隐藏配置项里，随配置合并/导入/出厂一起走；老配置升级时一次性换算，窗口位置/字体等偏好不动。所有显示方式（表速/马赫、标签、高度来源、随体/离体）都是条目属性，无全局开关；襟翼条与数据区独立。组件扩展与条目类型约定见 `../component/CLAUDE.md`。
+**自由画布（v1.587+）**：MiniHUD 的内容/位置由用户布局决定，旧 `showHUD*` 开关已删除。所有组件保存画布绝对坐标，没有父子/锚点；窗口跟随内容包围盒，保存画布原点的屏幕锚点，内容增删或字体变化时其他组件不漂。**不要改回保存窗口左上角**：内容包围盒一变，整个 HUD 会跟着漂。仅设置窗预览态可编辑：**默认只读（只显示「编辑」按钮）**，点「编辑」后才能多选、拖动、缩放、右键增删/改属性；编辑态显示边界框、图层、撤销/重做，游戏态只读。布局存在 MiniHUD 面板的隐藏配置项里，随配置合并/导入/出厂一起走；老配置升级时一次性换算，窗口位置/字体等偏好不动。所有显示方式（表速/马赫、标签、高度来源、随体/离体）都是组件属性，无全局开关；襟翼条与数据区独立。组件扩展与原子类型约定见 `../component/CLAUDE.md`。
 
 准星已拆为独立 `CrosshairOverlay`（配置面板「准星」）。它的面板 x/y 表示**窗口中心**（不是左上角），改大小时围绕中心缩放；`saveCurrentPosition()` 也存中心点。`CrosshairGauge` 矢量臂自然外接 `2×width`，开窗按此留 padding。
 

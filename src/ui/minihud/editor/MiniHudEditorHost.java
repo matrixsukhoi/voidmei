@@ -4,15 +4,17 @@ import java.awt.Component;
 import java.awt.Point;
 
 import prog.config.MiniHudFieldCatalog;
-import ui.minihud.MiniHudLayoutDoc;
+import ui.minihud.MiniHudDocument;
 import ui.minihud.MiniHudScene;
 import ui.overlay.MinimalHUDContext;
 
-/** 编辑器与宿主 overlay 的最小接口，便于离屏快照直接驱动交互。 */
+/** 预览编辑器与 MiniHUDOverlay 的协作接口。 */
 public interface MiniHudEditorHost {
     MiniHudScene getScene();
 
-    MiniHudLayoutDoc getDoc();
+    MiniHudDocument getDoc();
+
+    void setDoc(MiniHudDocument doc);
 
     MinimalHUDContext getCtx();
 
@@ -28,16 +30,19 @@ public interface MiniHudEditorHost {
 
     void commitLayout();
 
-    /** 文档被编辑器直接修改后重建场景（不重新读配置）。 */
     void rebuildSceneFromDoc();
 
-    /** 恢复出厂布局。 */
+    /** 拖动中只重算矩形，不改窗口尺寸。 */
+    void refreshLayout();
+
+    /** 拖动/缩放期间冻结窗口尺寸，松手后再按内容适配。 */
+    void setWindowFrozen(boolean frozen);
+
     void resetToDefaultLayout();
 
     MiniHudFieldCatalog getFieldCatalog();
 
     Component getEditorComponent();
 
-    /** 编辑器进入/退出编辑态：宿主据此显示布局调试框等编辑辅助。 */
     void setEditorEditing(boolean editing);
 }
