@@ -38,6 +38,31 @@ public class ReplicaBuilder {
     // 递归保护：dispose 回调可能触发 dismissActivePopups 再次调用
     private static boolean dismissingPopups = false;
 
+    /**
+     * 只读帮助行：左侧功能名 + 右侧问号，悬浮显示原有 desc/desc-img。
+     * 不绑定配置，只用于面板内的功能说明列表。
+     */
+    public static WebPanel createHelpItem(String labelText, String tooltip, String tooltipImg) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        style.decorateLabel(label);
+        applyStylizedTooltip(label, tooltip, tooltipImg);
+        panel.add(label, BorderLayout.WEST);
+
+        WebLabel hint = new WebLabel("?");
+        hint.setFont(PinkStyle.FONT_NORMAL.deriveFont(Font.BOLD));
+        hint.setForeground(PinkStyle.COLOR_PRIMARY);
+        applyStylizedTooltip(hint, tooltip, tooltipImg);
+        panel.add(hint, BorderLayout.EAST);
+
+        // 与其它行一致：ResponsiveGrid 用它对齐标签列
+        panel.putClientProperty("alignLabel", label);
+        return panel;
+    }
+
     public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear) {
         return createSwitchItem(labelText, isSelected, showGear, null, null);
     }
