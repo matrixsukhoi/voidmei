@@ -8,11 +8,17 @@ class zb {
 }
 
 public class MapInfo {
+	private static final java.util.regex.Pattern GRID_SIZE_PATTERN = java.util.regex.Pattern
+			.compile("\"grid_size\"\\s*:\\s*\\[\\s*(-?[\\d.eE+-]+)\\s*,\\s*(-?[\\d.eE+-]+)\\s*\\]");
 	String s;
 	public double grid_stepsX;
 	public double grid_stepsY;
 	public double grid_zeroX;
 	public double grid_zeroY;
+	// 地图网格覆盖的物理尺寸(米): map_obj 归一化坐标 × 本值 = 世界米数
+	// 注意不能用 cmapmaxsize(map_max-map_min) 代替: 真机快照里二者不相等
+	public double grid_sizeX;
+	public double grid_sizeY;
 	public int map_generation;
 	public double map_maxX;
 	public double map_maxY;
@@ -76,6 +82,12 @@ public class MapInfo {
 	public void update(String S) {
 		s = S;
 		// System.out.print(s);
+		// grid_size 用容错正则单独解析: 距离换算依赖它, 不随原文空格格式变化
+		java.util.regex.Matcher gs = GRID_SIZE_PATTERN.matcher(s);
+		if (gs.find()) {
+			grid_sizeX = Double.parseDouble(gs.group(1));
+			grid_sizeY = Double.parseDouble(gs.group(2));
+		}
 		tp = getMapInfoParserArray("grid_steps");
 		grid_stepsX = tp.x;
 		grid_stepsY = tp.y;

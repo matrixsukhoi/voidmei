@@ -783,6 +783,15 @@ public final class MiniHudEditor {
         afterSimpleChange();
     }
 
+    public void addAirfield(Double clickX, Double clickY) {
+        pushUndo();
+        MiniHudWidget w = MiniHudPresets.addAirfield(host.getDoc(),
+                clickX != null ? clickX : viewCenterXUnits(),
+                clickY != null ? clickY : viewCenterYUnits());
+        selectOnly(w.id);
+        afterSimpleChange();
+    }
+
     public void deleteSelected() {
         if (selected.isEmpty())
             return;
@@ -1151,6 +1160,9 @@ public final class MiniHudEditor {
         JMenuItem panel = new JMenuItem("背景板");
         panel.addActionListener(ev -> addPanel(clickX, clickY));
         add.add(panel);
+        JMenuItem airfield = new JMenuItem("机场距离");
+        airfield.addActionListener(ev -> addAirfield(clickX, clickY));
+        add.add(airfield);
 
         add.addSeparator();
         JMenu presets = new JMenu("预设（原子组件组）");
@@ -1417,6 +1429,10 @@ public final class MiniHudEditor {
                 w.set(MiniHudProps.HEIGHT_UNITS, height.getText());
                 w.set(MiniHudProps.RADIUS_UNITS, radius.getText());
                 w.set(MiniHudProps.PANEL_COLOR, color.getText());
+            };
+        } else if (MiniHudProps.TYPE_AIRFIELD.equals(w.type)) {
+            // 机场面板没有组件级属性，只保留通用的缩放/层级可调
+            apply[0] = () -> {
             };
         } else {
             JOptionPane.showMessageDialog(parent, "该组件没有可调属性", "组件属性",

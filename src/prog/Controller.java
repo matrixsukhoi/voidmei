@@ -702,7 +702,10 @@ public class Controller {
 				overlay -> ((MiniHUDOverlay) overlay).reinitConfig(),
 				false)
 				.withInterest("crosshairScale", "miniHUD", "enableLayoutDebug",
-						"miniHudLayout", "miniHudContentVisible", "MonoNumFont");
+						"miniHudLayout", "miniHudContentVisible", "MonoNumFont",
+						"miniHudAirfieldArrow", "miniHudAirfieldRange", "miniHudAirfieldShowGrid",
+						"miniHudAirfieldWarnKm", "miniHudAirfieldFriendlyColor",
+						"miniHudAirfieldEnemyColor");
 
 		// CrosshairOverlay - 独立准星, 与 MiniHUD 平级; 配置面板「准星」
 		overlayManager.registerWithPreview("displayCrosshair",

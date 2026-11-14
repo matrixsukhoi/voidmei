@@ -1,5 +1,9 @@
 package ui.minihud;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import parser.Airfield;
 import prog.Application;
 import ui.overlay.MinimalHUDContext;
 import ui.overlay.model.HUDData;
@@ -8,6 +12,19 @@ import ui.overlay.model.HUDData;
 public final class MiniHudPreviewData {
 
     private MiniHudPreviewData() {
+    }
+
+    /** 预览用机场（一友一敌，均超过 600m 跑道阈值）。 */
+    public static List<Airfield> airfields() {
+        List<Airfield> list = new ArrayList<>(2);
+        list.add(new Airfield(11400, 3200, true, 300, "C4"));
+        list.add(new Airfield(12400, 1670, false, 45, "F9"));
+        return list;
+    }
+
+    /** 预览航向：让演示箭头分别指向左前/右前。 */
+    public static double heading() {
+        return 320;
     }
 
     public static HUDData create(MinimalHUDContext ctx) {

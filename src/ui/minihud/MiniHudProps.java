@@ -14,6 +14,7 @@ public final class MiniHudProps {
     public static final String TYPE_COMPASS = "compass";
     public static final String TYPE_ATTITUDE = "attitude";
     public static final String TYPE_PANEL = "panel";
+    public static final String TYPE_AIRFIELD = "airfield";
 
     // 通用
     public static final String SOURCE = "source";

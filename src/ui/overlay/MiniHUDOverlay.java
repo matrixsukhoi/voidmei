@@ -220,6 +220,12 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
                 Logger.warn("MinimalHUD", "MiniHUD 布局无效/版本过旧，回退默认布局");
             decoded = MiniHudDefaultLayout.create();
         }
+        // V2 → V3：机场面板从原生面板改为画布组件，旧布局补一个机场组件并落盘
+        if (decoded.version < MiniHudDocument.VERSION) {
+            MiniHudDefaultLayout.ensureAirfieldWidget(decoded);
+            decoded.version = MiniHudDocument.VERSION;
+            hudSettings.saveMiniHudLayout(MiniHudLayoutCodec.encode(decoded));
+        }
         doc = decoded;
 
         buildScene();
@@ -233,7 +239,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         contentVisible = hudSettings.isMiniHudContentVisible();
         settingsLayoutDebug = hudSettings.getBool("enableLayoutDebug", false);
         scene = MiniHudSceneBuilder.build(doc, ctx, hudSettings, hudSettings.getMiniHudFieldCatalog(),
-                service == null, service, contentVisible);
+                service == null, service, contentVisible,
+                service != null ? () -> service.airfields : null);
         applyLayoutDebug();
     }
 
@@ -336,7 +343,9 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         lastWorkY = workY;
         lastPadLeft = padLeft;
 
-        scene.setOffset(padLeft - workX, LAYOUT_PADDING - workY);
+        int offsetX = padLeft - workX;
+        int offsetY = LAYOUT_PADDING - workY;
+        scene.setOffset(offsetX, offsetY);
         setBounds(wx, wy, windowW, windowH);
     }
 
@@ -438,6 +447,9 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         // 配置字段：EDT 上直接读 TelemetrySource（FlightInfo/FieldOverlay 同款先例）
         scene.updateFieldData(service);
         scene.updateDynamicVisibility(data, contentVisible);
+        // 机场列表/行宽变化等首选尺寸变化时重新适配窗口
+        if (scene.syncPreferredSizes())
+            layoutAndFit();
 
         warnVne = data.warnVne;
         warnRH = data.warnAltitude;

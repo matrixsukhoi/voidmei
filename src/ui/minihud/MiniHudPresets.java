@@ -143,6 +143,11 @@ public final class MiniHudPresets {
         return w;
     }
 
+    /** 机场距离面板是普通画布组件，可多实例。 */
+    public static MiniHudWidget addAirfield(MiniHudDocument doc, double x, double y) {
+        return newWidget(doc, MiniHudProps.TYPE_AIRFIELD, x, y);
+    }
+
     private static MiniHudWidget newWidget(MiniHudDocument doc, String type, double x, double y) {
         MiniHudWidget w = new MiniHudWidget(doc.nextWidgetId(), type);
         MiniHudWidgets.applyDefaults(w);

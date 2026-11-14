@@ -199,4 +199,19 @@ public final class MiniHudScene {
         for (BarWidget b : barWidgets)
             b.updateData(source);
     }
+
+    /** 数据更新后组件首选尺寸变化（如机场列表增减）时返回 true，由窗口重新适配。 */
+    public boolean syncPreferredSizes() {
+        boolean changed = false;
+        for (Runtime r : runtimes) {
+            java.awt.Dimension d = r.component.getPreferredSize();
+            if (d == null)
+                continue;
+            int w = Math.max(1, d.width);
+            int h = Math.max(1, d.height);
+            if (r.rect.width != w || r.rect.height != h)
+                changed = true;
+        }
+        return changed;
+    }
 }

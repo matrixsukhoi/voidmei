@@ -1,6 +1,7 @@
 package ui.minihud;
 
 import ui.component.HUDComponent;
+import ui.minihud.widget.AirfieldWidget;
 import ui.minihud.widget.AttitudeWidget;
 import ui.minihud.widget.BarWidget;
 import ui.minihud.widget.CompassWidget;
@@ -33,6 +34,8 @@ public final class MiniHudWidgets {
                 AttitudeWidget::new);
         reg(MiniHudProps.TYPE_PANEL, "背景", "背景板", false, true, EdgeResize.BOTH,
                 PanelWidget::new);
+        reg(MiniHudProps.TYPE_AIRFIELD, "条与仪表", "机场距离", false, true, EdgeResize.BOTH,
+                AirfieldWidget::new);
     }
 
     private static void reg(String type, String category, String name, boolean dataField, boolean scalable,

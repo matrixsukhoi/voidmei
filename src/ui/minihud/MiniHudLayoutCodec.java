@@ -3,7 +3,7 @@ package ui.minihud;
 import java.util.Map;
 
 /**
- * 自由画布文档 ↔ 单行紧凑串（V2）。
+ * 自由画布文档 ↔ 单行紧凑串（V3；兼容读取 V2）。
  *
  * 记录：W|id|type|x|y|scale|visible|locked|z|groupId|props
  *      G|id|name
@@ -13,7 +13,8 @@ import java.util.Map;
  */
 public final class MiniHudLayoutCodec {
 
-    private static final String HEADER = "V2";
+    private static final String HEADER = "V3";
+    private static final String LEGACY_HEADER = "V2";
     private static final int WIDGET_FIELDS = 11;
     private static final int GROUP_FIELDS = 3;
 
@@ -50,6 +51,9 @@ public final class MiniHudLayoutCodec {
             return null;
         String[] records = text.split(";", -1);
         MiniHudDocument doc = new MiniHudDocument();
+        // V2 文档在加载时由 MiniHUDOverlay 补机场组件并落盘为 V3
+        if (text.startsWith(LEGACY_HEADER + ";") || LEGACY_HEADER.equals(text))
+            doc.version = 2;
         for (int i = 1; i < records.length; i++) {
             String rec = records[i];
             if (rec.isEmpty())
@@ -95,7 +99,8 @@ public final class MiniHudLayoutCodec {
     public static boolean isValid(String text) {
         if (text == null || text.isEmpty())
             return false;
-        if (!text.startsWith(HEADER + ";") && !HEADER.equals(text))
+        if (!text.startsWith(HEADER + ";") && !HEADER.equals(text)
+                && !text.startsWith(LEGACY_HEADER + ";") && !LEGACY_HEADER.equals(text))
             return false;
         return decodeRecords(text) != null;
     }

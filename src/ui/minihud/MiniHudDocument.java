@@ -11,7 +11,7 @@ import java.util.Set;
  */
 public final class MiniHudDocument {
 
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
     public static final int MAX_WIDGETS = 300;
     public static final double MIN_SCALE = 0.25;
     public static final double MAX_SCALE = 4.0;
@@ -84,7 +84,8 @@ public final class MiniHudDocument {
 
     /** 修复坏数据：ID 去重、未知类型回退文本、坐标/缩放钳制、组引用补齐、数量截断。 */
     public void validate() {
-        version = VERSION;
+        if (version <= 0)
+            version = VERSION;
         if (widgets.size() > MAX_WIDGETS)
             widgets.subList(MAX_WIDGETS, widgets.size()).clear();
 

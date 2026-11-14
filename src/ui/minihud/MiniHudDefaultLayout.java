@@ -151,8 +151,47 @@ public final class MiniHudDefaultLayout {
             maneuver.set(MiniHudProps.LENGTH_UNITS, "3.5");
         }
 
+        ensureAirfieldWidget(d);
         d.validate();
         return d;
+    }
+
+    /**
+     * 给旧布局补一个机场组件（V2 → V3 一次性迁移）。
+     * 已有机场组件则不动；用户主动删除后不会在 V3 文档里重新出现。
+     */
+    public static boolean ensureAirfieldWidget(MiniHudDocument d) {
+        if (d == null)
+            return false;
+        for (MiniHudWidget w : d.widgets) {
+            if (MiniHudProps.TYPE_AIRFIELD.equals(w.type))
+                return false;
+        }
+        MiniHudGroup group = d.findGroup("g.airfield");
+        if (group == null) {
+            group = new MiniHudGroup("g.airfield", "机场");
+            d.groups.add(group);
+        }
+
+        double maxX = 0;
+        double minY = Double.MAX_VALUE;
+        int maxZ = 0;
+        for (MiniHudWidget w : d.widgets) {
+            maxX = Math.max(maxX, w.x);
+            minY = Math.min(minY, w.y);
+            maxZ = Math.max(maxZ, w.z);
+        }
+        if (d.widgets.isEmpty())
+            minY = 3.5;
+
+        MiniHudWidget w = new MiniHudWidget(d.nextWidgetId(), MiniHudProps.TYPE_AIRFIELD);
+        // 放在内容右缘，保留旧版“右侧机场面板”的位置观感
+        w.x = Math.max(11.5, maxX + 3.5);
+        w.y = minY;
+        w.z = maxZ + 1;
+        w.groupId = group.id;
+        d.widgets.add(w);
+        return true;
     }
 
     private static MiniHudGroup group(MiniHudDocument d, String id, String name) {

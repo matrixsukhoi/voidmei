@@ -1,10 +1,15 @@
 package prog;
 
+import java.util.Collections;
+import java.util.List;
+
 import prog.util.HttpHelper;
 import prog.util.ExceptionHelper;
 
+import parser.Airfield;
 import parser.Blkx.engineLoad;
 import parser.FlightLog;
+import parser.PlayerResupplyDetector;
 import prog.fm.FMHandle;
 import prog.fm.FMManager;
 import parser.Indicators;
@@ -36,6 +41,16 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	// public static URL urlindicators;
 	public double loc[];
 	public double dir[];
+	/** 地图机场快照（米制，按 map poll 刷新）；EDT 只读取不可变列表引用。 */
+	public volatile List<Airfield> airfields = Collections.emptyList();
+	private final PlayerResupplyDetector resupplyDetector = new PlayerResupplyDetector();
+	/** 最近一次识别到补给完成（跑道端瞬移）的时间戳；0=本局尚未检测到。 */
+	public volatile long lastResupplyTimeMs;
+	/**
+	 * 最近一轮 map_obj 判定玩家是否阵亡/不在图上（无 Player 图标或坐标越界）。
+	 * 死亡回放期 playerLive 可能仍为 true，语音告警用本标志收口。
+	 */
+	public volatile boolean playerDeadOnMap = true;
 	public double energyJKg;
 	public double prevEnergyJKg;
 	public long calcPeriod;
@@ -231,6 +246,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	public boolean isPlayerLive() {
 		return playerLive;
+	}
+
+	/** 阵亡/观战/不在图上（由 map_obj 判定）；语音告警等消费方用。 */
+	public boolean isPlayerDeadOnMap() {
+		return playerDeadOnMap;
 	}
 
 	public static final String pressureUnit = "Ata";
@@ -1547,6 +1567,16 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		fatalWarn = false;
 		loc = new double[2];
 		dir = new double[2];
+		airfields = Collections.emptyList();
+		resupplyDetector.reset();
+		lastResupplyTimeMs = 0;
+		// 换局/载入阶段先按“不在图上”处理，等 map poll 找到 Player 图标再放开语音告警
+		playerDeadOnMap = true;
+		// 换图/换局后 grid_size 可能变化；清零后由 playerLive 或 map poll 重新拉取
+		if (mapinfo != null) {
+			mapinfo.grid_sizeX = 0;
+			mapinfo.grid_sizeY = 0;
+		}
 		radioAltValid = false;
 		playerLive = false;
 		iEngType = ENGINE_TYPE_UNKNOWN;
@@ -1778,17 +1808,19 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 					if (((calcPeriod++) % (500 / freq)) == 0)
 						slowcalculate((500 / freq) * freq);
 
-					// 将数据转换格式
-					formatDataAsStrings();
-
-					// 写入文档
-					// c.writeDown();
-
-					// 检查死亡
+					// 检查死亡：必须在 formatDataAsStrings 发布事件前清空机场，
+					// 否则本帧事件会让 EDT 继续显示阵亡后的整图机场列表
 					if (sState.totalThr == 0 && sState.RPM <= 0 && sState.IAS < 10) {
 						prog.util.Logger.warn("Service", "Player crash/stop detected. Simulation state invalidated.");
 						playerLive = false;
+						// 语音告警快速收口（地图 poll 1s 才更新一次）
+						playerDeadOnMap = true;
+						// 阵亡后地图仍会返回全部机场，坐标已不代表玩家当前位置
+						airfields = Collections.emptyList();
 					}
+
+					// 将数据转换格式（内部发布 FlightDataEvent）
+					formatDataAsStrings();
 				}
 			} else {
 				// 无效帧 (空壳单键/valid=false): 仿真状态作废。
@@ -1796,6 +1828,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				// VoiceWarning 各数据门仍开, 临终越限值 (大过载/低油压) 会循环误报;
 				// 事件驱动的增压器告警同理会把退出前的 mismatch=true 冻结住循环播, 这里清掉并广播取消
 				playerLive = false;
+				playerDeadOnMap = true;
+				airfields = Collections.emptyList();
 				if (compressorStageMismatch) {
 					compressorStageMismatch = false;
 					publishFlightDataEvent();
@@ -1856,12 +1890,34 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				long diffTime1 = currentTimeMs - lastMapPollTimeMs;
 				if (diffTime1 >= 10 * freq) {
 					lastMapPollTimeMs = currentTimeMs;
+					// grid_size 是机场/距离换算的米制基准；出生窗口请求失败时在后续
+					// map poll 里补拉，避免机场面板一直为空到下次重生。
+					if (mapinfo != null && (mapinfo.grid_sizeX <= 0 || mapinfo.grid_sizeY <= 0)) {
+						if (!portOcupied)
+							httpClient.getReqMapInfoResult(Application.requestDest);
+						else
+							httpClient.getReqMapInfoResult(Application.requestDestBkp);
+						mapinfo.update(httpClient.strMapInfo);
+					}
 					if (!portOcupied)
 						httpClient.getReqMapObjResult(Application.requestDest);
 					else
 						httpClient.getReqMapObjResult(Application.requestDestBkp);
-					MapObj.getPlayerLoc(httpClient.strMapObj, loc);
+					// 阵亡/观战/过渡帧没有 Player 图标或坐标越界时，地图里仍可能
+					// 返回整张图的机场；此时坐标不可信，直接清空面板。
+					boolean playerDead = MapObj.isPlayerDead(httpClient.strMapObj, loc);
+					playerDeadOnMap = playerDead;
 					MapObj.getPlayerDir(httpClient.strMapObj, dir);
+					if (playerLive && !playerDead) {
+						List<MapObj.AirfieldRaw> raws = MapObj.parseAirfields(httpClient.strMapObj);
+						airfields = MapObj.resolveAirfields(raws, loc, mapinfo);
+						if (resupplyDetector.update(loc[0], loc[1], sState.IAS,
+								currentTimeMs, raws, mapinfo))
+							lastResupplyTimeMs = currentTimeMs;
+					} else {
+						airfields = Collections.emptyList();
+						resupplyDetector.reset();
+					}
 				}
 
 				long sleeptime = currentTimeMs + freq - System.currentTimeMillis();

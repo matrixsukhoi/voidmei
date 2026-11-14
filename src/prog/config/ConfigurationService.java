@@ -711,5 +711,38 @@ public class ConfigurationService implements ConfigProvider {
         public MiniHudFieldCatalog getMiniHudFieldCatalog() {
             return ConfigurationService.this.getMiniHudFieldCatalog();
         }
+
+        @Override
+        public boolean isMiniHudAirfieldArrow() {
+            return getBool("miniHudAirfieldArrow", true);
+        }
+
+        @Override
+        public boolean isMiniHudAirfieldShowAll() {
+            // combo 存中文标签；缺省/未知值按“全部”处理
+            return !"最近".equals(getString("miniHudAirfieldRange", "全部"));
+        }
+
+        @Override
+        public boolean isMiniHudAirfieldShowGrid() {
+            return getBool("miniHudAirfieldShowGrid", true);
+        }
+
+        @Override
+        public Color getMiniHudAirfieldFriendlyColor() {
+            return ColorHelper.parseColor(getString("miniHudAirfieldFriendlyColor", "#1BFF80F0"),
+                    new Color(27, 255, 128, 240));
+        }
+
+        @Override
+        public Color getMiniHudAirfieldEnemyColor() {
+            return ColorHelper.parseColor(getString("miniHudAirfieldEnemyColor", "#FF4444F0"),
+                    new Color(255, 68, 68, 240));
+        }
+
+        @Override
+        public double getMiniHudAirfieldWarnKm() {
+            return Math.max(0, getInt("miniHudAirfieldWarnKm", 5));
+        }
     }
 }

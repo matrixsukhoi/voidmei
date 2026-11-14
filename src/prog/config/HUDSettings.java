@@ -1,5 +1,7 @@
 package prog.config;
 
+import java.awt.Color;
+
 /**
  * Interface for reading HUD-specific configurations.
  * Decouples the UI layer from underlying key names and parsing logic.
@@ -43,4 +45,24 @@ public interface HUDSettings extends OverlaySettings {
 
     /** 数据字段目录（从 ui_layout.cfg 的 data 行汇总）。 */
     MiniHudFieldCatalog getMiniHudFieldCatalog();
+
+    // === MiniHUD 右侧机场面板 ===
+
+    /** 是否绘制指向机场的箭头。 */
+    boolean isMiniHudAirfieldArrow();
+
+    /** true=显示全部机场；false=只显示最近的一个。 */
+    boolean isMiniHudAirfieldShowAll();
+
+    /** 是否在距离后显示机场所在的地图网格（如 C4）。 */
+    boolean isMiniHudAirfieldShowGrid();
+
+    /** 友军机场显示颜色。 */
+    Color getMiniHudAirfieldFriendlyColor();
+
+    /** 敌军机场显示颜色。 */
+    Color getMiniHudAirfieldEnemyColor();
+
+    /** 距离小于该值的机场闪烁告警；0 表示关闭。 */
+    double getMiniHudAirfieldWarnKm();
 }
