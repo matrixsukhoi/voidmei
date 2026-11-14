@@ -27,7 +27,7 @@ ui_layout.cfg (S 表达式 DSL) → ConfigLoader/SExpParser → GroupConfig/RowC
           :desc "提示" :descImg "帮助图")))
 ```
 
-**item 类型**：`switch`/`switch_inv`（反相，UI ON = value false）/`slider`（`:min :max :unit`）/`combo`（`:options`）/`color`（hex `#RRGGBBAA` 或十进制 `R,G,B,A`；显示用 hex、存储用十进制）/`font`/`hotkey`/`button`/`data`。
+**item 类型**：`switch`/`switch_inv`（反相，UI ON = value false）/`slider`（`:min :max :unit`）/`combo`（`:options`）/`color`（hex `#RRGGBBAA` 或十进制 `R,G,B,A`；显示用 hex、存储用十进制）/`font`/`hotkey`/`button`/`data`/`help`（只读帮助行，悬浮显示 `:desc`/`:desc-img`，不写配置）。
 
 **data 类型的条件属性**（均为 S 表达式，同类语法）：
 

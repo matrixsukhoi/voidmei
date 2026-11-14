@@ -134,6 +134,7 @@ python script/build.py fmdata-upload
 ### 线程与窗口规则
 
 - **EDT 规则**：Swing 组件更新必须 `SwingUtilities.invokeLater`；事件可能在后台线程回调
+- **阵亡语音告警抑制**：死亡回放期 `playerLive` 可能仍为 true，不能只用它判断；`Service.playerDeadOnMap` 由 map_obj 的 Player 图标判定（无图标/坐标越界），VoiceWarning 每轮检查该标志，阵亡后不跑告警检测、清 `fatalWarn`、并 `stopPlayback()` 停止仍在播放的 clip；重生找到 Player 图标后自动恢复
 - **僵尸窗口防护**：注册进 `AlwaysOnTopCoordinator` 的窗口必须在 `dispose()` 中 `unregisterOverlay(this)`，否则 `FocusMonitor.showAllOverlays()` 会复活已销毁窗口
 - **焦点抢占防护**：`setFocusable(false)` 必须在 `registerOverlay()` 之前；对话框用 `dialogWillShow()`/`dialogDidDismiss()` 挂起/恢复 alwaysOnTop
 - **托盘点击防重**：`Application` 用 `AtomicBoolean` CAS 防重复创建 Controller；`Controller.stop()` 清理顺序：关 overlay→退订事件→dispose MainForm→停 Service→存配置
@@ -146,7 +147,7 @@ python script/build.py fmdata-upload
 |------|------|
 | GPU 兼容 | `Launcher`（无 AWT import）在 AWT 加载**前**设 `sun.java2d.*` 属性关硬件加速；状态存 `gpu_compat.properties`（必须早于 ui_layout.cfg 可读，故独立文件）；`gpuCompatibilityMode` 配置键在 SwitchRowRenderer 有特殊处理 |
 | DPI 缩放 | `DPIHelper` 经 `GraphicsConfiguration.getDefaultTransform()` 探测，暴露 `Application.dpiScale`（2.0=200%）与 `logicalWidth/Height`；字体/尺寸计算一律乘 dpiScale，屏幕定位用 logical 尺寸不用 `Toolkit.getScreenSize()`（那是物理像素） |
-| 失焦自动隐藏 | `FocusMonitor`(200ms 节流)+`FocusDetector`（Windows: PowerShell 查 `aces` 进程；Linux: xdotool；macOS: AppleScript）；无新线程 |
+| 失焦自动隐藏 | **默认开启**（`autoHideOnFocusLoss`）。`FocusMonitor`(200ms 节流)+`FocusDetector`（Windows: PowerShell 查 `aces` 进程；Linux: xdotool；macOS: AppleScript）；无新线程。**overlay 的 run 循环和热键 toggle 必须尊重 `AlwaysOnTopCoordinator.isOverlaysHidden()`**：BaseOverlay 每 200ms 会 `setVisible(true)` 复活自己，P 键的 FM 拆包面板因此会在失焦隐藏后又被唤出；游戏态 `isPreview` 例外 |
 | 网络代理 | **代理只作用于 HttpURLConnection（GitHub 更新检查/FM 数据下载），绝不全局生效**。`Launcher` 设 `http(s).proxyHost/Port`，来源优先级 `-D` > `HTTPS_PROXY/HTTP_PROXY` 环境变量（仅终端启动可见，GUI 双击无 shell 环境）> Windows 系统代理注册表（`SystemProxyResolver` 读 `HKCU\...\Internet Settings`，Clash/v2rayN 写这里；支持 `host:port` 与协议列表两种 ProxyServer 形式）。**禁止设 `java.net.useSystemProxies=true`**（1.586 线上回归根因）：JDK 8 裸 Socket（`SocksSocketImpl.connect`）每个连接都查 ProxySelector，系统代理为 `host:port` 简写时 JDK 原生实现把它当 SOCKS 返回 → 连 `127.0.0.1:8111` 都进代理隧道；系统代理分支不检查默认 nonProxyHosts，ProxyOverride 又只做字符串前缀匹配（`127.*` 匹配不到 `127.0.0.1`，只有 `localhost` 命中）。8111 的裸 Socket 一律 `new Socket(Proxy.NO_PROXY)`（OneShotHttp/OtherService/fmCmd），本地流量永不经过代理。**不做端口扫描探测**（用户拍板）：只开本地端口没开系统代理的工具属于用户侧开关没开，不代猜 |
 
 ### 工具类去向（禁止自写）
@@ -193,6 +194,8 @@ python script/build.py fmdata-upload
 - 预览态显示值也归组件：`preview` 是组件自己的演示文本，`template` 只负责宽度防抖；预览时文本组件不被全局演示数据覆盖。
 - 出厂默认必须与旧版一致：**三个文字标签全关**，右列按 3.5 行高；旧版默认预览是 `α 20`、`0/100`、数据区不显示襟翼文字但显示 `BRK/GEA`。不要把 ALT/SEP 标签带进默认布局；导入旧配置时才按旧开关还原标签偏好。
 - 老用户升级时，旧逐项开关会一次性换算成等价布局；窗口位置/字体/大小等偏好不动；旧开关随后消失。旧版三个标签全关时右列会收窄到 3.5 行高，迁移/默认布局必须按标签状态选几何，不能只改 label 文本。未发布的相对父子布局（V1）会提取标签/可见性偏好后重建为自由画布。
+- MiniHUD 设置页首个组是「功能列表」：用只读 `help` 行逐项列出画布组件，悬浮复用 `:desc`/`:desc-img` 显示说明与旧版示意图；`help` 行不绑配置、不参与 `withInterest`，一行用 `:column 4` 放多个。新增组件时同步补一条。
+- **机场距离面板是普通画布组件**：`MiniHudWidgets` 注册 `airfield` 类型，`AirfieldWidget` 包住 `MiniHudAirfieldPanel`；进入 `miniHudLayout`/`scene`，可选中、拖动、缩放、调图层、撤销与持久化。**不要再为单个面板开 overlay 原生特例**（早期把机场面板放在 `MiniHUDOverlay` 里特殊定位，导致编辑器无法拖动，已改正）。默认布局在内容右侧放一个机场组件；V2 布局加载时由 `MiniHUDOverlay` 一次性补组件并落盘为 V3，V3 文档里用户删除后不会自动重现。机场数据由 `Service` 每 10 个轮询周期从 `/map_obj.json` 解析（`MapObj.parseAirfields` + `resolveAirfields`），归一化坐标 × `/map_info.json` 的 `grid_size` 得米数；**不要用 `cmapmaxsize`（map_max-map_min）代替 `grid_size`**，真机快照两者不相等。只显示跑道 >600m 的机场，blink≠0 或红色系判敌军，按距离升序。`Airfield` 还携带世界方位（箭头方向 = 方位 - 当前航向）和地图网格（与玩家 mapGrid 同一公式）。配置在 MainForm「MiniHUD → 机场面板」组：箭头指向/全部或最近/地图区域/友军颜色/敌军颜色/告警距离（默认 5km）；**只有敌军机场会告警**，告警时文字颜色不变、整行琥珀色方框按 400ms 闪烁。配置键全部进 `withInterest` 实时刷新。阵亡/观战/过渡帧没有 Player 图标或玩家非活动时，`Service` 清空机场列表——地图此时仍会返回整图机场，坐标不可信；阵亡判定统一走公共 `MapObj.isPlayerDead(json[, loc])`（无 Player 图标或坐标越界），不要在调用方重复实现。死亡检测要先于 `formatDataAsStrings()` 清空，否则本帧事件会把旧列表推给 EDT。机场行数/宽度变化时组件首选尺寸变化，EDT 用 `scene.syncPreferredSizes()` 触发重新适配（拖动中冻结）。
 - 改渲染/布局后先用离屏快照 + 基线对比确认（工具在本地 `build/`，不进 git），不要只看编译，也不要把效果验证全推给测试同学。
 
 ### 子模块文档

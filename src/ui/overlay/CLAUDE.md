@@ -38,6 +38,8 @@ DraggableOverlay (ui/base/, WebLaF 可拖拽窗)
 
 **自由画布（v1.587+）**：MiniHUD 的内容/位置由用户布局决定，旧 `showHUD*` 开关已删除。所有组件保存画布绝对坐标，没有父子/锚点；窗口跟随内容包围盒，保存画布原点的屏幕锚点，内容增删或字体变化时其他组件不漂。**不要改回保存窗口左上角**：内容包围盒一变，整个 HUD 会跟着漂。仅设置窗预览态可编辑：**默认只读（只显示「编辑」按钮）**，点「编辑」后才能多选、拖动、缩放、右键增删/改属性；编辑态显示边界框、图层、撤销/重做，游戏态只读。布局存在 MiniHUD 面板的隐藏配置项里，随配置合并/导入/出厂一起走；老配置升级时一次性换算，窗口位置/字体等偏好不动。所有显示方式（表速/马赫、标签、高度来源、随体/离体）都是组件属性，无全局开关；襟翼条与数据区独立。组件扩展与原子类型约定见 `../component/CLAUDE.md`。
 
+**机场面板（画布组件，v1.587+）**：`airfield` 组件由 `AirfieldWidget` 包住 `MiniHudAirfieldPanel`，和普通组件一样进入 `miniHudLayout`/`scene`，可拖动、缩放、调图层、撤销与持久化；**不要再把面板放回 `MiniHUDOverlay` 特殊定位**。机场数据来自 `Service.airfields`（`MapObj` 每 10 个轮询周期解析 map_obj，按 `grid_size` 换算米制，过滤 600m 以下跑道），通过 `WidgetBuildContext.airfields` 注入；行数/宽度变化时组件首选尺寸变化，EDT 用 `scene.syncPreferredSizes()` 触发 `layoutAndFit()`，不要每帧重建字符串或重排窗口。配置项（箭头/全部或最近/地图区域/友敌颜色/告警距离）在 `AirfieldWidget` 构造时传给 `configure()`；预览态用 `MiniHudPreviewData` 演示行，游戏态用 `Service.airfields`。箭头是矢量绘制，不依赖字体含箭头字形；**必须用浮点 `Path2D` 画柄和三角**，整数坐标四舍五入会让箭头底边中点偏离柄轴线，出现“头歪一点”的像素错位。**只有敌军机场告警**：文字颜色保持不变，整行画琥珀色方框并按系统时钟 400ms 相位闪烁。`Service.airfields` 在阵亡/观战/无 Player 图标时会被清空，组件随下一次数据更新隐藏。
+
 准星已拆为独立 `CrosshairOverlay`（配置面板「准星」）。它的面板 x/y 表示**窗口中心**（不是左上角），改大小时围绕中心缩放；`saveCurrentPosition()` 也存中心点。`CrosshairGauge` 矢量臂自然外接 `2×width`，开窗按此留 padding。
 
 ## 性能
@@ -62,4 +64,5 @@ paint/draw 零分配（Color/Font 缓存）；模板宽度防抖；脏检查。�
 | WYSIWYG 不刷新 | 配置键没进 `.withInterest()` |
 | 预览 NPE | initPreview 没有 Service，未用演示数据 |
 | 卡顿掉帧 | paint 分配对象 / 未脏检查 |
+| 失焦隐藏后按 P/FM 热键又冒出来 | BaseOverlay.run 每 200ms `setVisible(true)` 复活窗口；`isVisibleNow()` 和热键 toggle 都要检查 `AlwaysOnTopCoordinator.isOverlaysHidden()` |
 | 高分屏过大过小 | 未乘 dpiScale / 用了物理像素 |

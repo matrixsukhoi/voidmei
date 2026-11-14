@@ -2,7 +2,9 @@
 
 本包只负责把 `ui_layout.cfg` 动态生成设置面板：`FlexGridLayout`/`ResponsiveGridLayout` + `renderer/` 下的行渲染器（switch/slider/combo/data 等）。
 
-**MiniHUD 已不再使用本包**。MiniHUD 是自由画布：组件保存绝对坐标，没有父链/锚点/DAG；详见根 `CLAUDE.md`、`src/ui/overlay/CLAUDE.md`、`src/ui/component/CLAUDE.md`。
+**MiniHUD 的 HUD 布局已不再使用本包**。MiniHUD 是自由画布：组件保存绝对坐标，没有父链/锚点/DAG；详见根 `CLAUDE.md`、`src/ui/overlay/CLAUDE.md`、`src/ui/component/CLAUDE.md`。
+
+**HELP 行**（`HelpRowRenderer` + `ReplicaBuilder.createHelpItem`）用于只读功能说明列表：不绑定配置，悬浮显示 `:desc`/`:desc-img`；MiniHUD 设置页首个「功能列表」组用它。
 
 ## 常见坑
 
