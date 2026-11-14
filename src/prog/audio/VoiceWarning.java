@@ -49,6 +49,8 @@ public class VoiceWarning implements Runnable {
     Indicators indic;
     volatile Boolean doit;  // volatile 保证可见性
     private boolean playCompleted;
+    // 阵亡抑制：只停止一次 clip，避免每轮遍历
+    private boolean deathSilenced;
 
     // Legacy tool for direct playWav
     public void playWav(String Path) {
@@ -179,6 +181,21 @@ public class VoiceWarning implements Runnable {
                 return this.isAct;
             }
             return false;
+        }
+
+        /**
+         * 只停止当前播放并解除激活，不关闭/释放音频资源（阵亡抑制用）。
+         */
+        public void stopPlayback() {
+            Clip c = this.clip;
+            if (c != null && c.isRunning()) {
+                try {
+                    c.stop();
+                } catch (Exception e) {
+                    Logger.debug("VoiceAlert", "停止播放失败: " + key + " - " + e.getMessage());
+                }
+            }
+            this.isAct = false;
         }
 
         /**
@@ -358,6 +375,12 @@ public class VoiceWarning implements Runnable {
         doit = Boolean.TRUE;
     }
 
+    /** 阵亡瞬间停止仍在播放的告警 clip（不释放资源，重生后仍可用）。 */
+    private void stopAllAlerts() {
+        for (VoiceAlert alert : alerts.values())
+            alert.stopPlayback();
+    }
+
     /**
      * 初始化攻角告警
      */
@@ -533,6 +556,18 @@ public class VoiceWarning implements Runnable {
             // 告警线程（无日志），且线程无人重启（换机不重建 overlay），表现为全部
             // 语音告警失效 + fatalWarn 大叉冻结。异常轮跳过，线程必须存活
             try {
+                // 阵亡/观战期 playerLive 可能仍为 true（死亡回放），必须用地图状态收口：
+                // 不跑任何告警检测，清掉大叉，并停止仍在播放的余音
+                if (xS.isPlayerDeadOnMap()) {
+                    xS.fatalWarn = false;
+                    if (!deathSilenced) {
+                        stopAllAlerts();
+                        deathSilenced = true;
+                    }
+                    continue;
+                }
+                deathSilenced = false;
+
                 boolean fatal = false;
                 long t = xS.currentTimeMs;
 
