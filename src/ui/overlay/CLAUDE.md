@@ -65,4 +65,5 @@ paint/draw 零分配（Color/Font 缓存）；模板宽度防抖；脏检查。�
 | 预览 NPE | initPreview 没有 Service，未用演示数据 |
 | 卡顿掉帧 | paint 分配对象 / 未脏检查 |
 | 失焦隐藏后按 P/FM 热键又冒出来 | BaseOverlay.run 每 200ms `setVisible(true)` 复活窗口；`isVisibleNow()` 和热键 toggle 都要检查 `AlwaysOnTopCoordinator.isOverlaysHidden()` |
+| Alt+Tab 回游戏时已关闭的面板/曲线窗闪一下 | `showAllOverlays()` 无差别 `setVisible(true)`；coordinator 只应恢复失焦前本来可见的窗口 |
 | 高分屏过大过小 | 未乘 dpiScale / 用了物理像素 |

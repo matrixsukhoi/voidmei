@@ -626,7 +626,8 @@ public class DrawFrameSimpl extends DraggableOverlay {
 
 		AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
 		this.setCursor(Application.blankCursor);
-		setVisible(true);
+		// 游戏态默认隐藏，等 P 键切换；这里若设 true，run 循环休眠期间会闪一下
+		setVisible(false);
 
 	}
 

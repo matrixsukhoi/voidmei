@@ -29,7 +29,7 @@ public class FocusMonitor {
 
     /**
      * 启用/禁用焦点监控。
-     * 禁用时会恢复所有被隐藏的overlay。
+     * 禁用时恢复失焦前可见的overlay。
      *
      * @param enabled true启用焦点监控，false禁用
      */

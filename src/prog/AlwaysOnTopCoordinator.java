@@ -37,6 +37,13 @@ public class AlwaysOnTopCoordinator {
     /** 标记overlay是否因游戏失焦而被隐藏 */
     private volatile boolean overlaysHidden = false;
 
+    /**
+     * 失焦隐藏前本来就可见的窗口。
+     * 获焦恢复时只能唤醒这些窗口，否则会把用户主动关闭的拆包面板/曲线窗也短暂显示出来。
+     */
+    private final CopyOnWriteArrayList<WeakReference<Window>> previouslyVisibleOverlays =
+            new CopyOnWriteArrayList<>();
+
     private AlwaysOnTopCoordinator() {
         // Singleton
     }
@@ -202,9 +209,12 @@ public class AlwaysOnTopCoordinator {
         }
         overlaysHidden = true;
         cleanupDeadReferences();
+        previouslyVisibleOverlays.clear();
         for (WeakReference<Window> ref : overlays) {
             Window w = ref.get();
             if (w != null && w.isDisplayable() && w.isVisible()) {
+                // 记录失焦前的可见状态，获焦时按原样恢复
+                previouslyVisibleOverlays.add(new WeakReference<>(w));
                 setVisibleOnEDT(w, false);
             }
         }
@@ -222,14 +232,18 @@ public class AlwaysOnTopCoordinator {
             return;
         }
         overlaysHidden = false;
-        cleanupDeadReferences();
-        for (WeakReference<Window> ref : overlays) {
+        // 只恢复失焦前可见的窗口；用户主动关闭的拆包面板/曲线窗保持隐藏
+        int restored = 0;
+        for (WeakReference<Window> ref : previouslyVisibleOverlays) {
             Window w = ref.get();
             if (w != null && w.isDisplayable()) {
                 setVisibleOnEDT(w, true);
+                restored++;
             }
         }
-        prog.util.Logger.info("AlwaysOnTopCoordinator", "所有overlay已恢复 (游戏获焦)");
+        previouslyVisibleOverlays.clear();
+        prog.util.Logger.info("AlwaysOnTopCoordinator",
+                "已恢复失焦前可见的 overlay: " + restored + " (游戏获焦)");
     }
 
     /**
