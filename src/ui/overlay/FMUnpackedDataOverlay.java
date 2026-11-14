@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import parser.Blkx;
 import ui.model.FMDataAdapter;
 
+import prog.AlwaysOnTopCoordinator;
 import prog.Controller;
 import prog.config.ConfigProvider;
 import prog.config.OverlaySettings;
@@ -70,6 +71,9 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
 
         // Subscribe to toggle event
         toggleHandler = data -> {
+            // 失焦自动隐藏期间按 P 不应唤出拆包面板
+            if (AlwaysOnTopCoordinator.getInstance().isOverlaysHidden())
+                return;
             this.visible = !this.visible;
             Logger.debug("FMUnpackedDataOverlay", "Toggled visible: " + visible);
         };
@@ -323,7 +327,7 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
 
     @Override
     protected boolean isVisibleNow() {
-        return visible;
+        return visible && !AlwaysOnTopCoordinator.getInstance().isOverlaysHidden();
     }
 
     @Override

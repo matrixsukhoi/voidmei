@@ -524,6 +524,9 @@ public class DrawFrameSimpl extends DraggableOverlay {
 
 		// Subscribe to toggle event
 		toggleHandler = data -> {
+			// 失焦自动隐藏期间按 P 不应唤出曲线窗
+			if (AlwaysOnTopCoordinator.getInstance().isOverlaysHidden())
+				return;
 			this.visible = !this.visible;
 			Logger.debug("DrawFrameSimpl", "Toggled visible: " + visible);
 		};
@@ -736,8 +739,10 @@ public class DrawFrameSimpl extends DraggableOverlay {
 	@Override
 	public void run() {
 		while (doit) {
-			// Self-managed visibility: preview always visible, game mode uses toggle state
-			boolean shouldShow = isPreview || visible;
+			// Self-managed visibility: preview always visible, game mode uses toggle state;
+			// 失焦自动隐藏期间强制隐藏，避免 run 循环把窗口复活
+			boolean shouldShow = isPreview
+					|| (visible && !AlwaysOnTopCoordinator.getInstance().isOverlaysHidden());
 			if (shouldShow) {
 				// 只在窗口不可见时才调用 setVisible(true)，避免周期性触发焦点抢占
 				// 某些窗口管理器下，对 alwaysOnTop 窗口重复调用 setVisible(true) 会触发窗口激活事件

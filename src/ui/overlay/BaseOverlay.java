@@ -13,6 +13,7 @@ import ui.base.DraggableOverlay;
 import com.alee.extended.layout.VerticalFlowLayout;
 import prog.util.Logger;
 
+import prog.AlwaysOnTopCoordinator;
 import prog.Application;
 import static ui.util.UIConstants.*;
 
@@ -232,7 +233,13 @@ public class BaseOverlay extends DraggableOverlay {
             if (shouldExit())
                 break;
 
-            if (isPreview || isVisibleNow()) {
+            // 失焦自动隐藏期间禁止任何 overlay 自行 setVisible(true) 复活
+            // （P 热键切出的 FM 面板正是靠这个循环重新出现的）
+            if (!isPreview && AlwaysOnTopCoordinator.getInstance().isOverlaysHidden()) {
+                if (this.isVisible()) {
+                    this.setVisible(false);
+                }
+            } else if (isPreview || isVisibleNow()) {
                 List<String> currentData = dataSupplier.get();
                 if (currentData != null && !currentData.equals(lastData)) {
                     Logger.info("BaseOverlay", "Data changed (Lines: " + currentData.size() + "). Updating UI.");

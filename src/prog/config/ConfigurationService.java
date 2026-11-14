@@ -568,8 +568,8 @@ public class ConfigurationService implements ConfigProvider {
 
         @Override
         public boolean autoHideOnFocusLoss() {
-            // 从全局设置读取配置，默认关闭
-            return getBool("autoHideOnFocusLoss", false);
+            // 默认开启：失焦时隐藏所有 overlay
+            return getBool("autoHideOnFocusLoss", true);
         }
     }
 
